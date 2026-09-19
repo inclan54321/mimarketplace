@@ -1,0 +1,76 @@
+{
+  "project_info": {
+    "project_number": "763073770103",
+    "project_id": "mimarketplace-c91b3",
+    "storage_bucket": "mimarketplace-c91b3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:763073770103:android:879451d0d497158654cc72",
+        "android_client_info": {
+          "package_name": "com.example.fluter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "763073770103-r59b5o374gam7u8lk7u762aolrbtd2qt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fluter",
+            "certificate_hash": "5f9a5be88a1ea1c048aa12f73f86f8b93dfce652"
+          }
+        },
+        {
+          "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBhxcVtdAeZ0rORtju6pavz4jQblhj8tU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:763073770103:android:78764195a0b07b0854cc72",
+        "android_client_info": {
+          "package_name": "com.example.mimarketplace"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBhxcVtdAeZ0rORtju6pavz4jQblhj8tU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
