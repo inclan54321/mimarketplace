@@ -53,11 +53,8 @@ const uploadAudio = multer({
 });
 
 const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'railway',
-    password: 'Knives1997.1',
-    port: 5432,
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
 });
 
 // ============================================================
