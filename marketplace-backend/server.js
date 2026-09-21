@@ -244,7 +244,7 @@ NO agregues texto adicional. SOLO el JSON.`;
             max_tokens: 200,
         }, {
             headers: {
-                'Authorization': `Bearer ${DEEPSEEK_KEY}`,
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             timeout: 30000
@@ -2114,7 +2114,7 @@ REGLAS:
             max_tokens: 300,
         }, {
             headers: {
-                'Authorization': `Bearer ${DEEPSEEK_KEY}`,
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             timeout: 30000
@@ -2350,7 +2350,7 @@ Responde ÚNICAMENTE con un JSON válido:
             max_tokens: 80,
         }, {
             headers: {
-                'Authorization': `Bearer ${DEEPSEEK_KEY}`,
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             timeout: 10000

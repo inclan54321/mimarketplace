@@ -1,0 +1,8 @@
+[33mcommit c914bf963f4f3b74bcdc2724da48c071fbf72aff[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Inclan54321 <tucorreo@dominio.com>
+Date:   Sun Sep 20 19:05:59 2026 -0600
+
+    agregar axios
+
+ marketplace-backend/server.js | 6 [32m+++[m[31m---[m
+ 1 file changed, 3 insertions(+), 3 deletions(-)

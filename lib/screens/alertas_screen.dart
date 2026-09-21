@@ -77,7 +77,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('✅ Producto renovado por 10 minutos más'),
+                  content: Text('✅ Producto renovado por 30 días más'),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -310,7 +310,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                             child: ElevatedButton.icon(
                                               onPressed: () => _renovarProducto(alerta),
                                               icon: const Icon(Icons.refresh, size: 16),
-                                              label: const Text('Renovar con anuncio'),
+                                              label: const Text('Renovar por 30 días'),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.orange,
                                                 foregroundColor: Colors.white,
