@@ -564,7 +564,7 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
         const result = await pool.query(
             `INSERT INTO productos_app 
             (nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_url, vendedor_nombre, provincia, imagen_destacada, imagenes_reales, estado_moderacion, estado, fecha_expiracion, imagen_miniatura) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pendiente', 'activo', NOW() + INTERVAL '5 minutes', $13) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pendiente', 'activo', NOW() + INTERVAL '30 days', $13) 
             RETURNING *`,
             [nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_principal_url || '', vendedor_nombre, provincia, imagen_destacada_url, imagenes_reales_json, imagen_miniatura_url || '']
         );
@@ -2215,8 +2215,8 @@ app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, r
             `INSERT INTO productos_app 
             (nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, 
              imagen_url, vendedor_nombre, provincia, imagen_destacada, imagenes_reales, 
-             estado_moderacion, estado_ia_destacada, destacada_publicada) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pendiente', 'pendiente', false) 
+             estado_moderacion, estado_ia_destacada, destacada_publicada, fecha_expiracion) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pendiente', 'pendiente', false, NOW() + INTERVAL '30 days') 
             RETURNING id`,
             [
                 nombre || 'Producto en revisión',
@@ -2423,7 +2423,7 @@ app.post('/api/productos/renovar/:id', async (req, res) => {
         const updateQuery = `
             UPDATE productos_app 
             SET estado = 'activo', 
-                fecha_expiracion = NOW() + INTERVAL '10 minutes'
+                fecha_expiracion = NOW() + INTERVAL '30 days'
             WHERE id = $1 
             RETURNING *
         `;
@@ -2446,15 +2446,15 @@ app.post('/api/productos/renovar/:id', async (req, res) => {
             [
                 usuario_id,
                 id,
-                `🔄 Tu producto "${nombre}" ha sido renovado por 10 minutos más.`,
+                `🔄 Tu producto "${nombre}" ha sido renovado por 30 días más.`,
                 'exito'
             ]
         );
 
-        console.log(`>>> ✅ Producto ${id} renovado por 10 minutos`);
+        console.log(`>>> ✅ Producto ${id} renovado por 30 días`);
 
         res.json({
-            mensaje: '✅ Producto renovado por 10 minutos más',
+            mensaje: '✅ Producto renovado por 30 días más',
             producto: result.rows[0]
         });
 
