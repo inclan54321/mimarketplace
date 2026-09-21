@@ -26,7 +26,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       print('Cargando mensajes...');
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/mensajes/1'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes/1'),
       );
       print('Status code: ${response.statusCode}');
       print('Body: ${response.body}');
@@ -63,7 +63,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/mensajes'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'conversacion_id': '1',

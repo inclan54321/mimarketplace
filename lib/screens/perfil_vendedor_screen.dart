@@ -38,7 +38,7 @@ class _PerfilVendedorScreenState extends State<PerfilVendedorScreen> {
     try {
       // 1. OBTENER CALIFICACIONES
       final califResponse = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/calificaciones/${widget.vendedorId}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones/${widget.vendedorId}'),
       );
       if (califResponse.statusCode == 200) {
         final List data = jsonDecode(califResponse.body);
@@ -49,7 +49,7 @@ class _PerfilVendedorScreenState extends State<PerfilVendedorScreen> {
 
       // 2. OBTENER RESUMEN DE CALIFICACIONES
       final resumenResponse = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/calificaciones/resumen/${widget.vendedorId}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones/resumen/${widget.vendedorId}'),
       );
       if (resumenResponse.statusCode == 200) {
         final data = jsonDecode(resumenResponse.body);
@@ -61,7 +61,7 @@ class _PerfilVendedorScreenState extends State<PerfilVendedorScreen> {
 
       // 3. OBTENER EMAIL DEL VENDEDOR
       final emailResponse = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/perfil/email/${widget.vendedorId}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/perfil/email/${widget.vendedorId}'),
       );
       if (emailResponse.statusCode == 200) {
         final data = jsonDecode(emailResponse.body);
@@ -78,7 +78,7 @@ class _PerfilVendedorScreenState extends State<PerfilVendedorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final baseUrl = 'http://192.168.100.248:3000';
+    final baseUrl = 'https://mimarketplace-production.up.railway.app';
 
     return Scaffold(
       appBar: AppBar(

@@ -203,7 +203,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.100.248:3000/api/productos'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/productos'),
       );
 
       request.fields['nombre'] = _nombreController.text;

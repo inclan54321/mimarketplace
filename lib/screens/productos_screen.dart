@@ -98,8 +98,8 @@ class ProductosScreen extends StatelessWidget {
                                ? CachedNetworkImage(
                                    imageUrl: (() {
                                      final url = producto.imagenMiniatura != null && producto.imagenMiniatura!.isNotEmpty
-                                         ? 'http://192.168.100.248:3000${producto.imagenMiniatura}'
-                                         : 'http://192.168.100.248:3000${producto.imagenUrl}';
+                                         ? 'https://mimarketplace-production.up.railway.app${producto.imagenMiniatura}'
+                                         : 'https://mimarketplace-production.up.railway.app${producto.imagenUrl}';
                                      print('>>> 🖼️ CARGANDO IMAGEN PARA ${producto.nombre}: $url');
                                      return url;
                                    })(),

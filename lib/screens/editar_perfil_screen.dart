@@ -37,7 +37,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/usuarios/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
       );
 
       if (response.statusCode == 200) {
@@ -86,7 +86,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
       // 🔥 ACTUALIZAR EN EL BACKEND
       final response = await http.put(
-        Uri.parse('http://192.168.100.248:3000/api/usuarios/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'nombre': nombre,

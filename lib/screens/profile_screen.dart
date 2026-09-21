@@ -80,7 +80,7 @@ Future<void> _cargarMasVistos() async {
     }
 
     final response = await http.get(
-      Uri.parse('http://192.168.100.248:3000/api/estadisticas/usuario/${user.uid}/ranking'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/estadisticas/usuario/${user.uid}/ranking'),
     );
 
     if (response.statusCode == 200) {
@@ -140,7 +140,7 @@ Future<void> _cargarMasVistos() async {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.100.248:3000/api/perfil/foto'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/perfil/foto'),
       );
       
       request.fields['uid'] = FirebaseAuth.instance.currentUser!.uid;
@@ -248,7 +248,7 @@ Future<void> _cargarMasVistos() async {
     // ✅ 2. CARGAR DEL SERVIDOR EN SEGUNDO PLANO (ACTUALIZAR)
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/favoritos/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos/${user.uid}'),
       );
       print('Status code: ${response.statusCode}');
       
@@ -294,7 +294,7 @@ Future<void> _cargarMasVistos() async {
 
     try {
       final resumenResponse = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/calificaciones/resumen/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones/resumen/${user.uid}'),
       );
       if (resumenResponse.statusCode == 200) {
         final data = jsonDecode(resumenResponse.body);
@@ -305,7 +305,7 @@ Future<void> _cargarMasVistos() async {
       }
 
       final califResponse = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/calificaciones/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones/${user.uid}'),
       );
       if (califResponse.statusCode == 200) {
         final List data = jsonDecode(califResponse.body);
@@ -367,7 +367,7 @@ Future<void> _cargarMasVistos() async {
 
       print('>>> ID DEL PRODUCTO A ELIMINAR: ${producto.id}');
       final response = await http.delete(
-        Uri.parse('http://192.168.100.248:3000/api/productos/${producto.id}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/${producto.id}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'vendedor_id': user.uid,
@@ -473,7 +473,7 @@ Future<void> _cargarMasVistos() async {
                                leading: CircleAvatar(
   backgroundColor: Colors.blue.shade100,
   backgroundImage: calif.calificadorFoto != null && calif.calificadorFoto!.isNotEmpty
-      ? CachedNetworkImageProvider('http://192.168.100.248:3000${calif.calificadorFoto}')
+      ? CachedNetworkImageProvider('https://mimarketplace-production.up.railway.app${calif.calificadorFoto}')
       : null,
   child: calif.calificadorFoto == null || calif.calificadorFoto!.isEmpty
       ? Text(calif.calificadorNombre?.isNotEmpty == true ? calif.calificadorNombre![0].toUpperCase() : '?')
@@ -520,7 +520,7 @@ Future<void> _cargarFotoPerfil() async {
 
   try {
     final response = await http.get(
-      Uri.parse('http://192.168.100.248:3000/api/perfil/foto/${user.uid}'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/perfil/foto/${user.uid}'),
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -538,7 +538,7 @@ Future<void> _precargarImagenPerfil() async {
   if (_fotoPerfilUrl != null && _fotoPerfilUrl!.isNotEmpty) {
     try {
       await precacheImage(
-        CachedNetworkImageProvider('http://192.168.100.248:3000$_fotoPerfilUrl'),
+        CachedNetworkImageProvider('https://mimarketplace-production.up.railway.app$_fotoPerfilUrl'),
         context,
       );
     } catch (e) {
@@ -576,7 +576,7 @@ Future<void> _precargarImagenPerfil() async {
                         radius: 35,
                         backgroundColor: Colors.blue.shade100,
                         backgroundImage: _fotoPerfilUrl != null && _fotoPerfilUrl!.isNotEmpty
-                            ? CachedNetworkImageProvider('http://192.168.100.248:3000$_fotoPerfilUrl')
+                            ? CachedNetworkImageProvider('https://mimarketplace-production.up.railway.app$_fotoPerfilUrl')
                             : null,
                         child: _fotoPerfilUrl == null || _fotoPerfilUrl!.isEmpty
                             ? Text(
@@ -711,7 +711,7 @@ Future<void> _precargarImagenPerfil() async {
                     radius: 70,
                     backgroundColor: Colors.blue.shade100,
                    backgroundImage: _fotoPerfilUrl != null && _fotoPerfilUrl!.isNotEmpty
-    ? CachedNetworkImageProvider('http://192.168.100.248:3000$_fotoPerfilUrl')
+    ? CachedNetworkImageProvider('https://mimarketplace-production.up.railway.app$_fotoPerfilUrl')
     : null,
                     child: _fotoPerfilUrl == null || _fotoPerfilUrl!.isEmpty
                         ? Text(
@@ -925,8 +925,8 @@ Future<void> _precargarImagenPerfil() async {
                       borderRadius: BorderRadius.circular(8),
                       child: CachedNetworkImage(
                         imageUrl: producto.imagenMiniatura != null && producto.imagenMiniatura!.isNotEmpty
-                            ? 'http://192.168.100.248:3000${producto.imagenMiniatura}'
-                            : 'http://192.168.100.248:3000${producto.imagenUrl}',
+                            ? 'https://mimarketplace-production.up.railway.app${producto.imagenMiniatura}'
+                            : 'https://mimarketplace-production.up.railway.app${producto.imagenUrl}',
                         width: 50,
                         height: 50,
                         fit: BoxFit.cover,
@@ -1015,8 +1015,8 @@ Future<void> _precargarImagenPerfil() async {
                       borderRadius: BorderRadius.circular(8),
                       child: CachedNetworkImage(
                         imageUrl: producto.imagenMiniatura != null && producto.imagenMiniatura!.isNotEmpty
-                            ? 'http://192.168.100.248:3000${producto.imagenMiniatura}'
-                            : 'http://192.168.100.248:3000${producto.imagenUrl}',
+                            ? 'https://mimarketplace-production.up.railway.app${producto.imagenMiniatura}'
+                            : 'https://mimarketplace-production.up.railway.app${producto.imagenUrl}',
                         width: 50,
                         height: 50,
                         fit: BoxFit.cover,
@@ -1055,7 +1055,7 @@ Future<void> _precargarImagenPerfil() async {
                         if (user == null) return;
 
                         final response = await http.delete(
-                          Uri.parse('http://192.168.100.248:3000/api/favoritos'),
+                          Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos'),
                           headers: {'Content-Type': 'application/json'},
                           body: jsonEncode({
                             'usuario_id': user.uid,

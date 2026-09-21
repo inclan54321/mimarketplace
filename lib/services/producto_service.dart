@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/producto.dart';
 
 class ProductoService {
-  static const String baseUrl = 'http://192.168.100.248:3000';
+  static const String baseUrl = 'https://mimarketplace-production.up.railway.app';
 
   Future<List<Producto>> getProductosByCategoria(String categoria, {List<String>? bloqueados}) async {
     try {

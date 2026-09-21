@@ -27,7 +27,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
       if (user == null) return;
 
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/usuarios/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
       );
 
       if (response.statusCode == 200) {
@@ -51,7 +51,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
       setState(() => _isSaving = true);
 
       final response = await http.put(
-        Uri.parse('http://192.168.100.248:3000/api/usuarios/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'acepta_recoleccion': _aceptaRecoleccion,

@@ -27,7 +27,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
       if (user == null) return;
 
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/alertas/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/alertas/${user.uid}'),
       );
 
       if (response.statusCode == 200) {
@@ -68,7 +68,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
       onRewarded: () async {
         try {
           final response = await http.post(
-            Uri.parse('http://192.168.100.248:3000/api/productos/renovar/$productoId'),
+            Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/renovar/$productoId'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'usuario_id': user.uid}),
           );
@@ -153,7 +153,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
       if (user == null) return;
 
       final response = await http.delete(
-        Uri.parse('http://192.168.100.248:3000/api/alertas/limpiar/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/alertas/limpiar/${user.uid}'),
       );
 
       if (response.statusCode == 200) {

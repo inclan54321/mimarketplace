@@ -122,7 +122,7 @@ class NotificationService {
       if (token == null) return;
 
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/usuarios/fcm-token'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/fcm-token'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'uid': uid,

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ChatService {
-  static const String baseUrl = 'http://192.168.100.248:3000/api';
+  static const String baseUrl = 'https://mimarketplace-production.up.railway.app/api';
 
   Future<List<dynamic>> getConversaciones(String usuarioId) async {
     final response = await http.get(
@@ -39,7 +39,7 @@ class ChatService {
   Future<Map<String, dynamic>> verificarCalificacionPendiente(String conversacionId, String usuarioId) async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/conversaciones/$conversacionId/calificacion-pendiente?usuario_id=$usuarioId'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId/calificacion-pendiente?usuario_id=$usuarioId'),
       );
 
       // 🔥 PRINT DE LA RESPUESTA CRUDA

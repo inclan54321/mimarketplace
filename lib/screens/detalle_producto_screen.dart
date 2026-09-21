@@ -40,7 +40,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   Future<void> _verificarFavorito() async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/favoritos/$_usuarioId'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos/$_usuarioId'),
       );
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -59,7 +59,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
 
     if (_isFavorito) {
       final response = await http.delete(
-        Uri.parse('http://192.168.100.248:3000/api/favoritos'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'usuario_id': _usuarioId,
@@ -72,7 +72,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
       }
     } else {
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/favoritos'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'usuario_id': _usuarioId,
@@ -119,7 +119,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   Future<bool> _verificarBloqueo(String vendedorId) async {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/bloquear/verificar/$_usuarioId/$vendedorId'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear/verificar/$_usuarioId/$vendedorId'),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -138,7 +138,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     print('>>> Usuario que bloquea: $_usuarioId');
     
     final response = await http.post(
-      Uri.parse('http://192.168.100.248:3000/api/bloquear'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'usuario_bloquea': _usuarioId,
@@ -200,7 +200,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     print('>>> Usuario que desbloquea: $_usuarioId');
     
     final response = await http.delete(
-      Uri.parse('http://192.168.100.248:3000/api/bloquear'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'usuario_bloquea': _usuarioId,
@@ -489,7 +489,7 @@ Future<void> _enviarDenuncia(String motivo) async {
     }
 
     final response = await http.post(
-      Uri.parse('http://192.168.100.248:3000/api/denuncias'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/denuncias'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'denunciante_id': user.uid,
@@ -530,7 +530,7 @@ Future<void> _enviarDenuncia(String motivo) async {
       final lng = latLng[1].replaceAll('Lng: ', '').trim();
 
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/geocode/$lat/$lng'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/geocode/$lat/$lng'),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -547,7 +547,7 @@ Future<void> _enviarDenuncia(String motivo) async {
 
   Widget _buildImageCarousel() {
   List<String> imagenes = [];
-  final baseUrl = 'http://192.168.100.248:3000';
+  final baseUrl = 'https://mimarketplace-production.up.railway.app';
 
   if (_producto.imagenUrl != null && _producto.imagenUrl!.isNotEmpty) {
     imagenes.add(_producto.imagenUrl!);
@@ -682,7 +682,7 @@ Future<void> _enviarDenuncia(String motivo) async {
     print('>>> imagenesReales: ${_producto.imagenesReales}');
     print('>>> vendedorFoto en Detalle: ${_producto.vendedorFoto}');
 
-    final baseUrl = 'http://192.168.100.248:3000';
+    final baseUrl = 'https://mimarketplace-production.up.railway.app';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -793,7 +793,7 @@ Future<void> _enviarDenuncia(String motivo) async {
                           print('>>> 3. PRODUCTO: ${_producto.nombre}');
                           print('>>> 4. IMAGEN URL: ${_producto.imagenUrl}');
                           final convResponse = await http.get(
-                            Uri.parse('http://192.168.100.248:3000/api/conversaciones/${user.uid}'),
+                            Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/${user.uid}'),
                           );
                           if (convResponse.statusCode == 200) {
                             final List conversaciones = jsonDecode(convResponse.body);
@@ -829,7 +829,7 @@ Future<void> _enviarDenuncia(String motivo) async {
                           }
                           print('>>> No existe conversación, creando nueva...');
                           final response = await http.post(
-                            Uri.parse('http://192.168.100.248:3000/api/conversaciones'),
+                            Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones'),
                             headers: {'Content-Type': 'application/json'},
                             body: jsonEncode({
                               'usuario1_id': user.uid,

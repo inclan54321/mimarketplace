@@ -27,6 +27,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _bloqueados = [];
   List<Producto> _productosDestacados = []; // 🔥 NUEVA VARIABLE
 final TextEditingController _busquedaController = TextEditingController();
+
+  // 🔥 NUEVO: FILTROS (SOLO UI POR AHORA)
+  bool _filtrosActivos = false;
   final List<String> categorias = [
     'Electrónicos',
     'Ropa',
@@ -60,7 +63,7 @@ final TextEditingController _busquedaController = TextEditingController();
       if (uid.isEmpty) return [];
 
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/bloquear/$uid'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear/$uid'),
       );
 
       if (response.statusCode == 200) {
@@ -85,7 +88,7 @@ Future<void> _cargarProductosDestacados() async {
   try {
     print('>>> 1. INICIANDO CARGA DE DESTACADOS');
     final response = await http.get(
-      Uri.parse('http://192.168.100.248:3000/api/productos'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/productos'),
     );
     print('>>> 2. STATUS CODE: ${response.statusCode}');
     
@@ -129,6 +132,391 @@ Future<void> _cargarProductosDestacados() async {
         _showSwipeIndicator = false;
       });
     }
+  }
+
+  // ============ 🔥 NUEVO: MOSTRAR FILTROS (SOLO UI) ============
+  void _mostrarFiltros() {
+    // 🔥 Cantones de Costa Rica (ordenados alfabéticamente)
+    final List<String> cantones = [
+      'Todos',
+      'Abangares',
+      'Acosta',
+      'Alajuela',
+      'Alajuelita',
+      'Alvarado',
+      'Aserrí',
+      'Atenas',
+      'Bagaces',
+      'Barva',
+      'Belén',
+      'Buenos Aires',
+      'Cañas',
+      'Carrillo',
+      'Cartago',
+      'Corredores',
+      'Coto Brus',
+      'Curridabat',
+      'Desamparados',
+      'Dota',
+      'El Guarco',
+      'Escazú',
+      'Esparza',
+      'Flores',
+      'Garabito',
+      'Goicoechea',
+      'Golfito',
+      'Grecia',
+      'Guácimo',
+      'Guatuso',
+      'Heredia',
+      'Hojancha',
+      'Jiménez',
+      'La Cruz',
+      'La Unión',
+      'León Cortés',
+      'Liberia',
+      'Limón',
+      'Los Chiles',
+      'Matina',
+      'Monteverde',
+      'Montes de Oca',
+      'Montes de Oro',
+      'Mora',
+      'Moravia',
+      'Nandayure',
+      'Naranjo',
+      'Nicoya',
+      'Oreamuno',
+      'Orotina',
+      'Osa',
+      'Palmares',
+      'Paraíso',
+      'Parrita',
+      'Pérez Zeledón',
+      'Pococí',
+      'Poás',
+      'Puntarenas',
+      'Puriscal',
+      'Quepos',
+      'Río Cuarto',
+      'San Carlos',
+      'San Isidro',
+      'San José',
+      'San Mateo',
+      'San Pablo',
+      'San Rafael',
+      'San Ramón',
+      'Santa Ana',
+      'Santa Bárbara',
+      'Santa Cruz',
+      'Santo Domingo',
+      'Sarapiquí',
+      'Sarchí',
+      'Siquirres',
+      'Talamanca',
+      'Tarrazú',
+      'Tibás',
+      'Tilarán',
+      'Turrialba',
+      'Turrubares',
+      'Upala',
+      'Vásquez de Coronado',
+      'Zarcero',
+    ];
+
+    // 🔥 ESTADO LOCAL DEL MODAL (solo visual, no afecta nada real)
+    String cantonSeleccionado = 'Todos';
+    int estrellasTemp = 0;
+    final TextEditingController precioMinCtrl = TextEditingController();
+    final TextEditingController precioMaxCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateModal) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🔥 HEADER
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Icon(Icons.filter_list, color: Color(0xFF087FE8)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Filtrar productos',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 🔥 FILTRO 1: CANTÓN
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        '📍 Cantón',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: cantonSeleccionado,
+                            isExpanded: true,
+                            icon: const Icon(Icons.arrow_drop_down),
+                            menuMaxHeight: 350,
+                            items: cantones.map((c) {
+                              return DropdownMenuItem<String>(
+                                value: c,
+                                child: Text(c),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setStateModal(() {
+                                cantonSeleccionado = value ?? 'Todos';
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 🔥 FILTRO 2: ESTRELLAS
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        '⭐ Calificación mínima',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Wrap(
+                        spacing: 8,
+                        children: List.generate(5, (index) {
+                          final estrellas = index + 1;
+                          final activa = estrellasTemp >= estrellas;
+                          return GestureDetector(
+                            onTap: () {
+                              setStateModal(() {
+                                estrellasTemp =
+                                    estrellasTemp == estrellas ? 0 : estrellas;
+                              });
+                            },
+                            child: Icon(
+                              activa ? Icons.star : Icons.star_border,
+                              color: Colors.amber,
+                              size: 40,
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        estrellasTemp == 0
+                            ? 'Sin filtro de calificación'
+                            : '$estrellasTemp o más estrellas',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 🔥 FILTRO 3: PRECIO
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        '💰 Rango de precio (₡)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: precioMinCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Mín',
+                                prefixText: '₡ ',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: precioMaxCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                hintText: 'Máx',
+                                prefixText: '₡ ',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 🔥 BOTONES
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                setStateModal(() {
+                                  cantonSeleccionado = 'Todos';
+                                  estrellasTemp = 0;
+                                  precioMinCtrl.clear();
+                                  precioMaxCtrl.clear();
+                                });
+                              },
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text('Limpiar'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                // 🔥 SOLO UI: cerramos y mostramos SnackBar
+                                final hayFiltros = cantonSeleccionado != 'Todos' ||
+                                    estrellasTemp > 0 ||
+                                    precioMinCtrl.text.isNotEmpty ||
+                                    precioMaxCtrl.text.isNotEmpty;
+
+                                setState(() {
+                                  _filtrosActivos = hayFiltros;
+                                });
+
+                                Navigator.pop(context);
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      hayFiltros
+                                          ? '✅ Filtros aplicados'
+                                          : 'Sin filtros aplicados',
+                                    ),
+                                    backgroundColor: hayFiltros
+                                        ? Colors.green
+                                        : Colors.grey,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF087FE8),
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'Aplicar filtros',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // 🔥 ESPACIO EXTRA PARA QUE LOS BOTONES NO QUEDEN PEGADOS
+                    // A LA BARRA DE NAVEGACIÓN DEL TELÉFONO
+                    SizedBox(
+                      height: MediaQuery.of(context).viewPadding.bottom + 40,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -304,7 +692,7 @@ Future<void> _cargarProductosDestacados() async {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       if (uid.isNotEmpty) {
         final guardarResponse = await http.post(
-          Uri.parse('http://192.168.100.248:3000/api/busquedas-app'),
+          Uri.parse('https://mimarketplace-production.up.railway.app/api/busquedas-app'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'usuario_id': uid,
@@ -329,7 +717,7 @@ Future<void> _cargarProductosDestacados() async {
   if (value.length >= 2) {
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/productos/buscar?q=${Uri.encodeComponent(value)}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/buscar?q=${Uri.encodeComponent(value)}'),
       );
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -376,7 +764,35 @@ Future<void> _cargarProductosDestacados() async {
                                 },
                               ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.filter_list, color: Colors.black54, size: 24),
+                            Stack(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.filter_list,
+                                    color: Colors.black54,
+                                    size: 24,
+                                  ),
+                                  onPressed: _mostrarFiltros,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  tooltip: 'Filtrar',
+                                ),
+                                // 🔥 PUNTITO INDICADOR SI HAY FILTROS "APLICADOS"
+                                if (_filtrosActivos)
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -538,8 +954,8 @@ Future<void> _cargarProductosDestacados() async {
                                     child: producto.imagenUrl != null
                                         ? CachedNetworkImage(
                                             imageUrl: producto.imagenMiniatura != null && producto.imagenMiniatura!.isNotEmpty
-                                                ? 'http://192.168.100.248:3000${producto.imagenMiniatura}'
-                                                : 'http://192.168.100.248:3000${producto.imagenUrl}',
+                                                ? 'https://mimarketplace-production.up.railway.app${producto.imagenMiniatura}'
+                                                : 'https://mimarketplace-production.up.railway.app${producto.imagenUrl}',
                                             fit: BoxFit.cover,
                                             placeholder: (context, url) => Container(
                                               color: Colors.grey.shade200,
@@ -727,7 +1143,7 @@ Future<void> _cargarProductosDestacados() async {
                                               // 🔥 SOLO IMAGEN, SIN INFORMACIÓN
                                               producto.imagenDestacada != null && producto.imagenDestacada!.isNotEmpty
                                                   ? Image.network(
-                                                      'http://192.168.100.248:3000${producto.imagenDestacada}',
+                                                      'https://mimarketplace-production.up.railway.app${producto.imagenDestacada}',
                                                       fit: BoxFit.cover,
                                                       errorBuilder: (_, __, ___) => Container(
                                                         color: Colors.grey.shade200,
@@ -736,7 +1152,7 @@ Future<void> _cargarProductosDestacados() async {
                                                     )
                                                   : (producto.imagenUrl != null && producto.imagenUrl!.isNotEmpty
                                                       ? Image.network(
-                                                          'http://192.168.100.248:3000${producto.imagenUrl}',
+                                                          'https://mimarketplace-production.up.railway.app${producto.imagenUrl}',
                                                           fit: BoxFit.cover,
                                                           errorBuilder: (_, __, ___) => Container(
                                                             color: Colors.grey.shade200,

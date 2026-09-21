@@ -64,7 +64,7 @@ class _CalificarScreenState extends State<CalificarScreen> {
       }
 
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/calificaciones'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'calificado_id': widget.vendedorId,

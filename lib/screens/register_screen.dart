@@ -44,7 +44,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // 🔥 ENVIAR EL CAMPO DE CONSENTIMIENTO AL BACKEND
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/usuarios'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'uid': credential.user?.uid,

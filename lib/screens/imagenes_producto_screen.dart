@@ -400,7 +400,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.100.248:3000/api/mejorar-imagen-ia'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/mejorar-imagen-ia'),
       );
 
       request.files.add(
@@ -463,7 +463,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
     print('>>> 5. CREANDO REQUEST MULTIPART');
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://192.168.100.248:3000/api/revisar-imagen-destacada'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/revisar-imagen-destacada'),
     );
 
     print('>>> 6. AGREGANDO ARCHIVO...');

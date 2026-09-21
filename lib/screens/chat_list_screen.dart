@@ -53,7 +53,7 @@ class _ChatListScreenState extends State<ChatListScreen>
       if (user == null) return;
 
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/conversaciones/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/${user.uid}'),
       );
 
       if (response.statusCode == 200) {
@@ -83,7 +83,7 @@ class _ChatListScreenState extends State<ChatListScreen>
 
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/bloquear/${user.uid}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear/${user.uid}'),
       );
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -194,7 +194,7 @@ class _ChatListScreenState extends State<ChatListScreen>
     if (confirm == true) {
       try {
         final response = await http.delete(
-          Uri.parse('http://192.168.100.248:3000/api/conversaciones/$conversacionId'),
+          Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId'),
         );
 
         if (response.statusCode == 200) {
@@ -323,8 +323,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                                           ? CachedNetworkImage(
                                               imageUrl: chat['producto_imagen_miniatura'] != null &&
                                                       chat['producto_imagen_miniatura'].toString().isNotEmpty
-                                                  ? 'http://192.168.100.248:3000${chat['producto_imagen_miniatura']}'
-                                                  : 'http://192.168.100.248:3000${chat['producto_imagen']}',
+                                                  ? 'https://mimarketplace-production.up.railway.app${chat['producto_imagen_miniatura']}'
+                                                  : 'https://mimarketplace-production.up.railway.app${chat['producto_imagen']}',
                                               width: 50,
                                               height: 50,
                                               fit: BoxFit.cover,
@@ -483,8 +483,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                                         ? CachedNetworkImage(
                                             imageUrl: item['productoImagenMiniatura'] != null &&
                                                     item['productoImagenMiniatura'].toString().isNotEmpty
-                                                ? 'http://192.168.100.248:3000${item['productoImagenMiniatura']}'
-                                                : 'http://192.168.100.248:3000${item['productoImagen']}',
+                                                ? 'https://mimarketplace-production.up.railway.app${item['productoImagenMiniatura']}'
+                                                : 'https://mimarketplace-production.up.railway.app${item['productoImagen']}',
                                             width: 50,
                                             height: 50,
                                             fit: BoxFit.cover,

@@ -168,7 +168,7 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO. NO agregues texto adicional. NO uses c
             },
             {
                 headers: {
-                   'Authorization': `Bearer sk-5b2ce8cd035046aba9d7128a67595263`,
+                   'Authorization': `Bearer sk-caf5d299870944738158dac0973b7463`,
                     'Content-Type': 'application/json'
                 }
             }
@@ -221,7 +221,7 @@ RESPONDE ÚNICAMENTE CON ESTE JSON:
 
 NO agregues texto adicional. SOLO el JSON.`;
 
-        const DEEPSEEK_KEY = 'sk-5b2ce8cd035046aba9d7128a67595263';
+        const DEEPSEEK_KEY = 'sk-caf5d299870944738158dac0973b7463';
         const url = 'https://api.deepseek.com/v1/chat/completions';
 
         const response = await axios.post(url, {
@@ -2091,7 +2091,7 @@ REGLAS:
 - Si todo está bien → aprobado: true y calidad: buena
 - NO agregues texto adicional, SOLO el JSON.`;
 
-        const DEEPSEEK_KEY = 'sk-5b2ce8cd035046aba9d7128a67595263';
+        const DEEPSEEK_KEY = 'sk-caf5d299870944738158dac0973b7463';
         const url = 'https://api.deepseek.com/v1/chat/completions';
 
         const response = await axios.post(url, {
@@ -2325,7 +2325,7 @@ app.post('/api/analizar-chat', async (req, res) => {
             });
         }
 
-        const DEEPSEEK_KEY = 'sk-5b2ce8cd035046aba9d7128a67595263';
+        const DEEPSEEK_KEY = 'sk-caf5d299870944738158dac0973b7463';
         const url = 'https://api.deepseek.com/v1/chat/completions';
 
         const prompt = `Analiza este mensaje de un chat de marketplace y determina si hay señales de:

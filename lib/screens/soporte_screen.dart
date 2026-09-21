@@ -66,7 +66,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
 
       // 🔥 ENVIAR MENSAJE DE SOPORTE (el backend aún no existe, pero lo dejamos listo)
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/soporte'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/soporte'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'usuario_id': user.uid,

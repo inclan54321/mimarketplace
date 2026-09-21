@@ -21,6 +21,35 @@ class SellScreen extends StatelessWidget {
       'imagen': 'musica.png',
       'subcategorias': ['Guitarras', 'Pianos', 'Baterías', 'Vientos', 'Cuerdas'],
     },
+
+    'Cocina': {
+      'imagen': 'cocina.png',
+      'subcategorias': ['Ollas', 'Sartenes', 'Utensilios', 'Electrodomésticos', 'Vajilla'],
+    },
+    'Películas': {
+      'imagen': 'peliculas.png',
+      'subcategorias': ['Acción', 'Comedia', 'Drama', 'Terror', 'Ciencia Ficción'],
+    },
+    'Fotografía': {
+      'imagen': 'fotografia.png',
+      'subcategorias': ['Cámaras', 'Lentes', 'Trípodes', 'Iluminación', 'Accesorios'],
+    },
+    'Videojuegos': {
+      'imagen': 'videojuegos.png',
+      'subcategorias': ['Consolas', 'Juegos', 'Controles', 'Accesorios', 'Realidad Virtual'],
+    },
+    'Juegos de Mesa': {
+      'imagen': 'juegosdemesa.png',
+      'subcategorias': ['Cartas', 'Tableros', 'Estrategia', 'Familiares', 'Rol'],
+    },
+    'Juguetes': {
+      'imagen': 'juguetes.png',
+      'subcategorias': ['Peluches', 'Bloques', 'Muñecas', 'Carros', 'Didácticos'],
+    },
+    'Figuras': {
+      'imagen': 'figuras.png',
+      'subcategorias': ['Acción', 'Coleccionables', 'Anime', 'Estatua', 'Miniaturas'],
+    },
   };
 
   @override
@@ -38,7 +67,7 @@ class SellScreen extends StatelessWidget {
       resizeToAvoidBottomInset: false,
       body: SingleChildScrollView(
         child: SizedBox(
-          height: MediaQuery.of(context).size.height,
+                    height: 950,   // ← más alto para la fila 6 + botón
           child: Stack(
             children: [
               // ===== LÍNEA 1: Título =====
@@ -111,10 +140,10 @@ class SellScreen extends StatelessWidget {
               ),
 
               // ===== BOTÓN "TODAS LAS CATEGORÍAS" (MOVIBLE) =====
-              Positioned(
-                left: 20,    // ← Cambia esto para moverlo horizontalmente
-                right: 20,   // ← Si usas right, no uses left
-                top:430,// Cambia esto para subir/bajar el botón
+                                       Positioned(
+                left: 20,
+                right: 20,
+                top: 820,   // ← debajo de la nueva fila 6
                 child: Center(
                   child: ElevatedButton(
                     onPressed: () {
@@ -142,29 +171,82 @@ class SellScreen extends StatelessWidget {
                 ),
               ),
 
-              // ===== IMAGEN 1 (Electrónicos) =====
+              // ===== FILA 1 =====
+              // IMAGEN 1 (Electrónicos)
               Positioned(
                 left: 20,
                 top: 150,
                 child: _buildImage(context, categorias[0]),
               ),
-              // ===== IMAGEN 2 (Deportes) =====
+              // IMAGEN 2 (Deportes)
               Positioned(
                 right: 20,
                 top: 150,
                 child: _buildImage(context, categorias[1]),
               ),
-              // ===== IMAGEN 3 (Hogar) =====
+
+              // ===== FILA 2 =====
+              // IMAGEN 3 (Hogar)
               Positioned(
                 left: 20,
-                bottom: 400,
+                top: 245,
                 child: _buildImage(context, categorias[2]),
               ),
-              // ===== IMAGEN 4 (Música) =====
+              // IMAGEN 4 (Música)
               Positioned(
                 right: 20,
-                bottom: 400,
+                top: 245,
                 child: _buildImage(context, categorias[3]),
+              ),
+
+              // ===== FILA 3 =====
+              // IMAGEN 5 (Cocina)
+              Positioned(
+                left: 20,
+                top: 340,
+                child: _buildImage(context, categorias[4]),
+              ),
+              // IMAGEN 6 (Películas)
+              Positioned(
+                right: 20,
+                top: 340,
+                child: _buildImage(context, categorias[5]),
+              ),
+
+              // ===== FILA 4 =====
+              // IMAGEN 7 (Fotografía)
+              Positioned(
+                left: 20,
+                top: 435,
+                child: _buildImage(context, categorias[6]),
+              ),
+              // IMAGEN 8 (Videojuegos)
+              Positioned(
+                right: 20,
+                top: 435,
+                child: _buildImage(context, categorias[7]),
+              ),
+
+              // ===== FILA 5 =====
+              // IMAGEN 9 (Juegos de Mesa)
+              Positioned(
+                left: 20,
+                top: 530,
+                child: _buildImage(context, categorias[8]),
+              ),
+              // IMAGEN 10 (Juguetes)
+              Positioned(
+                right: 20,
+                top: 530,
+                child: _buildImage(context, categorias[9]),
+              ),
+
+              // ===== FILA 6 =====
+              // IMAGEN 11 (Figuras)
+              Positioned(
+                left: 20,
+                top: 625,
+                child: _buildImage(context, categorias[10]),
               ),
             ],
           ),

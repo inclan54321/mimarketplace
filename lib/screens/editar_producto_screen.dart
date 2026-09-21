@@ -65,7 +65,7 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
       // Preparar la petición
       var request = http.MultipartRequest(
         'PUT',
-        Uri.parse('http://192.168.100.248:3000/api/productos/${widget.producto.id}'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/${widget.producto.id}'),
       );
 
       request.fields['nombre'] = _nombreController.text;
@@ -116,7 +116,7 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final baseUrl = 'http://192.168.100.248:3000';
+    final baseUrl = 'https://mimarketplace-production.up.railway.app';
 
     return Scaffold(
       appBar: AppBar(

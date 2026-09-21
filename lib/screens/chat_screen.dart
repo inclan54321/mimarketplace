@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +7,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:animated_emoji/animated_emoji.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../models/producto.dart';
 import 'detalle_producto_screen.dart';
 import 'perfil_vendedor_screen.dart';
@@ -17,7 +19,8 @@ import 'package:audioplayers/audioplayers.dart';
 import '../widgets/ia_chat_button.dart';
 import '../services/chat_service.dart';        // 🔥 NUEVO
 import 'calificar_screen.dart';     
-import '../widgets/calificacion_widget.dart';           // 🔥 NUEVO
+import '../widgets/calificacion_widget.dart';    
+import 'package:shared_preferences/shared_preferences.dart';       // 🔥 NUEVO
 
 
 
@@ -58,7 +61,8 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _controller = TextEditingController();
   final TextEditingController _comentarioController = TextEditingController(); // 🔥 NUEVO
   final List<Map<String, String>> _mensajes = [];
@@ -67,6 +71,9 @@ class _ChatScreenState extends State<ChatScreen> {
   String _conversacionIdActual = '';
   Timer? _timer;
   String _fotoVendedorReal = '';
+
+  // 🔥 NUEVO: CACHÉ DE FOTOS DE PERFIL EN MEMORIA
+  final Map<String, String> _cacheFotosPerfil = {};
   int _calificacionSeleccionada = 0;
   ConversationStatus _conversationStatus = ConversationStatus.neutral;
   Set<int> _mensajesTachados = {};
@@ -89,6 +96,9 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _audioPlayingId;
   bool _isAudioPlaying = false;
 
+  // 🔥 NUEVO: REPRODUCTOR PARA SONIDOS DE UI (botón de grabación)
+  final AudioPlayer _uiSoundPlayer = AudioPlayer();
+
   // ============ 🔥 NUEVO: GRABACIÓN CON PRESIÓN LARGA ============
   double _micScale = 1.0;              // Para animación del botón
   bool _isSwipedToCancel = false;      // Para detectar deslizamiento
@@ -96,6 +106,15 @@ class _ChatScreenState extends State<ChatScreen> {
   String _recordingTime = '00:00';     // Tiempo de grabación
   Offset _startPosition = Offset.zero;  // 🔥 NUEVO: Posición donde se presionó
   bool _isDraggingOut = false;          // 🔥 NUEVO: Si el dedo está fuera del botón
+  bool _mostrarMensajeCancelar = false; // 🔥 NUEVO: Mostrar texto verde de cancelar
+
+  // 🔥 NUEVO: OVERLAY DEL CÍRCULO ROJO
+  final GlobalKey _audioButtonKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
+
+  // 🔥 NUEVO: ANIMACIÓN DEL CÍRCULO OSCILANTE
+  late AnimationController _oscilacionController;
+  late Animation<double> _oscilacionAnim;
     
 
   final List<AnimatedEmoji> _emociones = const [
@@ -184,6 +203,23 @@ void initState() {
   // 🔥 INICIALIZAR GRABADOR DE AUDIO
   _audioRecorder = FlutterSoundRecorder();
   _audioRecorder!.openRecorder();
+
+  // 🔥 INICIALIZAR ANIMACIÓN DEL CÍRCULO OSCILANTE
+  _oscilacionController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200), // velocidad del recorrido
+  );
+
+  // 🔥 Curva oscilante: 0 → 1 → 0 (ida y vuelta continua)
+  _oscilacionAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+    CurvedAnimation(
+      parent: _oscilacionController,
+      curve: Curves.easeInOut,
+    ),
+  );
+
+  // 🔥 Repetir infinitamente (reverse: true hace que vaya y vuelva)
+  _oscilacionController.repeat(reverse: true);
   
   // 🔥 CONFIGURAR REPRODUCTOR DE AUDIO
   _audioPlayer.onPlayerComplete.listen((event) {
@@ -238,11 +274,14 @@ void initState() {
 
 @override
 void dispose() {
+  _ocultarCirculoGrabacion(); // 🔥 ELIMINAR OVERLAY
+  _oscilacionController.dispose(); // 🔥 LIBERAR ANIMACIÓN
   _timerEmociones.cancel();
   _timer?.cancel();
   _controller.dispose();
   _audioRecorder?.closeRecorder();
   _audioPlayer.dispose();
+  _uiSoundPlayer.dispose();  // 🔥 LIBERAR REPRODUCTOR DE UI
   _recordingTimer?.cancel();  // 🔥 NUEVO
   super.dispose();
 }
@@ -264,7 +303,7 @@ void dispose() {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/conversaciones'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'usuario1_id': user.uid,
@@ -290,17 +329,75 @@ void dispose() {
   }
 
   Future<String> _getFotoPerfil(String usuarioId) async {
+    // 🔥 SI YA LA TENEMOS EN MEMORIA, DEVOLVERLA SIN PEDIR AL SERVIDOR
+    if (_cacheFotosPerfil.containsKey(usuarioId)) {
+      return _cacheFotosPerfil[usuarioId]!;
+    }
+
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/perfil/foto/$usuarioId'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/perfil/foto/$usuarioId'),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['foto_perfil'] ?? '';
+        final foto = data['foto_perfil'] ?? '';
+        // 🔥 GUARDAR EN CACHÉ
+        _cacheFotosPerfil[usuarioId] = foto;
+        return foto;
       }
       return '';
     } catch (e) {
       return '';
+    }
+  }
+  // ============ 🔥 NUEVO: CACHÉ DE MENSAJES ============
+  Future<void> _guardarMensajesEnCache(
+    String conversacionId,
+    List<Map<String, String>> mensajes,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'chat_cache_$conversacionId';
+      final jsonString = jsonEncode(mensajes);
+      await prefs.setString(key, jsonString);
+      print('>>> 💾 Caché guardada: ${mensajes.length} mensajes');
+    } catch (e) {
+      print('Error al guardar caché: $e');
+    }
+  }
+
+  Future<List<Map<String, String>>> _cargarMensajesDesdeCache(
+    String conversacionId,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'chat_cache_$conversacionId';
+      final jsonString = prefs.getString(key);
+      if (jsonString == null || jsonString.isEmpty) return [];
+
+      final List data = jsonDecode(jsonString);
+      return data.map((item) {
+        return {
+          'id': item['id']?.toString() ?? '',
+          'texto': item['texto']?.toString() ?? '',
+          'usuario_id': item['usuario_id']?.toString() ?? '',
+          'hora': item['hora']?.toString() ?? '',
+          'foto_perfil': item['foto_perfil']?.toString() ?? '',
+          'imagen': item['imagen']?.toString() ?? '',
+        };
+      }).toList();
+    } catch (e) {
+      print('Error al cargar caché: $e');
+      return [];
+    }
+  }
+
+  Future<void> _limpiarCache(String conversacionId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('chat_cache_$conversacionId');
+    } catch (e) {
+      print('Error al limpiar caché: $e');
     }
   }
 
@@ -310,15 +407,31 @@ void dispose() {
     return;
   }
 
+  // 🔥 SOLO mostrar el loading la primera vez
+  final bool esPrimeraCarga = _mensajes.isEmpty;
+
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
     setState(() => _isLoading = false);
     return;
   }
 
+  // 🔥 1. MOSTRAR CACHÉ INMEDIATAMENTE (si es la primera vez)
+  if (_mensajes.isEmpty) {
+    final cacheados = await _cargarMensajesDesdeCache(conversacionId);
+    if (cacheados.isNotEmpty && mounted) {
+      setState(() {
+        _mensajes.clear();
+        _mensajes.addAll(cacheados);
+        _isLoading = false;
+      });
+      print('>>> 💾 Cargados ${cacheados.length} mensajes desde caché');
+    }
+  }
+
   try {
     final response = await http.get(
-      Uri.parse('http://192.168.100.248:3000/api/mensajes/$conversacionId?usuario_id=${user.uid}'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes/$conversacionId?usuario_id=${user.uid}'),
     );
 
     if (response.statusCode == 200) {
@@ -338,15 +451,34 @@ void dispose() {
           'imagen': item['imagen'] ?? '',
         });
       }
-      setState(() {
-        _mensajes.clear();
-        _mensajes.addAll(mensajesConFotos);
-        _isLoading = false;
-      });
+      // 🔥 SOLO ACTUALIZAR SI HAY CAMBIOS
+      final hayCambios = _mensajes.length != mensajesConFotos.length ||
+          (_mensajes.isNotEmpty &&
+              mensajesConFotos.isNotEmpty &&
+              _mensajes.last['id'] != mensajesConFotos.last['id']);
+
+      if (hayCambios) {
+        setState(() {
+          _mensajes.clear();
+          _mensajes.addAll(mensajesConFotos);
+          _isLoading = false;
+        });
+        print('>>> 🔄 Mensajes actualizados (${mensajesConFotos.length})');
+      } else {
+        // 🔥 No hay cambios, solo actualizar `_isLoading` si es necesario
+        if (_isLoading) {
+          setState(() => _isLoading = false);
+        }
+      }
+
+      // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
+      await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
+
     } else {
       setState(() => _isLoading = false);
     }
   } catch (e) {
+    print('Error al cargar mensajes: $e');
     setState(() => _isLoading = false);
   }
 }
@@ -379,7 +511,7 @@ void dispose() {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/calificaciones/from-chat'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones/from-chat'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'conversacion_id': _conversacionIdActual,
@@ -440,7 +572,7 @@ Future<void> _obtenerFotoVendedorReal() async {
     print('>>> 1. ENTRE A _obtenerFotoVendedorReal()');
     print('>>> 2. widget.productoId: ${widget.productoId}');
     
-    final url = 'http://192.168.100.248:3000/api/productos/${widget.productoId}';
+    final url = 'https://mimarketplace-production.up.railway.app/api/productos/${widget.productoId}';
     print('>>> 3. URL COMPLETA: $url');
     
     final response = await http.get(Uri.parse(url));
@@ -457,7 +589,7 @@ Future<void> _obtenerFotoVendedorReal() async {
       
       if (vendedorId.isNotEmpty) {
         final fotoResponse = await http.get(
-          Uri.parse('http://192.168.100.248:3000/api/perfil/foto/$vendedorId'),
+          Uri.parse('https://mimarketplace-production.up.railway.app/api/perfil/foto/$vendedorId'),
         );
         print('>>> 9. FOTO STATUS: ${fotoResponse.statusCode}');
         if (fotoResponse.statusCode == 200) {
@@ -488,7 +620,7 @@ Future<void> _obtenerFotoVendedorReal() async {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/mensajes'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'conversacion_id': int.parse(_conversacionIdActual),
@@ -509,7 +641,7 @@ Future<void> _obtenerFotoVendedorReal() async {
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/analizar-chat'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/analizar-chat'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'mensaje': mensaje,
@@ -576,26 +708,68 @@ Future<void> _obtenerFotoVendedorReal() async {
 
   Future<void> _seleccionarImagen(ImageSource source) async {
     final picker = ImagePicker();
-    final imagen = await picker.pickImage(source: source);
+    
+    // 1️⃣ Elegir imagen
+    final XFile? imagen = await picker.pickImage(source: source);
     if (imagen == null) return;
+
+    // 2️⃣ Abrir pantalla de recorte
+    final CroppedFile? imagenRecortada = await ImageCropper().cropImage(
+      sourcePath: imagen.path,
+      compressFormat: ImageCompressFormat.jpg,
+      compressQuality: 90,
+      uiSettings: [
+        // 🔥 Configuración Android
+        AndroidUiSettings(
+          toolbarTitle: 'Recortar imagen',
+          toolbarColor: Colors.blue.shade700,   // igual que tu AppBar
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: false,               // permitir recorte libre
+          hideBottomControls: false,            // mostrar rotar, proporciones, etc.
+        ),
+        // 🔥 Configuración iOS
+        IOSUiSettings(
+          title: 'Recortar imagen',
+          cancelButtonTitle: 'Cancelar',
+          doneButtonTitle: 'Listo',
+          aspectRatioLockEnabled: false,
+        ),
+      ],
+    );
+
+    // Si el usuario cancela el recorte, no enviamos nada
+    if (imagenRecortada == null) return;
+
+    // 3️⃣ Enviar la imagen recortada
     setState(() => _enviandoImagen = true);
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.100.248:3000/api/mensajes'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
       );
       request.fields['conversacion_id'] = _conversacionIdActual;
       request.fields['usuario_id'] = FirebaseAuth.instance.currentUser?.uid ?? '';
       request.fields['texto'] = '📷 Imagen';
       request.files.add(
-        await http.MultipartFile.fromPath('imagen', imagen.path),
+        await http.MultipartFile.fromPath('imagen', imagenRecortada.path),
       );
       final response = await request.send();
       if (response.statusCode == 201) {
         await _cargarMensajes(_conversacionIdActual);
+      } else {
+        throw Exception('Error al enviar (status ${response.statusCode})');
       }
     } catch (e) {
       print('Error al enviar imagen: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al enviar imagen: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       setState(() => _enviandoImagen = false);
     }
@@ -657,7 +831,7 @@ Future<void> _enviarAudio(String audioPath) async {
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://192.168.100.248:3000/api/mensajes/audio'),
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes/audio'),
     );
 
     request.fields['conversacion_id'] = _conversacionIdActual;
@@ -715,12 +889,18 @@ Future<void> _startRecording() async {
       codec: Codec.aacMP4,
     );
     
+    // 🔥 SONIDO AL PRESIONAR
+    _reproducirSonidoUI('sounds/start_record.wav');
+    
     setState(() {
       _isRecording = true;
       _isSwipedToCancel = false;
       _micScale = 1.3;  // Agrandar el botón
       _recordingTime = '00:00';
     });
+
+    // 🔥 MOSTRAR CÍRCULO EN EL CENTRO DEL BOTÓN
+    _mostrarCirculoGrabacion();
 
     // 🔥 Iniciar timer para mostrar el tiempo
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -746,6 +926,16 @@ Future<void> _startRecording() async {
 // ============ 🔥 NUEVO: DETENER GRABACIÓN Y ENVIAR ============
 Future<void> _stopRecordingAndSend() async {
   if (!_isRecording) return;
+  
+  // 🔥 ELIMINAR CÍRCULO
+  _ocultarCirculoGrabacion();
+  
+  // 🔥 RESETEAR MENSAJE DE CANCELAR
+  _mostrarMensajeCancelar = false;
+  
+  // 🔥 SONIDO AL SOLTAR
+  _reproducirSonidoUI('sounds/stop_record.wav');
+  
 // 🔥 Cerrar cualquier SnackBar pendiente
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -813,6 +1003,15 @@ Future<void> _stopRecordingAndSend() async {
 void _cancelRecording() {
   if (!_isRecording) return;
   
+  // 🔥 ELIMINAR CÍRCULO
+  _ocultarCirculoGrabacion();
+  
+  // 🔥 RESETEAR MENSAJE DE CANCELAR
+  _mostrarMensajeCancelar = false;
+  
+  // 🔥 SONIDO AL CANCELAR
+  _reproducirSonidoUI('sounds/stop_record.wav');
+  
   _recordingTimer?.cancel();
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   
@@ -823,6 +1022,81 @@ void _cancelRecording() {
     _recordingTime = '00:00';
     _isDraggingOut = false;
   });
+}
+// ============ 🔥 NUEVO: REPRODUCIR SONIDO DE UI ============
+Future<void> _reproducirSonidoUI(String assetPath) async {
+  try {
+    await _uiSoundPlayer.stop();
+    await _uiSoundPlayer.play(AssetSource(assetPath));
+  } catch (e) {
+    print('Error al reproducir sonido UI: $e');
+  }
+}
+
+// ============ 🔥 NUEVO: MOSTRAR CÍRCULO EN EL BOTÓN (CON ANIMACIÓN) ============
+void _mostrarCirculoGrabacion() {
+  final RenderBox? buttonBox =
+      _audioButtonKey.currentContext?.findRenderObject() as RenderBox?;
+  if (buttonBox == null) return;
+
+  // 🔥 Centro del botón en coordenadas globales
+  final Offset buttonCenter = buttonBox.localToGlobal(
+    Offset(buttonBox.size.width / 2, buttonBox.size.height / 2),
+  );
+
+  _overlayEntry = OverlayEntry(
+    builder: (context) => Positioned(
+      left: buttonCenter.dx - 80,
+      top: buttonCenter.dy - 80,
+      child: IgnorePointer(
+        child: Material(
+          color: Colors.transparent,
+          // 🔥 ANIMACIÓN DE ENTRADA
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 600),
+            // 🔥 Curva personalizada: primer 20% rápido, resto suave
+            curve: const Cubic(0.05, 0.9, 0.1, 1.0),
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Opacity(
+                  opacity: value.clamp(0.0, 1.0),
+                  child: child,
+                ),
+              );
+            },
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.red.withValues(alpha: 0.4),
+                    blurRadius: 30,
+                    spreadRadius: 10,
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Icon(Icons.mic, color: Colors.red, size: 40),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Overlay.of(context).insert(_overlayEntry!);
+}
+
+// ============ 🔥 NUEVO: OCULTAR CÍRCULO ============
+void _ocultarCirculoGrabacion() {
+  _overlayEntry?.remove();
+  _overlayEntry = null;
 }
 
 
@@ -983,7 +1257,7 @@ Widget _buildAudioMessage({
             borderRadius: BorderRadius.circular(8),
             image: widget.productoImagen.isNotEmpty
                 ? DecorationImage(
-                    image: NetworkImage('http://192.168.100.248:3000${widget.productoImagen}'),
+                    image: NetworkImage('https://mimarketplace-production.up.railway.app${widget.productoImagen}'),
                     fit: BoxFit.cover,
                   )
                 : null,
@@ -1073,7 +1347,7 @@ Widget _buildAudioMessage({
     
     try {
       final response = await http.get(
-        Uri.parse('http://192.168.100.248:3000/api/bloquear/verificar/${user.uid}/$vendedorId'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear/verificar/${user.uid}/$vendedorId'),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1092,7 +1366,7 @@ Widget _buildAudioMessage({
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/bloquear'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'usuario_bloquea': user.uid,
@@ -1133,7 +1407,7 @@ Widget _buildAudioMessage({
 
     try {
       final response = await http.delete(
-        Uri.parse('http://192.168.100.248:3000/api/bloquear'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'usuario_bloquea': user.uid,
@@ -1253,7 +1527,7 @@ Widget _buildAudioMessage({
       }
 
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/denuncias'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/denuncias'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'denunciante_id': user.uid,
@@ -1719,7 +1993,7 @@ ListTile(
 
     try {
       final response = await http.post(
-        Uri.parse('http://192.168.100.248:3000/api/calificaciones'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'calificado_id': widget.otroUsuarioId,
@@ -1775,12 +2049,22 @@ ListTile(
       children: [
         CircleAvatar(
           radius: 20,
-          backgroundImage: widget.fotoPerfil.isNotEmpty
-              ? NetworkImage('http://192.168.100.248:3000${widget.fotoPerfil}')
-              : null,
-          child: widget.fotoPerfil.isEmpty
-              ? const Icon(Icons.person, size: 24, color: Colors.grey)
-              : null,
+          backgroundColor: Colors.grey.shade200,
+          child: ClipOval(
+            child: widget.fotoPerfil.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl:
+                        'https://mimarketplace-production.up.railway.app${widget.fotoPerfil}',
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) =>
+                        const Icon(Icons.person, size: 24, color: Colors.grey),
+                    errorWidget: (_, __, ___) =>
+                        const Icon(Icons.person, size: 24, color: Colors.grey),
+                  )
+                : const Icon(Icons.person, size: 24, color: Colors.grey),
+          ),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -1956,12 +2240,22 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           if (!esMio)
             CircleAvatar(
               radius: 16,
-              backgroundImage: fotoPerfil.isNotEmpty
-                  ? NetworkImage('http://192.168.100.248:3000$fotoPerfil')
-                  : null,
-              child: fotoPerfil.isEmpty
-                  ? const Icon(Icons.person, size: 16)
-                  : null,
+              backgroundColor: Colors.grey.shade200,
+              child: ClipOval(
+                child: fotoPerfil.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl:
+                            'https://mimarketplace-production.up.railway.app$fotoPerfil',
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) =>
+                            const Icon(Icons.person, size: 16),
+                        errorWidget: (_, __, ___) =>
+                            const Icon(Icons.person, size: 16),
+                      )
+                    : const Icon(Icons.person, size: 16),
+              ),
             ),
           if (!esMio) const SizedBox(width: 8),
           Flexible(
@@ -1984,7 +2278,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                   if (esAudio) ...[
                     _buildAudioMessage(
                       mensajeId: mensaje['id']!,
-                      audioUrl: 'http://192.168.100.248:3000${mensaje['imagen']}',
+                      audioUrl: 'https://mimarketplace-production.up.railway.app${mensaje['imagen']}',
                       esMio: esMio,
                     ),
                     const SizedBox(height: 4),
@@ -1999,7 +2293,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                           context,
                           MaterialPageRoute(
                             builder: (context) => ImageViewerScreen(
-                              imageUrl: 'http://192.168.100.248:3000${mensaje['imagen']}',
+                              imageUrl:
+                                  'https://mimarketplace-production.up.railway.app${mensaje['imagen']}',
                             ),
                           ),
                         );
@@ -2008,12 +2303,26 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                         margin: const EdgeInsets.only(bottom: 4),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            'http://192.168.100.248:3000${mensaje['imagen']}',
+                          child: CachedNetworkImage(
+                            imageUrl:
+                                'https://mimarketplace-production.up.railway.app${mensaje['imagen']}',
                             width: 200,
                             height: 200,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => const Icon(Icons.broken_image, size: 50),
+                            placeholder: (_, __) => Container(
+                              width: 200,
+                              height: 200,
+                              color: Colors.grey.shade200,
+                              child: const Center(
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                            errorWidget: (_, __, ___) => Container(
+                              width: 200,
+                              height: 200,
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.broken_image, size: 50),
+                            ),
                           ),
                         ),
                       ),
@@ -2061,6 +2370,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             // 🔥 BOTÓN DE GRABACIÓN CON PRESIÓN LARGA (VERSIÓN SIMPLE)
           // 🔥 BOTÓN DE GRABACIÓN - DESLIZAR FUERA = CANCELAR CON SNACKBAR
       Listener(
+        key: _audioButtonKey,  // 🔥 AGREGAR KEY
         onPointerDown: (event) {
           _startRecording();
           _startPosition = event.localPosition;
@@ -2083,103 +2393,184 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         onPointerMove: (event) {
           if (_isRecording) {
             final distance = (event.localPosition - _startPosition).distance;
-            final wasDraggingOut = _isDraggingOut;
             setState(() {
               _isDraggingOut = distance > 80;
+              _mostrarMensajeCancelar = distance > 80;
             });
-            
-            // 🔥 Mostrar SnackBar cuando comienza a arrastrar fuera
-            if (_isDraggingOut && !wasDraggingOut) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(Icons.delete_outline, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text('🗑️ Suelta para cancelar grabación'),
-                    ],
-                  ),
-                  backgroundColor: Colors.grey,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            }
           }
         },
         child: Container(
-          padding: _isRecording 
-              ? const EdgeInsets.all(20)
-              : const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: _isRecording 
-                ? Colors.red.withValues(alpha: 0.15) 
-                : Colors.transparent,
+          padding: const EdgeInsets.all(8),
+          decoration: const BoxDecoration(
+            color: Colors.transparent,
             shape: BoxShape.circle,
-            boxShadow: _isRecording
-                ? [
-                    BoxShadow(
-                      color: Colors.red.withValues(alpha: 0.4),
-                      blurRadius: 30,
-                      spreadRadius: 10,
-                    ),
-                  ]
-                : [],
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _isRecording ? Icons.circle : Icons.mic,
-                color: _isRecording ? Colors.red : Colors.grey.shade600,
-                size: _isRecording ? 60 : 28,
+          // 🔥 TRANSICIÓN SUAVE DEL ÍCONO
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 500),
+            switchInCurve: Curves.easeInOutCubic,
+            switchOutCurve: Curves.easeInOutCubic,
+            transitionBuilder: (child, animation) {
+              return ScaleTransition(
+                scale: animation,
+                child: RotationTransition(
+                  turns: animation,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                ),
+              );
+            },
+            child: _isRecording
+                ? const SizedBox(
+                    key: ValueKey('empty'),
+                    width: 28,
+                    height: 28,
+                  )
+                : Icon(
+                    key: const ValueKey('mic'),
+                    Icons.mic,
+                    color: Colors.grey.shade600,
+                    size: 28,
+                  ),
+          ),
+        ),
+      ),
+      // 🔥 OCULTAR BOTÓN DE IMAGEN SI ESTÁ GRABANDO
+      if (!_isRecording) ...[
+        IconButton(
+          icon: const Icon(Icons.image, color: Colors.grey),
+          onPressed: _enviandoImagen ? null : _mostrarOpcionesImagen,
+          tooltip: 'Adjuntar imagen',
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: TextField(
+            controller: _controller,
+            maxLines: null,
+            minLines: 1,
+            decoration: const InputDecoration(
+              hintText: 'Escribe un mensaje...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(24)),
               ),
-              if (_isRecording) ...[
-                const SizedBox(width: 8),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            onSubmitted: (_) => _enviarMensaje(),
+          ),
+        ),
+        IconButton(
+          icon: _enviandoImagen
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.send, color: Colors.blue),
+          onPressed: _enviandoImagen ? null : _enviarMensaje,
+        ),
+      ] else ...[
+        // 🔥 MIENTRAS GRABAS: círculo oscilante + texto + tiempo
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 50, right: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 🔥 CÍRCULO OSCILANTE (izquierda ↔ derecha, grande ↔ pequeño)
+                AnimatedBuilder(
+                  animation: _oscilacionAnim,
+                  builder: (context, child) {
+                    // t va de 0.0 (izquierda) → 1.0 (derecha) → 0.0 ...
+                    final t = _oscilacionAnim.value;
+
+                    // 🔥 Tamaño: máximo en extremos, mínimo en el centro
+                    // Distancia al centro: 0.5 en extremos, 0.0 en el centro
+                    // Multiplicamos x2 para que vaya de 0.0 a 1.0
+                    final distanciaAlCentro = (t - 0.5).abs() * 2;
+
+                    // Tamaño entre 6px (centro) y 14px (extremos)
+                    final tamano = 6.0 + (distanciaAlCentro * 8.0);
+
+                    return Container(
+                      width: 120,
+                      height: 20,
+                      alignment: Alignment.center,
+                      child: Align(
+                        // 🔥 Movimiento horizontal progresivo
+                        alignment: Alignment(-1.0 + (t * 2.0), 0.0),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 80),
+                          width: tamano,
+                          height: tamano,
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '🎤 Grabando... desliza para cancelar',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 2),
                 Text(
                   _recordingTime,
                   style: const TextStyle(
                     color: Colors.red,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                // 🔥 MENSAJE VERDE CON TRANSICIÓN SUAVE
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 150),
+                    curve: Curves.easeOut,
+                    opacity: _mostrarMensajeCancelar ? 1.0 : 0.0,
+                    child: _mostrarMensajeCancelar
+                        ? const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.delete_outline,
+                                    color: Colors.green, size: 16),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Suelta para cancelar',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ),
               ],
-            ],
-          ),
-        ),
-      ),
-      IconButton(
-        icon: const Icon(Icons.image, color: Colors.grey),
-        onPressed: _enviandoImagen ? null : _mostrarOpcionesImagen,
-        tooltip: 'Adjuntar imagen',
-      ),
-      const SizedBox(width: 4),
-      Expanded(
-        child: TextField(
-          controller: _controller,
-          maxLines: null,
-          minLines: 1,
-          decoration: const InputDecoration(
-            hintText: 'Escribe un mensaje...',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(24)),
             ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           ),
-          onSubmitted: (_) => _enviarMensaje(),
-          // 🔥 SIN LÍMITE DE CARACTERES
         ),
-      ),
-      IconButton(
-        icon: _enviandoImagen
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.send, color: Colors.blue),
-        onPressed: _enviandoImagen ? null : _enviarMensaje,
-      ),
+      ],
     ],
   ),
 ),
