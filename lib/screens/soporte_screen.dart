@@ -64,18 +64,14 @@ class _SoporteScreenState extends State<SoporteScreen> {
         return;
       }
 
-      // 🔥 ENVIAR MENSAJE DE SOPORTE (el backend aún no existe, pero lo dejamos listo)
+      // 🔥 ENVIAR MENSAJE DE SOPORTE AL BACKEND REAL
       final response = await http.post(
-        Uri.parse('https://mimarketplace-production.up.railway.app/api/soporte'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/soporte/enviar'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'usuario_id': user.uid,
-          'usuario_nombre': user.displayName ?? 'Usuario',
-          'usuario_email': user.email ?? '',
-          'asunto': _asuntoController.text.trim(),
-          'tipo': _tipoConsulta,
+          'asunto': '[$_tipoConsulta] ${_asuntoController.text.trim()}',
           'mensaje': _mensajeController.text.trim(),
-          'fecha': DateTime.now().toIso8601String(),
         }),
       );
 
@@ -86,30 +82,27 @@ class _SoporteScreenState extends State<SoporteScreen> {
           _asuntoController.clear();
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Mensaje enviado. Te responderemos pronto.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Mensaje enviado. Te responderemos pronto.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } else {
-        throw Exception('Error al enviar mensaje');
+        throw Exception('Error ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      // 🔥 SI EL BACKEND NO EXISTE, SIMULAMOS EL ENVÍO
-      print('>>> Backend de soporte no disponible, simulando envío...');
-      setState(() {
-        _mensajeEnviado = true;
-        _mensajeController.clear();
-        _asuntoController.clear();
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Mensaje guardado (modo offline). Te responderemos pronto.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      print('>>> Error al enviar soporte: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al enviar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -133,7 +126,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 🔥 INFORMACIÓN DE CONTACTO
+                  // INFO
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -172,7 +165,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 🔥 TIPO DE CONSULTA
+                  // TIPO
                   const Text(
                     'Tipo de consulta',
                     style: TextStyle(
@@ -208,7 +201,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 🔥 ASUNTO
+                  // ASUNTO
                   const Text(
                     'Asunto',
                     style: TextStyle(
@@ -227,7 +220,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 🔥 MENSAJE
+                  // MENSAJE
                   const Text(
                     'Mensaje',
                     style: TextStyle(
@@ -239,6 +232,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
                   TextField(
                     controller: _mensajeController,
                     maxLines: 8,
+                    maxLength: 500,
                     decoration: const InputDecoration(
                       hintText: 'Describe tu problema con el mayor detalle posible...',
                       border: OutlineInputBorder(),
@@ -246,17 +240,9 @@ class _SoporteScreenState extends State<SoporteScreen> {
                       alignLabelWithHint: true,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Máximo 500 caracteres',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
 
-                  // 🔥 BOTÓN ENVIAR
+                  // BOTÓN
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -285,7 +271,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 🔥 INFORMACIÓN ADICIONAL
+                  // INFO ADICIONAL
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
