@@ -2645,6 +2645,56 @@ app.get('/api/conversaciones/:conversacionId/calificacion-pendiente', async (req
         res.status(500).json({ error: error.message });
     }
 });
+// ============================================================
+// 🔥 SOPORTE - ENVIAR MENSAJE
+// ============================================================
+app.post('/api/soporte/enviar', async (req, res) => {
+    try {
+        const { usuario_id, asunto, mensaje } = req.body;
+
+        if (!usuario_id || !mensaje || mensaje.trim().isEmpty) {
+            return res.status(400).json({ error: 'usuario_id y mensaje obligatorios' });
+        }
+
+        // Obtener datos del usuario
+        const userResult = await pool.query(
+            `SELECT nombre, email FROM usuarios WHERE uid = $1`,
+            [usuario_id]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        const user = userResult.rows[0];
+
+        // Insertar en la tabla de soporte
+        const result = await pool.query(
+            `INSERT INTO mensajes_soporte 
+             (usuario_id, usuario_nombre, usuario_email, asunto, mensaje, estado, fecha)
+             VALUES ($1, $2, $3, $4, $5, 'nuevo', NOW())
+             RETURNING *`,
+            [
+                usuario_id,
+                user.nombre || 'Usuario',
+                user.email || '',
+                asunto || 'Sin asunto',
+                mensaje.trim()
+            ]
+        );
+
+        console.log(`>>> 📬 Mensaje de soporte recibido de ${user.nombre} (${usuario_id})`);
+
+        res.status(201).json({
+            success: true,
+            mensaje: 'Mensaje enviado. Te responderemos pronto.',
+            ticket: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Error al guardar soporte:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 app.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
 });

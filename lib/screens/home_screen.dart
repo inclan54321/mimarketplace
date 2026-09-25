@@ -26,6 +26,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String _busqueda = '';
   List<String> _bloqueados = [];
   List<Producto> _productosDestacados = []; // 🔥 NUEVA VARIABLE
+  
+  // 🔥 NUEVO: FAVORITOS VISUALES (solo en memoria)
+  final Set<int> _favoritosVisuales = {};
+  
 final TextEditingController _busquedaController = TextEditingController();
 
   // 🔥 NUEVO: FILTROS (SOLO UI POR AHORA)
@@ -55,6 +59,7 @@ final TextEditingController _busquedaController = TextEditingController();
     });
     _cargarBloqueados();
     _cargarProductosDestacados(); // 🔥 NUEVO
+    _cargarFavoritos(); // 🔥 NUEVO
   }
 
   Future<List<String>> _obtenerBloqueados() async {
@@ -126,6 +131,103 @@ Future<void> _cargarProductosDestacados() async {
     print('Error al cargar productos destacados: $e');
   }
 }
+  // ============ 🔥 NUEVO: CARGAR FAVORITOS DEL USUARIO ============
+  Future<void> _cargarFavoritos() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final response = await http.get(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/favoritos/${user.uid}',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        setState(() {
+          _favoritosVisuales.clear();
+          for (var item in data) {
+            final id = int.tryParse(item['id']?.toString() ?? '0');
+            if (id != null) {
+              _favoritosVisuales.add(id);
+            }
+          }
+        });
+        print('>>> ✅ Favoritos cargados: ${_favoritosVisuales.length}');
+      }
+    } catch (e) {
+      print('Error al cargar favoritos: $e');
+    }
+  }
+
+  // ============ 🔥 NUEVO: TOGGLE FAVORITO (BACKEND) ============
+  Future<void> _toggleFavorito(Producto producto) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final esFavorito = _favoritosVisuales.contains(producto.id);
+
+    // 🔥 ACTUALIZACIÓN OPTIMISTA (cambia el icono YA)
+    setState(() {
+      if (esFavorito) {
+        _favoritosVisuales.remove(producto.id);
+      } else {
+        _favoritosVisuales.add(producto.id);
+      }
+    });
+
+    try {
+      if (esFavorito) {
+        // QUITAR DE FAVORITOS
+        final response = await http.delete(
+          Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/favoritos',
+          ),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'usuario_id': user.uid,
+            'producto_id': producto.id.toString(),
+          }),
+        );
+        if (response.statusCode != 200) {
+          throw Exception('Error al quitar: ${response.statusCode}');
+        }
+      } else {
+        // AGREGAR A FAVORITOS
+        final response = await http.post(
+          Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/favoritos',
+          ),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'usuario_id': user.uid,
+            'producto_id': producto.id.toString(),
+          }),
+        );
+        if (response.statusCode != 200 && response.statusCode != 201) {
+          throw Exception('Error al agregar: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      // 🔥 REVERTIR SI FALLA
+      setState(() {
+        if (esFavorito) {
+          _favoritosVisuales.add(producto.id);
+        } else {
+          _favoritosVisuales.remove(producto.id);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
   void _hideIndicator() {
     if (_showSwipeIndicator) {
       setState(() {
@@ -1103,9 +1205,9 @@ Future<void> _cargarProductosDestacados() async {
                                   itemCount: _productosDestacados.length,
                                   itemBuilder: (context, index) {
                                     final producto = _productosDestacados[index];
+                                    final bool esFav = _favoritosVisuales.contains(producto.id);
                                     return GestureDetector(
                                     onTap: () {
-  // Obtener la imagen a mostrar
   String imagen = producto.imagenDestacada ?? producto.imagenUrl ?? '';
   if (imagen.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1140,7 +1242,7 @@ Future<void> _cargarProductosDestacados() async {
                                           child: Stack(
                                             fit: StackFit.expand,
                                             children: [
-                                              // 🔥 SOLO IMAGEN, SIN INFORMACIÓN
+                                              // 🔥 IMAGEN
                                               producto.imagenDestacada != null && producto.imagenDestacada!.isNotEmpty
                                                   ? Image.network(
                                                       'https://mimarketplace-production.up.railway.app${producto.imagenDestacada}',
@@ -1163,7 +1265,34 @@ Future<void> _cargarProductosDestacados() async {
                                                           color: Colors.grey.shade200,
                                                           child: const Icon(Icons.image, size: 40, color: Colors.grey),
                                                         )),
-                                              // 🔥 OVERLAY CON NOMBRE DEL PRODUCTO (OPCIONAL)
+                                              // 🔥 CORAZÓN ARRIBA A LA DERECHA
+                                              Positioned(
+                                                top: 6,
+                                                right: 6,
+                                                child: GestureDetector(
+                                                  onTap: () => _toggleFavorito(producto),
+                                                  child: Container(
+                                                    padding: const EdgeInsets.all(6),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white.withValues(alpha: 0.9),
+                                                      shape: BoxShape.circle,
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.black.withValues(alpha: 0.1),
+                                                          blurRadius: 4,
+                                                          offset: const Offset(0, 2),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: Icon(
+                                                      esFav ? Icons.favorite : Icons.favorite_border,
+                                                      color: esFav ? Colors.red : Colors.grey.shade600,
+                                                      size: 22,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              // 🔥 OVERLAY CON NOMBRE DEL PRODUCTO
                                               Positioned(
                                                 bottom: 0,
                                                 left: 0,

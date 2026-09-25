@@ -25,16 +25,44 @@ class DetalleProductoScreen extends StatefulWidget {
 }
 
 class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
+  // 🔥 FOTO DEL VENDEDOR CARGADA LOCALMENTE
+  String _fotoVendedorLocal = '';
   bool _isFavorito = false;
   final String _usuarioId = FirebaseAuth.instance.currentUser?.uid ?? '';
   int _imagenActual = 0;
   late Producto _producto;
 
+  Future<void> _cargarFotoVendedorSiFalta() async {
+    if (_fotoVendedorLocal.isNotEmpty) return;
+    final vendedorId = _producto.vendedorId ?? '';
+    if (vendedorId.isEmpty) return;
+
+    try {
+      final response = await http.get(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/perfil/foto/$vendedorId',
+        ),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _fotoVendedorLocal = data['foto_perfil'] ?? '';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error al cargar foto del vendedor: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _producto = widget.producto;
+    _fotoVendedorLocal = widget.producto.vendedorFoto ?? '';
     _verificarFavorito();
+    _cargarFotoVendedorSiFalta();
   }
 
   Future<void> _verificarFavorito() async {
@@ -910,10 +938,10 @@ Future<void> _enviarDenuncia(String motivo) async {
                     child: CircleAvatar(
                       radius: 24,
                       backgroundColor: Colors.grey,
-                      backgroundImage: _producto.vendedorFoto != null && _producto.vendedorFoto!.isNotEmpty
-                          ? NetworkImage('$baseUrl${_producto.vendedorFoto}')
+                      backgroundImage: _fotoVendedorLocal.isNotEmpty
+                          ? NetworkImage('$baseUrl$_fotoVendedorLocal')
                           : null,
-                      child: _producto.vendedorFoto == null || _producto.vendedorFoto!.isEmpty
+                      child: _fotoVendedorLocal.isEmpty
                           ? const Icon(Icons.person, color: Colors.white, size: 28)
                           : null,
                     ),

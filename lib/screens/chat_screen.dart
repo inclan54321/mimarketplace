@@ -72,6 +72,9 @@ class _ChatScreenState extends State<ChatScreen>
   Timer? _timer;
   String _fotoVendedorReal = '';
 
+  // 🔥 NUEVO: LISTA DE PRODUCTOS DEL VENDEDOR (para el header)
+  List<Map<String, dynamic>> _productosDelVendedor = [];
+
   // 🔥 NUEVO: CACHÉ DE FOTOS DE PERFIL EN MEMORIA
   final Map<String, String> _cacheFotosPerfil = {};
   int _calificacionSeleccionada = 0;
@@ -241,6 +244,7 @@ void initState() {
   _conversacionIdActual = widget.conversacionId;
   _obtenerOCrearConversacion();
   _obtenerFotoVendedorReal();
+  _cargarProductosDelVendedor(); // 🔥 NUEVO
   print('>>> DESPUÉS de llamar _obtenerFotoVendedorReal()');
   print('>>> _fotoVendedorReal: $_fotoVendedorReal');
   _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
@@ -567,6 +571,61 @@ void dispose() {
       },
     );
   }
+  // ============ 🔥 NUEVO: CARGAR TODOS LOS PRODUCTOS DEL VENDEDOR ============
+  Future<void> _cargarProductosDelVendedor() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final response = await http.get(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/conversaciones/${user.uid}',
+        ),
+      );
+
+      if (response.statusCode != 200) return;
+
+      final List data = jsonDecode(response.body);
+
+      final delVendedor = data.where((c) {
+        final usuario1 = c['usuario1_id'] ?? '';
+        final usuario2 = c['usuario2_id'] ?? '';
+        final otroId = usuario1 == user.uid ? usuario2 : usuario1;
+        return otroId == widget.otroUsuarioId;
+      }).toList();
+
+      final Map<String, Map<String, dynamic>> unicos = {};
+      for (final c in delVendedor) {
+        final productoId = c['producto_id']?.toString() ?? '';
+        if (productoId.isEmpty) continue;
+        if (unicos.containsKey(productoId)) continue;
+
+        unicos[productoId] = {
+          'productoId': productoId,
+          'productoNombre': c['producto_nombre'] ?? 'Producto',
+          'productoImagen': c['producto_imagen'] ?? '',
+          'productoImagenMiniatura': c['producto_imagen_miniatura'] ?? '',
+          'productoPrecio': c['producto_precio']?.toString() ?? '0',
+          'productoCategoria': c['productoCategoria'] ?? '',
+          'productoDescripcion': c['productoDescripcion'] ?? '',
+          'productoDireccion': c['productoDireccion'] ?? '',
+          'productoImagenesReales': c['producto_imagenes_reales'] ?? '',
+          'conversacionId': c['id'].toString(),
+        };
+      }
+
+      if (mounted) {
+        setState(() {
+          _productosDelVendedor = unicos.values.toList();
+        });
+      }
+
+      print('>>> 🔥 Productos del vendedor: ${_productosDelVendedor.length}');
+    } catch (e) {
+      print('Error al cargar productos del vendedor: $e');
+    }
+  }
+
 Future<void> _obtenerFotoVendedorReal() async {
   try {
     print('>>> 1. ENTRE A _obtenerFotoVendedorReal()');
@@ -1232,112 +1291,284 @@ Widget _buildAudioMessage({
     ),
   );
 }
- Widget _buildProductoHeader() {
-  return Container(
-    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withValues(alpha: 0.15),
-          blurRadius: 6,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(8),
-            image: widget.productoImagen.isNotEmpty
-                ? DecorationImage(
-                    image: NetworkImage('https://mimarketplace-production.up.railway.app${widget.productoImagen}'),
-                    fit: BoxFit.cover,
-                  )
-                : null,
+  // ============ 🔥 HEADER CON CARRUSEL DE PRODUCTOS ============
+  Widget _buildProductoHeader() {
+    // 🔥 Si hay varios productos, mostrar carrusel. Si no, el header clásico.
+    final mostrarCarrusel = _productosDelVendedor.length > 1;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-          child: widget.productoImagen.isEmpty
-              ? const Icon(Icons.image, color: Colors.grey, size: 24)
-              : null,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.nombreProducto,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 🔥 TÍTULO SI HAY VARIOS PRODUCTOS
+          if (mostrarCarrusel) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.shopping_bag, size: 16, color: Colors.blue),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${_productosDelVendedor.length} productos consultados',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                '₡${widget.productoPrecio}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade700,
-                  fontSize: 14,
-                ),
+            ),
+          ],
+
+          // 🔥 CARRUSEL HORIZONTAL O HEADER CLÁSICO
+          if (mostrarCarrusel)
+            SizedBox(
+              height: 90,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _productosDelVendedor.length,
+                itemBuilder: (context, i) {
+                  final p = _productosDelVendedor[i];
+                  final productoId = p['productoId']?.toString() ?? '';
+                  final esSeleccionado = productoId == widget.productoId;
+
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DetalleProductoScreen(
+                            producto: Producto(
+                              id: int.tryParse(productoId) ?? 0,
+                              nombre: p['productoNombre'] ?? 'Producto',
+                              categoria: p['productoCategoria'] ?? '',
+                              precio: double.tryParse(
+                                      p['productoPrecio']?.toString() ?? '0') ??
+                                  0,
+                              imagenUrl: p['productoImagen'] ?? '',
+                              descripcion: p['productoDescripcion'] ?? '',
+                              direccion: p['productoDireccion'] ?? '',
+                              vendedorNombre: widget.otroUsuario,
+                              vendedorId: widget.otroUsuarioId,
+                              vendedorFoto: _fotoVendedorReal,
+                              provincia: '',
+                              imagenDestacada: '',
+                              imagenesReales: p['productoImagenesReales'] ?? '',
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 80,
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: esSeleccionado
+                            ? Colors.blue.shade50
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: esSeleccionado
+                              ? Colors.blue.shade400
+                              : Colors.grey.shade300,
+                          width: esSeleccionado ? 2 : 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: (p['productoImagenMiniatura'] ?? '')
+                                    .toString()
+                                    .isNotEmpty
+                                ? CachedNetworkImage(
+                                    imageUrl:
+                                        'https://mimarketplace-production.up.railway.app${p['productoImagenMiniatura']}',
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: Colors.grey.shade200,
+                                      child: const Icon(Icons.image,
+                                          size: 20, color: Colors.grey),
+                                    ),
+                                    errorWidget: (_, __, ___) => Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: Colors.grey.shade200,
+                                      child: const Icon(Icons.broken_image,
+                                          size: 20, color: Colors.grey),
+                                    ),
+                                  )
+                                : (p['productoImagen'] ?? '')
+                                        .toString()
+                                        .isNotEmpty
+                                    ? CachedNetworkImage(
+                                        imageUrl:
+                                            'https://mimarketplace-production.up.railway.app${p['productoImagen']}',
+                                        width: 50,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                        placeholder: (_, __) => Container(
+                                          width: 50,
+                                          height: 50,
+                                          color: Colors.grey.shade200,
+                                          child: const Icon(Icons.image,
+                                              size: 20, color: Colors.grey),
+                                        ),
+                                        errorWidget: (_, __, ___) => Container(
+                                          width: 50,
+                                          height: 50,
+                                          color: Colors.grey.shade200,
+                                          child: const Icon(Icons.broken_image,
+                                              size: 20, color: Colors.grey),
+                                        ),
+                                      )
+                                    : Container(
+                                        width: 50,
+                                        height: 50,
+                                        color: Colors.grey.shade200,
+                                        child: const Icon(Icons.image,
+                                            size: 20, color: Colors.grey),
+                                      ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            p['productoNombre'] ?? 'Producto',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: esSeleccionado
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: esSeleccionado
+                                  ? Colors.blue.shade700
+                                  : Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-            ],
-          ),
-        ),
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DetalleProductoScreen(
-                  producto: Producto(
-                    id: int.parse(widget.productoId),
-                    nombre: widget.nombreProducto,
-                    categoria: widget.productoCategoria,
-                    precio: double.parse(widget.productoPrecio),
-                    imagenUrl: widget.productoImagen,
-                    descripcion: widget.productoDescripcion,
-                    direccion: widget.productoDireccion,
-                    vendedorNombre: widget.otroUsuario,
-                    vendedorId: widget.otroUsuarioId,
-                    vendedorFoto: _fotoVendedorReal,
-                    provincia: '',
-                    imagenDestacada: widget.productoImagenDestacada,
-                    imagenesReales: widget.productoImagenesReales,
+            )
+          else
+            // 🔥 HEADER CLÁSICO (cuando solo hay 1 producto)
+            Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(8),
+                    image: widget.productoImagen.isNotEmpty
+                        ? DecorationImage(
+                            image: NetworkImage(
+                                'https://mimarketplace-production.up.railway.app${widget.productoImagen}'),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: widget.productoImagen.isEmpty
+                      ? const Icon(Icons.image, color: Colors.grey, size: 24)
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.nombreProducto,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '₡${widget.productoPrecio}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(20),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DetalleProductoScreen(
+                          producto: Producto(
+                            id: int.tryParse(widget.productoId) ?? 0,
+                            nombre: widget.nombreProducto,
+                            categoria: widget.productoCategoria,
+                            precio: double.tryParse(widget.productoPrecio) ?? 0,
+                            imagenUrl: widget.productoImagen,
+                            descripcion: widget.productoDescripcion,
+                            direccion: widget.productoDireccion,
+                            vendedorNombre: widget.otroUsuario,
+                            vendedorId: widget.otroUsuarioId,
+                            vendedorFoto: _fotoVendedorReal,
+                            provincia: '',
+                            imagenDestacada: widget.productoImagenDestacada,
+                            imagenesReales: widget.productoImagenesReales,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Ver producto',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: const Text(
-              'Ver producto',
-              style: TextStyle(
-                color: Colors.blue,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
     // ============ 🔥 FUNCIONES PARA OPCIONES DEL VENDEDOR ============
 
@@ -2051,10 +2282,10 @@ ListTile(
           radius: 20,
           backgroundColor: Colors.grey.shade200,
           child: ClipOval(
-            child: widget.fotoPerfil.isNotEmpty
+            child: (widget.fotoPerfil.isNotEmpty || _fotoVendedorReal.isNotEmpty)
                 ? CachedNetworkImage(
                     imageUrl:
-                        'https://mimarketplace-production.up.railway.app${widget.fotoPerfil}',
+                        'https://mimarketplace-production.up.railway.app${widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal}',
                     width: 40,
                     height: 40,
                     fit: BoxFit.cover,
