@@ -536,6 +536,7 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
 
         let vendedor_nombre = '';
         let provincia = '';
+        let canton = '';
         if (vendedor_id) {
             const userResult = await pool.query('SELECT nombre FROM usuarios WHERE uid = $1', [vendedor_id]);
             if (userResult.rows.length > 0) {
@@ -543,7 +544,7 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
             }
         }
 
-        // Obtener provincia desde las coordenadas
+        // Obtener provincia Y cantón desde las coordenadas
         if (direccion && direccion.includes(',')) {
             try {
                 const latLng = direccion.split(',');
@@ -555,6 +556,8 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
                 );
                 const address = geoResponse.data.address;
                 provincia = address.state || address.region || address.province || '';
+                canton = address.county || address.city || address.town || address.municipality || '';
+                console.log('>>> 📍 Provincia:', provincia, '| Cantón:', canton);
             } catch (e) {
                 console.log('Error al obtener provincia:', e.message);
             }
@@ -563,10 +566,10 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
         // ===== GUARDAR CON ESTADO PENDIENTE =====
         const result = await pool.query(
             `INSERT INTO productos_app 
-            (nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_url, vendedor_nombre, provincia, imagen_destacada, imagenes_reales, estado_moderacion, estado, fecha_expiracion, imagen_miniatura) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pendiente', 'activo', NOW() + INTERVAL '30 days', $13) 
+            (nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_url, vendedor_nombre, provincia, canton, imagen_destacada, imagenes_reales, estado_moderacion, estado, fecha_expiracion, imagen_miniatura) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pendiente', 'activo', NOW() + INTERVAL '30 days', $14) 
             RETURNING *`,
-            [nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_principal_url || '', vendedor_nombre, provincia, imagen_destacada_url, imagenes_reales_json, imagen_miniatura_url || '']
+            [nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_principal_url || '', vendedor_nombre, provincia, canton, imagen_destacada_url, imagenes_reales_json, imagen_miniatura_url || '']
         );
 
         const producto = result.rows[0];
@@ -2194,8 +2197,9 @@ app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, r
             console.log('>>> VENDEDOR_NOMBRE:', vendedor_nombre);
         }
 
-        // Obtener provincia desde coordenadas
+        // Obtener provincia Y cantón desde coordenadas
         let provincia = '';
+        let canton = '';
         if (direccion && direccion.includes(',')) {
             try {
                 const latLng = direccion.split(',');
@@ -2205,7 +2209,10 @@ app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, r
                     `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&zoom=10`,
                     { headers: { 'User-Agent': 'MiMarketplaceCR/1.0' } }
                 );
-                provincia = geoResponse.data.address?.state || geoResponse.data.address?.region || '';
+                const address = geoResponse.data.address;
+                provincia = address?.state || address?.region || '';
+                canton = address?.county || address?.city || address?.town || address?.municipality || '';
+                console.log('>>> 📍 Provincia:', provincia, '| Cantón:', canton);
             } catch (e) {
                 console.log('Error al obtener provincia:', e.message);
             }
@@ -2214,9 +2221,9 @@ app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, r
         const result = await pool.query(
             `INSERT INTO productos_app 
             (nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, 
-             imagen_url, vendedor_nombre, provincia, imagen_destacada, imagenes_reales, 
+             imagen_url, vendedor_nombre, provincia, canton, imagen_destacada, imagenes_reales, 
              estado_moderacion, estado_ia_destacada, destacada_publicada, fecha_expiracion) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pendiente', 'pendiente', false, NOW() + INTERVAL '30 days') 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pendiente', 'pendiente', false, NOW() + INTERVAL '30 days') 
             RETURNING id`,
             [
                 nombre || 'Producto en revisión',
@@ -2229,6 +2236,7 @@ app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, r
                 imagenPath,
                 vendedor_nombre,
                 provincia,
+                canton,
                 imagenPath,
                 '[]'
             ]
