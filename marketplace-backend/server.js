@@ -1452,10 +1452,25 @@ app.post('/api/agenda', async (req, res) => {
     try {
         console.log('>>> GUARDANDO EN AGENDA:', req.body);
         
-        const { usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, producto_imagen, conversacion_id } = req.body;
+        const { 
+            usuario_id, 
+            otro_usuario, 
+            producto_nombre, 
+            ultimo_mensaje, 
+            producto_imagen, 
+            conversacion_id,
+            productos_lista,     // 🔥 NUEVO
+            foto_perfil          // 🔥 NUEVO
+        } = req.body;
         
         console.log('>>> usuario_id:', usuario_id);
         console.log('>>> conversacion_id:', conversacion_id);
+        console.log('>>> productos_lista:', productos_lista);
+        
+        // 🔥 Convertir productos_lista a JSON string
+        const productosJson = productos_lista 
+            ? JSON.stringify(productos_lista) 
+            : null;
         
         // Verificar si ya existe
         const check = await pool.query(
@@ -1470,10 +1485,17 @@ app.post('/api/agenda', async (req, res) => {
             console.log('>>> ACTUALIZANDO...');
             const result = await pool.query(
                 `UPDATE agenda 
-                 SET otro_usuario = $1, producto_nombre = $2, ultimo_mensaje = $3, producto_imagen = $4, fecha_guardado = NOW()
-                 WHERE usuario_id = $5 AND conversacion_id = $6
+                 SET otro_usuario = $1, 
+                     producto_nombre = $2, 
+                     ultimo_mensaje = $3, 
+                     producto_imagen = $4, 
+                     productos_lista = $5,
+                     foto_perfil = $6,
+                     fecha_guardado = NOW()
+                 WHERE usuario_id = $7 AND conversacion_id = $8
                  RETURNING *`,
-                [otro_usuario, producto_nombre, ultimo_mensaje, producto_imagen, usuario_id, conversacion_id]
+                [otro_usuario, producto_nombre, ultimo_mensaje, producto_imagen, 
+                 productosJson, foto_perfil, usuario_id, conversacion_id]
             );
             console.log('>>> ACTUALIZADO:', result.rows[0]);
             res.json(result.rows[0]);
@@ -1481,10 +1503,13 @@ app.post('/api/agenda', async (req, res) => {
             // Insertar
             console.log('>>> INSERTANDO NUEVO...');
             const result = await pool.query(
-                `INSERT INTO agenda (usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, producto_imagen, conversacion_id)
-                 VALUES ($1, $2, $3, $4, $5, $6)
+                `INSERT INTO agenda 
+                 (usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, 
+                  producto_imagen, conversacion_id, productos_lista, foto_perfil)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                  RETURNING *`,
-                [usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, producto_imagen, conversacion_id]
+                [usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, 
+                 producto_imagen, conversacion_id, productosJson, foto_perfil]
             );
             console.log('>>> INSERTADO:', result.rows[0]);
             res.status(201).json(result.rows[0]);

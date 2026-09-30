@@ -9,6 +9,7 @@ import 'detalle_producto_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'imagen_completa_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'todas_categorias_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,7 +33,10 @@ class _HomeScreenState extends State<HomeScreen> {
   
 final TextEditingController _busquedaController = TextEditingController();
 
-  // 🔥 NUEVO: FILTROS (SOLO UI POR AHORA)
+  // 🔥 FILTROS FUNCIONALES
+  String _filtroCanton = 'Todos';
+  double? _filtroPrecioMin;
+  double? _filtroPrecioMax;
   bool _filtrosActivos = false;
   final List<String> categorias = [
     'Electrónicos',
@@ -236,101 +240,76 @@ Future<void> _cargarProductosDestacados() async {
     }
   }
 
+  // 🔥 GETTER DE FILTROS
+  bool get _hayFiltros =>
+      _filtroCanton != 'Todos' ||
+      _filtroPrecioMin != null ||
+      _filtroPrecioMax != null;
+
+  // 🔥 APLICAR FILTROS A UNA LISTA
+  List<Producto> _aplicarFiltros(List<Producto> lista) {
+    if (!_hayFiltros) return lista;
+
+    return lista.where((p) {
+      // Filtro por cantón
+      if (_filtroCanton != 'Todos') {
+        final cantonProducto = (p.canton ?? '').toString().trim();
+        if (cantonProducto.toLowerCase() != _filtroCanton.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Filtro por precio mínimo
+      if (_filtroPrecioMin != null && p.precio < _filtroPrecioMin!) {
+        return false;
+      }
+
+      // Filtro por precio máximo
+      if (_filtroPrecioMax != null && p.precio > _filtroPrecioMax!) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  // 🔥 LIMPIAR FILTROS
+  void _limpiarFiltros() {
+    setState(() {
+      _filtroCanton = 'Todos';
+      _filtroPrecioMin = null;
+      _filtroPrecioMax = null;
+      _filtrosActivos = false;
+    });
+  }
+
   // ============ 🔥 NUEVO: MOSTRAR FILTROS (SOLO UI) ============
-  void _mostrarFiltros() {
-    // 🔥 Cantones de Costa Rica (ordenados alfabéticamente)
+   void _mostrarFiltros() {
+    final TextEditingController precioMinCtrl = TextEditingController(
+      text: _filtroPrecioMin?.toStringAsFixed(0) ?? '',
+    );
+    final TextEditingController precioMaxCtrl = TextEditingController(
+      text: _filtroPrecioMax?.toStringAsFixed(0) ?? '',
+    );
+    String cantonTemp = _filtroCanton;
+
     final List<String> cantones = [
       'Todos',
-      'Abangares',
-      'Acosta',
-      'Alajuela',
-      'Alajuelita',
-      'Alvarado',
-      'Aserrí',
-      'Atenas',
-      'Bagaces',
-      'Barva',
-      'Belén',
-      'Buenos Aires',
-      'Cañas',
-      'Carrillo',
-      'Cartago',
-      'Corredores',
-      'Coto Brus',
-      'Curridabat',
-      'Desamparados',
-      'Dota',
-      'El Guarco',
-      'Escazú',
-      'Esparza',
-      'Flores',
-      'Garabito',
-      'Goicoechea',
-      'Golfito',
-      'Grecia',
-      'Guácimo',
-      'Guatuso',
-      'Heredia',
-      'Hojancha',
-      'Jiménez',
-      'La Cruz',
-      'La Unión',
-      'León Cortés',
-      'Liberia',
-      'Limón',
-      'Los Chiles',
-      'Matina',
-      'Monteverde',
-      'Montes de Oca',
-      'Montes de Oro',
-      'Mora',
-      'Moravia',
-      'Nandayure',
-      'Naranjo',
-      'Nicoya',
-      'Oreamuno',
-      'Orotina',
-      'Osa',
-      'Palmares',
-      'Paraíso',
-      'Parrita',
-      'Pérez Zeledón',
-      'Pococí',
-      'Poás',
-      'Puntarenas',
-      'Puriscal',
-      'Quepos',
-      'Río Cuarto',
-      'San Carlos',
-      'San Isidro',
-      'San José',
-      'San Mateo',
-      'San Pablo',
-      'San Rafael',
-      'San Ramón',
-      'Santa Ana',
-      'Santa Bárbara',
-      'Santa Cruz',
-      'Santo Domingo',
-      'Sarapiquí',
-      'Sarchí',
-      'Siquirres',
-      'Talamanca',
-      'Tarrazú',
-      'Tibás',
-      'Tilarán',
-      'Turrialba',
-      'Turrubares',
-      'Upala',
-      'Vásquez de Coronado',
-      'Zarcero',
+      'Abangares', 'Acosta', 'Alajuela', 'Alajuelita', 'Alvarado', 'Aserrí',
+      'Atenas', 'Bagaces', 'Barva', 'Belén', 'Buenos Aires', 'Cañas', 'Carrillo',
+      'Cartago', 'Corredores', 'Coto Brus', 'Curridabat', 'Desamparados', 'Dota',
+      'El Guarco', 'Escazú', 'Esparza', 'Flores', 'Garabito', 'Goicoechea',
+      'Golfito', 'Grecia', 'Guácimo', 'Guatuso', 'Heredia', 'Hojancha', 'Jiménez',
+      'La Cruz', 'La Unión', 'León Cortés', 'Liberia', 'Limón', 'Los Chiles',
+      'Matina', 'Monteverde', 'Montes de Oca', 'Montes de Oro', 'Mora', 'Moravia',
+      'Nandayure', 'Naranjo', 'Nicoya', 'Oreamuno', 'Orotina', 'Osa', 'Palmares',
+      'Paraíso', 'Parrita', 'Pérez Zeledón', 'Pococí', 'Poás', 'Puntarenas',
+      'Puriscal', 'Quepos', 'Río Cuarto', 'San Carlos', 'San Isidro', 'San José',
+      'San Mateo', 'San Pablo', 'San Rafael', 'San Ramón', 'Santa Ana',
+      'Santa Bárbara', 'Santa Cruz', 'Santo Domingo', 'Sarapiquí', 'Sarchí',
+      'Siquirres', 'Talamanca', 'Tarrazú', 'Tibás', 'Tilarán', 'Turrialba',
+      'Turrubares', 'Upala', 'Vásquez de Coronado', 'Zarcero',
     ];
-
-    // 🔥 ESTADO LOCAL DEL MODAL (solo visual, no afecta nada real)
-    String cantonSeleccionado = 'Todos';
-    int estrellasTemp = 0;
-    final TextEditingController precioMinCtrl = TextEditingController();
-    final TextEditingController precioMaxCtrl = TextEditingController();
 
     showModalBottomSheet(
       context: context,
@@ -351,7 +330,6 @@ Future<void> _cargarProductosDestacados() async {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 🔥 HEADER
                     const SizedBox(height: 12),
                     Center(
                       child: Container(
@@ -382,7 +360,7 @@ Future<void> _cargarProductosDestacados() async {
                     ),
                     const SizedBox(height: 20),
 
-                    // 🔥 FILTRO 1: CANTÓN
+                    // CANTÓN
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
@@ -405,7 +383,7 @@ Future<void> _cargarProductosDestacados() async {
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
-                            value: cantonSeleccionado,
+                            value: cantonTemp,
                             isExpanded: true,
                             icon: const Icon(Icons.arrow_drop_down),
                             menuMaxHeight: 350,
@@ -417,7 +395,7 @@ Future<void> _cargarProductosDestacados() async {
                             }).toList(),
                             onChanged: (value) {
                               setStateModal(() {
-                                cantonSeleccionado = value ?? 'Todos';
+                                cantonTemp = value ?? 'Todos';
                               });
                             },
                           ),
@@ -426,57 +404,7 @@ Future<void> _cargarProductosDestacados() async {
                     ),
                     const SizedBox(height: 20),
 
-                    // 🔥 FILTRO 2: ESTRELLAS
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
-                      child: Text(
-                        '⭐ Calificación mínima',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Wrap(
-                        spacing: 8,
-                        children: List.generate(5, (index) {
-                          final estrellas = index + 1;
-                          final activa = estrellasTemp >= estrellas;
-                          return GestureDetector(
-                            onTap: () {
-                              setStateModal(() {
-                                estrellasTemp =
-                                    estrellasTemp == estrellas ? 0 : estrellas;
-                              });
-                            },
-                            child: Icon(
-                              activa ? Icons.star : Icons.star_border,
-                              color: Colors.amber,
-                              size: 40,
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text(
-                        estrellasTemp == 0
-                            ? 'Sin filtro de calificación'
-                            : '$estrellasTemp o más estrellas',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // 🔥 FILTRO 3: PRECIO
+                    // PRECIO
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
@@ -532,7 +460,7 @@ Future<void> _cargarProductosDestacados() async {
                     ),
                     const SizedBox(height: 24),
 
-                    // 🔥 BOTONES
+                    // BOTONES
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Row(
@@ -541,8 +469,7 @@ Future<void> _cargarProductosDestacados() async {
                             child: OutlinedButton(
                               onPressed: () {
                                 setStateModal(() {
-                                  cantonSeleccionado = 'Todos';
-                                  estrellasTemp = 0;
+                                  cantonTemp = 'Todos';
                                   precioMinCtrl.clear();
                                   precioMaxCtrl.clear();
                                 });
@@ -562,14 +489,16 @@ Future<void> _cargarProductosDestacados() async {
                             flex: 2,
                             child: ElevatedButton(
                               onPressed: () {
-                                // 🔥 SOLO UI: cerramos y mostramos SnackBar
-                                final hayFiltros = cantonSeleccionado != 'Todos' ||
-                                    estrellasTemp > 0 ||
-                                    precioMinCtrl.text.isNotEmpty ||
-                                    precioMaxCtrl.text.isNotEmpty;
+                                final min = double.tryParse(
+                                    precioMinCtrl.text.trim());
+                                final max = double.tryParse(
+                                    precioMaxCtrl.text.trim());
 
                                 setState(() {
-                                  _filtrosActivos = hayFiltros;
+                                  _filtroCanton = cantonTemp;
+                                  _filtroPrecioMin = min;
+                                  _filtroPrecioMax = max;
+                                  _filtrosActivos = _hayFiltros;
                                 });
 
                                 Navigator.pop(context);
@@ -577,11 +506,11 @@ Future<void> _cargarProductosDestacados() async {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      hayFiltros
+                                      _hayFiltros
                                           ? '✅ Filtros aplicados'
                                           : 'Sin filtros aplicados',
                                     ),
-                                    backgroundColor: hayFiltros
+                                    backgroundColor: _hayFiltros
                                         ? Colors.green
                                         : Colors.grey,
                                     duration: const Duration(seconds: 2),
@@ -606,8 +535,6 @@ Future<void> _cargarProductosDestacados() async {
                         ],
                       ),
                     ),
-                    // 🔥 ESPACIO EXTRA PARA QUE LOS BOTONES NO QUEDEN PEGADOS
-                    // A LA BARRA DE NAVEGACIÓN DEL TELÉFONO
                     SizedBox(
                       height: MediaQuery.of(context).viewPadding.bottom + 40,
                     ),
@@ -643,12 +570,12 @@ Future<void> _cargarProductosDestacados() async {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Color(0xFF053B6E),
-                        Color(0xFF087FE8),
-                        Color(0xFF3BA6F5),
-                        Color(0xFF7CC5FA),
+                        Color(0xFF1E3A8A),
+                        Color(0xFF1A56DB),
+                        Color(0xFF2563EB),
+                        Color(0xFF3B82F6),
                       ],
-                      stops: [0.0, 0.3, 0.7, 1.0],
+                      stops: [0.0, 0.4, 0.7, 1.0],
                     ),
                   ),
                 ),
@@ -908,18 +835,8 @@ Future<void> _cargarProductosDestacados() async {
         ),
       ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.white,
-              Colors.blue.shade50,
-              Colors.white,
-              Colors.blue.shade50,
-            ],
-            stops: const [0.0, 0.3, 0.6, 1.0],
-          ),
+        decoration: const BoxDecoration(
+          color: Color(0xFFF9FAFB),
         ),
         child: Stack(
           children: [
@@ -1005,17 +922,111 @@ Future<void> _cargarProductosDestacados() async {
                           style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                       )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(12),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.9,
-                        ),
-                        itemCount: _resultadosBusqueda.length,
-                        itemBuilder: (context, index) {
-                          final producto = _resultadosBusqueda[index];
+                    : Builder(
+                        builder: (context) {
+                          final filtrados = _aplicarFiltros(_resultadosBusqueda);
+                          if (filtrados.isEmpty) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.search_off, size: 64, color: Colors.grey),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      _hayFiltros
+                                          ? 'No hay productos con esos filtros'
+                                          : 'No hay resultados',
+                                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    if (_hayFiltros) ...[
+                                      const SizedBox(height: 16),
+                                      OutlinedButton.icon(
+                                        onPressed: _limpiarFiltros,
+                                        icon: const Icon(Icons.clear),
+                                        label: const Text('Quitar filtros'),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+                          return Column(
+                            children: [
+                              if (_hayFiltros)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  color: Colors.white,
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          children: [
+                                            if (_filtroCanton != 'Todos')
+                                              Chip(
+                                                label: Text('📍 $_filtroCanton', style: const TextStyle(fontSize: 11)),
+                                                backgroundColor: const Color(0xFF087FE8).withValues(alpha: 0.15),
+                                                deleteIcon: const Icon(Icons.close, size: 14),
+                                                onDeleted: () {
+                                                  setState(() {
+                                                    _filtroCanton = 'Todos';
+                                                    _filtrosActivos = _hayFiltros;
+                                                  });
+                                                },
+                                              ),
+                                            if (_filtroPrecioMin != null || _filtroPrecioMax != null)
+                                              Chip(
+                                                label: Text(
+                                                  '💰 ${_filtroPrecioMin?.toStringAsFixed(0) ?? '0'} - ${_filtroPrecioMax?.toStringAsFixed(0) ?? '∞'}',
+                                                  style: const TextStyle(fontSize: 11),
+                                                ),
+                                                backgroundColor: Colors.green.shade100,
+                                                deleteIcon: const Icon(Icons.close, size: 14),
+                                                onDeleted: () {
+                                                  setState(() {
+                                                    _filtroPrecioMin = null;
+                                                    _filtroPrecioMax = null;
+                                                    _filtrosActivos = _hayFiltros;
+                                                  });
+                                                },
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: _limpiarFiltros,
+                                        child: const Text('Limpiar', style: TextStyle(fontSize: 12)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '${filtrados.length} resultado${filtrados.length == 1 ? '' : 's'}',
+                                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: GridView.builder(
+                                  padding: const EdgeInsets.all(12),
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                    childAspectRatio: 0.9,
+                                  ),
+                                  itemCount: filtrados.length,
+                                  itemBuilder: (context, index) {
+                                    final producto = filtrados[index];
                           return GestureDetector(
                             onTap: () async {
                               await Navigator.push(
@@ -1113,21 +1124,63 @@ Future<void> _cargarProductosDestacados() async {
                               ),
                             ),
                           );
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
                         },
                       )
                 : SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Text(
-                            'Categorías',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Categorías',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => TodasCategoriasScreen(
+                                        bloqueados: _bloqueados,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  foregroundColor: const Color(0xFF087FE8),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Ver todas',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(Icons.arrow_forward_ios, size: 14),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         GestureDetector(
@@ -1353,18 +1406,18 @@ Future<void> _cargarProductosDestacados() async {
       'Jardín': Icons.grass,
     };
 
-    // 🔥 GRADIENTE CLARO Y VISIBLE (amarillo → naranja → rojo → rosa → azul)
+    // 🔥 PALETA FLAT (mapeada al orden de categorías)
     final List<Color> coloresAtardecer = [
-      const Color(0xFFFFD93D), // Amarillo brillante
-      const Color(0xFFFBB03B), // Amarillo-naranja
-      const Color(0xFFFF8C42), // Naranja
-      const Color(0xFFFF6B35), // Naranja intenso
-      const Color(0xFFE74C3C), // Rojo intenso
-      const Color(0xFFFF4D4D), // Rojo
-      const Color(0xFFFF4D6D), // Rosa
-      const Color(0xFFFF6B8A), // Rosa claro
-      const Color(0xFF6C5CE7), // Violeta
-      const Color(0xFF2D3436), // Gris oscuro (noche)
+      const Color(0xFF5EEAD4), // Electrónicos - turquesa
+      const Color(0xFF4ADE80), // Ropa         - verde
+      const Color(0xFFFCD34D), // Libros       - amarillo
+      const Color(0xFFFB923C), // Hogar        - naranja claro
+      const Color(0xFFF97316), // Juegos       - naranja
+      const Color(0xFFEF4444), // Herramientas - rojo
+      const Color(0xFFF87171), // Música       - rojo suave/rosa
+      const Color(0xFF2DD4BF), // Deportes     - turquesa oscuro
+      const Color(0xFFA78BFA), // Automóviles  - violeta
+      const Color(0xFF60A5FA), // Jardín       - azul claro
     ];
 
     // Obtener el índice de la categoría

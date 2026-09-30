@@ -19,13 +19,20 @@ class _ChatListScreenState extends State<ChatListScreen>
   List<Map<String, dynamic>> _agenda = [];
   bool _isLoading = true;
   List<String> _bloqueados = [];
-  final int _selectedTab = 0;
   late TabController _tabController;
+
+  // 🔍 Búsqueda en agenda
+  final TextEditingController _busquedaAgendaController =
+      TextEditingController();
+  String _busquedaAgenda = '';
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.animation!.addListener(() {
+      if (mounted) setState(() {});
+    });
     _cargarDatos();
     _cargarAgenda();
   }
@@ -33,17 +40,18 @@ class _ChatListScreenState extends State<ChatListScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _busquedaAgendaController.dispose();
     super.dispose();
   }
 
-  // ===== CARGAR DATOS RÁPIDO =====
+  // ===== CARGAR DATOS =====
   Future<void> _cargarDatos() async {
     setState(() => _isLoading = true);
     await Future.wait([
       _cargarConversaciones(),
       _cargarBloqueados(),
     ]);
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   // ===== CARGAR CONVERSACIONES =====
@@ -53,12 +61,14 @@ class _ChatListScreenState extends State<ChatListScreen>
       if (user == null) return;
 
       final response = await http.get(
-        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/${user.uid}'),
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/conversaciones/${user.uid}'),
       );
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
-        final todas = data.map((item) => Map<String, dynamic>.from(item)).toList();
+        final todas =
+            data.map((item) => Map<String, dynamic>.from(item)).toList();
 
         final conversacionesFiltradas = todas.where((chat) {
           final otroId = chat['usuario1_id'] == user.uid
@@ -67,9 +77,11 @@ class _ChatListScreenState extends State<ChatListScreen>
           return !_bloqueados.contains(otroId);
         }).toList();
 
-        setState(() {
-          _conversaciones = conversacionesFiltradas;
-        });
+        if (mounted) {
+          setState(() {
+            _conversaciones = conversacionesFiltradas;
+          });
+        }
       }
     } catch (e) {
       print('Error al cargar conversaciones: $e');
@@ -83,51 +95,60 @@ class _ChatListScreenState extends State<ChatListScreen>
 
     try {
       final response = await http.get(
-        Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear/${user.uid}'),
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/bloquear/${user.uid}'),
       );
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
-        setState(() {
-          _bloqueados = data.map((e) => e['usuario_bloqueado'].toString()).toList();
-        });
+        if (mounted) {
+          setState(() {
+            _bloqueados =
+                data.map((e) => e['usuario_bloqueado'].toString()).toList();
+          });
+        }
       }
     } catch (e) {
       print('Error al cargar bloqueados: $e');
     }
   }
 
-  // ===== CARGAR AGENDA =====
+  // ===== CARGAR AGENDA DESDE EL BACKEND =====
   Future<void> _cargarAgenda() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final agendaString = prefs.getString('agenda_mensajes');
-      if (agendaString != null && agendaString.isNotEmpty) {
-        final List data = jsonDecode(agendaString);
-        // 🔥 FILTRAR ITEMS VIEJOS (sin campo "productos")
-        final validos = data
-            .where((item) => item['productos'] != null)
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
-        setState(() {
-          _agenda = validos;
-        });
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final response = await http.get(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/agenda/${user.uid}'),
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _agenda = data
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList();
+          });
+        }
+        print('>>> ✅ Agenda cargada: ${data.length} items');
       }
     } catch (e) {
       print('Error al cargar agenda: $e');
     }
   }
 
-  // ===== GUARDAR EN AGENDA (AGRUPADO POR VENDEDOR) =====
+  // ===== GUARDAR EN AGENDA (BACKEND) =====
   Future<void> _guardarEnAgenda(Map<String, dynamic> chat) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
       final otroUsuarioId = chat['otroUsuarioId']?.toString() ?? '';
       if (otroUsuarioId.isEmpty) return;
 
-      // 🔥 1. Buscar TODOS los chats con este mismo vendedor
+      // 🔥 Buscar TODAS las conversaciones con este vendedor
       final chatsDelVendedor = _conversaciones.where((c) {
         final usuario1 = c['usuario1_id'] ?? '';
         final usuario2 = c['usuario2_id'] ?? '';
@@ -135,14 +156,15 @@ class _ChatListScreenState extends State<ChatListScreen>
         return otroId == otroUsuarioId;
       }).toList();
 
-      // 🔥 2. Construir la lista de productos (sin duplicados)
-      final Map<String, Map<String, dynamic>> productosUnicos = {};
+      // 🔥 Construir lista de productos sin duplicados
+      final List<Map<String, dynamic>> productos = [];
+      final Set<String> idsVistos = {};
       for (final c in chatsDelVendedor) {
         final productoId = c['producto_id']?.toString() ?? '';
-        if (productoId.isEmpty) continue;
-        if (productosUnicos.containsKey(productoId)) continue;
+        if (productoId.isEmpty || idsVistos.contains(productoId)) continue;
+        idsVistos.add(productoId);
 
-        productosUnicos[productoId] = {
+        productos.add({
           'productoId': productoId,
           'productoNombre': c['producto_nombre'] ?? 'Producto',
           'productoImagen': c['producto_imagen'] ?? '',
@@ -153,74 +175,85 @@ class _ChatListScreenState extends State<ChatListScreen>
           'productoDireccion': c['productoDireccion'] ?? '',
           'productoImagenesReales': c['producto_imagenes_reales'] ?? '',
           'conversacionId': c['id'].toString(),
-        };
+        });
       }
 
-      // 🔥 3. Si ya existe un item de este vendedor, actualizarlo
-      final existenteIndex = _agenda.indexWhere(
-        (item) => item['otroUsuarioId'] == otroUsuarioId,
+      // 🔥 DEBUG: ver qué estamos enviando
+      print('>>> 🔥 DATOS A ENVIAR:');
+      print('>>> chat completo: $chat');
+      print('>>> productos encontrados: $productos');
+      print('>>> otroUsuarioId: $otroUsuarioId');
+      print('>>> chatsDelVendedor.length: ${chatsDelVendedor.length}');
+
+      // 🔥 Enviar al backend CON TODOS LOS PRODUCTOS
+      final response = await http.post(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/agenda'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'usuario_id': user.uid,
+          'otro_usuario': chat['otroUsuario'] ?? 'Usuario',
+          'producto_nombre': productos.isNotEmpty
+              ? productos.map((p) => p['productoNombre']).join(', ')
+              : 'Producto',
+          'ultimo_mensaje': chat['ultimoMensaje'] ?? 'Sin mensajes',
+          'producto_imagen': productos.isNotEmpty
+              ? productos.first['productoImagen'] ?? ''
+              : '',
+          'conversacion_id': chat['conversacionId'] ?? '',
+          'productos_lista': productos,              // 🔥 NUEVO
+          'foto_perfil': chat['fotoPerfil'] ?? '',    // 🔥 NUEVO
+        }),
       );
 
-      final nuevoItem = {
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'fecha': DateTime.now().toIso8601String(),
-        'otroUsuario': chat['otroUsuario'] ?? 'Usuario',
-        'otroUsuarioId': otroUsuarioId,
-        'fotoPerfil': chat['fotoPerfil'] ?? '',
-        'ultimoMensaje': chat['ultimoMensaje'] ?? 'Sin mensajes',
-        'productos': productosUnicos.values.toList(),
-        'productoNombre': chat['productoNombre'] ?? 'Producto',
-        'productoImagen': chat['productoImagen'] ?? '',
-        'productoImagenMiniatura': chat['productoImagenMiniatura'] ?? '',
-        'conversacionId': chat['conversacionId'] ?? '',
-      };
+      print('>>> 🔥 STATUS: ${response.statusCode}');
+      print('>>> 🔥 BODY: ${response.body}');
 
-      setState(() {
-        if (existenteIndex >= 0) {
-          _agenda[existenteIndex] = nuevoItem;
-        } else {
-          _agenda.insert(0, nuevoItem);
-        }
-      });
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Recargar agenda desde el backend
+        await _cargarAgenda();
 
-      final agendaString = jsonEncode(_agenda);
-      await prefs.setString('agenda_mensajes', agendaString);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            existenteIndex >= 0
-                ? '✅ Agenda actualizada (${productosUnicos.length} productos)'
-                : '✅ Guardado (${productosUnicos.length} productos)',
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Guardado (${productos.length} productos)'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 1),
           ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 1),
-        ),
-      );
+        );
+      } else {
+        throw Exception('Error ${response.statusCode}');
+      }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
-  // ===== ELIMINAR DE AGENDA =====
-  Future<void> _eliminarDeAgenda(String id) async {
+  // ===== ELIMINAR DE AGENDA (BACKEND) =====
+  Future<void> _eliminarDeAgenda(dynamic id) async {
     try {
-      setState(() {
-        _agenda.removeWhere((item) => item['id'] == id);
-      });
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('agenda_mensajes', jsonEncode(_agenda));
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🗑️ Eliminado'),
-          backgroundColor: Colors.grey,
-          duration: Duration(seconds: 1),
-        ),
+      final response = await http.delete(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/agenda/$id'),
       );
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _agenda.removeWhere((item) => item['id'].toString() == id.toString());
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🗑️ Eliminado'),
+              backgroundColor: Colors.grey,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      }
     } catch (e) {
       print('Error al eliminar: $e');
     }
@@ -249,18 +282,24 @@ class _ChatListScreenState extends State<ChatListScreen>
     if (confirm == true) {
       try {
         final response = await http.delete(
-          Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId'),
+          Uri.parse(
+              'https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId'),
         );
 
         if (response.statusCode == 200) {
+          if (!mounted) return;
           setState(() {
-            _conversaciones.removeWhere((c) => c['id'].toString() == conversacionId);
+            _conversaciones
+                .removeWhere((c) => c['id'].toString() == conversacionId);
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Chat eliminado'), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text('Chat eliminado'),
+                backgroundColor: Colors.green),
           );
         }
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
@@ -273,424 +312,821 @@ class _ChatListScreenState extends State<ChatListScreen>
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-           appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: AppBar(
-          title: null,
-          backgroundColor: const Color(0xFF0D1B3E),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          bottom: TabBar(
-            controller: _tabController,
-            indicatorColor: Colors.red.shade700,
-            indicatorWeight: 3,
-            labelColor: Colors.red.shade700,
-            unselectedLabelColor: Colors.white70,
-            labelStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+      backgroundColor: const Color(0xFF0A1628),
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(140),
+        child: ClipPath(
+          clipper: _BottomWaveClipper(),
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF0F2A47),
+                  Color(0xFF0A1929),
+                ],
+              ),
             ),
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.normal,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF3B82F6),
+                                Color(0xFF1A56DB)
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF3B82F6)
+                                    .withValues(alpha: 0.6),
+                                blurRadius: 15,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.chat_bubble_outline,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                'Mensajes',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                'Chatea con compradores y vendedores',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _buildTabChip('CHATS', 0),
+                        const SizedBox(width: 6),
+                        _buildTabChip('AGENDA', 1),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
-            tabs: const [
-              Tab(text: 'CHATS'),
-              Tab(text: 'AGENDA'),
-            ],
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                // ===== TAB 1: CHATS =====
-                _conversaciones.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No tienes conversaciones',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/fondo_montanas.jpg',
+              fit: BoxFit.cover,
+              opacity: const AlwaysStoppedAnimation(0.35),
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xCC0A1628),
+                    Color(0xAA0F2447),
+                    Color(0xEE0A1628),
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 140),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildTabChats(user),
+                      _buildTabAgenda(),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== TAB CHIP =====
+  Widget _buildTabChip(String label, int index) {
+    final animValue = _tabController.animation?.value ?? 0.0;
+    final isActive = animValue.round() == index;
+    return GestureDetector(
+      onTap: () {
+        _tabController.animateTo(index);
+        setState(() {});
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: isActive
+              ? const LinearGradient(
+                  colors: [Color(0xFF3B82F6), Color(0xFF1A56DB)],
+                )
+              : null,
+          color: isActive ? null : Colors.transparent,
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.6),
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.6),
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===== TAB CHATS =====
+  Widget _buildTabChats(User? user) {
+    if (_conversaciones.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.chat_bubble_outline,
+                size: 80, color: Colors.white.withValues(alpha: 0.3)),
+            const SizedBox(height: 16),
+            Text(
+              'No tienes conversaciones',
+              style: TextStyle(
+                  fontSize: 16, color: Colors.white.withValues(alpha: 0.6)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      itemCount: _conversaciones.length,
+      itemBuilder: (context, index) {
+        final chat = _conversaciones[index];
+        final otroUsuario = chat['usuario1_id'] == user?.uid
+            ? chat['nombre2'] ?? 'Usuario'
+            : chat['nombre1'] ?? 'Usuario';
+        final otroUsuarioId = chat['usuario1_id'] == user?.uid
+            ? chat['usuario2_id'] ?? ''
+            : chat['usuario1_id'] ?? '';
+        final productoNombre = chat['producto_nombre'] ?? 'Producto';
+        final ultimoMensaje = chat['ultimo_mensaje'] ?? 'Sin mensajes';
+        final conversacionId = chat['id'].toString();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatScreen(
+                    conversacionId: conversacionId,
+                    otroUsuario: otroUsuario,
+                    otroUsuarioId: otroUsuarioId,
+                    nombreProducto: productoNombre,
+                    productoImagen: chat['producto_imagen'] ?? '',
+                    productoId: chat['producto_id']?.toString() ?? '',
+                    productoPrecio:
+                        chat['producto_precio']?.toString() ?? '0',
+                    productoCategoria: chat['productoCategoria'] ?? '',
+                    productoDescripcion: chat['productoDescripcion'] ?? '',
+                    productoDireccion: chat['productoDireccion'] ?? '',
+                    fotoPerfil: chat['usuario1_id'] == user?.uid
+                        ? chat['foto_perfil2'] ?? ''
+                        : chat['foto_perfil1'] ?? '',
+                    productoImagenesReales:
+                        chat['producto_imagenes_reales'] ?? '',
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFF60A5FA),
+                              Color(0xFF3B82F6),
+                              Color(0xFF1A56DB),
+                            ],
+                          ),
                         ),
-                      )
-                    : ListView.builder(
-                        itemCount: _conversaciones.length,
-                                                itemBuilder: (context, index) {
-                          final chat = _conversaciones[index];
-                          final otroUsuario = chat['usuario1_id'] == user?.uid
-                              ? chat['nombre2'] ?? 'Usuario'
-                              : chat['nombre1'] ?? 'Usuario';
-                          final otroUsuarioId = chat['usuario1_id'] == user?.uid
-                              ? chat['usuario2_id'] ?? ''
-                              : chat['usuario1_id'] ?? '';
-                          final productoNombre = chat['producto_nombre'] ?? 'Producto';
-                          final ultimoMensaje = chat['ultimo_mensaje'] ?? 'Sin mensajes';
-                          final conversacionId = chat['id'].toString();
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ChatScreen(
-                                      conversacionId: conversacionId,
-                                      otroUsuario: otroUsuario,
-                                      otroUsuarioId: otroUsuarioId,
-                                      nombreProducto: productoNombre,
-                                      productoImagen: chat['producto_imagen'] ?? '',
-                                      productoId: chat['producto_id']?.toString() ?? '',
-                                      productoPrecio: chat['producto_precio']?.toString() ?? '0',
-                                      productoCategoria: chat['productoCategoria'] ?? '',
-                                      productoDescripcion: chat['productoDescripcion'] ?? '',
-                                      productoDireccion: chat['productoDireccion'] ?? '',
-                                      fotoPerfil: chat['usuario1_id'] == user?.uid
-                                          ? chat['foto_perfil2'] ?? ''
-                                          : chat['foto_perfil1'] ?? '',
-                                      productoImagenesReales: chat['producto_imagenes_reales'] ?? '',
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF0A1628),
+                          ),
+                          child: ClipOval(
+                            child: chat['producto_imagen'] != null &&
+                                    chat['producto_imagen']
+                                        .toString()
+                                        .isNotEmpty
+                                ? CachedNetworkImage(
+                                    imageUrl: chat[
+                                                    'producto_imagen_miniatura'] !=
+                                                null &&
+                                            chat['producto_imagen_miniatura']
+                                                .toString()
+                                                .isNotEmpty
+                                        ? 'https://mimarketplace-production.up.railway.app${chat['producto_imagen_miniatura']}'
+                                        : 'https://mimarketplace-production.up.railway.app${chat['producto_imagen']}',
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      color: Colors.grey.shade800,
+                                      child: const Icon(Icons.image,
+                                          color: Colors.grey),
                                     ),
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                      color: Colors.grey.shade800,
+                                      child: const Icon(Icons.broken_image,
+                                          color: Colors.grey),
+                                    ),
+                                  )
+                                : Container(
+                                    color: Colors.grey.shade800,
+                                    child: const Icon(Icons.person,
+                                        color: Colors.white, size: 28),
                                   ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.grey.withValues(alpha: 0.15),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 2,
+                        right: 2,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF22C55E),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF0A1628),
+                              width: 2.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF22C55E)
+                                    .withValues(alpha: 0.7),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          otroUsuario,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          productoNombre,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          ultimoMensaje,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            final fotoVendedor =
+                                chat['usuario1_id'] == user?.uid
+                                    ? chat['foto_perfil2'] ?? ''
+                                    : chat['foto_perfil1'] ?? '';
+                            _guardarEnAgenda({
+                              'otroUsuario': otroUsuario,
+                              'otroUsuarioId': otroUsuarioId,
+                              'productoNombre': productoNombre,
+                              'ultimoMensaje': ultimoMensaje,
+                              'productoImagen':
+                                  chat['producto_imagen'] ?? '',
+                              'productoImagenMiniatura':
+                                  chat['producto_imagen_miniatura'] ?? '',
+                              'conversacionId': conversacionId,
+                              'fotoPerfil': fotoVendedor,
+                            });
+                          },
+                          child: const Icon(
+                            Icons.bookmark_add,
+                            color: Color(0xFF60A5FA),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: InkWell(
+                          onTap: () {
+                            _eliminarChat(conversacionId, otroUsuario);
+                          },
+                          child: const Icon(
+                            Icons.delete_outline,
+                            color: Color(0xFFEF4444),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.white54,
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ===== TAB AGENDA =====
+  Widget _buildTabAgenda() {
+    final agendaFiltrada = _busquedaAgenda.isEmpty
+        ? _agenda
+        : _agenda.where((item) {
+            final nombre =
+                (item['otroUsuario'] ?? '').toString().toLowerCase();
+            final productos = (item['productos'] as List?) ?? [];
+            final nombresProductos = productos
+                .map((p) =>
+                    (p['productoNombre'] ?? '').toString().toLowerCase())
+                .join(' ');
+            return nombre.contains(_busquedaAgenda.toLowerCase()) ||
+                nombresProductos.contains(_busquedaAgenda.toLowerCase());
+          }).toList();
+
+    return Column(
+      children: [
+        // 🔍 Barra de búsqueda
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                  blurRadius: 15,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _busquedaAgendaController,
+                    onChanged: (value) {
+                      setState(() {
+                        _busquedaAgenda = value;
+                      });
+                    },
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar contactos o productos...',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 14,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                if (_busquedaAgenda.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      _busquedaAgendaController.clear();
+                      setState(() {
+                        _busquedaAgenda = '';
+                      });
+                    },
+                    child: Icon(
+                      Icons.clear,
+                      color: Colors.white.withValues(alpha: 0.7),
+                      size: 20,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        // 📋 Lista
+        Expanded(
+          child: agendaFiltrada.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _busquedaAgenda.isEmpty
+                            ? Icons.bookmark_border
+                            : Icons.search_off,
+                        size: 80,
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _busquedaAgenda.isEmpty
+                            ? 'No hay mensajes guardados'
+                            : 'No hay resultados para "$_busquedaAgenda"',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (_busquedaAgenda.isEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Toca el botón en un chat para guardarlo',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  itemCount: agendaFiltrada.length,
+                  itemBuilder: (context, index) {
+                    final item = agendaFiltrada[index];
+                    final productos =
+                        (item['productos'] as List?) ?? [];
+                    final primerProducto = productos.isNotEmpty
+                        ? Map<String, dynamic>.from(productos.first)
+                        : <String, dynamic>{};
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(
+                                conversacionId:
+                                    item['conversacionId']?.toString() ??
+                                        '',
+                                otroUsuario:
+                                    item['otroUsuario'] ?? 'Usuario',
+                                otroUsuarioId:
+                                    item['otroUsuarioId']?.toString() ??
+                                        '',
+                                nombreProducto: primerProducto[
+                                        'productoNombre'] ??
+                                    'Producto',
+                                productoImagen:
+                                    primerProducto['productoImagen'] ?? '',
+                                productoId: primerProducto['productoId']
+                                        ?.toString() ??
+                                    '',
+                                productoPrecio: primerProducto[
+                                        'productoPrecio']
+                                        ?.toString() ??
+                                    '0',
+                                productoCategoria: primerProducto[
+                                        'productoCategoria'] ??
+                                    '',
+                                productoDescripcion: primerProducto[
+                                        'productoDescripcion'] ??
+                                    '',
+                                productoDireccion: primerProducto[
+                                        'productoDireccion'] ??
+                                    '',
+                                productoImagenesReales: primerProducto[
+                                        'productoImagenesReales'] ??
+                                    '',
+                                fotoPerfil: item['fotoPerfil'] ?? '',
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: const Color(0xFF3B82F6)
+                                  .withValues(alpha: 0.4),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF3B82F6)
+                                    .withValues(alpha: 0.2),
+                                blurRadius: 15,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                padding: const EdgeInsets.all(2),
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFF60A5FA),
+                                      Color(0xFF3B82F6),
+                                      Color(0xFF1A56DB),
+                                    ],
+                                  ),
                                 ),
-                                child: Row(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFF0A1628),
+                                  ),
+                                  child: ClipOval(
+                                    child: (item['fotoPerfil'] ?? '')
+                                            .toString()
+                                            .isNotEmpty
+                                        ? CachedNetworkImage(
+                                            imageUrl:
+                                                'https://mimarketplace-production.up.railway.app${item['fotoPerfil']}',
+                                            width: 56,
+                                            height: 56,
+                                            fit: BoxFit.cover,
+                                            placeholder: (_, __) => Container(
+                                              color: Colors.grey.shade800,
+                                              child: const Icon(
+                                                  Icons.person,
+                                                  color: Colors.grey),
+                                            ),
+                                            errorWidget: (_, __, ___) =>
+                                                Container(
+                                              color: Colors.grey.shade800,
+                                              child: const Icon(
+                                                  Icons.person,
+                                                  color: Colors.grey),
+                                            ),
+                                          )
+                                        : Container(
+                                            color: Colors.grey.shade800,
+                                            child: const Icon(Icons.person,
+                                                color: Colors.white,
+                                                size: 28),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Avatar
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(25),
-                                      child: chat['producto_imagen'] != null &&
-                                              chat['producto_imagen'].toString().isNotEmpty
-                                          ? CachedNetworkImage(
-                                              imageUrl: chat['producto_imagen_miniatura'] != null &&
-                                                      chat['producto_imagen_miniatura'].toString().isNotEmpty
-                                                  ? 'https://mimarketplace-production.up.railway.app${chat['producto_imagen_miniatura']}'
-                                                  : 'https://mimarketplace-production.up.railway.app${chat['producto_imagen']}',
-                                              width: 50,
-                                              height: 50,
-                                              fit: BoxFit.cover,
-                                              placeholder: (context, url) => Container(
-                                                width: 50,
-                                                height: 50,
-                                                color: Colors.grey.shade200,
-                                                child: const Icon(Icons.image, color: Colors.grey),
-                                              ),
-                                              errorWidget: (context, url, error) => Container(
-                                                width: 50,
-                                                height: 50,
-                                                color: Colors.grey.shade200,
-                                                child: const Icon(Icons.broken_image, color: Colors.grey),
-                                              ),
-                                            )
-                                          : Container(
-                                              width: 50,
-                                              height: 50,
-                                              decoration: const BoxDecoration(
-                                                color: Colors.grey,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(Icons.person, color: Colors.white, size: 28),
-                                            ),
-                                    ),
-                                    const SizedBox(width: 12),
-
-                                    // Info
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            otroUsuario,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            productoNombre,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Colors.red.shade700,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            ultimoMensaje,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
+                                    Text(
+                                      item['otroUsuario'] ?? 'Usuario',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 17,
+                                        color: Colors.white,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-
-                                    // 🔥 BOTONES EN COLUMNA (dentro del recuadro)
-                                    Column(
-                                      mainAxisSize: MainAxisSize.min,
+                                    const SizedBox(height: 4),
+                                    Row(
                                       children: [
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.bookmark_add,
-                                            color: Colors.red.shade700,
-                                            size: 28,
+                                        const Icon(Icons.shopping_bag,
+                                            size: 14,
+                                            color: Color(0xFF60A5FA)),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            productos
+                                                .map((p) =>
+                                                    p['productoNombre'] ??
+                                                    'Producto')
+                                                .join(' · '),
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Color(0xFF60A5FA),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow:
+                                                TextOverflow.ellipsis,
                                           ),
-                                          onPressed: () {
-                                            // 🔥 CALCULAR LA FOTO DEL VENDEDOR
-                                            final fotoVendedor = chat['usuario1_id'] == user?.uid
-                                                ? chat['foto_perfil2'] ?? ''
-                                                : chat['foto_perfil1'] ?? '';
-                                            
-                                            _guardarEnAgenda({
-                                              'otroUsuario': otroUsuario,
-                                              'otroUsuarioId': otroUsuarioId,
-                                              'productoNombre': productoNombre,
-                                              'ultimoMensaje': ultimoMensaje,
-                                              'productoImagen': chat['producto_imagen'] ?? '',
-                                              'productoImagenMiniatura': chat['producto_imagen_miniatura'] ?? '',
-                                              'conversacionId': conversacionId,
-                                              'fotoPerfil': fotoVendedor,
-                                            });
-                                          },
-                                          tooltip: 'Guardar en agenda',
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                            color: Colors.red,
-                                            size: 22,
-                                          ),
-                                          onPressed: () {
-                                            _eliminarChat(conversacionId, otroUsuario);
-                                          },
-                                          tooltip: 'Eliminar chat',
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-
-                // ===== TAB 2: AGENDA =====
-                _agenda.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.bookmark_border, size: 80, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text(
-                              'No hay mensajes guardados',
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Toca el botón rojo en un chat para guardarlo',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _agenda.length,
-                        itemBuilder: (context, index) {
-                          final item = _agenda[index];
-                          final productos = (item['productos'] as List?) ?? [];
-                          final primerProducto = productos.isNotEmpty
-                              ? Map<String, dynamic>.from(productos.first)
-                              : <String, dynamic>{};
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ChatScreen(
-                                      conversacionId:
-                                          item['conversacionId']?.toString() ?? '',
-                                      otroUsuario: item['otroUsuario'] ?? 'Usuario',
-                                      otroUsuarioId:
-                                          item['otroUsuarioId']?.toString() ?? '',
-                                      nombreProducto:
-                                          primerProducto['productoNombre'] ?? 'Producto',
-                                      productoImagen:
-                                          primerProducto['productoImagen'] ?? '',
-                                      productoId:
-                                          primerProducto['productoId']?.toString() ?? '',
-                                      productoPrecio:
-                                          primerProducto['productoPrecio']?.toString() ?? '0',
-                                      productoCategoria:
-                                          primerProducto['productoCategoria'] ?? '',
-                                      productoDescripcion:
-                                          primerProducto['productoDescripcion'] ?? '',
-                                      productoDireccion:
-                                          primerProducto['productoDireccion'] ?? '',
-                                      productoImagenesReales:
-                                          primerProducto['productoImagenesReales'] ?? '',
-                                      fotoPerfil: item['fotoPerfil'] ?? '',
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      item['ultimoMensaje'] ??
+                                          'Sin mensajes',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.red.shade200),
-                                ),
-                                child: Row(
-                                  children: [
-                                    // 🔥 AVATAR DEL VENDEDOR
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(25),
-                                      child: (item['fotoPerfil'] ?? '')
-                                              .toString()
-                                              .isNotEmpty
-                                          ? CachedNetworkImage(
-                                              imageUrl:
-                                                  'https://mimarketplace-production.up.railway.app${item['fotoPerfil']}',
-                                              width: 50,
-                                              height: 50,
-                                              fit: BoxFit.cover,
-                                              placeholder: (_, __) => Container(
-                                                width: 50,
-                                                height: 50,
-                                                color: Colors.grey.shade200,
-                                                child: const Icon(Icons.person,
-                                                    color: Colors.grey),
-                                              ),
-                                              errorWidget: (_, __, ___) => Container(
-                                                width: 50,
-                                                height: 50,
-                                                color: Colors.grey.shade200,
-                                                child: const Icon(Icons.person,
-                                                    color: Colors.grey),
-                                              ),
-                                            )
-                                          : Container(
-                                              width: 50,
-                                              height: 50,
-                                              decoration: const BoxDecoration(
-                                                color: Colors.grey,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(Icons.person,
-                                                  color: Colors.white, size: 28),
-                                            ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            item['otroUsuario'] ?? 'Usuario',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 2),
-                                          // 🔥 LISTA DE PRODUCTOS MENCIONADOS
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.shopping_bag,
-                                                size: 13,
-                                                color: Colors.red.shade700,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Expanded(
-                                                child: Text(
-                                                  productos
-                                                      .map((p) =>
-                                                          p['productoNombre'] ??
-                                                          'Producto')
-                                                      .join(' · '),
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: Colors.red.shade700,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            item['ultimoMensaje'] ?? 'Sin mensajes',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          Text(
-                                            _formatearFecha(item['fecha']),
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                        ],
+                                    Text(
+                                      _formatearFecha(item['fecha']),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.4),
                                       ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline,
-                                          color: Colors.red, size: 22),
-                                      onPressed: () {
-                                        _eliminarDeAgenda(item['id']);
-                                      },
-                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color:
+                                      Colors.white.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.white
+                                        .withValues(alpha: 0.15),
+                                  ),
+                                ),
+                                child: InkWell(
+                                  onTap: () {
+                                    _eliminarDeAgenda(item['id']);
+                                  },
+                                  child: const Icon(
+                                    Icons.delete_outline,
+                                    color: Color(0xFFEF4444),
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-              ],
-            ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -713,4 +1149,27 @@ class _ChatListScreenState extends State<ChatListScreen>
       return 'Fecha desconocida';
     }
   }
+}
+
+// ============================================================
+// 🎨 WAVE CLIPPER
+// ============================================================
+class _BottomWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 20);
+    path.quadraticBezierTo(
+      size.width * 0.5,
+      size.height + 15,
+      size.width,
+      size.height - 20,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

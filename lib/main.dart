@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/sell_screen.dart';
@@ -50,7 +52,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Mi Marketplace',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const AuthGate(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const SplashScreen(),
+        '/auth': (context) => const AuthGate(),
+      },
       debugShowCheckedModeBanner: false,
     );
   }
@@ -266,29 +272,93 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  // 🎨 Colores según la pestaña activa
+  Color _getBackgroundColor() {
+    switch (_selectedIndex) {
+      case 2: // Vender
+        return const Color(0xFF1A0B2E); // Morado oscuro
+      case 3: // Mensajes
+        return const Color(0xFF0A1628); // Azul oscuro
+      case 4: // Perfil
+        return const Color(0xFF0A1929); // Azul oscuro
+      default:
+        return Colors.white;
+    }
+  }
+
+  Color _getSelectedColor() {
+    switch (_selectedIndex) {
+      case 2: // Vender - morado neón
+        return const Color(0xFFBF00FF);
+      case 3: // Mensajes - cyan neón
+        return const Color(0xFF00E5FF);
+      case 4: // Perfil - verde neón
+        return const Color(0xFF39FF14);
+      default:
+        return Colors.blue;
+    }
+  }
+
+  Color _getUnselectedColor() {
+    switch (_selectedIndex) {
+      case 2: // Vender
+        return Colors.white.withValues(alpha: 0.5);
+      case 3: // Mensajes
+        return Colors.white.withValues(alpha: 0.5);
+      case 4: // Perfil
+        return Colors.white.withValues(alpha: 0.5);
+      default:
+        return Colors.black87;
+    }
+  }
+
+  Color _getVenderIconColor() {
+    switch (_selectedIndex) {
+      case 2: // Vender
+        return const Color(0xFFBF00FF);
+      case 4: // Perfil
+        return const Color(0xFF39FF14);
+      default:
+        return Colors.blue;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _widgetOptions[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: _getBackgroundColor(),
+        elevation: _selectedIndex == 4 ? 10 : 0,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.black87,
+        selectedItemColor: _getSelectedColor(),
+        unselectedItemColor: _getUnselectedColor(),
         showSelectedLabels: true,
         showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.shop), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Avisos'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.shop), label: 'Inicio'),
+          const BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Avisos'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle, size: 50, color: Colors.blue),
+            icon: Icon(Icons.add_circle, size: 50, color: _getVenderIconColor()),
             label: 'Vender',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Mensajes'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Perfil'),
+          const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Mensajes'),
+          BottomNavigationBarItem(
+            icon: Icon(
+              Icons.person_outline,
+              shadows: _selectedIndex == 4
+                  ? [
+                      Shadow(
+                        color: const Color(0xFF39FF14).withValues(alpha: 0.8),
+                        blurRadius: 15,
+                      ),
+                    ]
+                  : null,
+            ),
+            label: 'Perfil',
+          ),
         ],
       ),
     );

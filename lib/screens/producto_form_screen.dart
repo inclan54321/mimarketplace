@@ -7,7 +7,6 @@ import 'dart:convert';
 
 class ProductoFormScreen extends StatefulWidget {
   final String categoria;
-  final String subcategoria;
   final String direccion;
   final XFile? imagenDestacada;
   final List<XFile> imagenesReales;
@@ -15,7 +14,6 @@ class ProductoFormScreen extends StatefulWidget {
   const ProductoFormScreen({
     super.key,
     required this.categoria,
-    required this.subcategoria,
     required this.direccion,
     this.imagenDestacada,
     this.imagenesReales = const [],
@@ -35,13 +33,11 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   @override
   void initState() {
     super.initState();
-    // 🔥 Cargar el anuncio recompensado al entrar
     RewardedAdManager.loadRewardedAd();
   }
 
   // ============ 🔥 MOSTRAR POPUP DE ANUNCIO PARA PUBLICAR ============
   void _mostrarPopupAnuncioPublicar() {
-    // Validar formulario primero
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -51,59 +47,72 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
+          backgroundColor: const Color(0xFF0F2447),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.5),
+              width: 1.5,
+            ),
           ),
-          child: SingleChildScrollView(  // 🔥 PARA EVITAR OVERFLOW
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),  // 🔥 MENOS PADDING
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
                     shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3B82F6), Color(0xFF1A56DB)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.5),
+                        blurRadius: 20,
+                        spreadRadius: 3,
+                      ),
+                    ],
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.storefront,
                     size: 40,
-                    color: Colors.blue.shade700,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 const Text(
                   'Publicar Producto',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 6),
-                const Text(
+                const SizedBox(height: 8),
+                Text(
                   'Para publicar tu producto, necesitas ver un breve anuncio.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.grey,
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(
                       child: TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
+                        onPressed: () => Navigator.pop(context),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Cancelar',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey,
+                            color: Colors.white.withValues(alpha: 0.6),
                           ),
                         ),
                       ),
@@ -116,11 +125,16 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                           _verAnuncioYPublicar();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
+                          backgroundColor: Colors.transparent,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
+                          ),
+                        ).copyWith(
+                          backgroundColor: WidgetStateProperty.all(
+                            const Color(0xFF3B82F6),
                           ),
                         ),
                         child: const Row(
@@ -128,7 +142,8 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                           children: [
                             Icon(Icons.play_circle_filled, size: 18),
                             SizedBox(width: 6),
-                            Text('Ver anuncio', style: TextStyle(fontSize: 14)),
+                            Text('Ver anuncio',
+                                style: TextStyle(fontSize: 14)),
                           ],
                         ),
                       ),
@@ -145,10 +160,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
   // ============ 🔥 VER ANUNCIO Y PUBLICAR ============
   void _verAnuncioYPublicar() {
-    print('>>> 1. ENTRE A _verAnuncioYPublicar()');
-
     if (!RewardedAdManager.isAdLoaded) {
-      print('>>> 2. Anuncio NO cargado, cargando...');
       RewardedAdManager.loadRewardedAd();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -159,21 +171,17 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
       return;
     }
 
-    print('>>> 3. Anuncio cargado, mostrando...');
     RewardedAdManager.showRewardedAd(
       onRewarded: () {
-        print('>>> 4. ✅ USUARIO GANÓ RECOMPENSA');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Anuncio completado. Publicando producto...'),
             backgroundColor: Colors.green,
           ),
         );
-        print('>>> 5. Llamando a _publicarProducto()');
         _publicarProducto();
       },
       onDismissed: () {
-        print('>>> 6. ❌ Anuncio cerrado SIN recompensa');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('❌ Debes ver el anuncio completo para publicar'),
@@ -182,13 +190,10 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         );
       },
     );
-    print('>>> 7. SALI DE _verAnuncioYPublicar()');
   }
 
   // ============ 🔥 PUBLICAR PRODUCTO ============
   Future<void> _publicarProducto() async {
-    print('>>> 🚀 ENTRE A _publicarProducto');
-
     if (_publicando) return;
     setState(() => _publicando = true);
 
@@ -197,24 +202,25 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(color: Colors.white),
         ),
       );
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://mimarketplace-production.up.railway.app/api/productos'),
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/productos'),
       );
 
       request.fields['nombre'] = _nombreController.text;
       request.fields['precio'] = _precioController.text;
       request.fields['descripcion'] = _descripcionController.text;
-      request.fields['categoria'] = widget.categoria;
-      request.fields['subcategoria'] = widget.subcategoria;
-      request.fields['vendedor_id'] = FirebaseAuth.instance.currentUser?.uid ?? '';
+           request.fields['categoria'] = widget.categoria;
+      request.fields['subcategoria'] = '';
+      request.fields['vendedor_id'] =
+          FirebaseAuth.instance.currentUser?.uid ?? '';
       request.fields['direccion'] = widget.direccion;
 
-      // ===== IMAGEN DESTACADA =====
       if (widget.imagenDestacada != null) {
         request.files.add(
           await http.MultipartFile.fromPath(
@@ -224,7 +230,6 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         );
       }
 
-      // ===== IMÁGENES REALES =====
       for (var imagen in widget.imagenesReales) {
         request.files.add(
           await http.MultipartFile.fromPath(
@@ -234,7 +239,6 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         );
       }
 
-      print('>>> Enviando producto a la API...');
       final response = await request.send();
       Navigator.pop(context);
 
@@ -243,19 +247,18 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         final data = jsonDecode(responseBody);
         print('>>> ✅ Producto enviado para moderación: ${data['mensaje']}');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('📝 Producto enviado para revisión. Recibirás una notificación cuando sea aprobado.'),
+          const SnackBar(
+            content: Text(
+                '📝 Producto enviado para revisión. Recibirás una notificación cuando sea aprobado.'),
             backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
+            duration: Duration(seconds: 4),
           ),
         );
-        // Volver al home
         Navigator.popUntil(context, (route) => route.isFirst);
       } else {
         throw Exception('Error al publicar');
       }
     } catch (e) {
-      print('>>> ❌ ERROR AL PUBLICAR: $e');
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -271,29 +274,143 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Publicar Producto'),
-        backgroundColor: const Color(0xFF087FE8),
-        foregroundColor: Colors.white,
+      backgroundColor: const Color(0xFF0A1628),
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(140),
+        child: ClipPath(
+          clipper: _BottomWaveClipper(),
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF1A3A6B),
+                  Color(0xFF0F2A47),
+                  Color(0xFF0A1929),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    // Botón atrás
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.1),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: const Icon(Icons.arrow_back,
+                            color: Colors.white, size: 22),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Ícono circular con glow
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF1A56DB)],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3B82F6)
+                                .withValues(alpha: 0.6),
+                            blurRadius: 15,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.inventory_2,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Título + subtítulo
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Publicar Producto',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'Comparta su producto con la comunidad',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 160,
+          bottom: 32,
+        ),
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildInfoRow('Categoría', widget.categoria),
+              // ===== CARD CATEGORÍA =====
+              _buildInfoCard(
+                icono: Icons.grid_view_rounded,
+                label: 'Categoría',
+                valor: widget.categoria,
+                onTap: () {},
+              ),
               const SizedBox(height: 12),
-              _buildInfoRow('Subcategoría', widget.subcategoria),
+
+              // (Subcategoría eliminada)
+
+              // ===== CARD DIRECCIÓN =====
+              _buildInfoCard(
+                icono: Icons.location_on_outlined,
+                label: 'Dirección',
+                valor: widget.direccion,
+                onTap: () {},
+              ),
               const SizedBox(height: 12),
-              _buildInfoRow('Dirección', widget.direccion),
-              const SizedBox(height: 20),
-              TextFormField(
+
+              // ===== INPUT NOMBRE =====
+              _buildInputCard(
+                icono: Icons.inventory_2_outlined,
+                label: 'Nombre del producto',
+                hint: 'Ej. iPhone 13, Laptop, etc.',
                 controller: _nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre del producto',
-                  border: OutlineInputBorder(),
-                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Ingresa el nombre del producto';
@@ -301,13 +418,14 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              TextFormField(
+              const SizedBox(height: 12),
+
+              // ===== INPUT PRECIO =====
+              _buildInputCard(
+                icono: Icons.monetization_on_outlined,
+                label: 'Precio (₡)',
+                hint: 'Ingrese el precio del producto',
                 controller: _precioController,
-                decoration: const InputDecoration(
-                  labelText: 'Precio (₡)',
-                  border: OutlineInputBorder(),
-                ),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -316,13 +434,14 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
-              TextFormField(
+              const SizedBox(height: 12),
+
+              // ===== INPUT DESCRIPCIÓN =====
+              _buildInputCard(
+                icono: Icons.description_outlined,
+                label: 'Descripción',
+                hint: 'Escriba una descripción detallada del producto...',
                 controller: _descripcionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción',
-                  border: OutlineInputBorder(),
-                ),
                 maxLines: 4,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -331,27 +450,60 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _publicando ? null : _mostrarPopupAnuncioPublicar,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF087FE8),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+              const SizedBox(height: 28),
+
+              // ===== BOTÓN PUBLICAR =====
+              Container(
+                height: 58,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(30),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF1A56DB)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.6),
+                      blurRadius: 25,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                child: _publicando
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                child: ElevatedButton(
+                  onPressed:
+                      _publicando ? null : _mostrarPopupAnuncioPublicar,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: _publicando
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.send_rounded, size: 22),
+                            SizedBox(width: 10),
+                            Text(
+                              'Publicar Producto',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                    : const Text(
-                        'Publicar Producto',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                ),
               ),
             ],
           ),
@@ -360,28 +512,175 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  // ===== CARD INFO (con flecha) =====
+  Widget _buildInfoCard({
+    required IconData icono,
+    required String label,
+    required String valor,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
+            width: 1.3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+              blurRadius: 15,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.18),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                  width: 1.2,
+                ),
+              ),
+              child: Icon(icono, color: const Color(0xFF60A5FA), size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    valor,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withValues(alpha: 0.5),
+              size: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===== CARD INPUT (nombre, precio, descripción) =====
+  Widget _buildInputCard({
+    required IconData icono,
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
+          width: 1.3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+            blurRadius: 15,
+            spreadRadius: 1,
+          ),
+        ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.18),
+                border: Border.all(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                  width: 1.2,
+                ),
+              ),
+              child: Icon(icono, color: const Color(0xFF60A5FA), size: 24),
             ),
           ),
+          const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(color: Colors.black54),
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                TextFormField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  maxLines: maxLines,
+                  validator: validator,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  cursorColor: const Color(0xFF60A5FA),
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    errorStyle: const TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -396,4 +695,27 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     _descripcionController.dispose();
     super.dispose();
   }
+}
+
+// ============================================================
+// 🎨 WAVE CLIPPER - Curva inferior del AppBar
+// ============================================================
+class _BottomWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 20);
+    path.quadraticBezierTo(
+      size.width * 0.5,
+      size.height + 20,
+      size.width,
+      size.height - 20,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

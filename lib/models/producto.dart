@@ -10,6 +10,7 @@ class Producto {
   final String? vendedorFoto;
   final String? vendedorId;
   final String? provincia;
+  final String? canton;
   final String? imagenDestacada;
   final String? imagenesReales;
   final String? estadoModeracion;
@@ -30,6 +31,7 @@ class Producto {
     this.vendedorFoto,
     this.vendedorId,
     this.provincia,
+    this.canton,
     this.imagenDestacada,
     this.imagenesReales,
     this.estadoModeracion,
@@ -52,6 +54,7 @@ class Producto {
       vendedorFoto: json['vendedor_foto'] ?? '',
       vendedorId: json['vendedor_id'] ?? '',
       provincia: json['provincia'] ?? '',
+      canton: json['canton'] ?? '',
       imagenDestacada: json['imagen_destacada'],
       imagenesReales: json['imagenes_reales'],
       likes: json['likes'] ?? 0,
@@ -73,6 +76,7 @@ class Producto {
       'vendedor_foto': vendedorFoto,
       'vendedor_id': vendedorId,
       'provincia': provincia,
+      'canton': canton,
       'imagen_destacada': imagenDestacada,
       'imagenes_reales': imagenesReales,
       'likes': likes,

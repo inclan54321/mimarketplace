@@ -45,40 +45,108 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Agregar imágenes'),
-        backgroundColor: const Color(0xFF087FE8),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1A56DB),
+                Color(0xFF087FE8),
+                Color(0xFF3B82F6),
+              ],
+              stops: [0.0, 0.5, 1.0],
+            ),
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: Container(
+        color: const Color(0xFFF8FAFC),
         child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ============================================================
               // IMAGEN DESTACADA + IA
               // ============================================================
-              const Text(
-                '🌟 Imagen Destacada',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              // ===== HEADER CON ÍCONO CIRCULAR =====
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF1A56DB),
+                          Color(0xFF3B82F6),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.star,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Imagen Destacada',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E3A8A),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Esta imagen aparecerá en la portada del producto y en la sección de destacados.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 56),
+                child: Text(
+                  'Esta imagen aparecerá en la portada del producto y en la sección de destacados.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               // Selector de imagen
               GestureDetector(
                 onTap: _enRevision ? null : _seleccionarImagenDestacada,
                 child: Container(
                   width: double.infinity,
-                  height: 150,
+                  height: 170,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
+                    color: _imagenDestacada != null
+                        ? Colors.grey.shade200
+                        : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: _enRevision ? Colors.orange : Colors.grey.shade400,
-                      width: _enRevision ? 2 : 1,
+                      color: _enRevision
+                          ? Colors.orange
+                          : (_imagenDestacada != null
+                              ? Colors.grey.shade300
+                              : const Color(0xFF93C5FD)),
+                      width: 1.5,
                     ),
                     image: _imagenDestacada != null
                         ? DecorationImage(
@@ -88,16 +156,55 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                         : null,
                   ),
                   child: _imagenDestacada == null
-                      ? const Center(
+                      ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_photo_alternate,
-                                  size: 48, color: Colors.grey),
-                              SizedBox(height: 8),
-                              Text(
+                              // 🔥 ÍCONO CIRCULAR CON GRADIENTE
+                              Container(
+                                width: 70,
+                                height: 70,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Color(0xFF3B82F6),
+                                      Color(0xFF1A56DB),
+                                    ],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF3B82F6)
+                                          .withValues(alpha: 0.35),
+                                      blurRadius: 15,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.add_photo_alternate,
+                                  size: 36,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
                                 'Toca para seleccionar una imagen',
-                                style: TextStyle(color: Colors.grey),
+                                style: TextStyle(
+                                  color: Color(0xFF1E40AF),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'JPG, PNG o WEBP · Máx. 10 MB',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
@@ -208,18 +315,125 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
               // ============================================================
               // IMÁGENES REALES (SEPARADO)
               // ============================================================
-              const Divider(),
+              const SizedBox(height: 8),
+              Divider(
+                color: Colors.grey.withValues(alpha: 0.2),
+                thickness: 1,
+              ),
+              const SizedBox(height: 20),
+              // ===== HEADER CON ÍCONO CIRCULAR =====
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF1A56DB),
+                          Color(0xFF3B82F6),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Imágenes Reales del Producto',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E3A8A),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 56),
+                child: Text(
+                  'Sube hasta 4 fotos reales del producto (obligatorio)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
-              const Text(
-                '📷 Imágenes Reales del Producto',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Sube hasta 4 fotos reales del producto (obligatorio)',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
+
+              // 🔥 CARD DE RECOMENDACIÓN (si no hay imágenes)
+              if (_imagenesReales.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFBFDBFE),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.tips_and_updates,
+                          color: Color(0xFF1E40AF),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Recomendación',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E3A8A),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Usa fotos claras y bien iluminadas para mostrar mejor tu producto.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_imagenesReales.isEmpty) const SizedBox(height: 12),
 
               Wrap(
                 spacing: 12,
@@ -269,14 +483,35 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                     GestureDetector(
                       onTap: _seleccionarImagenReal,
                       child: Container(
-                        width: 80,
-                        height: 80,
+                        width: 90,
+                        height: 90,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade400),
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF93C5FD),
+                            width: 1.5,
+                          ),
                         ),
-                        child: const Icon(Icons.add, size: 40, color: Colors.grey),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.add,
+                              size: 32,
+                              color: Color(0xFF3B82F6),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Agregar',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: const Color(0xFF1E40AF),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                 ],
@@ -296,13 +531,12 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ProductoFormScreen(
-                                categoria: widget.categoria,
-                                subcategoria: widget.subcategoria,
-                                direccion: widget.direccion,
-                                imagenDestacada: _imagenDestacada,
-                                imagenesReales: _imagenesReales,
-                              ),
+                                                        builder: (context) => ProductoFormScreen(
+                              categoria: widget.categoria,
+                              direccion: widget.direccion,
+                              imagenDestacada: _imagenDestacada,
+                              imagenesReales: _imagenesReales,
+                            ),
                             ),
                           );
                         },
