@@ -1449,6 +1449,7 @@ app.get('/api/agenda/:usuario_id', async (req, res) => {
 });
 
 app.post('/api/agenda', async (req, res) => {
+    console.log('>>> 🔥🔥🔥 VERSIÓN 3 CON productos_lista 🔥🔥🔥');
     try {
         console.log('>>> GUARDANDO EN AGENDA:', req.body);
         
