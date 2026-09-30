@@ -133,6 +133,15 @@ class _ChatListScreenState extends State<ChatListScreen>
           });
         }
         print('>>> ✅ Agenda cargada: ${data.length} items');
+        // 🔥 DEBUG: ver la estructura completa
+        if (data.isNotEmpty) {
+          final item = Map<String, dynamic>.from(data[0]);
+          print('>>> 🔥 CAMPOS DEL ITEM: ${item.keys.toList()}');
+          print('>>> 🔥 productos? ${item["productos"]}');
+          print('>>> 🔥 productos_lista? ${item["productos_lista"]}');
+          print('>>> 🔥 cantidad_productos? ${item["cantidad_productos"]}');
+          print('>>> 🔥 producto_nombre? ${item["producto_nombre"]}');
+        }
       }
     } catch (e) {
       print('Error al cargar agenda: $e');
@@ -906,8 +915,16 @@ class _ChatListScreenState extends State<ChatListScreen>
                   itemCount: agendaFiltrada.length,
                   itemBuilder: (context, index) {
                     final item = agendaFiltrada[index];
-                    final productos =
-                        (item['productos'] as List?) ?? [];
+                    
+                    // 🔥 LEER CAMPOS CON SNAKE_CASE (como los devuelve el backend)
+                    final otroUsuario = item['otro_usuario'] ?? 'Usuario';
+                    final ultimoMensaje = item['ultimo_mensaje'] ?? 'Sin mensajes';
+                    final fotoPerfil = item['foto_perfil'] ?? '';
+                    final conversacionId = item['conversacion_id']?.toString() ?? '';
+                    final fechaGuardado = item['fecha_guardado']?.toString();
+                    
+                    // 🔥 productos viene como array del backend
+                    final productos = (item['productos'] as List?) ?? [];
                     final primerProducto = productos.isNotEmpty
                         ? Map<String, dynamic>.from(productos.first)
                         : <String, dynamic>{};
@@ -920,14 +937,9 @@ class _ChatListScreenState extends State<ChatListScreen>
                             context,
                             MaterialPageRoute(
                               builder: (context) => ChatScreen(
-                                conversacionId:
-                                    item['conversacionId']?.toString() ??
-                                        '',
-                                otroUsuario:
-                                    item['otroUsuario'] ?? 'Usuario',
-                                otroUsuarioId:
-                                    item['otroUsuarioId']?.toString() ??
-                                        '',
+                                conversacionId: conversacionId,
+                                otroUsuario: otroUsuario,
+                                otroUsuarioId: '', // 🔥 no está en la respuesta
                                 nombreProducto: primerProducto[
                                         'productoNombre'] ??
                                     'Producto',
@@ -952,7 +964,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                                 productoImagenesReales: primerProducto[
                                         'productoImagenesReales'] ??
                                     '',
-                                fotoPerfil: item['fotoPerfil'] ?? '',
+                                fotoPerfil: fotoPerfil,
                               ),
                             ),
                           );
@@ -998,12 +1010,10 @@ class _ChatListScreenState extends State<ChatListScreen>
                                     color: Color(0xFF0A1628),
                                   ),
                                   child: ClipOval(
-                                    child: (item['fotoPerfil'] ?? '')
-                                            .toString()
-                                            .isNotEmpty
+                                    child: fotoPerfil.toString().isNotEmpty
                                         ? CachedNetworkImage(
                                             imageUrl:
-                                                'https://mimarketplace-production.up.railway.app${item['fotoPerfil']}',
+                                                'https://mimarketplace-production.up.railway.app$fotoPerfil',
                                             width: 56,
                                             height: 56,
                                             fit: BoxFit.cover,
@@ -1038,7 +1048,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      item['otroUsuario'] ?? 'Usuario',
+                                      otroUsuario,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 17,
@@ -1075,8 +1085,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      item['ultimoMensaje'] ??
-                                          'Sin mensajes',
+                                      ultimoMensaje,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.white
@@ -1086,7 +1095,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     Text(
-                                      _formatearFecha(item['fecha']),
+                                      _formatearFecha(fechaGuardado),
                                       style: TextStyle(
                                         fontSize: 10,
                                         color: Colors.white

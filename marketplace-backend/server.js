@@ -1434,19 +1434,7 @@ app.delete('/api/productos/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-// ===== OBTENER AGENDA POR USUARIO =====
-app.get('/api/agenda/:usuario_id', async (req, res) => {
-    try {
-        const { usuario_id } = req.params;
-        const result = await pool.query(
-            'SELECT * FROM agenda WHERE usuario_id = $1 ORDER BY fecha_guardado DESC',
-            [usuario_id]
-        );
-        res.json(result.rows);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+
 
 app.post('/api/agenda', async (req, res) => {
     console.log('>>> 🔥🔥🔥 VERSIÓN 3 CON productos_lista 🔥🔥🔥');
