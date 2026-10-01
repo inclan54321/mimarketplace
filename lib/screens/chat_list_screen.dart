@@ -557,8 +557,8 @@ class _ChatListScreenState extends State<ChatListScreen>
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: GestureDetector(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => ChatScreen(
@@ -581,6 +581,11 @@ class _ChatListScreenState extends State<ChatListScreen>
                   ),
                 ),
               );
+
+              // 🔥 AL VOLVER DEL CHAT, RECARGAR CONVERSACIONES
+              if (mounted) {
+                await _cargarConversaciones();
+              }
             },
             child: Container(
               padding:
@@ -996,8 +1001,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => ChatScreen(
@@ -1032,6 +1037,11 @@ class _ChatListScreenState extends State<ChatListScreen>
                               ),
                             ),
                           );
+
+                          // 🔥 AL VOLVER, RECARGAR
+                          if (mounted) {
+                            await _cargarConversaciones();
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.all(14),

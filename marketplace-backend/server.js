@@ -1145,6 +1145,38 @@ app.delete('/api/conversaciones/:id', async (req, res) => {
 });
 
 
+// ===== CONTEO DE MENSAJES NO LEÍDOS =====
+app.get('/api/conversaciones/no-leidos/:usuario_id', async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+
+        // Buscar conversaciones donde el último mensaje NO es mío
+        // y es más reciente que mi última lectura
+        const result = await pool.query(
+            `SELECT COUNT(*) as total
+             FROM conversaciones_app c
+             WHERE (c.usuario1_id = $1 OR c.usuario2_id = $1)
+               AND EXISTS (
+                 SELECT 1 FROM mensajes_app m
+                 WHERE m.conversacion_id = c.id
+                   AND m.usuario_id != $1
+                   AND m.fecha > CASE 
+                     WHEN c.usuario1_id = $1 THEN COALESCE(c.ultimo_leido_usuario1, '1970-01-01')
+                     ELSE COALESCE(c.ultimo_leido_usuario2, '1970-01-01')
+                   END
+               )`,
+            [usuario_id]
+        );
+
+        const total = parseInt(result.rows[0]?.total || 0);
+        console.log(`>>> 💬 Mensajes no leídos para ${usuario_id}: ${total}`);
+        res.json({ total, hay_nuevos: total > 0 });
+    } catch (error) {
+        console.error('Error al contar mensajes no leídos:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ===== MARCAR CONVERSACIÓN COMO LEÍDA =====
 app.put('/api/conversaciones/:id/leer', async (req, res) => {
     try {

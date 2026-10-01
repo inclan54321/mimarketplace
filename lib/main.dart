@@ -260,12 +260,37 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   bool _hayAlertasNuevas = false; // 🔥 NUEVO
+  bool _hayMensajesNuevos = false; // 🔥 NUEVO
 
   @override
   void initState() {
     super.initState();
     _verificarAlertasNuevas();
+    _verificarMensajesNuevos();
     _escucharNotificaciones();
+  }
+
+  // 🔥 Verificar si hay mensajes no leídos al abrir la app
+  Future<void> _verificarMensajesNuevos() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final response = await http.get(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/conversaciones/no-leidos/${user.uid}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final hayNuevos = data['hay_nuevos'] == true;
+        if (mounted) {
+          setState(() => _hayMensajesNuevos = hayNuevos);
+        }
+      }
+    } catch (e) {
+      print('Error al verificar mensajes: $e');
+    }
   }
 
   // 🔥 Verificar si hay alertas no leídas al abrir la app
@@ -296,6 +321,11 @@ class _MainScreenState extends State<MainScreen> {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('>>> 📨 Notificación en primer plano: ${message.notification?.title}');
       if (mounted) {
+        // 🔥 Detectar si es un mensaje de chat
+        final tipo = message.data['tipo']?.toString() ?? '';
+        if (tipo == 'texto' || tipo == 'imagen' || message.data['conversacionId'] != null) {
+          setState(() => _hayMensajesNuevos = true);
+        }
         setState(() => _hayAlertasNuevas = true);
       }
     });
@@ -314,6 +344,10 @@ class _MainScreenState extends State<MainScreen> {
       _selectedIndex = index;
       if (index == 1) {
         _hayAlertasNuevas = false;
+      }
+      // 🔥 Si entra a Mensajes, quitar el punto
+      if (index == 3) {
+        _hayMensajesNuevos = false;
       }
     });
   }
@@ -412,7 +446,29 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.add_circle, size: 50, color: _getVenderIconColor()),
             label: 'Vender',
           ),
-          const BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Mensajes'),
+          BottomNavigationBarItem(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.chat_bubble_outline),
+                if (_hayMensajesNuevos)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            label: 'Mensajes',
+          ),
           BottomNavigationBarItem(
             icon: Icon(
               Icons.person_outline,
