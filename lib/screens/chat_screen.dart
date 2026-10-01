@@ -172,6 +172,23 @@ class _ChatScreenState extends State<ChatScreen>
     }
   }
 
+  Future<void> _marcarComoLeida() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || _conversacionIdActual.isEmpty) return;
+
+      await http.put(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/leer'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'usuario_id': user.uid}),
+      );
+      print('>>> ✅ Conversación marcada como leída');
+    } catch (e) {
+      print('Error al marcar como leída: $e');
+    }
+  }
+
   // 🔥 CARGAR ESTADO DEL ESCUDO (local + backend)
   Future<void> _cargarEstadoEscudo() async {
     try {
@@ -328,6 +345,7 @@ void initState() {
   });
   _conversacionIdActual = widget.conversacionId;
   _obtenerOCrearConversacion();
+  _marcarComoLeida(); // 🔥 NUEVO
   _obtenerFotoVendedorReal();
   _cargarProductosDelVendedor(); // 🔥 NUEVO
   print('>>> DESPUÉS de llamar _obtenerFotoVendedorReal()');

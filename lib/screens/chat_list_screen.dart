@@ -535,6 +535,25 @@ class _ChatListScreenState extends State<ChatListScreen>
         final ultimoMensaje = chat['ultimo_mensaje'] ?? 'Sin mensajes';
         final conversacionId = chat['id'].toString();
 
+        // 🔥 DETECTAR SI HAY MENSAJES NUEVOS
+        bool hayMensajesNuevos = false;
+        try {
+          final ultimaFechaStr = chat['ultima_fecha']?.toString();
+          final miUltimoLeidoStr = chat['mi_ultimo_leido']?.toString();
+
+          if (ultimaFechaStr != null && miUltimoLeidoStr != null) {
+            final ultimaFecha = DateTime.parse(ultimaFechaStr);
+            final miUltimoLeido = DateTime.parse(miUltimoLeidoStr);
+
+            // 🔥 Hay mensajes nuevos si el último mensaje es más reciente que mi última lectura
+            // Y el último mensaje NO es mío
+            final ultimoMensajeEsMio = chat['ultimo_mensaje_usuario_id'] == user?.uid;
+            hayMensajesNuevos = ultimaFecha.isAfter(miUltimoLeido) && !ultimoMensajeEsMio;
+          }
+        } catch (e) {
+          print('Error al calcular mensajes nuevos: $e');
+        }
+
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: GestureDetector(
@@ -567,21 +586,64 @@ class _ChatListScreenState extends State<ChatListScreen>
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.06),
+                // 🔥 COLOR CAMBIA SI HAY MENSAJES NUEVOS
+                color: hayMensajesNuevos
+                    ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
+                    : Colors.white.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
-                  width: 1.5,
+                  color: hayMensajesNuevos
+                      ? const Color(0xFF60A5FA)
+                      : const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                  width: hayMensajesNuevos ? 2.5 : 1.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
-                    blurRadius: 15,
-                    spreadRadius: 1,
+                    color: hayMensajesNuevos
+                        ? const Color(0xFF3B82F6).withValues(alpha: 0.6)
+                        : const Color(0xFF3B82F6).withValues(alpha: 0.2),
+                    blurRadius: hayMensajesNuevos ? 25 : 15,
+                    spreadRadius: hayMensajesNuevos ? 3 : 1,
                   ),
                 ],
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (hayMensajesNuevos)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8, left: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3B82F6),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF3B82F6)
+                                      .withValues(alpha: 0.7),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              'NUEVO MENSAJE',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Row(
                 children: [
                   Stack(
                     children: [
@@ -774,6 +836,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                     color: Colors.white54,
                     size: 22,
                   ),
+                ],
+              ),
                 ],
               ),
             ),

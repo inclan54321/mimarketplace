@@ -312,6 +312,9 @@ class _MainScreenState extends State<MainScreen> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      if (index == 1) {
+        _hayAlertasNuevas = false;
+      }
     });
   }
 
@@ -382,7 +385,29 @@ class _MainScreenState extends State<MainScreen> {
         showUnselectedLabels: true,
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.shop), label: 'Inicio'),
-          const BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Avisos'),
+          BottomNavigationBarItem(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications),
+                if (_hayAlertasNuevas)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            label: 'Avisos',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.add_circle, size: 50, color: _getVenderIconColor()),
             label: 'Vender',

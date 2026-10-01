@@ -812,13 +812,24 @@ app.get('/api/conversaciones/:usuario_id', async (req, res) => {
              u1.foto_perfil AS foto_perfil1,
              u2.foto_perfil AS foto_perfil2,
              p.imagen_url AS producto_imagen,
+             p.imagen_miniatura AS producto_imagen_miniatura,
              p.precio AS producto_precio,
              p.imagen_destacada AS producto_imagen_destacada,
              p.imagenes_reales AS producto_imagenes_reales,
              p.categoria AS productoCategoria,
              p.descripcion AS productoDescripcion,
              p.direccion AS productoDireccion,
-             (SELECT texto FROM mensajes_app WHERE conversacion_id = c.id ORDER BY fecha DESC LIMIT 1) AS ultimo_mensaje
+             (SELECT texto FROM mensajes_app WHERE conversacion_id = c.id ORDER BY fecha DESC LIMIT 1) AS ultimo_mensaje,
+             (SELECT fecha FROM mensajes_app WHERE conversacion_id = c.id ORDER BY fecha DESC LIMIT 1) AS ultima_fecha,
+             (SELECT usuario_id FROM mensajes_app WHERE conversacion_id = c.id ORDER BY fecha DESC LIMIT 1) AS ultimo_mensaje_usuario_id,
+             CASE 
+               WHEN c.usuario1_id = $1 THEN c.ultimo_leido_usuario1
+               ELSE c.ultimo_leido_usuario2
+             END AS mi_ultimo_leido,
+             CASE 
+               WHEN c.usuario1_id = $1 THEN c.ultimo_leido_usuario2
+               ELSE c.ultimo_leido_usuario1
+             END AS su_ultimo_leido
              FROM conversaciones_app c
              LEFT JOIN usuarios u1 ON c.usuario1_id = u1.uid
              LEFT JOIN usuarios u2 ON c.usuario2_id = u2.uid
@@ -1133,6 +1144,44 @@ app.delete('/api/conversaciones/:id', async (req, res) => {
     }
 });
 
+
+// ===== MARCAR CONVERSACIÓN COMO LEÍDA =====
+app.put('/api/conversaciones/:id/leer', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { usuario_id } = req.body;
+
+        if (!usuario_id) {
+            return res.status(400).json({ error: 'usuario_id requerido' });
+        }
+
+        // Obtener la conversación
+        const convResult = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+
+        if (convResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        const conv = convResult.rows[0];
+        const esUsuario1 = conv.usuario1_id === usuario_id;
+
+        const campo = esUsuario1 ? 'ultimo_leido_usuario1' : 'ultimo_leido_usuario2';
+
+        await pool.query(
+            `UPDATE conversaciones_app SET ${campo} = NOW() WHERE id = $1`,
+            [id]
+        );
+
+        console.log(`>>> ✅ Conversación ${id} marcada como leída por ${usuario_id}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error al marcar como leída:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // ===== RUTA PARA OBTENER ALERTAS =====
 app.get('/api/alertas/:usuario_id', async (req, res) => {
