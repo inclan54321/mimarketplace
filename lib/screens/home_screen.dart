@@ -1259,123 +1259,180 @@ Future<void> _cargarProductosDestacados() async {
                                   itemBuilder: (context, index) {
                                     final producto = _productosDestacados[index];
                                     final bool esFav = _favoritosVisuales.contains(producto.id);
-                                    return GestureDetector(
-                                    onTap: () {
-  String imagen = producto.imagenDestacada ?? producto.imagenUrl ?? '';
-  if (imagen.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Este producto no tiene imagen')),
-    );
-    return;
-  }
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ImagenCompletaScreen(
-        imagenUrl: imagen,
-        nombreProducto: producto.nombre,
-      ),
-    ),
-  );
-},
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(12),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.grey.withValues(alpha: 0.15),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 3),
-                                            ),
-                                          ],
-                                        ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(12),
-                                          child: Stack(
-                                            fit: StackFit.expand,
-                                            children: [
-                                              // 🔥 IMAGEN
-                                              producto.imagenDestacada != null && producto.imagenDestacada!.isNotEmpty
-                                                  ? Image.network(
-                                                      'https://mimarketplace-production.up.railway.app${producto.imagenDestacada}',
-                                                      fit: BoxFit.cover,
-                                                      errorBuilder: (_, __, ___) => Container(
-                                                        color: Colors.grey.shade200,
-                                                        child: const Icon(Icons.image, size: 40, color: Colors.grey),
-                                                      ),
-                                                    )
-                                                  : (producto.imagenUrl != null && producto.imagenUrl!.isNotEmpty
-                                                      ? Image.network(
-                                                          'https://mimarketplace-production.up.railway.app${producto.imagenUrl}',
-                                                          fit: BoxFit.cover,
-                                                          errorBuilder: (_, __, ___) => Container(
-                                                            color: Colors.grey.shade200,
-                                                            child: const Icon(Icons.image, size: 40, color: Colors.grey),
-                                                          ),
-                                                        )
-                                                      : Container(
-                                                          color: Colors.grey.shade200,
-                                                          child: const Icon(Icons.image, size: 40, color: Colors.grey),
-                                                        )),
-                                              // 🔥 CORAZÓN ARRIBA A LA DERECHA
-                                              Positioned(
-                                                top: 6,
-                                                right: 6,
-                                                child: GestureDetector(
-                                                  onTap: () => _toggleFavorito(producto),
-                                                  child: Container(
-                                                    padding: const EdgeInsets.all(6),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.white.withValues(alpha: 0.9),
-                                                      shape: BoxShape.circle,
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: Colors.black.withValues(alpha: 0.1),
-                                                          blurRadius: 4,
-                                                          offset: const Offset(0, 2),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: Icon(
-                                                      esFav ? Icons.favorite : Icons.favorite_border,
-                                                      color: esFav ? Colors.red : Colors.grey.shade600,
-                                                      size: 22,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              // 🔥 OVERLAY CON NOMBRE DEL PRODUCTO
-                                              Positioned(
-                                                bottom: 0,
-                                                left: 0,
-                                                right: 0,
-                                                child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    gradient: LinearGradient(
-                                                      begin: Alignment.topCenter,
-                                                      end: Alignment.bottomCenter,
-                                                      colors: [
-                                                        Colors.transparent,
-                                                        Colors.black.withValues(alpha: 0.6),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    producto.nombre,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+
+                                    return Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.grey.withValues(alpha: 0.15),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
                                           ),
+                                        ],
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            // 🔥 IMAGEN (con overlay de nombre y corazón)
+                                            Expanded(
+                                              child: Stack(
+                                                fit: StackFit.expand,
+                                                children: [
+                                                  // Imagen
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      // 🔥 ABRIR IMAGEN COMPLETA AL TOCAR LA IMAGEN
+                                                      String imagen = producto.imagenDestacada ??
+                                                          producto.imagenUrl ??
+                                                          '';
+                                                      if (imagen.isEmpty) {
+                                                        ScaffoldMessenger.of(context)
+                                                            .showSnackBar(
+                                                          const SnackBar(
+                                                              content: Text(
+                                                                  'Este producto no tiene imagen')),
+                                                        );
+                                                        return;
+                                                      }
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              ImagenCompletaScreen(
+                                                            imagenUrl: imagen,
+                                                            nombreProducto:
+                                                                producto.nombre,
+                                                            producto: producto, // 🔥 NUEVO: pasar el producto completo
+                                                          ),
+                                                        ),
+                                                      );
+                                                    },
+                                                    child: producto.imagenDestacada != null &&
+                                                            producto.imagenDestacada!
+                                                                .isNotEmpty
+                                                        ? Image.network(
+                                                            'https://mimarketplace-production.up.railway.app${producto.imagenDestacada}',
+                                                            fit: BoxFit.cover,
+                                                            errorBuilder:
+                                                                (_, __, ___) =>
+                                                                    Container(
+                                                              color: Colors
+                                                                  .grey.shade200,
+                                                              child: const Icon(
+                                                                  Icons.image,
+                                                                  size: 40,
+                                                                  color: Colors
+                                                                      .grey),
+                                                            ),
+                                                          )
+                                                        : (producto.imagenUrl != null &&
+                                                                producto.imagenUrl!
+                                                                    .isNotEmpty
+                                                            ? Image.network(
+                                                                'https://mimarketplace-production.up.railway.app${producto.imagenUrl}',
+                                                                fit: BoxFit.cover,
+                                                                errorBuilder:
+                                                                    (_, __, ___) =>
+                                                                        Container(
+                                                                  color: Colors
+                                                                      .grey.shade200,
+                                                                  child: const Icon(
+                                                                      Icons.image,
+                                                                      size: 40,
+                                                                      color: Colors
+                                                                          .grey),
+                                                                ),
+                                                              )
+                                                            : Container(
+                                                                color: Colors
+                                                                    .grey.shade200,
+                                                                child: const Icon(
+                                                                    Icons.image,
+                                                                    size: 40,
+                                                                    color: Colors
+                                                                        .grey),
+                                                              )),
+                                                  ),
+                                                  // 🔥 CORAZÓN ARRIBA A LA DERECHA
+                                                  Positioned(
+                                                    top: 6,
+                                                    right: 6,
+                                                    child: GestureDetector(
+                                                      onTap: () =>
+                                                          _toggleFavorito(producto),
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.all(6),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.white
+                                                              .withValues(alpha: 0.9),
+                                                          shape: BoxShape.circle,
+                                                          boxShadow: [
+                                                            BoxShadow(
+                                                              color: Colors.black
+                                                                  .withValues(alpha: 0.1),
+                                                              blurRadius: 4,
+                                                              offset: const Offset(
+                                                                  0, 2),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        child: Icon(
+                                                          esFav
+                                                              ? Icons.favorite
+                                                              : Icons.favorite_border,
+                                                          color: esFav
+                                                              ? Colors.red
+                                                              : Colors.grey.shade600,
+                                                          size: 22,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  // 🔥 OVERLAY CON NOMBRE
+                                                  Positioned(
+                                                    bottom: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    child: Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        gradient: LinearGradient(
+                                                          begin: Alignment.topCenter,
+                                                          end: Alignment.bottomCenter,
+                                                          colors: [
+                                                            Colors.transparent,
+                                                            Colors.black.withValues(
+                                                                alpha: 0.6),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      child: Text(
+                                                        producto.nombre,
+                                                        style: const TextStyle(
+                                                          color: Colors.white,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 12,
+                                                        ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                          ],
                                         ),
                                       ),
                                     );

@@ -66,7 +66,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
       body: Container(
         color: const Color(0xFFF8FAFC),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -77,8 +77,8 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
               Row(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         begin: Alignment.topLeft,
@@ -89,18 +89,11 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                         ],
                       ),
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          spreadRadius: 1,
-                        ),
-                      ],
                     ),
                     child: const Icon(
                       Icons.star,
                       color: Colors.white,
-                      size: 24,
+                      size: 20,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -116,25 +109,55 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Padding(
-                padding: const EdgeInsets.only(left: 56),
+                padding: const EdgeInsets.only(left: 48),
                 child: Text(
                   'Esta imagen aparecerá en la portada del producto y en la sección de destacados.',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     color: Colors.grey[600],
-                    height: 1.4,
+                    height: 1.3,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+
+              // 🔥 ADVERTENCIA DE CALIDAD FOTOGRÁFICA
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: Colors.red.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Solo se aceptan imágenes con calidad de estudio fotográfico (buena iluminación, enfoque nítido, fondo limpio).',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade900,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               // Selector de imagen
               GestureDetector(
                 onTap: _enRevision ? null : _seleccionarImagenDestacada,
                 child: Container(
                   width: double.infinity,
-                  height: 170,
+                  height: 130,
                   decoration: BoxDecoration(
                     color: _imagenDestacada != null
                         ? Colors.grey.shade200
@@ -162,8 +185,8 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                             children: [
                               // 🔥 ÍCONO CIRCULAR CON GRADIENTE
                               Container(
-                                width: 70,
-                                height: 70,
+                                width: 54,
+                                height: 54,
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
                                     begin: Alignment.topLeft,
@@ -174,36 +197,28 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                                     ],
                                   ),
                                   shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF3B82F6)
-                                          .withValues(alpha: 0.35),
-                                      blurRadius: 15,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
                                 ),
                                 child: const Icon(
                                   Icons.add_photo_alternate,
-                                  size: 36,
+                                  size: 28,
                                   color: Colors.white,
                                 ),
                               ),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 8),
                               const Text(
                                 'Toca para seleccionar una imagen',
                                 style: TextStyle(
                                   color: Color(0xFF1E40AF),
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 15,
+                                  fontSize: 13,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                               Text(
                                 'JPG, PNG o WEBP · Máx. 10 MB',
                                 style: TextStyle(
                                   color: Colors.grey[600],
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -310,17 +325,16 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                 ),
               ],
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 12),
 
               // ============================================================
               // IMÁGENES REALES (SEPARADO)
               // ============================================================
-              const SizedBox(height: 8),
               Divider(
                 color: Colors.grey.withValues(alpha: 0.2),
                 thickness: 1,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               // ===== HEADER CON ÍCONO CIRCULAR =====
               Row(
                 children: [
@@ -364,7 +378,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Padding(
                 padding: const EdgeInsets.only(left: 56),
                 child: Text(
@@ -376,64 +390,9 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
-              // 🔥 CARD DE RECOMENDACIÓN (si no hay imágenes)
-              if (_imagenesReales.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFFBFDBFE),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.tips_and_updates,
-                          color: Color(0xFF1E40AF),
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Recomendación',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E3A8A),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Usa fotos claras y bien iluminadas para mostrar mejor tu producto.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              if (_imagenesReales.isEmpty) const SizedBox(height: 12),
+              const SizedBox(height: 4),
 
               Wrap(
                 spacing: 12,

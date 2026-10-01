@@ -11,12 +11,14 @@ import 'package:image_cropper/image_cropper.dart';
 import '../models/producto.dart';
 import 'detalle_producto_screen.dart';
 import 'perfil_vendedor_screen.dart';
+import 'portafolio_vendedor_screen.dart'; // 🔥 NUEVO
 import '../widgets/conversation_status_indicator.dart';
 import 'image_viewer_screen.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../widgets/ia_chat_button.dart';
+import '../widgets/escudo_seguridad_widget.dart'; // 🔥 NUEVO
 import '../services/chat_service.dart';        // 🔥 NUEVO
 import 'calificar_screen.dart';     
 import '../widgets/calificacion_widget.dart';    
@@ -90,6 +92,9 @@ class _ChatScreenState extends State<ChatScreen>
   String _vendedorId = '';
   int _productoId = 0;
 
+  // 🔥 NUEVO: Si el panel de análisis del chat está abierto
+  bool _panelAnalisisAbierto = false;
+
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
   bool _isRecording = false;
@@ -132,8 +137,37 @@ class _ChatScreenState extends State<ChatScreen>
   late Timer _timerEmociones;
 
   AnimatedEmoji get _emojiActual => _emociones[_indiceEmocion];
-// 🔥 FUNCIÓN DE PRUEBA - SOLO PRINTS
-void _prueba() {
+  // 🔥 GUARDAR ESTADO DEL ESCUDO
+  Future<void> _guardarEstadoEscudo(bool activo) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'escudo_activo_${widget.conversacionId}';
+      await prefs.setBool(key, activo);
+      print('>>> 💾 Escudo guardado: $activo');
+    } catch (e) {
+      print('Error al guardar escudo: $e');
+    }
+  }
+
+  // 🔥 CARGAR ESTADO DEL ESCUDO
+  Future<void> _cargarEstadoEscudo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'escudo_activo_${widget.conversacionId}';
+      final activo = prefs.getBool(key) ?? false;
+      if (mounted) {
+        setState(() {
+          _iaActiva = activo;
+        });
+      }
+      print('>>> 💾 Escudo cargado: $activo');
+    } catch (e) {
+      print('Error al cargar escudo: $e');
+    }
+  }
+
+  // 🔥 FUNCIÓN DE PRUEBA - SOLO PRINTS
+  void _prueba() {
   print('>>> 🔥 ====== _prueba() EJECUTADA ======');
   print('>>> 🔥 _vendedorId ANTES: "$_vendedorId"');
   print('>>> 🔥 widget.conversacionId: ${widget.conversacionId}');
@@ -245,6 +279,9 @@ void initState() {
   _obtenerOCrearConversacion();
   _obtenerFotoVendedorReal();
   _cargarProductosDelVendedor(); // 🔥 NUEVO
+
+  // 🔥 CARGAR ESTADO DEL ESCUDO
+  _cargarEstadoEscudo();
   print('>>> DESPUÉS de llamar _obtenerFotoVendedorReal()');
   print('>>> _fotoVendedorReal: $_fotoVendedorReal');
   _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
@@ -1292,11 +1329,12 @@ Widget _buildAudioMessage({
   );
 }
   // ============ 🔥 HEADER CON CARRUSEL DE PRODUCTOS ============
-  Widget _buildProductoHeader() {
+  Widget _buildProductoHeader({Key? key}) {
     // 🔥 Si hay varios productos, mostrar carrusel. Si no, el header clásico.
     final mostrarCarrusel = _productosDelVendedor.length > 1;
 
     return Container(
+      key: key,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -1898,10 +1936,14 @@ ListTile(
   ),
   onTap: () {
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Función de ver portafolio en desarrollo'),
-        backgroundColor: Colors.blue,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PortafolioVendedorScreen(
+          vendedorId: widget.otroUsuarioId,
+          vendedorNombre: widget.otroUsuario,
+          vendedorFoto: _fotoVendedorReal,
+        ),
       ),
     );
   },
@@ -2099,111 +2141,170 @@ ListTile(
     );
   }
 
-  void _mostrarInfoEstado() {
+  // 🔥 PANEL DE ANÁLISIS DEL CHAT (reemplaza al modal)
+  Widget _buildPanelAnalisis({Key? key}) {
     String analisisTexto = _analisisIA ?? 'No hay análisis disponible aún.';
 
     final Map<ConversationStatus, Map<String, String>> infoEstados = {
       ConversationStatus.neutral: {
         'titulo': '⚪ Estado Neutral',
-        'descripcion': 'La conversación está en curso. Aún no hay suficiente información para determinar el estado de la transacción.',
+        'color': '#9E9E9E',
+        'descripcion':
+            'La conversación está en curso. Aún no hay suficiente información para determinar el estado de la transacción.',
         'recomendacion': 'Continúa conversando de forma respetuosa y clara.',
+        'icono': 'info',
       },
       ConversationStatus.good: {
         'titulo': '✅ Conversación Saludable',
-        'descripcion': 'La conversación fluye de manera positiva. Ambos usuarios se están comunicando de forma respetuosa y clara.',
-        'recomendacion': '¡Sigue así! La transacción tiene buenas probabilidades de éxito.',
+        'color': '#4CAF50',
+        'descripcion':
+            'La conversación fluye de manera positiva. Ambos usuarios se están comunicando de forma respetuosa y clara.',
+        'recomendacion':
+            '¡Sigue así! La transacción tiene buenas probabilidades de éxito.',
+        'icono': 'check',
       },
       ConversationStatus.warning: {
         'titulo': '⚠️ Precaución Recomendada',
-        'descripcion': 'Se han detectado algunos signos de alerta en la conversación. Podría haber malentendidos o tensión.',
-        'recomendacion': 'Revisa los mensajes anteriores. Intenta ser más claro y empático en tus respuestas.',
+        'color': '#FF9800',
+        'descripcion':
+            'Se han detectado algunos signos de alerta en la conversación. Podría haber malentendidos o tensión.',
+        'recomendacion':
+            'Revisa los mensajes anteriores. Intenta ser más claro y empático en tus respuestas.',
+        'icono': 'warning',
       },
       ConversationStatus.danger: {
         'titulo': '🚨 Peligro Inminente',
-        'descripcion': 'La conversación muestra signos de conflicto o riesgo. Podría haber mala comunicación o desacuerdos serios.',
-        'recomendacion': 'Detente y evalúa la situación. Considera contactar a soporte si es necesario.',
+        'color': '#F44336',
+        'descripcion':
+            'La conversación muestra signos de conflicto o riesgo. Podría haber mala comunicación o desacuerdos serios.',
+        'recomendacion':
+            'Detente y evalúa la situación. Considera contactar a soporte si es necesario.',
+        'icono': 'danger',
       },
     };
 
     final info = infoEstados[_conversationStatus]!;
+    final colorEstado = Color(
+      int.parse(info['color']!.replaceFirst('#', '0xFF')),
+    );
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Text(info['titulo']!),
-            ],
+    IconData iconoEstado;
+    switch (info['icono']) {
+      case 'check':
+        iconoEstado = Icons.check_circle;
+        break;
+      case 'warning':
+        iconoEstado = Icons.warning_amber_rounded;
+        break;
+      case 'danger':
+        iconoEstado = Icons.gpp_bad;
+        break;
+      default:
+        iconoEstado = Icons.info;
+    }
+
+    return Container(
+      key: key,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorEstado.withValues(alpha: 0.4),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorEstado.withValues(alpha: 0.2),
+            blurRadius: 12,
+            spreadRadius: 1,
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
+                  color: colorEstado.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.auto_awesome, color: Colors.blue),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '🔍 Análisis: $analisisTexto',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  ],
+                child: Icon(iconoEstado, color: colorEstado, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  info['titulo']!,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colorEstado,
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                '📊 Resumen',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                info['descripcion']!,
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.lightbulb, color: Colors.blue),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '💡 ${info['recomendacion']!}',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.grey),
+                onPressed: () {
+                  setState(() {
+                    _panelAnalisisAbierto = false;
+                  });
+                },
+                tooltip: 'Cerrar',
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Entendido'),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
             ),
-          ],
-        );
-      },
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Colors.blue, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '🔍 $analisisTexto',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            info['descripcion']!,
+            style: const TextStyle(fontSize: 13),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorEstado.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.lightbulb, color: colorEstado, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '💡 ${info['recomendacion']!}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2274,94 +2375,131 @@ ListTile(
 
     return Scaffold(
  appBar: AppBar(
-  title: GestureDetector(
-    onTap: () => _mostrarOpcionesVendedor(context),
-    child: Row(
-      children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: Colors.grey.shade200,
-          child: ClipOval(
-            child: (widget.fotoPerfil.isNotEmpty || _fotoVendedorReal.isNotEmpty)
-                ? CachedNetworkImage(
-                    imageUrl:
-                        'https://mimarketplace-production.up.railway.app${widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal}',
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) =>
-                        const Icon(Icons.person, size: 24, color: Colors.grey),
-                    errorWidget: (_, __, ___) =>
-                        const Icon(Icons.person, size: 24, color: Colors.grey),
-                  )
-                : const Icon(Icons.person, size: 24, color: Colors.grey),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.otroUsuario,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                widget.nombreProducto,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        // 🔥 CARITA + BOTÓN DE IA + INFO
-        Row(
-          children: [
-            ConversationStatusIndicator(
-              status: _conversationStatus,
-              size: 40,
-              onTap: () => _mostrarInfoEstado(),
-            ),
-            const SizedBox(width: 4),
-            IaChatButton(
-              isActive: _iaActiva,
-              onToggle: () {
-                setState(() {
-                  _iaActiva = !_iaActiva;
-                  if (!_iaActiva) {
-                    _analisisIA = null;
-                  }
-                });
-              },
-              onAdCompleted: () {
-                setState(() {
-                  _analisisIA = '🤖 IA activada. Analizando mensajes...';
-                });
-              },
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              icon: const Icon(Icons.info_outline, color: Colors.white, size: 22),
-              onPressed: () => _mostrarInfoEstado(),
-              tooltip: 'Estado de la conversación',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ],
-        ),
-      ],
-    ),
-  ),
   backgroundColor: const Color(0xFF087FE8),
   foregroundColor: Colors.white,
   elevation: 0,
+  toolbarHeight: 70, // 🔥 AppBar más alto (default es 56)
+  // 🔥 Dejamos el leading por defecto (la flecha de atrás)
+  // 🔥 Usamos flexibleSpace para meter todo el contenido
+  flexibleSpace: SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Row(
+        children: [
+          const SizedBox(width: 52), // 🔥 Espacio para la flecha de atrás
+          // 🔥 FOTO DE PERFIL
+          GestureDetector(
+            onTap: () => _mostrarOpcionesVendedor(context),
+            child: CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey.shade200,
+              child: ClipOval(
+                child: (widget.fotoPerfil.isNotEmpty ||
+                        _fotoVendedorReal.isNotEmpty)
+                    ? CachedNetworkImage(
+                        imageUrl:
+                            'https://mimarketplace-production.up.railway.app${widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal}',
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => const Icon(Icons.person,
+                            size: 24, color: Colors.grey),
+                        errorWidget: (_, __, ___) => const Icon(Icons.person,
+                            size: 24, color: Colors.grey),
+                      )
+                    : const Icon(Icons.person,
+                        size: 24, color: Colors.grey),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 🔥 NOMBRE + PRODUCTO
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _mostrarOpcionesVendedor(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    widget.otroUsuario,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    widget.nombreProducto,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.normal,
+                      color: Colors.white70,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 🛡️ ESCUDO DE SEGURIDAD
+          EscudoSeguridadWidget(
+            estado: _conversationStatus,
+            isActive: _iaActiva,
+            onToggle: () {
+              setState(() {
+                _iaActiva = !_iaActiva;
+                if (!_iaActiva) {
+                  _analisisIA = null;
+                }
+              });
+              // 🔥 GUARDAR ESTADO
+              _guardarEstadoEscudo(_iaActiva);
+            },
+            onAdCompleted: () {
+              setState(() {
+                _analisisIA = '🛡️ Escudo activado. Analizando mensajes...';
+                _iaActiva = true;
+              });
+              // 🔥 GUARDAR ESTADO
+              _guardarEstadoEscudo(true);
+            },
+            onInfoTap: () {
+              setState(() {
+                _panelAnalisisAbierto = !_panelAnalisisAbierto;
+              });
+            },
+          ),
+        ],
+      ),
+    ),
+  ),
+  // 🔥 Title vacío para que no ocupe espacio
+  title: const SizedBox.shrink(),
 ),
       body: Column(
         children: [
-          _buildProductoHeader(),
+          // 🔥 PANEL DE ANÁLISIS O HEADER DE PRODUCTOS
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              return SizeTransition(
+                sizeFactor: animation,
+                child: FadeTransition(
+                  opacity: animation,
+                  child: child,
+                ),
+              );
+            },
+            child: _panelAnalisisAbierto
+                ? _buildPanelAnalisis(key: const ValueKey('panel'))
+                : _buildProductoHeader(key: const ValueKey('header')),
+          ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())

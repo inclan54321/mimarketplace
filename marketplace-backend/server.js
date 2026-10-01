@@ -2717,6 +2717,258 @@ app.post('/api/soporte/enviar', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// ============================================================
+// 🛡️ ESCUDO DE SEGURIDAD
+// ============================================================
+
+// ACTIVAR/DESACTIVAR ESCUDO
+app.post('/api/escudo/activar', async (req, res) => {
+    try {
+        const { conversacion_id, usuario_id, activo } = req.body;
+        if (!conversacion_id || !usuario_id) {
+            return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO escudos_conversacion 
+             (conversacion_id, usuario_id, activo, video_visto, fecha_activacion, fecha_expiracion)
+             VALUES ($1, $2, $3, $3, NOW(), NOW() + INTERVAL '30 days')
+             ON CONFLICT (conversacion_id, usuario_id) 
+             DO UPDATE SET 
+                activo = $3,
+                video_visto = $3,
+                fecha_activacion = CASE WHEN $3 = true THEN NOW() ELSE escudos_conversacion.fecha_activacion END,
+                fecha_expiracion = CASE WHEN $3 = true THEN NOW() + INTERVAL '30 days' ELSE escudos_conversacion.fecha_expiracion END
+             RETURNING *`,
+            [conversacion_id, usuario_id, activo === true]
+        );
+
+        console.log(`>>> 🛡️ Escudo ${activo ? 'activado' : 'desactivado'} en conversación ${conversacion_id} por ${usuario_id}`);
+        res.json({ success: true, escudo: result.rows[0] });
+    } catch (error) {
+        console.error('Error al activar escudo:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// OBTENER ESTADO DEL ESCUDO
+app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
+    try {
+        const { conversacion_id, usuario_id } = req.params;
+        const result = await pool.query(
+            `SELECT * FROM escudos_conversacion 
+             WHERE conversacion_id = $1 AND usuario_id = $2`,
+            [conversacion_id, usuario_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ escudo_activo: false, video_visto: false });
+        }
+
+        const escudo = result.rows[0];
+        // Verificar si está expirado
+        const expirado = escudo.fecha_expiracion && new Date(escudo.fecha_expiracion) < new Date();
+        
+        res.json({
+            escudo_activo: escudo.activo && !expirado,
+            video_visto: escudo.video_visto,
+            fecha_activacion: escudo.fecha_activacion,
+            fecha_expiracion: escudo.fecha_expiracion,
+            expirado: expirado,
+        });
+    } catch (error) {
+        console.error('Error al obtener estado del escudo:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// 📅 ENCUENTROS AGENDADOS
+// ============================================================
+
+// AGENDAR ENCUENTRO
+app.post('/api/encuentro/agendar', async (req, res) => {
+    try {
+        const {
+            conversacion_id,
+            usuario1_id,
+            usuario2_id,
+            fecha_encuentro,
+            lugar_nombre,
+            lugar_lat,
+            lugar_lng,
+        } = req.body;
+
+        if (!conversacion_id || !usuario1_id || !usuario2_id || !fecha_encuentro) {
+            return res.status(400).json({ error: 'Faltan datos obligatorios' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO encuentros_agendados 
+             (conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, lugar_nombre, lugar_lat, lugar_lng)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING *`,
+            [conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, lugar_nombre || '', lugar_lat || null, lugar_lng || null]
+        );
+
+        console.log(`>>> 📅 Encuentro agendado: ${result.rows[0].id}`);
+        res.status(201).json({ success: true, encuentro: result.rows[0] });
+    } catch (error) {
+        console.error('Error al agendar encuentro:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// OBTENER PRÓXIMO ENCUENTRO DE UN USUARIO
+app.get('/api/encuentro/proximo/:usuario_id', async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+        const result = await pool.query(
+            `SELECT * FROM encuentros_agendados 
+             WHERE (usuario1_id = $1 OR usuario2_id = $1)
+             AND estado = 'agendado'
+             AND fecha_encuentro > NOW()
+             ORDER BY fecha_encuentro ASC
+             LIMIT 1`,
+            [usuario_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ encuentro: null });
+        }
+
+        res.json({ encuentro: result.rows[0] });
+    } catch (error) {
+        console.error('Error al obtener próximo encuentro:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// OBTENER ENCUENTRO POR CONVERSACIÓN
+app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
+    try {
+        const { conversacion_id } = req.params;
+        const result = await pool.query(
+            `SELECT * FROM encuentros_agendados 
+             WHERE conversacion_id = $1
+             ORDER BY fecha_creacion DESC
+             LIMIT 1`,
+            [conversacion_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({ encuentro: null });
+        }
+
+        res.json({ encuentro: result.rows[0] });
+    } catch (error) {
+        console.error('Error al obtener encuentro:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// CANCELAR ENCUENTRO
+app.post('/api/encuentro/cancelar/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            `UPDATE encuentros_agendados 
+             SET estado = 'cancelado' 
+             WHERE id = $1
+             RETURNING *`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Encuentro no encontrado' });
+        }
+
+        res.json({ success: true, encuentro: result.rows[0] });
+    } catch (error) {
+        console.error('Error al cancelar encuentro:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// 🔐 VERIFICACIÓN FACIAL
+// ============================================================
+
+app.post('/api/encuentro/verificar-facial', async (req, res) => {
+    try {
+        const { encuentro_id, usuario_id, aprobado, confianza } = req.body;
+
+        if (!encuentro_id || !usuario_id) {
+            return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO verificaciones_faciales 
+             (encuentro_id, usuario_id, aprobado, confianza)
+             VALUES ($1, $2, $3, $4)
+             RETURNING *`,
+            [encuentro_id, usuario_id, aprobado === true, confianza || 0]
+        );
+
+        // Si el usuario verifica OK, marcar en el encuentro
+        if (aprobado === true) {
+            await pool.query(
+                `UPDATE encuentros_agendados 
+                 SET escudo_verificado = true 
+                 WHERE id = $1`,
+                [encuentro_id]
+            );
+        }
+
+        res.status(201).json({ success: true, verificacion: result.rows[0] });
+    } catch (error) {
+        console.error('Error al guardar verificación facial:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// 📍 GPS TRACKING
+// ============================================================
+
+app.post('/api/encuentro/gps', async (req, res) => {
+    try {
+        const { encuentro_id, usuario_id, lat, lng } = req.body;
+
+        if (!encuentro_id || !usuario_id || lat === undefined || lng === undefined) {
+            return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO gps_tracking (encuentro_id, usuario_id, lat, lng)
+             VALUES ($1, $2, $3, $4)
+             RETURNING *`,
+            [encuentro_id, usuario_id, lat, lng]
+        );
+
+        res.status(201).json({ success: true, tracking: result.rows[0] });
+    } catch (error) {
+        console.error('Error al guardar GPS:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// OBTENER HISTORIAL GPS DE UN ENCUENTRO
+app.get('/api/encuentro/gps/:encuentro_id', async (req, res) => {
+    try {
+        const { encuentro_id } = req.params;
+        const result = await pool.query(
+            `SELECT * FROM gps_tracking 
+             WHERE encuentro_id = $1
+             ORDER BY fecha ASC`,
+            [encuentro_id]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener GPS:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 app.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
 });

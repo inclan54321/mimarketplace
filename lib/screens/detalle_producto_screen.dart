@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'perfil_vendedor_screen.dart';
+import 'editar_producto_screen.dart';
+import 'portafolio_vendedor_screen.dart'; // 🔥 NUEVO
 
 
 class DetalleProductoScreen extends StatefulWidget {
@@ -63,6 +65,12 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     _fotoVendedorLocal = widget.producto.vendedorFoto ?? '';
     _verificarFavorito();
     _cargarFotoVendedorSiFalta();
+  }
+
+  // 🔥 NUEVO: Verificar si el usuario actual es el vendedor
+  bool get _esMiPropioProducto {
+    final vendedorId = _producto.vendedorId ?? '';
+    return vendedorId.isNotEmpty && vendedorId == _usuarioId;
   }
 
   Future<void> _verificarFavorito() async {
@@ -287,6 +295,78 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   void _mostrarOpcionesVendedor(BuildContext context) {
     final vendedorId = _producto.vendedorId ?? '';
 
+    // 🔥 SI ES MI PROPIO PRODUCTO → SOLO MOSTRAR "VER PORTAFOLIO"
+    if (_esMiPropioProducto) {
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (BuildContext context) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Mi Perfil',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(
+                    Icons.storefront,
+                    color: Colors.blue,
+                    size: 28,
+                  ),
+                  title: const Text(
+                    'Ver Portafolio',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  subtitle: const Text(
+                    'Ver todos mis productos publicados',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PortafolioVendedorScreen(
+                          vendedorId: _producto.vendedorId ?? '',
+                          vendedorNombre:
+                              _producto.vendedorNombre ?? 'Mi Portafolio',
+                          vendedorFoto: _producto.vendedorFoto,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
+      );
+      return; // 🔥 SALIR PARA NO MOSTRAR EL RESTO
+    }
+
+    // 🔥 SI NO ES MI PRODUCTO → COMPORTAMIENTO NORMAL
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -334,7 +414,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                       style: const TextStyle(fontSize: 16),
                     ),
                     subtitle: Text(
-                      estaBloqueado 
+                      estaBloqueado
                           ? 'Desbloquear a ${_producto.vendedorNombre ?? 'este vendedor'}'
                           : 'Bloquear a ${_producto.vendedorNombre ?? 'este vendedor'}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
@@ -394,11 +474,15 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                     ),
                     onTap: () {
                       Navigator.pop(context);
-                      print('>>> VER PORTAFOLIO: ${_producto.vendedorId}');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Función de ver portafolio en desarrollo'),
-                          backgroundColor: Colors.blue,
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PortafolioVendedorScreen(
+                            vendedorId: _producto.vendedorId ?? '',
+                            vendedorNombre:
+                                _producto.vendedorNombre ?? 'Vendedor',
+                            vendedorFoto: _producto.vendedorFoto,
+                          ),
                         ),
                       );
                     },
@@ -807,6 +891,38 @@ Future<void> _enviarDenuncia(String motivo) async {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
+                        // 🔥 SI ES MI PROPIO PRODUCTO → ABRIR EDITAR
+                        if (_esMiPropioProducto) {
+                          final resultado = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  EditarProductoScreen(producto: _producto),
+                            ),
+                          );
+
+                          // Si el producto se actualizó, recargar los datos
+                          if (resultado == true && mounted) {
+                            // Volver a cargar el producto desde el backend
+                            try {
+                              final response = await http.get(
+                                Uri.parse(
+                                  'https://mimarketplace-production.up.railway.app/api/productos/${_producto.id}',
+                                ),
+                              );
+                              if (response.statusCode == 200) {
+                                final data = jsonDecode(response.body);
+                                setState(() {
+                                  _producto = Producto.fromJson(data);
+                                });
+                              }
+                            } catch (e) {
+                              print('Error al recargar producto: $e');
+                            }
+                          }
+                          return;
+                        }
+
                         print('>>> 1. INICIO - Contactar Vendedor presionado');
                         final user = FirebaseAuth.instance.currentUser;
                         if (user == null) {
@@ -905,17 +1021,39 @@ Future<void> _enviarDenuncia(String motivo) async {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: _esMiPropioProducto
+                            ? const Color(0xFFFF9800) // naranja si es mío
+                            : Colors.blue,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Contactar Vendedor'),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _esMiPropioProducto
+                                ? Icons.edit
+                                : Icons.chat_bubble_outline,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _esMiPropioProducto
+                                ? 'Editar Producto'
+                                : 'Contactar Vendedor',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 40), // 🔥 bajado de 80 a 40
                 ],
               ),
             ),

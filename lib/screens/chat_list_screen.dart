@@ -888,7 +888,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                       const SizedBox(height: 16),
                       Text(
                         _busquedaAgenda.isEmpty
-                            ? 'No hay mensajes guardados'
+                            ? 'No hay contactos guardados'
                             : 'No hay resultados para "$_busquedaAgenda"',
                         style: TextStyle(
                           fontSize: 16,
@@ -899,7 +899,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                       if (_busquedaAgenda.isEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
-                          'Toca el botón en un chat para guardarlo',
+                          'Toca el botón en un chat para guardar el contacto en tu agenda',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.white.withValues(alpha: 0.4),
