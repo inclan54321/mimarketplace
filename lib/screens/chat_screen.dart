@@ -94,6 +94,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   // 🔥 NUEVO: Si el panel de análisis del chat está abierto
   bool _panelAnalisisAbierto = false;
+  bool _escudoCargado = false; // 🔥 NUEVO
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -137,30 +138,80 @@ class _ChatScreenState extends State<ChatScreen>
   late Timer _timerEmociones;
 
   AnimatedEmoji get _emojiActual => _emociones[_indiceEmocion];
-  // 🔥 GUARDAR ESTADO DEL ESCUDO
+  // 🔥 GUARDAR ESTADO DEL ESCUDO (local + backend)
   Future<void> _guardarEstadoEscudo(bool activo) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || _conversacionIdActual.isEmpty) return;
+
+      // 1. GUARDAR EN LOCAL (rápido)
       final prefs = await SharedPreferences.getInstance();
       final key = 'escudo_activo_${widget.conversacionId}';
       await prefs.setBool(key, activo);
-      print('>>> 💾 Escudo guardado: $activo');
+      print('>>> 💾 Escudo local guardado: $activo');
+
+      // 2. GUARDAR EN BACKEND (persistente)
+      final response = await http.post(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/escudo/activar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
+          'usuario_id': user.uid,
+          'activo': activo,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('>>> 💾 Escudo backend guardado: $activo');
+      } else {
+        print('>>> ⚠️ Error al guardar en backend: ${response.statusCode}');
+      }
     } catch (e) {
       print('Error al guardar escudo: $e');
     }
   }
 
-  // 🔥 CARGAR ESTADO DEL ESCUDO
+  // 🔥 CARGAR ESTADO DEL ESCUDO (local + backend)
   Future<void> _cargarEstadoEscudo() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || _conversacionIdActual.isEmpty) return;
+
+      // 1. LEER DE LOCAL PRIMERO (rápido)
       final prefs = await SharedPreferences.getInstance();
       final key = 'escudo_activo_${widget.conversacionId}';
-      final activo = prefs.getBool(key) ?? false;
+      final activoLocal = prefs.getBool(key) ?? false;
+
       if (mounted) {
         setState(() {
-          _iaActiva = activo;
+          _iaActiva = activoLocal;
         });
       }
-      print('>>> 💾 Escudo cargado: $activo');
+      print('>>> 💾 Escudo local: $activoLocal');
+
+      // 2. CONSULTAR AL BACKEND (por si cambió en otro lado)
+      final response = await http.get(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/escudo/estado/$_conversacionIdActual/${user.uid}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final activoBackend = data['escudo_activo'] == true;
+
+        if (activoBackend != activoLocal) {
+          await prefs.setBool(key, activoBackend);
+          if (mounted) {
+            setState(() {
+              _iaActiva = activoBackend;
+            });
+          }
+          print('>>> 🔄 Sincronizado con backend: $activoBackend');
+        } else {
+          print('>>> ✅ Local y backend coinciden: $activoBackend');
+        }
+      }
     } catch (e) {
       print('Error al cargar escudo: $e');
     }
@@ -279,9 +330,6 @@ void initState() {
   _obtenerOCrearConversacion();
   _obtenerFotoVendedorReal();
   _cargarProductosDelVendedor(); // 🔥 NUEVO
-
-  // 🔥 CARGAR ESTADO DEL ESCUDO
-  _cargarEstadoEscudo();
   print('>>> DESPUÉS de llamar _obtenerFotoVendedorReal()');
   print('>>> _fotoVendedorReal: $_fotoVendedorReal');
   _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
@@ -455,6 +503,12 @@ void dispose() {
   if (user == null) {
     setState(() => _isLoading = false);
     return;
+  }
+
+  // 🔥 CARGAR ESTADO DEL ESCUDO (una sola vez cuando ya hay ID)
+  if (!_escudoCargado && conversacionId.isNotEmpty) {
+    _escudoCargado = true;
+    _cargarEstadoEscudo();
   }
 
   // 🔥 1. MOSTRAR CACHÉ INMEDIATAMENTE (si es la primera vez)
@@ -2449,6 +2503,7 @@ ListTile(
           EscudoSeguridadWidget(
             estado: _conversationStatus,
             isActive: _iaActiva,
+            videoVistoInicial: _iaActiva,
             onToggle: () {
               setState(() {
                 _iaActiva = !_iaActiva;

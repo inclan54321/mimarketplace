@@ -1149,6 +1149,72 @@ app.get('/api/alertas/:usuario_id', async (req, res) => {
     }
 });
 
+// ===== RUTA PARA OBTENER CONTEO DE ALERTAS NO LEÍDAS =====
+app.get('/api/alertas/no-leidas/:usuario_id', async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+        const result = await pool.query(
+            'SELECT COUNT(*) as total FROM alertas WHERE usuario_id = $1 AND leida = FALSE',
+            [usuario_id]
+        );
+        const total = parseInt(result.rows[0]?.total || 0);
+        console.log(`>>> 🔔 Alertas no leídas para ${usuario_id}: ${total}`);
+        res.json({ total, hay_nuevas: total > 0 });
+    } catch (error) {
+        console.error('Error al contar alertas no leídas:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== RUTA PARA MARCAR TODAS LAS ALERTAS COMO LEÍDAS =====
+app.put('/api/alertas/marcar-leidas/:usuario_id', async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+        const result = await pool.query(
+            'UPDATE alertas SET leida = TRUE WHERE usuario_id = $1 AND leida = FALSE',
+            [usuario_id]
+        );
+        console.log(`>>> ✅ ${result.rowCount} alertas marcadas como leídas para ${usuario_id}`);
+        res.json({ success: true, marcadas: result.rowCount });
+    } catch (error) {
+        console.error('Error al marcar alertas como leídas:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== RUTA PARA OBTENER CONTEO DE ALERTAS NO LEÍDAS =====
+app.get('/api/alertas/no-leidas/:usuario_id', async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+        const result = await pool.query(
+            'SELECT COUNT(*) as total FROM alertas WHERE usuario_id = $1 AND leida = FALSE',
+            [usuario_id]
+        );
+        const total = parseInt(result.rows[0]?.total || 0);
+        console.log(`>>> 🔔 Alertas no leídas para ${usuario_id}: ${total}`);
+        res.json({ total, hay_nuevas: total > 0 });
+    } catch (error) {
+        console.error('Error al contar alertas no leídas:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== RUTA PARA MARCAR TODAS LAS ALERTAS COMO LEÍDAS =====
+app.put('/api/alertas/marcar-leidas/:usuario_id', async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+        const result = await pool.query(
+            'UPDATE alertas SET leida = TRUE WHERE usuario_id = $1 AND leida = FALSE',
+            [usuario_id]
+        );
+        console.log(`>>> ✅ ${result.rowCount} alertas marcadas como leídas para ${usuario_id}`);
+        res.json({ success: true, marcadas: result.rowCount });
+    } catch (error) {
+        console.error('Error al marcar alertas como leídas:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ===== RUTA PARA MARCAR ALERTA COMO LEÍDA =====
 app.put('/api/alertas/:id', async (req, res) => {
     try {

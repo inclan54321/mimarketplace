@@ -3,6 +3,8 @@ import 'package:video_player/video_player.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
@@ -257,6 +259,47 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  bool _hayAlertasNuevas = false; // 🔥 NUEVO
+
+  @override
+  void initState() {
+    super.initState();
+    _verificarAlertasNuevas();
+    _escucharNotificaciones();
+  }
+
+  // 🔥 Verificar si hay alertas no leídas al abrir la app
+  Future<void> _verificarAlertasNuevas() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final response = await http.get(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/alertas/no-leidas/${user.uid}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final hayNuevas = data['hay_nuevas'] == true;
+        if (mounted) {
+          setState(() => _hayAlertasNuevas = hayNuevas);
+        }
+      }
+    } catch (e) {
+      print('Error al verificar alertas: $e');
+    }
+  }
+
+  // 🔥 Escuchar notificaciones en primer plano
+  void _escucharNotificaciones() {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('>>> 📨 Notificación en primer plano: ${message.notification?.title}');
+      if (mounted) {
+        setState(() => _hayAlertasNuevas = true);
+      }
+    });
+  }
 
   static final List<Widget> _widgetOptions = <Widget>[
     const HomeScreen(),

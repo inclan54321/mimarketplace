@@ -36,6 +36,12 @@ class _AlertasScreenState extends State<AlertasScreen> {
           _alertas = data.map((item) => Map<String, dynamic>.from(item)).toList();
           _isLoading = false;
         });
+
+        // 🔥 Marcar todas como leídas en el backend
+        await http.put(
+          Uri.parse(
+              'https://mimarketplace-production.up.railway.app/api/alertas/marcar-leidas/${user.uid}'),
+        );
       } else {
         setState(() => _isLoading = false);
       }

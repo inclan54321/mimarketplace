@@ -52,6 +52,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     super.initState();
     // 🔥 NUEVO: Leer el estado inicial
     _videoVisto = widget.videoVistoInicial;
+    print('>>> 🛡️ Escudo initState - videoVistoInicial: ${widget.videoVistoInicial}');
     _timerEmoji = Timer.periodic(const Duration(seconds: 2), (timer) {
       if (mounted) {
         setState(() {
@@ -79,6 +80,19 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
   }
 
   @override
+  void didUpdateWidget(covariant EscudoSeguridadWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    print('>>> 🛡️ didUpdateWidget - old: ${oldWidget.videoVistoInicial}, new: ${widget.videoVistoInicial}');
+    // 🔥 Si el estado del video cambió desde el padre, actualizar
+    if (widget.videoVistoInicial != oldWidget.videoVistoInicial) {
+      setState(() {
+        _videoVisto = widget.videoVistoInicial;
+      });
+      print('>>> 🛡️ _videoVisto actualizado a: $_videoVisto');
+    }
+  }
+
+  @override
   void dispose() {
     _timerEmoji?.cancel();
     _ondasController.dispose();
@@ -94,27 +108,29 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.shield,
-                    size: 48,
+                    size: 40,
                     color: Colors.blue.shade700,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 const Text(
                   '🛡️ Escudo de Seguridad',
                   style: TextStyle(
@@ -122,15 +138,15 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 const Text(
                   'Protege tus conversaciones y encuentros en MiMarketplace.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
@@ -142,43 +158,43 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                       _buildFuncionItem(
                         Icons.block,
                         'Bloquea números de teléfono',
-                        'Evita que compartas datos de contacto por error.',
+                        'Evita compartir datos de contacto.',
                         Colors.red,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       _buildFuncionItem(
                         Icons.link_off,
                         'Bloquea enlaces externos',
-                        'Detecta intentos de llevarte fuera de la app.',
+                        'Detecta intentos de salir de la app.',
                         Colors.orange,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       _buildFuncionItem(
                         Icons.location_on,
                         'Sugiere lugares seguros',
-                        'Te recomienda puntos públicos para encontrarte.',
+                        'Recomienda puntos públicos.',
                         Colors.green,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       _buildFuncionItem(
                         Icons.face,
                         'Verificación facial',
-                        'Confirma tu identidad con reconocimiento facial.',
+                        'Confirma tu identidad.',
                         Colors.blue,
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 6),
                       _buildFuncionItem(
                         Icons.gps_fixed,
                         'Seguimiento GPS',
-                        'Trackea tu ubicación durante encuentros seguros.',
+                        'Trackea tu ubicación.',
                         Colors.purple,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.amber.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -187,7 +203,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                   child: Row(
                     children: [
                       Icon(Icons.play_circle_filled,
-                          color: Colors.amber.shade800, size: 20),
+                          color: Colors.amber.shade800, size: 18),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -202,18 +218,18 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: TextButton(
                         onPressed: () => Navigator.pop(dialogContext),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         child: const Text(
                           'Cancelar',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                          style: TextStyle(fontSize: 15, color: Colors.grey),
                         ),
                       ),
                     ),
@@ -228,7 +244,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
