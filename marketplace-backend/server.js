@@ -2482,50 +2482,100 @@ app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, r
         res.status(500).json({ error: error.message });
     }
 });
-// ===== ANALIZAR CHAT CON IA (DEEPSEEK) =====
+// ===== ANALIZAR CHAT CON IA (DEEPSEEK) - VERSIÓN MEJORADA =====
 app.post('/api/analizar-chat', async (req, res) => {
     try {
-        const { mensaje, usuario_id, conversacion_id } = req.body;
+        const { conversacion_id, usuario_id } = req.body;
 
-        if (!mensaje || mensaje.length < 3) {
+        if (!conversacion_id) {
             return res.json({ 
                 estado: 'neutral', 
-                analisis: 'Mensaje muy corto para analizar' 
+                analisis: 'Conversación no especificada' 
             });
         }
 
-        const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;  // ✅ BIEN
+        // 🔥 1. OBTENER LOS ÚLTIMOS 20 MENSAJES
+        const mensajesResult = await pool.query(
+            `SELECT m.usuario_id, m.texto, m.fecha, u.nombre AS remitente
+             FROM mensajes_app m
+             LEFT JOIN usuarios u ON m.usuario_id = u.uid
+             WHERE m.conversacion_id = $1
+               AND m.usuario_id != 'SYSTEM'
+               AND m.texto IS NOT NULL
+               AND m.texto != ''
+             ORDER BY m.fecha DESC
+             LIMIT 20`,
+            [conversacion_id]
+        );
+
+        if (mensajesResult.rows.length === 0) {
+            return res.json({ 
+                estado: 'neutral', 
+                analisis: 'No hay mensajes suficientes para analizar' 
+            });
+        }
+
+        // 🔥 2. CONSTRUIR LA CONVERSACIÓN FORMATEADA
+        const mensajes = mensajesResult.rows.reverse();
+
+        const conversacionFormateada = mensajes.map(m => {
+            const remitente = m.remitente || 'Usuario';
+            const esMio = m.usuario_id === usuario_id;
+            const prefijo = esMio ? '[YO]' : `[${remitente}]`;
+            return `${prefijo}: ${m.texto}`;
+        }).join('\n');
+
+        console.log('>>> 📝 Conversación a analizar (últimos 20 mensajes):');
+        console.log(conversacionFormateada);
+
+        const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
         const url = 'https://api.deepseek.com/v1/chat/completions';
 
-        const prompt = `Analiza este mensaje de un chat de marketplace y determina si hay señales de:
+        const prompt = `Analiza esta conversación de un marketplace en Costa Rica entre un comprador y un vendedor.
 
-1. ESTAFA o FRAUDE (precios muy bajos, urgencia, pedir dinero fuera de la plataforma)
-2. MALENTENDIDOS (información confusa, promesas poco claras)
-3. INFORMACIÓN OMITIDA (no responde preguntas, evade temas)
-4. COMPORTAMIENTO SOSPECHOSO (insiste en algo, presión)
+CONVERSACIÓN:
+${conversacionFormateada}
 
-Mensaje: "${mensaje}"
+INSTRUCCIONES:
+Determina el estado de la conversación según estas señales:
 
-Responde ÚNICAMENTE con un JSON válido:
-{"estado":"good","analisis":"explicación breve en español"}`;
+1. ESTAFA o FRAUDE (precios muy bajos, urgencia, pedir dinero fuera de la plataforma, pedir SINPE por adelantado, datos bancarios)
+2. MALENTENDIDOS (información confusa, promesas poco claras, contradicciones)
+3. INFORMACIÓN OMITIDA (no responde preguntas, evade temas importantes)
+4. COMPORTAMIENTO SOSPECHOSO (insiste en algo, presión, amenazas, lenguaje agresivo)
+5. CONVERSACIÓN SALUDABLE (diálogo respetuoso, claro, sin señales de alerta)
+
+RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO:
+{
+  "estado": "good" | "warning" | "danger" | "neutral",
+  "analisis": "Explicación breve en español (máximo 150 caracteres) de por qué elegiste ese estado"
+}
+
+CRITERIOS:
+- "good": conversación respetuosa, clara, sin señales de riesgo
+- "warning": hay señales leves de alerta (evasivas, insistencia, ambigüedad)
+- "danger": hay señales claras de fraude, agresión o riesgo
+- "neutral": conversación muy corta o sin suficiente información`;
 
         const response = await axios.post(url, {
             model: 'deepseek-chat',
             messages: [
-                { role: 'system', content: 'Eres un asistente que analiza mensajes de chat para detectar fraudes y malentendidos. Responde SOLO con JSON.' },
+                { 
+                    role: 'system', 
+                    content: 'Eres un asistente experto en detectar fraudes en conversaciones de marketplace. Analizas el contexto completo de la conversación, no solo un mensaje aislado. Responde SOLO con JSON.' 
+                },
                 { role: 'user', content: prompt }
             ],
             temperature: 0.1,
-            max_tokens: 80,
+            max_tokens: 200,
         }, {
             headers: {
                 'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            timeout: 10000
+            timeout: 15000
         });
 
-        // 🔥 MOSTRAR TOKENS GASTADOS
         const usage = response.data.usage;
         console.log('>>> 📊 TOKENS GASTADOS:');
         console.log('>>>   - Prompt tokens: ' + (usage?.prompt_tokens || 'N/A'));
@@ -2533,6 +2583,8 @@ Responde ÚNICAMENTE con un JSON válido:
         console.log('>>>   - Total tokens: ' + (usage?.total_tokens || 'N/A'));
 
         const text = response.data.choices?.[0]?.message?.content || '';
+        console.log('>>> 🤖 Respuesta de DeepSeek:', text);
+
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         
         if (jsonMatch) {
@@ -2543,6 +2595,7 @@ Responde ÚNICAMENTE con un JSON válido:
                     analisis: resultado.analisis || 'Análisis completado'
                 });
             } catch (e) {
+                console.error('>>> ❌ Error al parsear JSON:', e.message);
                 return res.json({ estado: 'neutral', analisis: 'Error al analizar' });
             }
         }

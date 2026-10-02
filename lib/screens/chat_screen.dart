@@ -362,20 +362,7 @@ void initState() {
     _verificarCalificacion();
   });
 
-  // 🔥 SIMULAR CAMBIO DE ESTADO (PARA PRUEBAS)
-  Timer.periodic(const Duration(seconds: 10), (timer) {
-    if (mounted) {
-      final estados = [
-        ConversationStatus.neutral,
-        ConversationStatus.good,
-        ConversationStatus.warning,
-        ConversationStatus.danger,
-      ];
-      setState(() {
-        _conversationStatus = estados[DateTime.now().second % 4];
-      });
-    }
-  });
+  // 🔥 (Eliminado el timer aleatorio - ahora el estado lo determina la IA)
 }
 
 
@@ -577,6 +564,11 @@ void dispose() {
           _isLoading = false;
         });
         print('>>> 🔄 Mensajes actualizados (${mensajesConFotos.length})');
+
+        // 🔥 ANALIZAR CON IA SI EL ESCUDO ESTÁ ACTIVO
+        if (_iaActiva) {
+          _analizarMensajeConIA('', user.uid);
+        }
       } else {
         // 🔥 No hay cambios, solo actualizar `_isLoading` si es necesario
         if (_isLoading) {
@@ -812,7 +804,6 @@ Future<void> _obtenerFotoVendedorReal() async {
         Uri.parse('https://mimarketplace-production.up.railway.app/api/analizar-chat'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'mensaje': mensaje,
           'usuario_id': usuarioId,
           'conversacion_id': _conversacionIdActual,
         }),
