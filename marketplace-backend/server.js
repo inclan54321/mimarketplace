@@ -3175,6 +3175,218 @@ app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
 });
 
 // ============================================================
+// 📅 PROPUESTAS DE ENCUENTRO (NUEVO FLUJO)
+// ============================================================
+
+// 🔥 PROPONER ENCUENTRO
+app.post('/api/encuentro/proponer', async (req, res) => {
+    try {
+        const {
+            conversacion_id,
+            usuario_propone_id,
+            usuario_recibe_id,
+            provincia,
+            canton,
+            distrito,
+            lugar_nombre,
+            lugar_lat,
+            lugar_lng,
+            fecha_encuentro,
+        } = req.body;
+
+        if (!conversacion_id || !usuario_propone_id || !usuario_recibe_id || !fecha_encuentro) {
+            return res.status(400).json({ error: 'Faltan datos obligatorios' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO propuestas_encuentro 
+             (conversacion_id, usuario_propone_id, usuario_recibe_id, 
+              provincia, canton, distrito, lugar_nombre, lugar_lat, lugar_lng, 
+              fecha_encuentro, estado)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pendiente')
+             RETURNING *`,
+            [
+                conversacion_id, usuario_propone_id, usuario_recibe_id,
+                provincia, canton, distrito, lugar_nombre,
+                lugar_lat || null, lugar_lng || null,
+                fecha_encuentro
+            ]
+        );
+
+        // 🔥 CREAR MENSAJE EN EL CHAT
+        await pool.query(
+            `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [
+                conversacion_id,
+                'SYSTEM',
+                `||ENCUENTRO_PROPUESTA||${result.rows[0].id}`,
+                ''
+            ]
+        );
+
+        console.log(`>>> 📅 Propuesta de encuentro creada: ${result.rows[0].id}`);
+        res.status(201).json({ success: true, propuesta: result.rows[0] });
+    } catch (error) {
+        console.error('Error al crear propuesta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 OBTENER PROPUESTA POR ID
+app.get('/api/encuentro/propuesta/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            `SELECT * FROM propuestas_encuentro WHERE id = $1`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al obtener propuesta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 ACEPTAR PROPUESTA
+app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            `UPDATE propuestas_encuentro 
+             SET estado = 'aceptada', fecha_actualizacion = NOW()
+             WHERE id = $1 RETURNING *`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+
+        await pool.query(
+            `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [
+                result.rows[0].conversacion_id,
+                'SYSTEM',
+                `||ENCUENTRO_ACEPTADO||${id}`,
+                ''
+            ]
+        );
+
+        res.json({ success: true, propuesta: result.rows[0] });
+    } catch (error) {
+        console.error('Error al aceptar propuesta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 RECHAZAR PROPUESTA
+app.put('/api/encuentro/propuesta/:id/rechazar', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            `UPDATE propuestas_encuentro 
+             SET estado = 'rechazada', fecha_actualizacion = NOW()
+             WHERE id = $1 RETURNING *`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+
+        await pool.query(
+            `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [
+                result.rows[0].conversacion_id,
+                'SYSTEM',
+                `||ENCUENTRO_RECHAZADO||${id}`,
+                ''
+            ]
+        );
+
+        res.json({ success: true, propuesta: result.rows[0] });
+    } catch (error) {
+        console.error('Error al rechazar propuesta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 CONTRAPROPUESTA
+app.put('/api/encuentro/propuesta/:id/contrapropuesta', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            usuario_id,
+            lugar_nombre,
+            lugar_lat,
+            lugar_lng,
+            fecha_encuentro,
+        } = req.body;
+
+        const result = await pool.query(
+            `UPDATE propuestas_encuentro 
+             SET estado = 'contrapropuesta',
+                 contrapropuesta_de_id = $1,
+                 contrapropuesta_lugar = $2,
+                 contrapropuesta_fecha = $3,
+                 fecha_actualizacion = NOW()
+             WHERE id = $4 RETURNING *`,
+            [usuario_id, lugar_nombre, fecha_encuentro, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+
+        await pool.query(
+            `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [
+                result.rows[0].conversacion_id,
+                'SYSTEM',
+                `||ENCUENTRO_CONTRAPROPUESTA||${id}`,
+                ''
+            ]
+        );
+
+        res.json({ success: true, propuesta: result.rows[0] });
+    } catch (error) {
+        console.error('Error al hacer contrapropuesta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 CONFIRMAR PROPUESTA FINAL
+app.put('/api/encuentro/propuesta/:id/confirmar', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            `UPDATE propuestas_encuentro 
+             SET estado = 'confirmada', fecha_actualizacion = NOW()
+             WHERE id = $1 RETURNING *`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+
+        res.json({ success: true, propuesta: result.rows[0] });
+    } catch (error) {
+        console.error('Error al confirmar propuesta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
 // 📅 ENCUENTROS AGENDADOS
 // ============================================================
 

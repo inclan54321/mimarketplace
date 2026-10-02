@@ -2501,13 +2501,14 @@ ListTile(
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+        builder: (context, setModalState) => ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
           child: Container(
             padding: const EdgeInsets.all(20),
@@ -2658,6 +2659,7 @@ ListTile(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
+                        // 🔥 VALIDAR CAMPOS
                         if (provinciaSeleccionada == null ||
                             cantonSeleccionado == null ||
                             distritoSeleccionado == null ||
@@ -2665,14 +2667,22 @@ ListTile(
                             fechaSeleccionada == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Completa todos los campos'),
+                              content: Text('⚠️ Completa todos los campos'),
                               backgroundColor: Colors.orange,
                             ),
                           );
                           return;
                         }
 
-                        // 🔥 ENVIAR AL BACKEND
+                        // 🔥 MOSTRAR INDICADOR DE CARGA
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (context) => const Center(
+                            child: CircularProgressIndicator(color: Colors.white),
+                          ),
+                        );
+
                         try {
                           final user = FirebaseAuth.instance.currentUser;
                           final response = await http.post(
@@ -2690,25 +2700,40 @@ ListTile(
                             }),
                           );
 
+                          // 🔥 CERRAR INDICADOR DE CARGA
+                          if (mounted) Navigator.pop(context);
+
                           if (response.statusCode == 201) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('✅ Propuesta enviada'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
+                            // 🔥 CERRAR MODAL
+                            if (mounted) Navigator.pop(context);
+
+                            // 🔥 MOSTRAR MENSAJE
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✅ Propuesta enviada'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+
+                            // 🔥 RECARGAR MENSAJES
                             await _cargarMensajes(_conversacionIdActual);
                           } else {
-                            throw Exception('Error al enviar propuesta');
+                            throw Exception('Error ${response.statusCode}');
                           }
                         } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                          // 🔥 CERRAR INDICADOR DE CARGA SI QUEDÓ ABIERTO
+                          if (mounted) Navigator.pop(context);
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       },
                       style: ElevatedButton.styleFrom(
