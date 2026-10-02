@@ -23,6 +23,8 @@ import '../services/chat_service.dart';        // 🔥 NUEVO
 import 'calificar_screen.dart';     
 import '../widgets/calificacion_widget.dart';    
 import 'package:shared_preferences/shared_preferences.dart';       // 🔥 NUEVO
+import '../data/costa_rica.dart';                                   // 🔥 NUEVO
+import 'package:intl/intl.dart';                                    // 🔥 NUEVO
 
 
 
@@ -2490,58 +2492,236 @@ ListTile(
 
   // 🔥 INTERFAZ DE AGENDAMIENTO DE ENCUENTRO
   void _mostrarInterfazEncuentro() {
+    String? provinciaSeleccionada;
+    String? cantonSeleccionado;
+    String? distritoSeleccionado;
+    final TextEditingController lugarController = TextEditingController();
+    DateTime? fechaSeleccionada;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.event, color: Colors.blue, size: 28),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Proponer encuentro',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  Row(
+                    children: [
+                      const Icon(Icons.event, color: Colors.blue, size: 28),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Proponer encuentro',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Completa los datos para proponer un encuentro seguro.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 🔥 PROVINCIA
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Provincia',
+                      border: OutlineInputBorder(),
+                    ),
+                    value: provinciaSeleccionada,
+                    items: costaRica.keys.map((p) {
+                      return DropdownMenuItem(value: p, child: Text(p));
+                    }).toList(),
+                    onChanged: (value) {
+                      setModalState(() {
+                        provinciaSeleccionada = value;
+                        cantonSeleccionado = null;
+                        distritoSeleccionado = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 🔥 CANTÓN
+                  if (provinciaSeleccionada != null)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Cantón',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: cantonSeleccionado,
+                      items: costaRica[provinciaSeleccionada]!.keys.map((c) {
+                        return DropdownMenuItem(value: c, child: Text(c));
+                      }).toList(),
+                      onChanged: (value) {
+                        setModalState(() {
+                          cantonSeleccionado = value;
+                          distritoSeleccionado = null;
+                        });
+                      },
+                    ),
+                  if (provinciaSeleccionada != null) const SizedBox(height: 12),
+
+                  // 🔥 DISTRITO
+                  if (cantonSeleccionado != null)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Distrito',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: distritoSeleccionado,
+                      items: costaRica[provinciaSeleccionada]![cantonSeleccionado]!.map((d) {
+                        return DropdownMenuItem(value: d, child: Text(d));
+                      }).toList(),
+                      onChanged: (value) {
+                        setModalState(() {
+                          distritoSeleccionado = value;
+                        });
+                      },
+                    ),
+                  if (cantonSeleccionado != null) const SizedBox(height: 12),
+
+                  // 🔥 LUGAR EXACTO
+                  TextField(
+                    controller: lugarController,
+                    decoration: const InputDecoration(
+                      labelText: 'Lugar exacto (ej: Parque Central)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 🔥 FECHA Y HORA
+                  InkWell(
+                    onTap: () async {
+                      final fecha = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now().add(const Duration(days: 1)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 90)),
+                      );
+                      if (fecha != null) {
+                        final hora = await showTimePicker(
+                          context: context,
+                          initialTime: const TimeOfDay(hour: 10, minute: 0),
+                        );
+                        if (hora != null) {
+                          setModalState(() {
+                            fechaSeleccionada = DateTime(
+                              fecha.year, fecha.month, fecha.day,
+                              hora.hour, hora.minute,
+                            );
+                          });
+                        }
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today, color: Colors.blue),
+                          const SizedBox(width: 12),
+                          Text(
+                            fechaSeleccionada == null
+                                ? 'Seleccionar fecha y hora'
+                                : DateFormat('dd/MM/yyyy HH:mm').format(fechaSeleccionada!),
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 🔥 BOTÓN DE PROPONER
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (provinciaSeleccionada == null ||
+                            cantonSeleccionado == null ||
+                            distritoSeleccionado == null ||
+                            lugarController.text.isEmpty ||
+                            fechaSeleccionada == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Completa todos los campos'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+
+                        // 🔥 ENVIAR AL BACKEND
+                        try {
+                          final user = FirebaseAuth.instance.currentUser;
+                          final response = await http.post(
+                            Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/proponer'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode({
+                              'conversacion_id': int.parse(_conversacionIdActual),
+                              'usuario_propone_id': user?.uid ?? '',
+                              'usuario_recibe_id': widget.otroUsuarioId,
+                              'provincia': provinciaSeleccionada,
+                              'canton': cantonSeleccionado,
+                              'distrito': distritoSeleccionado,
+                              'lugar_nombre': lugarController.text,
+                              'fecha_encuentro': fechaSeleccionada!.toIso8601String(),
+                            }),
+                          );
+
+                          if (response.statusCode == 201) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('✅ Propuesta enviada'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            await _cargarMensajes(_conversacionIdActual);
+                          } else {
+                            throw Exception('Error al enviar propuesta');
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Proponer encuentro'),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Completa los datos para proponer un encuentro seguro.',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              // 🔥 Aquí irían los dropdowns de provincia, cantón, distrito
-              // Por ahora, un placeholder
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'Formulario de agendamiento (próximamente)',
-                  style: TextStyle(fontSize: 14),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),
