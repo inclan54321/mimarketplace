@@ -772,9 +772,6 @@ Future<void> _obtenerFotoVendedorReal() async {
     final user = FirebaseAuth.instance.currentUser;
     final mensaje = _controller.text;
 
-    // 🔥 ANALIZAR SIEMPRE
-    await _analizarMensajeConIA(mensaje, user?.uid ?? '');
-
     try {
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
@@ -788,27 +785,33 @@ Future<void> _obtenerFotoVendedorReal() async {
 
       if (response.statusCode == 201) {
         _controller.clear();
+        // 🔥 _cargarMensajes ya dispara el análisis si hay cambios
         await _cargarMensajes(_conversacionIdActual);
       }
     } catch (e) {}
   }
 
+  // 🔥 CONSULTAR EL ANÁLISIS GUARDADO EN EL BACKEND
   Future<void> _analizarMensajeConIA(String mensaje, String usuarioId) async {
-    // 🔥 ANALIZAR SIEMPRE (sin importar si el Escudo está activo)
+    if (_conversacionIdActual.isEmpty) return;
+
     try {
-      final response = await http.post(
-        Uri.parse('https://mimarketplace-production.up.railway.app/api/analizar-chat'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'usuario_id': usuarioId,
-          'conversacion_id': _conversacionIdActual,
-        }),
+      final response = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/analisis'),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final estado = data['estado'] ?? 'neutral';
-        final analisis = data['analisis'] ?? '';
+        final estado = data['estado_ia'] ?? 'neutral';
+        final analisis = data['analisis_ia'] ?? '';
+
+        if (analisis.isEmpty || analisis == null) {
+          // Todavía no hay análisis
+          setState(() {
+            _analisisIA = 'Analizando conversación...';
+          });
+          return;
+        }
 
         setState(() {
           _analisisIA = analisis;
@@ -827,7 +830,9 @@ Future<void> _obtenerFotoVendedorReal() async {
           }
         });
       }
-    } catch (e) {}
+    } catch (e) {
+      print('Error al consultar análisis: $e');
+    }
   }
 
   void _mostrarOpcionesImagen() {

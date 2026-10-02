@@ -707,7 +707,10 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
             [conversacion_id, usuario_id, texto, imagen_url]
         );
 
-        // 2. VERIFICAR SI HAY QUE PEDIR CALIFICACIÓN
+        // 🔥 2. ANALIZAR CONVERSACIÓN EN SEGUNDO PLANO (no bloquea la respuesta)
+        analizarConversacionEnSegundoPlano(conversacion_id, usuario_id);
+
+        // 3. VERIFICAR SI HAY QUE PEDIR CALIFICACIÓN
         await _verificarYPedirCalificacion(conversacion_id);
 
         // ============================================================
@@ -2482,6 +2485,150 @@ app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, r
         res.status(500).json({ error: error.message });
     }
 });
+// ===== OBTENER ANÁLISIS DE UNA CONVERSACIÓN =====
+app.get('/api/conversaciones/:conversacion_id/analisis', async (req, res) => {
+    try {
+        const { conversacion_id } = req.params;
+        const result = await pool.query(
+            `SELECT analisis_ia, estado_ia, fecha_analisis 
+             FROM conversaciones_app 
+             WHERE id = $1`,
+            [conversacion_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al obtener análisis:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ===== ANALIZAR CONVERSACIÓN EN SEGUNDO PLANO =====
+async function analizarConversacionEnSegundoPlano(conversacionId, usuarioId) {
+    try {
+        console.log('>>> 🤖 Iniciando análisis en segundo plano para conversación:', conversacionId);
+
+        // 🔥 1. OBTENER LOS ÚLTIMOS 20 MENSAJES
+        const mensajesResult = await pool.query(
+            `SELECT m.usuario_id, m.texto, m.fecha, u.nombre AS remitente
+             FROM mensajes_app m
+             LEFT JOIN usuarios u ON m.usuario_id = u.uid
+             WHERE m.conversacion_id = $1
+               AND m.usuario_id != 'SYSTEM'
+               AND m.texto IS NOT NULL
+               AND m.texto != ''
+             ORDER BY m.fecha DESC
+             LIMIT 20`,
+            [conversacionId]
+        );
+
+        if (mensajesResult.rows.length === 0) {
+            console.log('>>> 🤖 No hay mensajes para analizar');
+            return;
+        }
+
+        // 🔥 2. FORMATEAR LA CONVERSACIÓN
+        const mensajes = mensajesResult.rows.reverse();
+        const conversacionFormateada = mensajes.map(m => {
+            const remitente = m.remitente || 'Usuario';
+            const esMio = m.usuario_id === usuarioId;
+            const prefijo = esMio ? '[YO]' : `[${remitente}]`;
+            return `${prefijo}: ${m.texto}`;
+        }).join('\n');
+
+        console.log('>>> 📝 Conversación a analizar (últimos 20 mensajes):');
+        console.log(conversacionFormateada);
+
+        // 🔥 3. LLAMAR A DEEPSEEK
+        const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+        const url = 'https://api.deepseek.com/v1/chat/completions';
+
+        const prompt = `Analiza esta conversación de un marketplace en Costa Rica entre un comprador y un vendedor.
+
+CONVERSACIÓN:
+${conversacionFormateada}
+
+INSTRUCCIONES:
+Determina el estado de la conversación según estas señales:
+
+1. ESTAFA o FRAUDE (precios muy bajos, urgencia, pedir dinero fuera de la plataforma, pedir SINPE por adelantado, datos bancarios)
+2. MALENTENDIDOS (información confusa, promesas poco claras, contradicciones)
+3. INFORMACIÓN OMITIDA (no responde preguntas, evade temas importantes)
+4. COMPORTAMIENTO SOSPECHOSO (insiste en algo, presión, amenazas, lenguaje agresivo)
+5. CONVERSACIÓN SALUDABLE (diálogo respetuoso, claro, sin señales de alerta)
+
+RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO:
+{
+  "estado": "good" | "warning" | "danger" | "neutral",
+  "analisis": "Explicación breve en español (máximo 150 caracteres) de por qué elegiste ese estado"
+}
+
+CRITERIOS:
+- "good": conversación respetuosa, clara, sin señales de riesgo
+- "warning": hay señales leves de alerta (evasivas, insistencia, ambigüedad)
+- "danger": hay señales claras de fraude, agresión o riesgo
+- "neutral": conversación muy corta, sin contexto de marketplace, o solo mensajes afectivos sin información relevante
+
+En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neutral".`;
+
+        const response = await axios.post(url, {
+            model: 'deepseek-chat',
+            messages: [
+                { 
+                    role: 'system', 
+                    content: 'Eres un asistente experto en detectar fraudes en conversaciones de marketplace. Analizas el contexto completo de la conversación. Responde SOLO con JSON.' 
+                },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.1,
+            max_tokens: 200,
+        }, {
+            headers: {
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 15000
+        });
+
+        const usage = response.data.usage;
+        console.log('>>> 📊 TOKENS GASTADOS:');
+        console.log('>>>   - Prompt tokens: ' + (usage?.prompt_tokens || 'N/A'));
+        console.log('>>>   - Completion tokens: ' + (usage?.completion_tokens || 'N/A'));
+        console.log('>>>   - Total tokens: ' + (usage?.total_tokens || 'N/A'));
+
+        const text = response.data.choices?.[0]?.message?.content || '';
+        console.log('>>> 🤖 Respuesta de DeepSeek:', text);
+
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        
+        if (jsonMatch) {
+            try {
+                const resultado = JSON.parse(jsonMatch[0]);
+                const estado = resultado.estado || 'neutral';
+                const analisis = resultado.analisis || 'Análisis completado';
+
+                // 🔥 4. GUARDAR EN LA BD
+                await pool.query(
+                    `UPDATE conversaciones_app 
+                     SET analisis_ia = $1, estado_ia = $2, fecha_analisis = NOW()
+                     WHERE id = $3`,
+                    [analisis, estado, conversacionId]
+                );
+
+                console.log('>>> ✅ Análisis guardado en conversación', conversacionId);
+            } catch (e) {
+                console.error('>>> ❌ Error al parsear JSON:', e.message);
+            }
+        }
+    } catch (error) {
+        console.error('>>> ❌ Error en analizarConversacionEnSegundoPlano:', error.message);
+    }
+}
+
 // ===== ANALIZAR CHAT CON IA (DEEPSEEK) - VERSIÓN MEJORADA =====
 app.post('/api/analizar-chat', async (req, res) => {
     try {
