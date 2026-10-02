@@ -694,11 +694,46 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
         res.status(500).json({ error: error.message });
     }
 });
+// 🔥 FUNCIÓN PARA DETECTAR NÚMEROS DE TELÉFONO DE COSTA RICA
+function contieneNumeroTelefono(texto) {
+    if (!texto) return false;
+
+    // 🔥 Patrones de números de Costa Rica
+    const patrones = [
+        /\b[678]\d{3}[- ]?\d{4}\b/,        // 8888-8888, 8888 8888, 88888888
+        /\b[678]\d{7}\b/,                    // 88888888
+        /\+506[- ]?\d{4}[- ]?\d{4}/,         // +506 8888-8888
+        /00506[- ]?\d{4}[- ]?\d{4}/,         // 00506 8888-8888
+        /\b506[- ]?\d{4}[- ]?\d{4}\b/,       // 506 8888-8888
+        /\b[678]\d{3}[- ]?\d{4}\b/,          // 8888-8888
+    ];
+
+    return patrones.some(p => p.test(texto));
+}
+
 app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
     try {
         console.log('>>> Archivo recibido:', req.file);
         const { conversacion_id, usuario_id, texto } = req.body;
         const imagen_url = req.file ? `/uploads/${req.file.filename}` : '';
+
+        // 🔥 VERIFICAR SI EL ESCUDO ESTÁ ACTIVO
+        const escudoResult = await pool.query(
+            `SELECT activo FROM escudos_conversacion 
+             WHERE conversacion_id = $1 AND usuario_id = $2`,
+            [conversacion_id, usuario_id]
+        );
+        const escudoActivo = escudoResult.rows[0]?.activo === true;
+
+        // 🔥 SI EL ESCUDO ESTÁ ACTIVO Y EL TEXTO TIENE UN NÚMERO, BLOQUEAR
+        if (escudoActivo && contieneNumeroTelefono(texto)) {
+            console.log('>>> 🛡️ MENSAJE BLOQUEADO: contiene número de teléfono');
+            return res.status(403).json({
+                error: 'El Escudo de Seguridad bloqueó este mensaje',
+                motivo: 'No se permiten números de teléfono',
+                codigo: 'NUMERO_TELEFONO'
+            });
+        }
 
         // 1. GUARDAR EL MENSAJE
         const result = await pool.query(
@@ -2490,7 +2525,7 @@ app.get('/api/conversaciones/:conversacion_id/analisis', async (req, res) => {
     try {
         const { conversacion_id } = req.params;
         const result = await pool.query(
-            `SELECT analisis_ia, estado_ia, fecha_analisis 
+            `SELECT analisis_ia, estado_ia, quiere_encuentro, fecha_analisis 
              FROM conversaciones_app 
              WHERE id = $1`,
             [conversacion_id]
@@ -2564,7 +2599,8 @@ Determina el estado de la conversación según estas señales:
 RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO:
 {
   "estado": "good" | "warning" | "danger" | "neutral",
-  "analisis": "Explicación breve en español (máximo 150 caracteres) de por qué elegiste ese estado"
+  "analisis": "Explicación breve en español (máximo 150 caracteres) de por qué elegiste ese estado",
+  "quiere_encuentro": true/false
 }
 
 CRITERIOS:
@@ -2572,6 +2608,10 @@ CRITERIOS:
 - "warning": hay señales leves de alerta (evasivas, insistencia, ambigüedad)
 - "danger": hay señales claras de fraude, agresión o riesgo
 - "neutral": conversación muy corta, sin contexto de marketplace, o solo mensajes afectivos sin información relevante
+
+SOBRE "quiere_encuentro":
+- true: si ALGUNO de los dos usuarios está proponiendo o sugiriendo un encuentro presencial (ej: "¿nos vemos?", "¿dónde nos encontramos?", "¿a qué hora quedamos?", "¿te parece el sábado?", "¿en qué lugar?")
+- false: si NO hay ninguna sugerencia de encuentro presencial en la conversación
 
 En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neutral".`;
 
@@ -2610,16 +2650,21 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
                 const resultado = JSON.parse(jsonMatch[0]);
                 const estado = resultado.estado || 'neutral';
                 const analisis = resultado.analisis || 'Análisis completado';
+                const quiereEncuentro = resultado.quiere_encuentro === true;
 
-                // 🔥 4. GUARDAR EN LA BD
+                // 🔥 4. GUARDAR EN LA BD (incluye quiere_encuentro)
                 await pool.query(
                     `UPDATE conversaciones_app 
-                     SET analisis_ia = $1, estado_ia = $2, fecha_analisis = NOW()
-                     WHERE id = $3`,
-                    [analisis, estado, conversacionId]
+                     SET analisis_ia = $1, 
+                         estado_ia = $2, 
+                         quiere_encuentro = $3,
+                         fecha_analisis = NOW()
+                     WHERE id = $4`,
+                    [analisis, estado, quiereEncuentro, conversacionId]
                 );
 
                 console.log('>>> ✅ Análisis guardado en conversación', conversacionId);
+                console.log('>>> 🤝 ¿Quiere encuentro?:', quiereEncuentro);
             } catch (e) {
                 console.error('>>> ❌ Error al parsear JSON:', e.message);
             }

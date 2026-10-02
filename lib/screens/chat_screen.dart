@@ -95,6 +95,7 @@ class _ChatScreenState extends State<ChatScreen>
   // 🔥 NUEVO: Si el panel de análisis del chat está abierto
   bool _panelAnalisisAbierto = false;
   bool _escudoCargado = false; // 🔥 NUEVO
+  bool _interfazEncuentroMostrada = false; // 🔥 NUEVO: para no mostrar dos veces
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -137,7 +138,20 @@ class _ChatScreenState extends State<ChatScreen>
   int _indiceEmocion = 0;
   late Timer _timerEmociones;
 
-  AnimatedEmoji get _emojiActual => _emociones[_indiceEmocion];
+  // 🔥 EL EMOJI DEPENDE DEL ESTADO DE LA IA
+  AnimatedEmoji get _emojiActual {
+    switch (_conversationStatus) {
+      case ConversationStatus.good:
+        return _emociones[0]; // 😂 joy
+      case ConversationStatus.warning:
+        return _emociones[3]; // 😢 sad
+      case ConversationStatus.danger:
+        return _emociones[4]; // 😡 angry
+      case ConversationStatus.neutral:
+      default:
+        return _emociones[2]; // 🙂 smile
+    }
+  }
   // 🔥 GUARDAR ESTADO DEL ESCUDO (local + backend)
   Future<void> _guardarEstadoEscudo(bool activo) async {
     try {
@@ -336,13 +350,8 @@ void initState() {
     }
   });
   
-  _timerEmociones = Timer.periodic(const Duration(seconds: 3), (timer) {
-    if (mounted) {
-      setState(() {
-        _indiceEmocion = (_indiceEmocion + 1) % _emociones.length;
-      });
-    }
-  });
+  // 🔥 EL EMOJI YA NO CAMBIA SOLO - DEPENDE DEL ESTADO DE LA IA
+  // (se eliminó el Timer que cambiaba el emoji cada 3 segundos)
   _conversacionIdActual = widget.conversacionId;
   _obtenerOCrearConversacion();
   _marcarComoLeida(); // 🔥 NUEVO
@@ -370,7 +379,7 @@ void initState() {
 void dispose() {
   _ocultarCirculoGrabacion(); // 🔥 ELIMINAR OVERLAY
   _oscilacionController.dispose(); // 🔥 LIBERAR ANIMACIÓN
-  _timerEmociones.cancel();
+  // _timerEmociones.cancel(); // 🔥 Ya no se usa
   _timer?.cancel();
   _controller.dispose();
   _audioRecorder?.closeRecorder();
@@ -564,15 +573,15 @@ void dispose() {
           _isLoading = false;
         });
         print('>>> 🔄 Mensajes actualizados (${mensajesConFotos.length})');
-
-        // 🔥 ANALIZAR CON IA SIEMPRE
-        _analizarMensajeConIA('', user.uid);
       } else {
         // 🔥 No hay cambios, solo actualizar `_isLoading` si es necesario
         if (_isLoading) {
           setState(() => _isLoading = false);
         }
       }
+
+      // 🔥 CONSULTAR EL ANÁLISIS GUARDADO SIEMPRE (aunque no haya cambios)
+      _analizarMensajeConIA('', user.uid);
 
       // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
       await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
@@ -765,12 +774,53 @@ Future<void> _obtenerFotoVendedorReal() async {
     print('>>> ERROR EN _obtenerFotoVendedorReal: $e');
   }
 }
+  // 🔥 DETECTAR NÚMEROS DE TELÉFONO DE COSTA RICA
+  bool _contieneNumeroTelefono(String texto) {
+    // 🔥 Patrones de números de Costa Rica (6, 7, 8 como primer dígito)
+    final patrones = [
+      RegExp(r'\b[678]\d{3}[- ]?\d{4}\b'),   // 8888-8888, 8888 8888
+      RegExp(r'\b[678]\d{7}\b'),               // 88888888
+      RegExp(r'\+506[- ]?\d{4}[- ]?\d{4}'),    // +506 8888-8888
+      RegExp(r'00506[- ]?\d{4}[- ]?\d{4}'),    // 00506 8888-8888
+      RegExp(r'\b506[- ]?\d{4}[- ]?\d{4}\b'),  // 506 8888-8888
+    ];
+
+    return patrones.any((p) => p.hasMatch(texto));
+  }
+
   void _enviarMensaje() async {
     if (_controller.text.trim().isEmpty) return;
     if (_conversacionIdActual.isEmpty) return;
 
     final user = FirebaseAuth.instance.currentUser;
     final mensaje = _controller.text;
+
+    // 🔥 VERIFICAR SI EL ESCUDO ESTÁ ACTIVO Y EL MENSAJE TIENE UN NÚMERO
+    if (_iaActiva && _contieneNumeroTelefono(mensaje)) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.shield, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('Mensaje bloqueado'),
+            ],
+          ),
+          content: const Text(
+            'El Escudo de Seguridad bloqueó este mensaje.\n\n'
+            'Motivo: No se permiten números de teléfono.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
+          ],
+        ),
+      );
+      return; // 🔥 No enviar
+    }
 
     try {
       final response = await http.post(
@@ -813,6 +863,8 @@ Future<void> _obtenerFotoVendedorReal() async {
           return;
         }
 
+        final quiereEncuentro = data['quiere_encuentro'] == true;
+
         setState(() {
           _analisisIA = analisis;
           switch (estado) {
@@ -827,6 +879,12 @@ Future<void> _obtenerFotoVendedorReal() async {
               break;
             default:
               _conversationStatus = ConversationStatus.neutral;
+          }
+
+          // 🔥 SI LA IA DETECTA QUE QUIEREN UN ENCUENTRO Y EL ESCUDO ESTÁ ACTIVO
+          if (quiereEncuentro && _iaActiva && !_interfazEncuentroMostrada) {
+            _interfazEncuentroMostrada = true;
+            _mostrarInterfazEncuentro();
           }
         });
       }
@@ -2430,6 +2488,66 @@ ListTile(
     }
   }
 
+  // 🔥 INTERFAZ DE AGENDAMIENTO DE ENCUENTRO
+  void _mostrarInterfazEncuentro() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.event, color: Colors.blue, size: 28),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Proponer encuentro',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Completa los datos para proponer un encuentro seguro.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              // 🔥 Aquí irían los dropdowns de provincia, cantón, distrito
+              // Por ahora, un placeholder
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'Formulario de agendamiento (próximamente)',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
   print('>>> productoImagen en ChatScreen: ${widget.productoImagen}');
@@ -2514,11 +2632,13 @@ ListTile(
             estado: _conversationStatus,
             isActive: _iaActiva,
             videoVistoInicial: _iaActiva,
+            emojiDesdeEstado: _conversationStatus, // 🔥 NUEVO
             onToggle: () {
               setState(() {
                 _iaActiva = !_iaActiva;
                 if (!_iaActiva) {
                   _analisisIA = null;
+                  _panelAnalisisAbierto = false; // 🔥 CERRAR EL PANEL
                 }
               });
               // 🔥 GUARDAR ESTADO
@@ -2528,11 +2648,24 @@ ListTile(
               setState(() {
                 _analisisIA = '🛡️ Escudo activado. Analizando mensajes...';
                 _iaActiva = true;
+                _panelAnalisisAbierto = false; // 🔥 Por si acaso
               });
               // 🔥 GUARDAR ESTADO
               _guardarEstadoEscudo(true);
             },
             onInfoTap: () {
+              // 🔥 SOLO ABRIR EL PANEL SI EL ESCUDO ESTÁ ACTIVO
+              if (!_iaActiva) {
+                // Mostrar mensaje al usuario
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🛡️ Activa el Escudo para ver el análisis de la conversación'),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
               setState(() {
                 _panelAnalisisAbierto = !_panelAnalisisAbierto;
               });

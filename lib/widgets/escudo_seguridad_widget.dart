@@ -6,6 +6,7 @@ import 'conversation_status_indicator.dart';
 import 'rewarded_ad_prueba.dart';
 
 class EscudoSeguridadWidget extends StatefulWidget {
+  final ConversationStatus? emojiDesdeEstado; // 🔥 NUEVO
   final ConversationStatus estado;
   final bool isActive;
   final bool videoVistoInicial; // 🔥 NUEVO
@@ -14,6 +15,7 @@ class EscudoSeguridadWidget extends StatefulWidget {
   final VoidCallback onInfoTap;
 
   const EscudoSeguridadWidget({
+    this.emojiDesdeEstado, // 🔥 NUEVO
     super.key,
     required this.estado,
     required this.isActive,
@@ -30,15 +32,39 @@ class EscudoSeguridadWidget extends StatefulWidget {
 class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     with TickerProviderStateMixin {
   final List<AnimatedEmoji> _emojis = const [
-    AnimatedEmoji(AnimatedEmojis.joy, size: 42, repeat: true),
-    AnimatedEmoji(AnimatedEmojis.smile, size: 42, repeat: true),
-    AnimatedEmoji(AnimatedEmojis.heartEyes, size: 42, repeat: true),
-    AnimatedEmoji(AnimatedEmojis.sleep, size: 42, repeat: true),
-    AnimatedEmoji(AnimatedEmojis.smile, size: 42, repeat: true),
+    AnimatedEmoji(AnimatedEmojis.joy, size: 42, repeat: true),          // 0: good
+    AnimatedEmoji(AnimatedEmojis.smile, size: 42, repeat: true),        // 1: neutral
+    AnimatedEmoji(AnimatedEmojis.heartEyes, size: 42, repeat: true),    // 2: (sin uso)
+    AnimatedEmoji(AnimatedEmojis.sad, size: 42, repeat: true),          // 3: warning
+    AnimatedEmoji(AnimatedEmojis.angry, size: 42, repeat: true),        // 4: danger
+    AnimatedEmoji(AnimatedEmojis.dottedLineFace, size: 42, repeat: true), // 5: apagado
   ];
 
-  int _indiceEmoji = 0;
+  // int _indiceEmoji = 0; // 🔥 Ya no se usa
   Timer? _timerEmoji;
+  bool _emojiVisible = true;
+  int _contadorCiclo = 0;      // 🔥 Cuenta cuántos "toggles" van
+  bool _enEspera = false;      // 🔥 Si está en los 15 segundos de espera
+  int _contadorEspera = 0;     // 🔥 Cuenta los 15 segundos
+
+  // 🔥 EMOJI ESTÁTICO (para cuando no está animado)
+  // Lo generamos con el mismo emoji pero sin animación
+  // (usaremos Opacity para "pausar" visualmente)
+
+  // 🔥 EL EMOJI DEPENDE DEL ESTADO QUE VIENE DEL PADRE
+  int get _indiceEmojiSegunEstado {
+    switch (widget.emojiDesdeEstado ?? widget.estado) {
+      case ConversationStatus.good:
+        return 0; // 😂 joy
+      case ConversationStatus.warning:
+        return 3; // 😢 sad (precaución)
+      case ConversationStatus.danger:
+        return 4; // 😡 angry (peligro)
+      case ConversationStatus.neutral:
+      default:
+        return 1; // 🙂 smile
+    }
+  }
 
   late bool _videoVisto;
 
@@ -53,13 +79,42 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     // 🔥 NUEVO: Leer el estado inicial
     _videoVisto = widget.videoVistoInicial;
     print('>>> 🛡️ Escudo initState - videoVistoInicial: ${widget.videoVistoInicial}');
-    _timerEmoji = Timer.periodic(const Duration(seconds: 2), (timer) {
-      if (mounted) {
-        setState(() {
-          _indiceEmoji = (_indiceEmoji + 1) % _emojis.length;
-        });
+    // 🔥 CICLO: 4s animado → 4s pausa → 4s animado → 4s pausa → 15s espera → repetir
+    _timerEmoji = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+
+      if (_enEspera) {
+        // 🔥 ESTAMOS EN LOS 15 SEGUNDOS DE ESPERA
+        _contadorEspera++;
+        if (_contadorEspera >= 15) {
+          setState(() {
+            _enEspera = false;
+            _contadorEspera = 0;
+            _contadorCiclo = 0;
+            _emojiVisible = true;
+          });
+        }
+      } else {
+        // 🔥 ESTAMOS EN EL CICLO DE 4s + 4s
+        // Cada 4 segundos, alternar
+        if (timer.tick % 4 == 0) {
+          _contadorCiclo++;
+          setState(() {
+            _emojiVisible = !_emojiVisible;
+          });
+
+          // Después de 4 alternancias (16 segundos), pasar a espera
+          if (_contadorCiclo >= 4) {
+            setState(() {
+              _enEspera = true;
+              _contadorEspera = 0;
+              _emojiVisible = false; // Ocultar emoji durante la espera
+            });
+          }
+        }
       }
     });
+
     RewardedAdManager.loadRewardedAd();
 
     // Controladores para efectos
@@ -94,7 +149,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
 
   @override
   void dispose() {
-    _timerEmoji?.cancel();
+    _timerEmoji?.cancel(); // 🔥 Ahora sí se usa
     _ondasController.dispose();
     _destellosController.dispose();
     _vibracionController.dispose();
@@ -345,18 +400,15 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
 
   // 🔥 CONSTRUIR EL EFECTO SEGÚN EL EMOJI ACTUAL
   Widget _buildEfectoAura(Color color) {
-    // El índice del emoji determina el tipo de efecto
-    switch (_indiceEmoji) {
+    switch (_indiceEmojiSegunEstado) {
       case 0: // joy → Destellos girando
         return _buildDestellos(color);
       case 1: // smile → Ondas expansivas
         return _buildOndas(color);
-      case 2: // heartEyes → Corazones flotando
-        return _buildCorazones(color);
-      case 3: // sleep → Zzz flotando
-        return _buildZzz(color);
-      case 4: // smile → Ondas expansivas
+      case 3: // sad → Ondas expansivas
         return _buildOndas(color);
+      case 4: // angry → Destellos girando (más agresivo)
+        return _buildDestellos(color);
       default:
         return _buildOndas(color);
     }
@@ -488,6 +540,21 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     );
   }
 
+  // 🔥 EMOJI ESTÁTICO SEGÚN EL ESTADO
+  String _emojiEstatico(int indice) {
+    switch (indice) {
+      case 0:
+        return '😂'; // good
+      case 3:
+        return '😢'; // warning
+      case 4:
+        return '😡'; // danger
+      case 1:
+      default:
+        return '🙂'; // neutral
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     Color colorCarita;
@@ -510,52 +577,77 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
       children: [
         Transform.translate(
           offset: const Offset(0, -4),
-          child: GestureDetector(
-            onTap: widget.onToggle,
-            child: SizedBox(
-              width: 100,
-              height: 100,
+          child: SizedBox(
+            width: 100,
+            height: 100,
               child: Stack(
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
-                  // 🔥 EFECTO SEGÚN EL EMOJI ACTUAL
-                  if (_indiceEmoji != 3) // sleep no tiene aura
+                  // 🔥 EFECTO SEGÚN EL EMOJI ACTUAL (solo si el Escudo está activo)
+                  if (widget.isActive && _indiceEmojiSegunEstado != 3)
                     _buildEfectoAura(colorCarita),
 
                   // 🔥 CÍRCULO CENTRAL CON EL SMILEY
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: widget.isActive
-                          ? colorCarita.withValues(alpha: 0.2)
-                          : Colors.white.withValues(alpha: 0.1),
-                      border: Border.all(
-                        color: widget.isActive ? colorCarita : Colors.white54,
-                        width: 2.5,
-                      ),
-                    ),
-                    child: Center(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 500),
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: ScaleTransition(
-                              scale: animation,
-                              child: child,
+                  widget.isActive
+                      ? Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: colorCarita.withValues(alpha: 0.2),
+                            border: Border.all(
+                              color: colorCarita,
+                              width: 2.5,
                             ),
-                          );
-                        },
-                        child: Container(
-                          key: ValueKey(_indiceEmoji),
-                          child: _emojis[_indiceEmoji],
+                          ),
+                          child: Center(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 500),
+                              transitionBuilder: (child, animation) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: ScaleTransition(
+                                    scale: animation,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                key: ValueKey('${_indiceEmojiSegunEstado}_$_emojiVisible'),
+                                child: _enEspera
+                                    ? Text(
+                                        _emojiEstatico(_indiceEmojiSegunEstado),
+                                        style: const TextStyle(fontSize: 42),
+                                      )
+                                    : _emojiVisible
+                                        ? _emojis[_indiceEmojiSegunEstado]
+                                        : Text(
+                                            _emojiEstatico(_indiceEmojiSegunEstado),
+                                            style: const TextStyle(fontSize: 42),
+                                          ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container(
+                          // 🔥 ESCUDO APAGADO: círculo con borde punteado
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.grey.shade200.withValues(alpha: 0.2),
+                          ),
+                          child: CustomPaint(
+                            painter: _CirculoPunteadoPainter(),
+                            child: const Center(
+                              child: Text(
+                                '🫥', // 🔥 Cara punteada
+                                style: TextStyle(fontSize: 42),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
 
                   // 🔥 BOTÓN "i"
                   Positioned(
@@ -600,7 +692,6 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
               ),
             ),
           ),
-        ),
         const SizedBox(width: 6),
         GestureDetector(
           onTap: () {
@@ -668,4 +759,42 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
       ],
     );
   }
+}
+
+// 🔥 PAINTER PARA EL CÍRCULO PUNTEADO (ESCUDO APAGADO)
+class _CirculoPunteadoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 2;
+
+    final paint = Paint()
+      ..color = Colors.grey.shade500
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    const dashCount = 16;
+    const dashAngle = 2 * math.pi / dashCount;
+    final dashLength = dashAngle * 0.55;
+
+    for (int i = 0; i < dashCount; i++) {
+      final startAngle = i * dashAngle;
+      final endAngle = startAngle + dashLength;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        endAngle - startAngle,
+        false,
+        paint,
+      );
+    }
+
+    final fillPaint = Paint()
+      ..color = Colors.grey.shade200.withValues(alpha: 0.3)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius - 2, fillPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
