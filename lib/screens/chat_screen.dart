@@ -565,10 +565,8 @@ void dispose() {
         });
         print('>>> 🔄 Mensajes actualizados (${mensajesConFotos.length})');
 
-        // 🔥 ANALIZAR CON IA SI EL ESCUDO ESTÁ ACTIVO
-        if (_iaActiva) {
-          _analizarMensajeConIA('', user.uid);
-        }
+        // 🔥 ANALIZAR CON IA SIEMPRE
+        _analizarMensajeConIA('', user.uid);
       } else {
         // 🔥 No hay cambios, solo actualizar `_isLoading` si es necesario
         if (_isLoading) {
@@ -774,9 +772,8 @@ Future<void> _obtenerFotoVendedorReal() async {
     final user = FirebaseAuth.instance.currentUser;
     final mensaje = _controller.text;
 
-    if (_iaActiva) {
-      await _analizarMensajeConIA(mensaje, user?.uid ?? '');
-    }
+    // 🔥 ANALIZAR SIEMPRE
+    await _analizarMensajeConIA(mensaje, user?.uid ?? '');
 
     try {
       final response = await http.post(
@@ -797,8 +794,7 @@ Future<void> _obtenerFotoVendedorReal() async {
   }
 
   Future<void> _analizarMensajeConIA(String mensaje, String usuarioId) async {
-    if (!_iaActiva) return;
-
+    // 🔥 ANALIZAR SIEMPRE (sin importar si el Escudo está activo)
     try {
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/analizar-chat'),

@@ -717,7 +717,7 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
             // Obtener el receptor de la conversación
             const convResult = await pool.query(
                 `SELECT usuario1_id, usuario2_id, producto_nombre 
-                 FROM conversaciones 
+                 FROM conversaciones_app 
                  WHERE id = $1`,
                 [conversacion_id]
             );
