@@ -1290,6 +1290,7 @@ app.put('/api/conversaciones/:id/fijar', async (req, res) => {
 
 // 🔥 OCULTAR CONVERSACIÓN COMPLETA PARA UN USUARIO
 app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
+    console.log('>>> 🔥🔥🔥 ENDPOINT /ocultar LLAMADO - ID:', req.params.id, 'usuario:', req.body.usuario_id);
     try {
         const { id } = req.params;
         const { usuario_id } = req.body;
@@ -1340,7 +1341,8 @@ app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
 
         res.json({ success: true, eliminada: false });
     } catch (error) {
-        console.error('Error al ocultar conversación:', error);
+        console.error('>>> ❌❌❌ ERROR AL OCULTAR:', error.message);
+        console.error('>>> ❌❌❌ STACK:', error.stack);
         res.status(500).json({ error: error.message });
     }
 });
