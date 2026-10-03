@@ -949,12 +949,9 @@ app.post('/api/conversaciones', async (req, res) => {
         if (existente.rows.length > 0) {
             console.log('>>> ✅ CONVERSACIÓN YA EXISTE, ID:', existente.rows[0].id);
 
-            // 🔥 DESOCULTAR PARA EL USUARIO QUE LA ESTÁ ABRIENDO
-            await pool.query(
-                `DELETE FROM conversaciones_ocultas 
-                 WHERE conversacion_id = $1 AND usuario_id = $2`,
-                [existente.rows[0].id, usuario1_id]
-            );
+            // 🔥 NO BORRAR conversaciones_ocultas
+            // El chat debe seguir oculto si el usuario lo borró.
+            // El chat reaparece en la lista cuando llega un mensaje nuevo.
 
             return res.status(201).json(existente.rows[0]);
         }
