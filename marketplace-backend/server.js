@@ -1093,9 +1093,37 @@ app.get('/api/perfil/email/:uid', async (req, res) => {
     }
 });
 // RUTA PARA GEOLOCALIZACIÓN (convertir coordenadas a provincia y cantón)
+// 🔥 CACHÉ DE GEOCODIFICACIÓN EN MEMORIA
+const _cacheGeocode = {};
+
 app.get('/api/geocode/:lat/:lng', async (req, res) => {
     try {
         const { lat, lng } = req.params;
+        const latR = parseFloat(lat).toFixed(3);
+        const lngR = parseFloat(lng).toFixed(3);
+        const key = `${latR},${lngR}`;
+
+        // 🔥 SI YA ESTÁ EN CACHÉ, NO LLAMAR A NOMINATIM
+        if (_cacheGeocode[key]) {
+            console.log('>>> 📦 Geocode caché:', key);
+            return res.json(_cacheGeocode[key]);
+        }
+
+        // 🔥 BUSCAR EN BD (si algún producto ya tiene esa dirección)
+        const bdResult = await pool.query(
+            `SELECT provincia, canton FROM productos_app 
+             WHERE direccion LIKE $1 AND provincia IS NOT NULL AND provincia != ''
+             LIMIT 1`,
+            [`%${latR}%`]
+        );
+
+        if (bdResult.rows.length > 0) {
+            console.log('>>> 🗄️ Geocode desde BD:', bdResult.rows[0]);
+            _cacheGeocode[key] = bdResult.rows[0];
+            return res.json(bdResult.rows[0]);
+        }
+
+        // 🔥 SI NO, LLAMAR A NOMINATIM
         const response = await axios.get(
             `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&zoom=18`,
             {
@@ -1105,15 +1133,17 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
             }
         );
         const address = response.data.address;
-        console.log('Address completo:', address);
         
         const provincia = address.state || address.region || address.province || '';
         const canton = address.county || address.city || address.town || address.municipality || '';
         
-        res.json({ provincia, canton });
+        const resultado = { provincia, canton };
+        _cacheGeocode[key] = resultado;
+        res.json(resultado);
     } catch (error) {
         console.error('Error al geocodificar:', error.response?.data || error.message);
-        res.status(500).json({ error: error.message });
+        // 🔥 DEVOLVER VACÍO PARA NO ROMPER
+        res.json({ provincia: '', canton: '' });
     }
 });
 app.get('/api/mensajes/:conversacion_id', async (req, res) => {

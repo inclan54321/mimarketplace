@@ -33,6 +33,10 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   final String _usuarioId = FirebaseAuth.instance.currentUser?.uid ?? '';
   int _imagenActual = 0;
   late Producto _producto;
+  
+  // 🔥 NUEVO: GUARDAR UBICACIÓN EN CACHÉ LOCAL
+  String? _ubicacionCache;
+  bool _cargandoUbicacion = false;
 
   Future<void> _cargarFotoVendedorSiFalta() async {
     if (_fotoVendedorLocal.isNotEmpty) return;
@@ -65,6 +69,26 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     _fotoVendedorLocal = widget.producto.vendedorFoto ?? '';
     _verificarFavorito();
     _cargarFotoVendedorSiFalta();
+    
+    // 🔥 SI YA TIENE PROVINCIA/CANTÓN, USAR ESO SIN LLAMAR A NOMINATIM
+    if ((_producto.provincia ?? '').isNotEmpty && (_producto.canton ?? '').isNotEmpty) {
+      _ubicacionCache = '${_producto.provincia}, ${_producto.canton}';
+    } else {
+      // 🔥 SOLO LLAMAR UNA VEZ AL INICIO
+      _cargarUbicacionUnaVez();
+    }
+  }
+
+  Future<void> _cargarUbicacionUnaVez() async {
+    if (_cargandoUbicacion || _ubicacionCache != null) return;
+    _cargandoUbicacion = true;
+    final ubicacion = await _getUbicacion();
+    if (mounted) {
+      setState(() {
+        _ubicacionCache = ubicacion;
+        _cargandoUbicacion = false;
+      });
+    }
   }
 
   // 🔥 NUEVO: Verificar si el usuario actual es el vendedor
@@ -865,27 +889,41 @@ Future<void> _enviarDenuncia(String motivo) async {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  FutureBuilder<String>(
-                    future: _getUbicacion(),
+                  // 🔥 SI YA TIENE PROVINCIA Y CANTÓN, MOSTRAR SIN LLAMAR AL BACKEND
+                  if ((_producto.provincia ?? '').isNotEmpty &&
+                      (_producto.canton ?? '').isNotEmpty)
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.white70, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${_producto.provincia}, ${_producto.canton}',
+                          style: const TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                      ],
+                    )
+                  else
+                                      FutureBuilder<String>(
+                    future: Future.value(_ubicacionCache),
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const SizedBox.shrink();
+                        }
+                        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                          return Row(
+                            children: [
+                              const Icon(Icons.location_on, color: Colors.white70, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                snapshot.data!,
+                                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                              ),
+                            ],
+                          );
+                        }
                         return const SizedBox.shrink();
-                      }
-                      if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                        return Row(
-                          children: [
-                            const Icon(Icons.location_on, color: Colors.white70, size: 16),
-                            const SizedBox(width: 8),
-                            Text(
-                              snapshot.data!,
-                              style: const TextStyle(color: Colors.white70, fontSize: 14),
-                            ),
-                          ],
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
+                      },
+                    ),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
