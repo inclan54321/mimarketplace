@@ -3160,6 +3160,15 @@ app.post('/api/calificaciones', async (req, res) => {
             const conversacionId = convResult.rows[0].id;
             console.log('>>> Conversación encontrada:', conversacionId);
 
+            // 🔥 BORRAR EL MENSAJE DE SOLICITUD DE CALIFICACIÓN
+            await pool.query(
+                `DELETE FROM mensajes_app 
+                 WHERE conversacion_id = $1 
+                   AND texto = '||EL_COMPRADOR_YA_PUEDE_CALIFICARTE||'`,
+                [conversacionId]
+            );
+            console.log('>>> 🗑️ Mensaje de solicitud de calificación borrado');
+
             // 🔥 EVITAR MENSAJES DUPLICADOS EN LOS ÚLTIMOS 5 SEGUNDOS
             try {
                 const yaExiste = await pool.query(
