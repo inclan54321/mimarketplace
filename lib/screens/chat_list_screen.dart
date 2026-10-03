@@ -397,6 +397,8 @@ class _ChatListScreenState extends State<ChatListScreen>
 
   // ===== ELIMINAR CHAT (solo para este usuario) =====
   Future<void> _eliminarChat(String conversacionId, String nombreUsuario) async {
+    print('>>> 🗑️🗑️🗑️ _eliminarChat LLAMADO - conversacionId: "$conversacionId" - nombre: $nombreUsuario');
+    
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -420,6 +422,10 @@ class _ChatListScreenState extends State<ChatListScreen>
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) return;
 
+        final url = 'https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId/ocultar';
+        print('>>> 🗑️🗑️🗑️ URL: $url');
+        print('>>> 🗑️🗑️🗑️ BODY: {"usuario_id": "${user.uid}"}');
+
         final response = await http.post(
           Uri.parse(
               'https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId/ocultar'),
@@ -427,12 +433,21 @@ class _ChatListScreenState extends State<ChatListScreen>
           body: jsonEncode({'usuario_id': user.uid}),
         );
 
+        print('>>> 🗑️🗑️🗑️ STATUS: ${response.statusCode}');
+        print('>>> 🗑️🗑️🗑️ BODY: ${response.body}');
+
         if (response.statusCode == 200) {
           if (!mounted) return;
           setState(() {
             _conversaciones
                 .removeWhere((c) => c['id'].toString() == conversacionId);
           });
+
+          // 🔥 BORRAR LA CACHÉ LOCAL DE ESTE CHAT
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('chat_cache_$conversacionId');
+          print('>>> 🗑️ Caché local borrada para chat $conversacionId');
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 content: Text('🗑️ Chat eliminado'),
@@ -951,19 +966,21 @@ class _ChatListScreenState extends State<ChatListScreen>
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.15),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          print('>>> 🗑️🗑️🗑️ BOTÓN BASURA TOCADO');
+                          _eliminarChat(conversacionId, otroUsuario);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.15),
+                            ),
                           ),
-                        ),
-                        child: InkWell(
-                          onTap: () {
-                            _eliminarChat(conversacionId, otroUsuario);
-                          },
                           child: const Icon(
                             Icons.delete_outline,
                             color: Color(0xFFEF4444),
