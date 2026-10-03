@@ -698,6 +698,8 @@ void dispose() {
           _calificacionPendiente = false;
           _calificacionRealizada = true;
         });
+        // 🔥 RECARGAR MENSAJES PARA VER EL MENSAJE DE CONFIRMACIÓN
+        _cargarMensajes(_conversacionIdActual);
       },
     );
   }
