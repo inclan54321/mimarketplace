@@ -328,11 +328,25 @@ async function _verificarYPedirCalificacion(conversacionId) {
 
         if (usuario1Mensajes >= 5 && usuario2Mensajes >= 5) {
             console.log('>>> 🔥 AMBOS TIENEN 5+ MENSAJES ✅');
+
+            // 🔥 VERIFICAR SI YA CALIFICÓ (para no insertar de nuevo)
+            const compradorIdCheck = conv.uid1 === conv.vendedor_id ? conv.uid2 : conv.uid1;
+            const yaCalifico = await pool.query(
+                `SELECT id FROM calificaciones 
+                 WHERE producto_id = $1 
+                   AND calificador_id = $2`,
+                [conv.producto_id, compradorIdCheck]
+            );
+
+            if (yaCalifico.rows.length > 0) {
+                console.log('>>> 🔥 YA CALIFICÓ - NO INSERTAR SOLICITUD');
+                return;
+            }
             
             const solicitudResult = await pool.query(
                 `SELECT * FROM mensajes_app 
                  WHERE conversacion_id = $1 
-                 AND texto LIKE '%CALIFICACION_REQUEST%'`,
+                 AND texto LIKE '%EL_COMPRADOR_YA_PUEDE_CALIFICARTE%'`,
                 [conversacionId]
             );
 
