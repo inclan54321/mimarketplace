@@ -3091,12 +3091,13 @@ app.post('/api/calificaciones', async (req, res) => {
         console.log('>>> puntuacion:', puntuacion);
         console.log('>>> comentario:', comentario);
 
-        // 🔥 BUSCAR LA CONVERSACIÓN PARA MANDAR EL MENSAJE
+        // 🔥 BUSCAR LA CONVERSACIÓN MÁS RECIENTE
         const convResult = await pool.query(
             `SELECT c.id FROM conversaciones_app c
              WHERE c.producto_id = $1 
                AND ((c.usuario1_id = $2 AND c.usuario2_id = $3)
                     OR (c.usuario1_id = $3 AND c.usuario2_id = $2))
+             ORDER BY c.id DESC
              LIMIT 1`,
             [producto_id, calificador_id, calificado_id]
         );
@@ -3105,18 +3106,22 @@ app.post('/api/calificaciones', async (req, res) => {
             const conversacionId = convResult.rows[0].id;
             console.log('>>> Conversación encontrada:', conversacionId);
 
-            // 🔥 INSERTAR MENSAJE DE CONFIRMACIÓN
-            await pool.query(
-                `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
-                 VALUES ($1, $2, $3, $4, NOW())`,
-                [
-                    conversacionId,
-                    'SYSTEM',
-                    `✅ Has calificado al usuario con ${puntuacion} estrella${puntuacion > 1 ? 's' : ''}. ¡Gracias por tu opinión!`,
-                    ''
-                ]
-            );
-            console.log('>>> ✅ Mensaje de confirmación insertado');
+            // 🔥 INSERTAR MENSAJE DE CONFIRMACIÓN (no romper si falla)
+            try {
+                await pool.query(
+                    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                     VALUES ($1, $2, $3, $4, NOW())`,
+                    [
+                        conversacionId,
+                        'SYSTEM',
+                        `✅ Has calificado al usuario con ${puntuacion} estrella${puntuacion > 1 ? 's' : ''}. ¡Gracias por tu opinión!`,
+                        ''
+                    ]
+                );
+                console.log('>>> ✅ Mensaje de confirmación insertado');
+            } catch (msgError) {
+                console.log('>>> ⚠️ No se pudo insertar mensaje de confirmación (no crítico):', msgError.message);
+            }
         }
 
         // 🔥 LA TABLA USA "usuario_id" (el que recibe) y "calificador_id" (el que califica)

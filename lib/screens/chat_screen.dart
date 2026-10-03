@@ -666,7 +666,8 @@ void dispose() {
         setState(() {
           _calificacionSeleccionada = 0;
         });
-        _cargarMensajes(_conversacionIdActual);
+        // 🔥 NO recargar mensajes al calificar
+        // _cargarMensajes(_conversacionIdActual);
       } else {
         throw Exception('Error al calificar');
       }
@@ -2636,7 +2637,8 @@ ListTile(
           _calificacionRealizada = true;
           _calificacionPendiente = false;
         });
-        _cargarMensajes(_conversacionIdActual);
+        // 🔥 NO recargar mensajes al calificar para evitar disparar análisis
+        // _cargarMensajes(_conversacionIdActual);
       } else {
         throw Exception('Error al calificar: ${response.body}');
       }

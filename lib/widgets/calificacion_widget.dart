@@ -30,6 +30,9 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
   bool _enviado = false; // 🔥 NUEVO
 
   Future<void> _enviarCalificacion() async {
+    // 🔥 Evitar doble envío
+    if (_enviando || _enviado) return;
+
     if (_puntuacion == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -64,6 +67,9 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
         }),
       );
 
+      print('>>> STATUS: ${response.statusCode}');
+      print('>>> BODY: ${response.body}');
+
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -82,9 +88,14 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
         throw Exception('Error al calificar');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      if (!mounted) return;
+      print('>>> ❌ ERROR AL CALIFICAR: $e');
+      // 🔥 NO mostrar SnackBar si ya se envió (fue doble envío)
+      if (!_enviado) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -260,7 +271,9 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
               width: double.infinity,
               height: 45,
               child: ElevatedButton(
-                onPressed: _enviando ? null : _enviarCalificacion,
+                onPressed: (_enviando || _enviado || _puntuacion == 0)
+                    ? null
+                    : _enviarCalificacion,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFD700),
                   foregroundColor: Colors.black,
