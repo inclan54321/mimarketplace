@@ -274,7 +274,7 @@ class _ChatListScreenState extends State<ChatListScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar chat'),
-        content: Text('¿Eliminar la conversación con $nombreUsuario?'),
+        content: Text('¿Estás seguro de borrar la conversación con $nombreUsuario?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -290,9 +290,14 @@ class _ChatListScreenState extends State<ChatListScreen>
 
     if (confirm == true) {
       try {
-        final response = await http.delete(
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) return;
+
+        final response = await http.post(
           Uri.parse(
-              'https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId'),
+              'https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId/ocultar'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'usuario_id': user.uid}),
         );
 
         if (response.statusCode == 200) {
@@ -303,8 +308,8 @@ class _ChatListScreenState extends State<ChatListScreen>
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Chat eliminado'),
-                backgroundColor: Colors.green),
+                content: Text('👁️ Chat oculto'),
+                backgroundColor: Colors.grey),
           );
         }
       } catch (e) {
