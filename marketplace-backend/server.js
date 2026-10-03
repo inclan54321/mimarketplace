@@ -3201,7 +3201,7 @@ app.post('/api/calificaciones', async (req, res) => {
                         [
                             conversacionId,
                             'SYSTEM',
-                            `✅ Has calificado al usuario con ${puntuacion} estrella${puntuacion > 1 ? 's' : ''}. ¡Gracias por tu opinión!`,
+                            `||CALIFICACION_REALIZADA||${calificador_id}`,
                             ''
                         ]
                     );

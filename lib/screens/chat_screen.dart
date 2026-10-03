@@ -611,7 +611,11 @@ void dispose() {
   }
 
   bool _esConfirmacionCalificacion(String texto) {
-    return texto.contains('✅ Has calificado');
+    return texto.startsWith('||CALIFICACION_REALIZADA||');
+  }
+
+  String _extraerCalificadorId(String texto) {
+    return texto.replaceAll('||CALIFICACION_REALIZADA||', '').trim();
   }
 
   // 🔥 DETECTAR SI ES UN MENSAJE DE PROPUESTA DE ENCUENTRO
@@ -3528,8 +3532,16 @@ ListTile(
     );
   }
 
-  // 🔥 CONFIRMACIÓN DE CALIFICACIÓN 🔥
+  // 🔥 CONFIRMACIÓN DE CALIFICACIÓN (solo la ve el que calificó) 🔥
   if (_esConfirmacionCalificacion(mensaje['texto'] ?? '')) {
+    final calificadorId = _extraerCalificadorId(mensaje['texto']!);
+    final user = FirebaseAuth.instance.currentUser;
+
+    // 🔥 SOLO MOSTRAR SI YO FUI EL QUE CALIFICÓ
+    if (user == null || user.uid != calificadorId) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(12),
@@ -3538,14 +3550,14 @@ ListTile(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green.shade200),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Icon(Icons.check_circle, color: Colors.green),
-          const SizedBox(width: 8),
+          Icon(Icons.check_circle, color: Colors.green),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
-              mensaje['texto']!.replaceAll('||CALIFICACION_REQUEST||', ''),
-              style: const TextStyle(color: Colors.green),
+              '✅ Has calificado. ¡Gracias por tu opinión!',
+              style: TextStyle(color: Colors.green),
             ),
           ),
         ],

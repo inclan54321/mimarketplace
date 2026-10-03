@@ -903,7 +903,7 @@ Future<void> _enviarDenuncia(String motivo) async {
                       ],
                     )
                   else
-                                      FutureBuilder<String>(
+                                      FutureBuilder<String?>(
                     future: Future.value(_ubicacionCache),
                     builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
