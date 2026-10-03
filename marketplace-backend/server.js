@@ -745,14 +745,9 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
             [conversacion_id, usuario_id, texto, imagen_url]
         );
 
-        // 🔥 SI ALGUIEN ESCRIBE, DESOCULTAR EL CHAT PARA AMBOS USUARIOS
-        await pool.query(
-            `DELETE FROM conversaciones_ocultas 
-             WHERE conversacion_id = $1`,
-            [conversacion_id]
-        );
-        console.log(`>>> 🔄 Conversación ${conversacion_id} desocultada para ambos`);
-        console.log(`>>> 🔄 Conversación ${conversacion_id} desocultada para los demás`);
+        // 🔥 NO borrar la fila: mantener fecha_ocultado para seguir filtrando mensajes viejos
+        // El chat reaparece en la lista por el cambio en GET /api/conversaciones
+        console.log(`>>> 🔄 Mensaje guardado, conversación ${conversacion_id} mantiene fecha_ocultado`);
 
         // 🔥 2. ANALIZAR SOLO SI EL ESCUDO ESTÁ ACTIVO
         const escudoVerif = await pool.query(
@@ -898,9 +893,14 @@ app.get('/api/conversaciones/:usuario_id', async (req, res) => {
              LEFT JOIN usuarios u2 ON c.usuario2_id = u2.uid
              LEFT JOIN productos_app p ON c.producto_id = p.id
              WHERE (c.usuario1_id = $1 OR c.usuario2_id = $1)
-               AND c.id NOT IN (
-                 SELECT conversacion_id FROM conversaciones_ocultas 
-                 WHERE usuario_id = $1
+               AND NOT EXISTS (
+                 SELECT 1 FROM conversaciones_ocultas co
+                 WHERE co.conversacion_id = c.id 
+                   AND co.usuario_id = $1
+                   AND (
+                     SELECT MAX(fecha) FROM mensajes_app 
+                     WHERE conversacion_id = c.id
+                   ) <= co.fecha_ocultado
                )`,
             [usuario_id]
         );
