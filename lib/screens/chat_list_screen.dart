@@ -77,8 +77,12 @@ class _ChatListScreenState extends State<ChatListScreen>
           return !_bloqueados.contains(otroId);
         }).toList();
 
-        // 🔥 ORDENAR POR ÚLTIMA FECHA (más reciente arriba)
+        // 🔥 ORDENAR: PRIMERO LOS FIJADOS, LUEGO POR FECHA
         conversacionesFiltradas.sort((a, b) {
+          final fijadaA = a['fijada'] == true || a['fijada'] == 'true';
+          final fijadaB = b['fijada'] == true || b['fijada'] == 'true';
+          if (fijadaA && !fijadaB) return -1;
+          if (!fijadaA && fijadaB) return 1;
           final fechaA = a['ultima_fecha'] ?? a['fecha_creacion'];
           final fechaB = b['ultima_fecha'] ?? b['fecha_creacion'];
           if (fechaA == null || fechaB == null) return 0;
@@ -274,6 +278,120 @@ class _ChatListScreenState extends State<ChatListScreen>
       }
     } catch (e) {
       print('Error al eliminar: $e');
+    }
+  }
+
+  // ===== MENÚ AL DEJAR PRESIONADO UN CHAT =====
+  void _mostrarMenuChat(
+      Map<String, dynamic> chat, String nombreUsuario, String conversacionId) {
+    final estaFijada = chat['fijada'] == true;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  nombreUsuario,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Icon(
+                  estaFijada ? Icons.push_pin : Icons.push_pin_outlined,
+                  color: const Color(0xFF3B82F6),
+                  size: 28,
+                ),
+                title: Text(
+                  estaFijada ? 'Desfijar chat' : 'Fijar chat',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                subtitle: Text(
+                  estaFijada
+                      ? 'Quitar de la parte superior'
+                      : 'Mantener en la parte superior',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _fijarChat(conversacionId, !estaFijada);
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ===== FIJAR/DESFIJAR CHAT =====
+  Future<void> _fijarChat(String conversacionId, bool fijar) async {
+    try {
+      final response = await http.put(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId/fijar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fijada': fijar}),
+      );
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            final index = _conversaciones
+                .indexWhere((c) => c['id'].toString() == conversacionId);
+            if (index != -1) {
+              _conversaciones[index]['fijada'] = fijar;
+            }
+            // 🔥 REORDENAR: PRIMERO LOS FIJADOS, LUEGO POR FECHA
+            _conversaciones.sort((a, b) {
+              final fijadaA = a['fijada'] == true || a['fijada'] == 'true';
+              final fijadaB = b['fijada'] == true || b['fijada'] == 'true';
+              if (fijadaA && !fijadaB) return -1;
+              if (!fijadaA && fijadaB) return 1;
+              final fechaA = a['ultima_fecha'] ?? a['fecha_creacion'];
+              final fechaB = b['ultima_fecha'] ?? b['fecha_creacion'];
+              if (fechaA == null || fechaB == null) return 0;
+              return DateTime.parse(fechaB.toString())
+                  .compareTo(DateTime.parse(fechaA.toString()));
+            });
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(fijar ? '📌 Chat fijado' : '📌 Chat desfijado'),
+              backgroundColor: Colors.blue,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -571,6 +689,9 @@ class _ChatListScreenState extends State<ChatListScreen>
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: GestureDetector(
+            onLongPress: () {
+              _mostrarMenuChat(chat, otroUsuario, conversacionId);
+            },
             onTap: () async {
               await Navigator.push(
                 context,
@@ -601,7 +722,10 @@ class _ChatListScreenState extends State<ChatListScreen>
                 await _cargarConversaciones();
               }
             },
-            child: Container(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
               decoration: BoxDecoration(
@@ -859,6 +983,33 @@ class _ChatListScreenState extends State<ChatListScreen>
               ),
                 ],
               ),
+            ),
+                // 🔥 ÍCONO DE FIJADO EN LA ESQUINA SUPERIOR IZQUIERDA DE LA TARJETA
+                if (chat['fijada'] == true)
+                  Positioned(
+                    top: -8,
+                    left: -8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.push_pin,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         );

@@ -599,23 +599,16 @@ void dispose() {
   }
 }
   bool _esSolicitudCalificacion(String texto) {
-  // 🔥 PRINT 3: CADA VEZ QUE SE LLAMA
-  print('>>> 🔥 _esSolicitudCalificacion() LLAMADO');
-  print('>>> 🔥 texto contiene EL_COMPRADOR_YA_PUEDE_CALIFICARTE: ${texto.contains('EL_COMPRADOR_YA_PUEDE_CALIFICARTE')}');
-  
-  if (!texto.contains('EL_COMPRADOR_YA_PUEDE_CALIFICARTE')) return false;
-  
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return false;
-  
-  // 🔥 PRINT 4: COMPARACIÓN
-  print('>>> 🔥 COMPARANDO - user.uid: ${user.uid}');
-  print('>>> 🔥 COMPARANDO - _vendedorId: $_vendedorId');
-  print('>>> 🔥 COMPARANDO - user.uid == _vendedorId: ${user.uid == _vendedorId}');
-  print('>>> 🔥 COMPARANDO - ¿ES VENDEDOR? ${user.uid == _vendedorId}');
-  
-  return user.uid != _vendedorId;
-}
+    if (!texto.contains('EL_COMPRADOR_YA_PUEDE_CALIFICARTE')) return false;
+    
+    // 🔥 SI YA CALIFICÓ, NO MOSTRAR
+    if (_calificacionRealizada) return false;
+    
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    
+    return user.uid != _vendedorId;
+  }
 
   bool _esConfirmacionCalificacion(String texto) {
     return texto.contains('✅ Has calificado');
@@ -947,8 +940,148 @@ Future<void> _obtenerFotoVendedorReal() async {
                 _seleccionarImagen(ImageSource.camera);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.storefront, color: Colors.blue),
+              title: const Text('Compartir portafolio'),
+              onTap: () {
+                Navigator.pop(context);
+                _enviarPortafolio();
+              },
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  // 🔥 ENVIAR PORTAFOLIO AL CHAT
+  Future<void> _enviarPortafolio() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _conversacionIdActual.isEmpty) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/mensajes'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'conversacion_id': int.parse(_conversacionIdActual),
+          'usuario_id': user.uid,
+          'texto': '||PORTAFOLIO||${widget.otroUsuarioId}',
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        await _cargarMensajes(_conversacionIdActual);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('📤 Portafolio compartido'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // 🔥 DETECTAR PORTAFOLIO
+  bool _esPortafolio(String texto) {
+    return texto.startsWith('||PORTAFOLIO||');
+  }
+
+  // 🔥 EXTRAER EL UID DEL VENDEDOR
+  String _extraerPortafolioUid(String texto) {
+    return texto.replaceAll('||PORTAFOLIO||', '').trim();
+  }
+
+  // 🔥 TARJETA DE PORTAFOLIO
+  Widget _buildTarjetaPortafolio(String vendedorId) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF087FE8), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF087FE8).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.storefront,
+              color: Color(0xFF087FE8),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Portafolio compartido',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF087FE8),
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Toca para ver los productos del vendedor',
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PortafolioVendedorScreen(
+                    vendedorId: vendedorId,
+                    vendedorNombre: widget.otroUsuario,
+                    vendedorFoto: _fotoVendedorReal,
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF087FE8),
+              foregroundColor: Colors.white,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text(
+              'Ver',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3330,6 +3463,12 @@ ListTile(
 
  
 
+  // 🔥 PORTAFOLIO COMPARTIDO
+  if (_esPortafolio(mensaje['texto'] ?? '')) {
+    final vendedorId = _extraerPortafolioUid(mensaje['texto']!);
+    return _buildTarjetaPortafolio(vendedorId);
+  }
+
   // 🔥 PROPUESTA DE ENCUENTRO
   if (_esPropuestaEncuentro(mensaje['texto'] ?? '')) {
     final propuestaId = _extraerPropuestaId(mensaje['texto']!);
@@ -3687,7 +3826,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
               ),
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
-            onSubmitted: (_) => _enviarMensaje(),
+            onSubmitted: (_) {}, // 🔥 Ya no dispara envío desde el teclado
           ),
         ),
         IconButton(
