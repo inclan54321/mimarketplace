@@ -947,7 +947,7 @@ app.post('/api/conversaciones', async (req, res) => {
 
         if (existente.rows.length > 0) {
             console.log('>>> ✅ CONVERSACIÓN YA EXISTE, ID:', existente.rows[0].id);
-            return res.json(existente.rows[0]);
+            return res.status(201).json(existente.rows[0]);
         }
 
         // 🔥 SI NO EXISTE, CREARLA

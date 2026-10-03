@@ -3562,17 +3562,20 @@ print('>>> 🔥 LISTVIEW - user.uid: ${FirebaseAuth.instance.currentUser?.uid}')
 if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   final user = FirebaseAuth.instance.currentUser;
   
-  // 🔥 PRINT 6: DENTRO DEL IF
-  print('>>> 🔥 LISTVIEW - DENTRO DEL IF');
-  print('>>> 🔥 LISTVIEW - user.uid: ${user?.uid}');
-  print('>>> 🔥 LISTVIEW - _vendedorId: $_vendedorId');
-  print('>>> 🔥 LISTVIEW - user.uid == _vendedorId: ${user?.uid == _vendedorId}');
-  
   if (user != null && user.uid == _vendedorId) {
-    print('>>> 🔥 LISTVIEW - VENDEDOR DETECTADO - OCULTANDO');
     return const SizedBox.shrink();
   }
-  print('>>> 🔥 LISTVIEW - COMPRADOR DETECTADO - MOSTRANDO');
+  
+  // 🔥 NO MOSTRAR SI YA CALIFICÓ
+  if (_calificacionRealizada) {
+    return const SizedBox.shrink();
+  }
+  
+  // 🔥 NO MOSTRAR SI YA NO ESTÁ PENDIENTE
+  if (!_calificacionPendiente) {
+    return const SizedBox.shrink();
+  }
+  
   return _buildCalificacionButton();
 }
   // 🔥 MENSAJE NORMAL CON MENÚ

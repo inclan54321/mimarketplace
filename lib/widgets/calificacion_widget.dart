@@ -70,7 +70,7 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
       print('>>> STATUS: ${response.statusCode}');
       print('>>> BODY: ${response.body}');
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Calificación enviada. ¡Gracias!'),
@@ -82,8 +82,8 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
             _enviado = true;
           });
         }
-        // 🔥 NO notificamos al chat para que no se recargue y no dispare análisis
-        // widget.onCalificacionEnviada();
+        // 🔥 SÍ notificamos al chat
+        widget.onCalificacionEnviada();
       } else {
         throw Exception('Error al calificar');
       }
