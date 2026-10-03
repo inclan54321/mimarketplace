@@ -3106,21 +3106,34 @@ app.post('/api/calificaciones', async (req, res) => {
             const conversacionId = convResult.rows[0].id;
             console.log('>>> Conversación encontrada:', conversacionId);
 
-            // 🔥 INSERTAR MENSAJE DE CONFIRMACIÓN (no romper si falla)
+            // 🔥 EVITAR MENSAJES DUPLICADOS EN LOS ÚLTIMOS 5 SEGUNDOS
             try {
-                await pool.query(
-                    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
-                     VALUES ($1, $2, $3, $4, NOW())`,
-                    [
-                        conversacionId,
-                        'SYSTEM',
-                        `✅ Has calificado al usuario con ${puntuacion} estrella${puntuacion > 1 ? 's' : ''}. ¡Gracias por tu opinión!`,
-                        ''
-                    ]
+                const yaExiste = await pool.query(
+                    `SELECT id FROM mensajes_app 
+                     WHERE conversacion_id = $1 
+                       AND usuario_id = 'SYSTEM'
+                       AND texto LIKE '✅ Has calificado%'
+                       AND fecha > NOW() - INTERVAL '5 seconds'`,
+                    [conversacionId]
                 );
-                console.log('>>> ✅ Mensaje de confirmación insertado');
+
+                if (yaExiste.rows.length === 0) {
+                    await pool.query(
+                        `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                         VALUES ($1, $2, $3, $4, NOW())`,
+                        [
+                            conversacionId,
+                            'SYSTEM',
+                            `✅ Has calificado al usuario con ${puntuacion} estrella${puntuacion > 1 ? 's' : ''}. ¡Gracias por tu opinión!`,
+                            ''
+                        ]
+                    );
+                    console.log('>>> ✅ Mensaje de confirmación insertado');
+                } else {
+                    console.log('>>> ⏭️ Mensaje ya insertado hace <5s, omitiendo');
+                }
             } catch (msgError) {
-                console.log('>>> ⚠️ No se pudo insertar mensaje de confirmación (no crítico):', msgError.message);
+                console.log('>>> ⚠️ Error al insertar mensaje de confirmación (no crítico):', msgError.message);
             }
         }
 
