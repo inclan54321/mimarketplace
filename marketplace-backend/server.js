@@ -933,10 +933,24 @@ app.post('/api/conversaciones', async (req, res) => {
     try {
         console.log('>>> 1. POST /api/conversaciones recibido');
         const { usuario1_id, usuario2_id, producto_nombre, producto_id, producto_imagen } = req.body;
-        console.log('>>> 2. producto_imagen recibido:', producto_imagen);
-        console.log('>>> 3. producto_id recibido:', producto_id);
-        
-        // 🔥 OBTENER EL VENDEDOR REAL DEL PRODUCTO 🔥
+
+        // 🔥 BUSCAR SI YA EXISTE UNA CONVERSACIÓN ENTRE ESTOS DOS USUARIOS PARA ESTE PRODUCTO
+        const existente = await pool.query(
+            `SELECT * FROM conversaciones_app 
+             WHERE producto_id = $1
+               AND ((usuario1_id = $2 AND usuario2_id = $3)
+                    OR (usuario1_id = $3 AND usuario2_id = $2))
+             ORDER BY id DESC
+             LIMIT 1`,
+            [producto_id, usuario1_id, usuario2_id]
+        );
+
+        if (existente.rows.length > 0) {
+            console.log('>>> ✅ CONVERSACIÓN YA EXISTE, ID:', existente.rows[0].id);
+            return res.json(existente.rows[0]);
+        }
+
+        // 🔥 SI NO EXISTE, CREARLA
         let vendedor_id = null;
         if (producto_id) {
             const productResult = await pool.query(
@@ -945,19 +959,15 @@ app.post('/api/conversaciones', async (req, res) => {
             );
             if (productResult.rows.length > 0) {
                 vendedor_id = productResult.rows[0].vendedor_id;
-                console.log('>>> 4. vendedor_id del producto ENCONTRADO:', vendedor_id);
-            } else {
-                console.log('>>> 4. PRODUCTO NO ENCONTRADO para ID:', producto_id);
             }
         }
         
-        // 🔥 GUARDAR LA CONVERSACIÓN CON EL VENDEDOR_ID 🔥
         const result = await pool.query(
             `INSERT INTO conversaciones_app (usuario1_id, usuario2_id, fecha_creacion, producto_nombre, producto_id, producto_imagen, vendedor_id) 
              VALUES ($1, $2, NOW(), $3, $4, $5, $6) RETURNING *`,
             [usuario1_id, usuario2_id, producto_nombre || '', producto_id, producto_imagen || '', vendedor_id]
         );
-        console.log('>>> 5. CONVERSACIÓN CREADA CON vendedor_id:', result.rows[0].vendedor_id);
+        console.log('>>> 5. CONVERSACIÓN NUEVA CREADA, ID:', result.rows[0].id);
         res.status(201).json(result.rows[0]);
     } catch (error) {
         console.error('>>> 6. ERROR:', error);
