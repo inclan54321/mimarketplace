@@ -742,6 +742,14 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
             [conversacion_id, usuario_id, texto, imagen_url]
         );
 
+        // 🔥 SI ALGUIEN ESCRIBE, DESOCULTAR EL CHAT PARA LOS DEMÁS
+        await pool.query(
+            `DELETE FROM conversaciones_ocultas 
+             WHERE conversacion_id = $1 AND usuario_id != $2`,
+            [conversacion_id, usuario_id]
+        );
+        console.log(`>>> 🔄 Conversación ${conversacion_id} desocultada para los demás`);
+
         // 🔥 2. ANALIZAR CONVERSACIÓN EN SEGUNDO PLANO (no bloquea la respuesta)
         analizarConversacionEnSegundoPlano(conversacion_id, usuario_id);
 
