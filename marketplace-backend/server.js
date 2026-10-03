@@ -1159,7 +1159,7 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
 app.get('/api/mensajes/:conversacion_id', async (req, res) => {
     try {
         const { conversacion_id } = req.params;
-        const usuario_id = req.query.usuario_id; // 🔥 USUARIO QUE ESTÁ VIENDO EL CHAT
+        const usuario_id = req.query.usuario_id;
 
         if (!usuario_id) {
             return res.status(400).json({ error: 'usuario_id es requerido' });
@@ -1175,33 +1175,47 @@ app.get('/api/mensajes/:conversacion_id', async (req, res) => {
         }
 
         const conv = convResult.rows[0];
-        
-        // 2. DETERMINAR QUIÉN ES EL OTRO USUARIO
         const otroUsuarioId = conv.usuario1_id === usuario_id ? conv.usuario2_id : conv.usuario1_id;
 
-        // 3. VERIFICAR SI EL OTRO USUARIO ESTÁ BLOQUEADO
+        // 2. VERIFICAR SI EL OTRO USUARIO ESTÁ BLOQUEADO
         const bloqueoResult = await pool.query(
             'SELECT * FROM bloqueos WHERE usuario_bloquea = $1 AND usuario_bloqueado = $2',
             [usuario_id, otroUsuarioId]
         );
 
-        // 4. OBTENER MENSAJES
+        // 3. OBTENER FECHA DE ÚLTIMO OCULTAMIENTO (si existe)
+        const ocultoResult = await pool.query(
+            `SELECT fecha_ocultado FROM conversaciones_ocultas 
+             WHERE conversacion_id = $1 AND usuario_id = $2`,
+            [conversacion_id, usuario_id]
+        );
+        const fechaOcultado = ocultoResult.rows.length > 0 
+            ? ocultoResult.rows[0].fecha_ocultado 
+            : null;
+
+        // 4. CONSTRUIR QUERY
         let query = 'SELECT * FROM mensajes_app WHERE conversacion_id = $1';
         const params = [conversacion_id];
         let paramIndex = 2;
 
-        // 5. SI ESTÁ BLOQUEADO, FILTRAR MENSAJES DEL BLOQUEADO
         if (bloqueoResult.rows.length > 0) {
             query += ` AND usuario_id != $${paramIndex}`;
             params.push(otroUsuarioId);
             paramIndex++;
         }
 
-        // 🔥 6. EXCLUIR MENSAJES OCULTOS POR ESTE USUARIO
         query += ` AND id NOT IN (
             SELECT mensaje_id FROM mensajes_ocultos WHERE usuario_id = $${paramIndex}
         )`;
         params.push(usuario_id);
+        paramIndex++;
+
+        // 🔥 FILTRAR MENSAJES ANTERIORES AL ÚLTIMO OCULTAMIENTO
+        if (fechaOcultado) {
+            query += ` AND fecha > $${paramIndex}`;
+            params.push(fechaOcultado);
+            paramIndex++;
+        }
 
         query += ' ORDER BY fecha ASC';
 
@@ -1275,15 +1289,47 @@ app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
             return res.status(400).json({ error: 'usuario_id requerido' });
         }
 
+        // 1. MARCAR COMO OCULTA PARA ESTE USUARIO CON FECHA
         await pool.query(
-            `INSERT INTO conversaciones_ocultas (conversacion_id, usuario_id)
-             VALUES ($1, $2)
-             ON CONFLICT (conversacion_id, usuario_id) DO NOTHING`,
+            `INSERT INTO conversaciones_ocultas (conversacion_id, usuario_id, fecha_ocultado)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (conversacion_id, usuario_id) 
+             DO UPDATE SET fecha_ocultado = NOW()`,
             [id, usuario_id]
         );
 
         console.log(`>>> 👁️ Conversación ${id} ocultada para ${usuario_id}`);
-        res.json({ success: true });
+
+        // 2. VERIFICAR SI AMBOS USUARIOS LA OCULTARON
+        const convResult = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+
+        if (convResult.rows.length > 0) {
+            const conv = convResult.rows[0];
+            const ocultas = await pool.query(
+                `SELECT COUNT(*) as total FROM conversaciones_ocultas 
+                 WHERE conversacion_id = $1 
+                   AND usuario_id IN ($2, $3)`,
+                [id, conv.usuario1_id, conv.usuario2_id]
+            );
+
+            const ambosOcultaron = parseInt(ocultas.rows[0].total) === 2;
+
+            if (ambosOcultaron) {
+                console.log(`>>> 🗑️ AMBOS ocultaron → borrando conversación ${id}`);
+
+                await pool.query('DELETE FROM mensajes_app WHERE conversacion_id = $1', [id]);
+                await pool.query('DELETE FROM conversaciones_ocultas WHERE conversacion_id = $1', [id]);
+                await pool.query('DELETE FROM conversaciones_app WHERE id = $1', [id]);
+
+                console.log(`>>> ✅ Conversación ${id} eliminada por completo`);
+                return res.json({ success: true, eliminada: true });
+            }
+        }
+
+        res.json({ success: true, eliminada: false });
     } catch (error) {
         console.error('Error al ocultar conversación:', error);
         res.status(500).json({ error: error.message });
