@@ -186,6 +186,8 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO. NO agregues texto adicional. NO uses c
 // ===== MODERACIÓN CON DEEPSEEK VISION =====
 async function moderarProductoConGemini(nombre, descripcion, categoria, imagenPath) {
     try {
+        console.log('>>> 🚨🚨🚨 DEEPSEEK LLAMADO DESDE moderarProductoConGemini');
+        console.log('>>> 🚨 Producto:', nombre);
         const fullPath = path.join(__dirname, imagenPath.replace(/^\//, ''));
         console.log('>>> Leyendo imagen desde:', fullPath);
         
@@ -2327,6 +2329,8 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO:
 // ===== ANALIZAR IMAGEN COMPLETA CON DEEPSEEK VISION =====
 async function analizarImagenCompleta(imagenPath) {
     try {
+        console.log('>>> 🚨🚨🚨 DEEPSEEK LLAMADO DESDE analizarImagenCompleta');
+        console.log('>>> 🚨 Imagen:', imagenPath);
         const fullPath = path.join(__dirname, imagenPath.replace(/^\//, ''));
         if (!fs.existsSync(fullPath)) {
             console.error('⚠️ Archivo no encontrado:', fullPath);
@@ -2617,7 +2621,9 @@ app.get('/api/conversaciones/:conversacion_id/analisis', async (req, res) => {
 // ===== ANALIZAR CONVERSACIÓN EN SEGUNDO PLANO =====
 async function analizarConversacionEnSegundoPlano(conversacionId, usuarioId) {
     try {
-        console.log('>>> 🤖 Iniciando análisis en segundo plano para conversación:', conversacionId);
+        console.log('>>> 🚨🚨🚨 DEEPSEEK LLAMADO DESDE analizarConversacionEnSegundoPlano - conv:', conversacionId);
+        console.log('>>> 🚨 QUIÉN LLAMA: POST /api/mensajes');
+        console.trace('>>> 🚨 STACK TRACE:');
 
         // 🔥 1. OBTENER LOS ÚLTIMOS 20 MENSAJES
         const mensajesResult = await pool.query(
@@ -2749,6 +2755,8 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
 // ===== ANALIZAR CHAT CON IA (DEEPSEEK) - VERSIÓN MEJORADA =====
 app.post('/api/analizar-chat', async (req, res) => {
     try {
+        console.log('>>> 🚨🚨🚨 DEEPSEEK LLAMADO DESDE POST /api/analizar-chat');
+        console.log('>>> 🚨 Body:', req.body);
         const { conversacion_id, usuario_id } = req.body;
 
         if (!conversacion_id) {
