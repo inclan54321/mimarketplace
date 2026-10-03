@@ -27,6 +27,7 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
   int _puntuacion = 0;
   final TextEditingController _comentarioController = TextEditingController();
   bool _enviando = false;
+  bool _enviado = false; // 🔥 NUEVO
 
   Future<void> _enviarCalificacion() async {
     if (_puntuacion == 0) {
@@ -70,8 +71,13 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
             backgroundColor: Colors.green,
           ),
         );
-        widget.onCalificacionEnviada(); // 🔥 NOTIFICAR AL CHAT
-        Navigator.pop(context); // 🔥 CERRAR EL WIDGET
+        if (mounted) {
+          setState(() {
+            _enviado = true;
+          });
+        }
+        // 🔥 NO notificamos al chat para que no se recargue y no dispare análisis
+        // widget.onCalificacionEnviada();
       } else {
         throw Exception('Error al calificar');
       }
@@ -86,6 +92,57 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 SI YA SE ENVIÓ, MOSTRAR CONFIRMACIÓN
+    if (_enviado) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1A1F2E), Color(0xFF0F1420)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF4ADE80), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4ADE80).withValues(alpha: 0.4),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4ADE80).withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_circle,
+                color: Color(0xFF4ADE80),
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                '✅ ¡Gracias por tu calificación!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ClipRRect(

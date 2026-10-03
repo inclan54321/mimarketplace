@@ -346,11 +346,12 @@ async function _verificarYPedirCalificacion(conversacionId) {
                 
                 const mensajeTexto = `||EL_COMPRADOR_YA_PUEDE_CALIFICARTE||`;
                 
+                // 🔥 INSERTAR SIN DISPARAR ANÁLISIS (no llama a DeepSeek)
                 const insertResult = await pool.query(
-    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
-     VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-    [conversacionId, 'SYSTEM', mensajeTexto, '']  // ← CAMBIAR compradorId POR 'SYSTEM'
-);
+                    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                     VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
+                    [conversacionId, 'SYSTEM', mensajeTexto, '']
+                );
                 
                 console.log('>>> 🔥 MENSAJE INSERTADO:', insertResult.rows[0]);
                 console.log('>>> 🔥 usuario_id del mensaje:', insertResult.rows[0].usuario_id);
@@ -752,10 +753,22 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
         );
         console.log(`>>> 🔄 Conversación ${conversacion_id} desocultada para los demás`);
 
-        // 🔥 2. ANALIZAR CONVERSACIÓN EN SEGUNDO PLANO (no bloquea la respuesta)
-        analizarConversacionEnSegundoPlano(conversacion_id, usuario_id);
+        // 🔥 2. ANALIZAR SOLO SI EL ESCUDO ESTÁ ACTIVO
+        const escudoVerif = await pool.query(
+            `SELECT activo FROM escudos_conversacion 
+             WHERE conversacion_id = $1 AND usuario_id = $2`,
+            [conversacion_id, usuario_id]
+        );
+        const escudoDeEsteUsuario = escudoVerif.rows[0]?.activo === true;
 
-        // 3. VERIFICAR SI HAY QUE PEDIR CALIFICACIÓN
+        if (escudoDeEsteUsuario) {
+            console.log('>>> 🛡️ Escudo activo → analizando con DeepSeek');
+            analizarConversacionEnSegundoPlano(conversacion_id, usuario_id);
+        } else {
+            console.log('>>> ⏭️ Escudo apagado → sin análisis');
+        }
+
+        // 3. VERIFICAR SI HAY QUE PEDIR CALIFICACIÓN (SIN LLAMAR A DEEPSEEK)
         await _verificarYPedirCalificacion(conversacion_id);
 
         // ============================================================
