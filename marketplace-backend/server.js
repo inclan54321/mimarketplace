@@ -801,9 +801,9 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
                         },
                     };
 
-                    // Enviar con Admin SDK
-                    await admin.messaging().send(mensajeFCM);
-                    console.log('>>> 📨 Notificación push enviada a:', receptor_id);
+                    // Enviar con Admin SDK (DESACTIVADO - admin no está configurado)
+                    // await admin.messaging().send(mensajeFCM);
+                    console.log('>>> 📨 Notificación push OMITIDA (admin no configurado):', receptor_id);
                 }
             }
         } catch (pushError) {
