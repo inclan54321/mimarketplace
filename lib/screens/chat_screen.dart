@@ -582,8 +582,10 @@ void dispose() {
         }
       }
 
-      // 🔥 CONSULTAR EL ANÁLISIS GUARDADO SIEMPRE (aunque no haya cambios)
-      _analizarMensajeConIA('', user.uid);
+      // 🔥 CONSULTAR EL ANÁLISIS SOLO SI HAY CAMBIOS (para evitar recargas infinitas)
+      if (hayCambios) {
+        _analizarMensajeConIA('', user.uid);
+      }
 
       // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
       await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
@@ -617,6 +619,31 @@ void dispose() {
 
   bool _esConfirmacionCalificacion(String texto) {
     return texto.contains('✅ Has calificado');
+  }
+
+  // 🔥 DETECTAR SI ES UN MENSAJE DE PROPUESTA DE ENCUENTRO
+  bool _esPropuestaEncuentro(String texto) {
+    return texto.startsWith('||ENCUENTRO_PROPUESTA||');
+  }
+
+  // 🔥 EXTRAER EL ID DE LA PROPUESTA
+  String _extraerPropuestaId(String texto) {
+    return texto.replaceAll('||ENCUENTRO_PROPUESTA||', '').trim();
+  }
+
+  // 🔥 DETECTAR ACEPTACIÓN DE ENCUENTRO
+  bool _esEncuentroAceptado(String texto) {
+    return texto.startsWith('||ENCUENTRO_ACEPTADO||');
+  }
+
+  // 🔥 DETECTAR RECHAZO DE ENCUENTRO
+  bool _esEncuentroRechazado(String texto) {
+    return texto.startsWith('||ENCUENTRO_RECHAZADO||');
+  }
+
+  // 🔥 DETECTAR CONTRAPROPUESTA
+  bool _esEncuentroContrapropuesta(String texto) {
+    return texto.startsWith('||ENCUENTRO_CONTRAPROPUESTA||');
   }
 
   Future<void> _enviarCalificacion(int puntuacion) async {
@@ -2502,15 +2529,20 @@ ListTile(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.85,
-          ),
+        builder: (context, setModalState) => Align(
+          alignment: Alignment.topCenter, // 🔥 ESTO SUBE EL MODAL
           child: Container(
+            height: MediaQuery.of(context).size.height * 0.80, // 🔥 ALTURA FIJA
+            margin: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 20, // 🔥 MARGEN ARRIBA
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
             padding: const EdgeInsets.all(20),
             child: SingleChildScrollView(
               child: Column(
@@ -2753,6 +2785,961 @@ ListTile(
     );
   }
 
+  // 🔥 TARJETA DE PROPUESTA DE ENCUENTRO
+  Widget _buildTarjetaPropuesta(String propuestaId) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _obtenerPropuesta(propuestaId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const SizedBox.shrink();
+        }
+
+        final propuesta = snapshot.data!;
+        final estado = propuesta['estado'] ?? 'pendiente';
+        final user = FirebaseAuth.instance.currentUser;
+
+        // 🔥 SI YO PROPUSE, ESPERO RESPUESTA DEL OTRO
+        final yoPropuse = propuesta['usuario_propone_id'] == user?.uid;
+
+        return GestureDetector(
+          onTap: () => _mostrarDetallePropuesta(propuesta),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: estado == 'confirmada'
+                    ? Colors.green
+                    : estado == 'rechazada'
+                        ? Colors.red
+                        : Colors.blue,
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.event,
+                      color: estado == 'confirmada'
+                          ? Colors.green
+                          : estado == 'rechazada'
+                              ? Colors.red
+                              : Colors.blue,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Propuesta de encuentro',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: estado == 'confirmada'
+                              ? Colors.green
+                              : estado == 'rechazada'
+                                  ? Colors.red
+                                  : Colors.blue,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: estado == 'confirmada'
+                            ? Colors.green.shade50
+                            : estado == 'rechazada'
+                                ? Colors.red.shade50
+                                : Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        estado.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: estado == 'confirmada'
+                              ? Colors.green
+                              : estado == 'rechazada'
+                                  ? Colors.red
+                                  : Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${propuesta['lugar_nombre'] ?? ''}\n'
+                        '${propuesta['distrito'] ?? ''}, ${propuesta['canton'] ?? ''}, ${propuesta['provincia'] ?? ''}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatearFechaPropuesta(propuesta['fecha_encuentro']),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  yoPropuse
+                      ? 'Esperando respuesta...'
+                      : 'Toca para ver detalles y responder',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 🔥 FORMATEAR FECHA DE PROPUESTA
+  String _formatearFechaPropuesta(String? fecha) {
+    if (fecha == null) return '';
+    try {
+      final date = DateTime.parse(fecha);
+      return DateFormat('dd/MM/yyyy HH:mm').format(date);
+    } catch (e) {
+      return fecha;
+    }
+  }
+
+  // 🔥 OBTENER PROPUESTA DEL BACKEND
+  Future<Map<String, dynamic>?> _obtenerPropuesta(String propuestaId) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'),
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error al obtener propuesta: $e');
+      return null;
+    }
+  }
+
+  // 🔥 MOSTRAR DETALLE DE LA PROPUESTA
+  void _mostrarDetallePropuesta(Map<String, dynamic> propuesta) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          margin: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 20,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.event, color: Colors.blue, size: 28),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Detalle del encuentro',
+                      style: TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 🔥 LUGAR
+                _buildInfoRow(Icons.location_on, 'Lugar',
+                    propuesta['lugar_nombre'] ?? ''),
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.map, 'Distrito',
+                    '${propuesta['distrito'] ?? ''}, ${propuesta['canton'] ?? ''}, ${propuesta['provincia'] ?? ''}'),
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.access_time, 'Fecha y hora',
+                    _formatearFechaPropuesta(propuesta['fecha_encuentro'])),
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.info, 'Estado', propuesta['estado'] ?? ''),
+                const SizedBox(height: 20),
+
+                // 🔥 BOTONES DE ACCIÓN
+                if (propuesta['estado'] == 'pendiente' &&
+                    propuesta['usuario_recibe_id'] ==
+                        FirebaseAuth.instance.currentUser?.uid) ...[
+                  const Text(
+                    '¿Qué querés hacer?',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  // 🔥 BOTONES: RECHAZAR / CONTRAPROPONER / ACEPTAR
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _responderPropuesta(
+                                  propuesta['id'].toString(), 'rechazar'),
+                              icon: const Icon(Icons.close, size: 18),
+                              label: const Text('Rechazar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _mostrarContrapropuesta(propuesta);
+                              },
+                              icon: const Icon(Icons.edit, size: 18),
+                              label: const Text('Contra'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _responderPropuesta(
+                              propuesta['id'].toString(), 'aceptar'),
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text('Aceptar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (propuesta['estado'] == 'pendiente') ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.hourglass_top, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Esperando respuesta del otro usuario...',
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 FILA DE INFO
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: Colors.blue),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(fontSize: 15),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 🔥 MOSTRAR FORMULARIO DE CONTRAPROPUESTA
+  void _mostrarContrapropuesta(Map<String, dynamic> propuesta) {
+    String? provinciaSeleccionada = propuesta['provincia'];
+    String? cantonSeleccionado = propuesta['canton'];
+    String? distritoSeleccionado = propuesta['distrito'];
+    final TextEditingController lugarController =
+        TextEditingController(text: propuesta['lugar_nombre'] ?? '');
+    DateTime? fechaSeleccionada = propuesta['fecha_encuentro'] != null
+        ? DateTime.tryParse(propuesta['fecha_encuentro'])
+        : null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Align(
+          alignment: Alignment.topCenter,
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.80,
+            margin: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.edit, color: Colors.orange, size: 28),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Contrapropuesta',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Modificá el lugar, la fecha o la hora del encuentro.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 🔥 PROVINCIA
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Provincia',
+                      border: OutlineInputBorder(),
+                    ),
+                    value: provinciaSeleccionada,
+                    items: costaRica.keys.map((p) {
+                      return DropdownMenuItem(value: p, child: Text(p));
+                    }).toList(),
+                    onChanged: (value) {
+                      setModalState(() {
+                        provinciaSeleccionada = value;
+                        cantonSeleccionado = null;
+                        distritoSeleccionado = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  if (provinciaSeleccionada != null)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Cantón',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: cantonSeleccionado,
+                      items: costaRica[provinciaSeleccionada]!.keys.map((c) {
+                        return DropdownMenuItem(value: c, child: Text(c));
+                      }).toList(),
+                      onChanged: (value) {
+                        setModalState(() {
+                          cantonSeleccionado = value;
+                          distritoSeleccionado = null;
+                        });
+                      },
+                    ),
+                  if (provinciaSeleccionada != null) const SizedBox(height: 12),
+
+                  if (cantonSeleccionado != null)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Distrito',
+                        border: OutlineInputBorder(),
+                      ),
+                      value: distritoSeleccionado,
+                      items: costaRica[provinciaSeleccionada]![cantonSeleccionado]!.map((d) {
+                        return DropdownMenuItem(value: d, child: Text(d));
+                      }).toList(),
+                      onChanged: (value) {
+                        setModalState(() {
+                          distritoSeleccionado = value;
+                        });
+                      },
+                    ),
+                  if (cantonSeleccionado != null) const SizedBox(height: 12),
+
+                  // 🔥 LUGAR EXACTO
+                  TextField(
+                    controller: lugarController,
+                    decoration: const InputDecoration(
+                      labelText: 'Lugar exacto',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 🔥 FECHA Y HORA
+                  InkWell(
+                    onTap: () async {
+                      final fecha = await showDatePicker(
+                        context: context,
+                        initialDate: fechaSeleccionada ?? DateTime.now().add(const Duration(days: 1)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 90)),
+                      );
+                      if (fecha != null) {
+                        final hora = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(
+                              fechaSeleccionada ?? DateTime.now()),
+                        );
+                        if (hora != null) {
+                          setModalState(() {
+                            fechaSeleccionada = DateTime(
+                              fecha.year, fecha.month, fecha.day,
+                              hora.hour, hora.minute,
+                            );
+                          });
+                        }
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today, color: Colors.blue),
+                          const SizedBox(width: 12),
+                          Text(
+                            fechaSeleccionada == null
+                                ? 'Seleccionar fecha y hora'
+                                : DateFormat('dd/MM/yyyy HH:mm').format(fechaSeleccionada!),
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 🔥 BOTÓN DE ENVIAR CONTRAPROPUESTA
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (provinciaSeleccionada == null ||
+                            cantonSeleccionado == null ||
+                            distritoSeleccionado == null ||
+                            lugarController.text.isEmpty ||
+                            fechaSeleccionada == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('⚠️ Completa todos los campos'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+
+                        try {
+                          final user = FirebaseAuth.instance.currentUser;
+                          final response = await http.put(
+                            Uri.parse(
+                                'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/${propuesta['id']}/contrapropuesta'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode({
+                              'usuario_id': user?.uid ?? '',
+                              'lugar_nombre': lugarController.text,
+                              'fecha_encuentro': fechaSeleccionada!.toIso8601String(),
+                            }),
+                          );
+
+                          if (response.statusCode == 200) {
+                            if (mounted) Navigator.pop(context);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✅ Contrapropuesta enviada'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                            await _cargarMensajes(_conversacionIdActual);
+                          } else {
+                            throw Exception('Error ${response.statusCode}');
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Enviar contrapropuesta'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 TARJETA DE CONTRAPROPUESTA
+  Widget _buildTarjetaContrapropuesta(String propuestaId) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _obtenerPropuesta(propuestaId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data == null) {
+          return const SizedBox.shrink();
+        }
+
+        final propuesta = snapshot.data!;
+        final estado = propuesta['estado'] ?? 'contrapropuesta';
+        final user = FirebaseAuth.instance.currentUser;
+
+        // 🔥 SI YO HICE LA CONTRAPROPUESTA, ESPERO RESPUESTA
+        final yoContrapropuse =
+            propuesta['contrapropuesta_de_id'] == user?.uid;
+
+        return GestureDetector(
+          onTap: () => _mostrarDetalleContrapropuesta(propuesta),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.orange,
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withValues(alpha: 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.edit, color: Colors.orange, size: 24),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Contrapropuesta de encuentro',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'NUEVA',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        propuesta['contrapropuesta_lugar'] ??
+                            propuesta['lugar_nombre'] ??
+                            '',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(
+                      _formatearFechaPropuesta(
+                          propuesta['contrapropuesta_fecha'] ??
+                              propuesta['fecha_encuentro']),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  yoContrapropuse
+                      ? 'Esperando respuesta...'
+                      : 'Toca para ver la contrapropuesta y responder',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 🔥 MOSTRAR DETALLE DE LA CONTRAPROPUESTA
+  void _mostrarDetalleContrapropuesta(Map<String, dynamic> propuesta) {
+    final user = FirebaseAuth.instance.currentUser;
+    final yoContrapropuse =
+        propuesta['contrapropuesta_de_id'] == user?.uid;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          margin: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 20,
+          ),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.edit, color: Colors.orange, size: 28),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Detalle de contrapropuesta',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // 🔥 LUGAR ORIGINAL
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Propuesta original:',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '📍 ${propuesta['lugar_nombre'] ?? ''}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      Text(
+                        '🕐 ${_formatearFechaPropuesta(propuesta['fecha_encuentro'])}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 🔥 CONTRAPROPUESTA
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Contrapropuesta:',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '📍 ${propuesta['contrapropuesta_lugar'] ?? propuesta['lugar_nombre'] ?? ''}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      Text(
+                        '🕐 ${_formatearFechaPropuesta(propuesta['contrapropuesta_fecha'] ?? propuesta['fecha_encuentro'])}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // 🔥 BOTONES: SOLO EL QUE NO HIZO LA CONTRAPROPUESTA PUEDE RESPONDER
+                if (!yoContrapropuse) ...[
+                  const Text(
+                    '¿Aceptas la contrapropuesta?',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _responderPropuesta(
+                                propuesta['id'].toString(), 'rechazar');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Rechazar'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _responderPropuesta(
+                                propuesta['id'].toString(), 'aceptar');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Aceptar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.hourglass_top, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Esperando respuesta del otro usuario...',
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 RESPONDER PROPUESTA (ACEPTAR O RECHAZAR)
+  Future<void> _responderPropuesta(String propuestaId, String accion) async {
+    try {
+      final response = await http.put(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId/$accion'),
+      );
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          Navigator.pop(context); // Cerrar modal
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  accion == 'aceptar'
+                      ? '✅ Propuesta aceptada'
+                      : '❌ Propuesta rechazada'),
+              backgroundColor:
+                  accion == 'aceptar' ? Colors.green : Colors.red,
+            ),
+          );
+          await _cargarMensajes(_conversacionIdActual);
+        }
+      } else {
+        throw Exception('Error ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
   print('>>> productoImagen en ChatScreen: ${widget.productoImagen}');
@@ -2927,6 +3914,70 @@ ListTile(
       mensaje['imagen']!.endsWith('.m4a');
 
  
+
+  // 🔥 PROPUESTA DE ENCUENTRO
+  if (_esPropuestaEncuentro(mensaje['texto'] ?? '')) {
+    final propuestaId = _extraerPropuestaId(mensaje['texto']!);
+    return _buildTarjetaPropuesta(propuestaId);
+  }
+
+  // 🔥 CONTRAPROPUESTA DE ENCUENTRO
+  if (_esEncuentroContrapropuesta(mensaje['texto'] ?? '')) {
+    final propuestaId = mensaje['texto']!
+        .replaceAll('||ENCUENTRO_CONTRAPROPUESTA||', '')
+        .trim();
+    return _buildTarjetaContrapropuesta(propuestaId);
+  }
+
+  // 🔥 ACEPTACIÓN DE ENCUENTRO
+  if (_esEncuentroAceptado(mensaje['texto'] ?? '')) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '✅ El encuentro ha sido aceptado',
+              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 RECHAZO DE ENCUENTRO
+  if (_esEncuentroRechazado(mensaje['texto'] ?? '')) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.cancel, color: Colors.red),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '❌ El encuentro ha sido rechazado',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // 🔥 CONFIRMACIÓN DE CALIFICACIÓN 🔥
   if (_esConfirmacionCalificacion(mensaje['texto'] ?? '')) {
