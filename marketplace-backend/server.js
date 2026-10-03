@@ -873,7 +873,11 @@ app.get('/api/conversaciones/:usuario_id', async (req, res) => {
              LEFT JOIN usuarios u1 ON c.usuario1_id = u1.uid
              LEFT JOIN usuarios u2 ON c.usuario2_id = u2.uid
              LEFT JOIN productos_app p ON c.producto_id = p.id
-             WHERE c.usuario1_id = $1 OR c.usuario2_id = $1`,
+             WHERE (c.usuario1_id = $1 OR c.usuario2_id = $1)
+               AND c.id NOT IN (
+                 SELECT conversacion_id FROM conversaciones_ocultas 
+                 WHERE usuario_id = $1
+               )`,
             [usuario_id]
         );
          // 2. FILTRAR CONVERSACIONES CON BLOQUEADOS
@@ -1171,6 +1175,31 @@ app.post('/api/usuarios', async (req, res) => {
     }
 });
 
+
+// 🔥 OCULTAR CONVERSACIÓN COMPLETA PARA UN USUARIO
+app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { usuario_id } = req.body;
+
+        if (!usuario_id) {
+            return res.status(400).json({ error: 'usuario_id requerido' });
+        }
+
+        await pool.query(
+            `INSERT INTO conversaciones_ocultas (conversacion_id, usuario_id)
+             VALUES ($1, $2)
+             ON CONFLICT (conversacion_id, usuario_id) DO NOTHING`,
+            [id, usuario_id]
+        );
+
+        console.log(`>>> 👁️ Conversación ${id} ocultada para ${usuario_id}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error al ocultar conversación:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // RUTA PARA ELIMINAR CONVERSACIÓN
 app.delete('/api/conversaciones/:id', async (req, res) => {
