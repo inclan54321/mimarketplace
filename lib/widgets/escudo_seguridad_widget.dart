@@ -576,7 +576,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
       mainAxisSize: MainAxisSize.min,
       children: [
         Transform.translate(
-          offset: const Offset(0, -4),
+          offset: const Offset(20, -4),
           child: SizedBox(
             width: 100,
             height: 100,
@@ -701,60 +701,62 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
               widget.onToggle();
             }
           },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: _videoVisto
-                    ? [const Color(0xFF4ADE80), const Color(0xFF22C55E)]
-                    : [
-                        const Color(0xFF60A5FA),
-                        const Color(0xFF3B82F6),
-                        const Color(0xFF1E40AF),
-                      ],
-              ),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: _videoVisto
-                    ? const Color(0xFF16A34A)
-                    : const Color(0xFF1E3A8A),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: (_videoVisto
-                          ? const Color(0xFF22C55E)
-                          : const Color(0xFF3B82F6))
-                      .withValues(alpha: 0.5),
-                  blurRadius: 6,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 2),
+          child: Transform.translate(
+            offset: const Offset(0, -8),
+            child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // 🔥 TORRE DE AJEDREZ (emoji grande)
+              Text(
+                '♜',
+                style: TextStyle(
+                  fontSize: 90,
+                  height: 1.0,
+                  color: Colors.black, // 🔥 negro
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 6,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.verified_user,
-                  color: Colors.white,
-                  size: 16,
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  _videoVisto ? 'ACTIVADO' : 'PLUS',
-                  style: const TextStyle(
+              ),
+              // 🔥 TEXTO ENCIMA
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 22), // 🔥 más espacio = baja el contenido
+                  const Icon(
+                    Icons.verified_user,
                     color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                    size: 14,
                   ),
-                ),
-              ],
-            ),
+                  Text(
+                    _videoVisto ? 'ON' : 'PLUS',
+                    style: TextStyle(
+                      color: _videoVisto
+                          ? const Color(0xFF00E676) // 🔥 verde luminoso
+                          : Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                      shadows: _videoVisto
+                          ? [
+                              Shadow(
+                                color: const Color(0xFF00E676)
+                                    .withValues(alpha: 0.9),
+                                blurRadius: 8,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
+        ),
         ),
       ],
     );
@@ -798,3 +800,4 @@ class _CirculoPunteadoPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

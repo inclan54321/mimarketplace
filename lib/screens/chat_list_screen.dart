@@ -77,6 +77,15 @@ class _ChatListScreenState extends State<ChatListScreen>
           return !_bloqueados.contains(otroId);
         }).toList();
 
+        // 🔥 ORDENAR POR ÚLTIMA FECHA (más reciente arriba)
+        conversacionesFiltradas.sort((a, b) {
+          final fechaA = a['ultima_fecha'] ?? a['fecha_creacion'];
+          final fechaB = b['ultima_fecha'] ?? b['fecha_creacion'];
+          if (fechaA == null || fechaB == null) return 0;
+          return DateTime.parse(fechaB.toString())
+              .compareTo(DateTime.parse(fechaA.toString()));
+        });
+
         if (mounted) {
           setState(() {
             _conversaciones = conversacionesFiltradas;

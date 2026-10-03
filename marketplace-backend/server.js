@@ -1184,6 +1184,32 @@ app.post('/api/usuarios', async (req, res) => {
 });
 
 
+// 🔥 FIJAR/DESFIJAR CONVERSACIÓN
+app.put('/api/conversaciones/:id/fijar', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fijada } = req.body;
+
+        const result = await pool.query(
+            `UPDATE conversaciones_app 
+             SET fijada = $1 
+             WHERE id = $2 
+             RETURNING *`,
+            [fijada === true, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        console.log(`>>> 📌 Conversación ${id} ${fijada ? 'fijada' : 'desfijada'}`);
+        res.json({ success: true, conversacion: result.rows[0] });
+    } catch (error) {
+        console.error('Error al fijar conversación:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // 🔥 OCULTAR CONVERSACIÓN COMPLETA PARA UN USUARIO
 app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
     try {
