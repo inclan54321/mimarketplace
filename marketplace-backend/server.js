@@ -331,7 +331,7 @@ async function _verificarYPedirCalificacion(conversacionId) {
 
             // 🔥 VERIFICAR SI YA CALIFICÓ (para no insertar de nuevo)
             const compradorIdCheck = conv.uid1 === conv.vendedor_id ? conv.uid2 : conv.uid1;
-            const yaCalifico = await pool.query(
+             const yaCalifico = await pool.query(
                 `SELECT id FROM calificaciones 
                  WHERE producto_id = $1 
                    AND calificador_id = $2`,
