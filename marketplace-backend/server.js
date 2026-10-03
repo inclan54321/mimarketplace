@@ -745,12 +745,13 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
             [conversacion_id, usuario_id, texto, imagen_url]
         );
 
-        // 🔥 SI ALGUIEN ESCRIBE, DESOCULTAR EL CHAT PARA LOS DEMÁS
+        // 🔥 SI ALGUIEN ESCRIBE, DESOCULTAR EL CHAT PARA AMBOS USUARIOS
         await pool.query(
             `DELETE FROM conversaciones_ocultas 
-             WHERE conversacion_id = $1 AND usuario_id != $2`,
-            [conversacion_id, usuario_id]
+             WHERE conversacion_id = $1`,
+            [conversacion_id]
         );
+        console.log(`>>> 🔄 Conversación ${conversacion_id} desocultada para ambos`);
         console.log(`>>> 🔄 Conversación ${conversacion_id} desocultada para los demás`);
 
         // 🔥 2. ANALIZAR SOLO SI EL ESCUDO ESTÁ ACTIVO
@@ -947,6 +948,14 @@ app.post('/api/conversaciones', async (req, res) => {
 
         if (existente.rows.length > 0) {
             console.log('>>> ✅ CONVERSACIÓN YA EXISTE, ID:', existente.rows[0].id);
+
+            // 🔥 DESOCULTAR PARA EL USUARIO QUE LA ESTÁ ABRIENDO
+            await pool.query(
+                `DELETE FROM conversaciones_ocultas 
+                 WHERE conversacion_id = $1 AND usuario_id = $2`,
+                [existente.rows[0].id, usuario1_id]
+            );
+
             return res.status(201).json(existente.rows[0]);
         }
 
