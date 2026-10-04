@@ -3958,10 +3958,20 @@ ListTile(
                       const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
+                          onPressed: () async {
                             setState(() {
                               _mostrarBotonesCerrarTrato = false;
                             });
+
+                            // 🔥 Avisar al backend que ya no quiere cerrar
+                            try {
+                              await http.post(
+                                Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cancelar-cierre-trato'),
+                                headers: {'Content-Type': 'application/json'},
+                              );
+                            } catch (e) {
+                              print('Error al cancelar cierre de trato: $e');
+                            }
                           },
                           icon: const Icon(Icons.help_outline, size: 18),
                           label: const Text('Tengo más preguntas'),

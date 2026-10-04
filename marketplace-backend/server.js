@@ -3836,6 +3836,26 @@ app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// POST - Cancelar cierre de trato
+app.post('/api/conversaciones/:id/cancelar-cierre-trato', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await pool.query(
+            `UPDATE conversaciones_app 
+             SET quiere_cerrar_trato = false,
+                 fecha_analisis = NOW()
+             WHERE id = $1`,
+            [id]
+        );
+
+        console.log(`>>> 🚫 Cierre de trato cancelado en conv ${id}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error al cancelar cierre de trato:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // GET - Consultar quién confirmó cerrar trato
 app.get('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
