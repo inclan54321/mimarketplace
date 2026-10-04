@@ -3669,7 +3669,7 @@ app.post('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
             return res.status(400).json({ error: 'usuario_id requerido' });
         }
 
-        // Insertar (ignorar si ya existe)
+        // Insertar en seguimiento_conversacion (por si acaso)
         await pool.query(
             `INSERT INTO seguimiento_conversacion (conversacion_id, usuario_id)
              VALUES ($1, $2)
@@ -3677,14 +3677,16 @@ app.post('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
             [id, usuario_id]
         );
 
-        // Contar cuántos usuarios quieren seguir
+        // 🔥 CONTAR LEYENDO LOS MENSAJES (no la tabla nueva)
         const result = await pool.query(
-            `SELECT COUNT(*) as total FROM seguimiento_conversacion
-             WHERE conversacion_id = $1`,
+            `SELECT DISTINCT usuario_id 
+             FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||SEGUIR_CONVERSANDO||%'`,
             [id]
         );
 
-        const total = parseInt(result.rows[0].total);
+        const total = result.rows.length;
         const ambosSeguir = total >= 2;
 
         console.log(`>>> 🟢 Seguir conversando: conv=${id}, user=${usuario_id}, total=${total}, ambos=${ambosSeguir}`);
@@ -3705,13 +3707,17 @@ app.get('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
     try {
         const { id } = req.params;
 
+        // 🔥 LEER DE LOS MENSAJES, NO DE LA TABLA NUEVA
         const result = await pool.query(
-            `SELECT usuario_id FROM seguimiento_conversacion
-             WHERE conversacion_id = $1`,
+            `SELECT DISTINCT usuario_id 
+             FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||SEGUIR_CONVERSANDO||%'`,
             [id]
         );
 
         const usuarios = result.rows.map(r => r.usuario_id);
+        console.log(`>>> 🟢 GET seguir-conversando conv=${id}: usuarios=${JSON.stringify(usuarios)}`);
         res.json({
             ambos_seguir: usuarios.length >= 2,
             usuarios: usuarios,
