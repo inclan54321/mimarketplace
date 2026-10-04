@@ -1102,8 +1102,13 @@ Future<void> _obtenerFotoVendedorReal() async {
           }
 
           // 🔥 SI LA IA DETECTA QUE QUIEREN CERRAR EL TRATO
+          // Resetear el flujo de "seguir conversando" para que puedan volver a cerrar
           if (quiereCerrarTrato && !_usuarioConfirmoCerrarTrato) {
             _mostrarBotonesCerrarTrato = true;
+            // 🔥 RESETEAR seguir-conversando: el flujo es circular
+            _usuarioDecidioSeguirConversando = false;
+            _esperandoRespuestaOtro = false;
+            _mostrarBotonesConfirmar = false;
           }
         });
 
@@ -3865,6 +3870,112 @@ ListTile(
                 ? _buildPanelAnalisis(key: const ValueKey('panel'))
                 : _buildProductoHeader(key: const ValueKey('header')),
           ),
+          // 🔥 BOTONES DE CERRAR TRATO (ARRIBA DEL LISTVIEW)
+          if (_mostrarBotonesCerrarTrato && !_usuarioConfirmoCerrarTrato)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200, width: 2),
+              ),
+              child: Column(
+                children: [
+                  const Icon(Icons.handshake, color: Colors.blue, size: 32),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '¿Ya está todo listo para el encuentro?',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final hayPropuesta = await _hayPropuestaEncuentro();
+                            if (!hayPropuesta) {
+                              setState(() {
+                                _mostrarBotonesCerrarTrato = false;
+                              });
+                              _mostrarInterfazEncuentro();
+                              return;
+                            }
+
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null) return;
+
+                            try {
+                              final r = await http.post(
+                                Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
+                                headers: {'Content-Type': 'application/json'},
+                                body: jsonEncode({'usuario_id': user.uid}),
+                              );
+
+                              if (r.statusCode == 200) {
+                                final data = jsonDecode(r.body);
+                                final ambos = data['ambos_confirmaron'] == true;
+
+                                setState(() {
+                                  _usuarioConfirmoCerrarTrato = true;
+                                  _mostrarBotonesCerrarTrato = false;
+
+                                  if (ambos) {
+                                    _esperandoConfirmacionCerrarTrato = false;
+                                  } else {
+                                    _esperandoConfirmacionCerrarTrato = true;
+                                  }
+                                });
+
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(ambos
+                                          ? '✅ Trato cerrado. Esperando el encuentro.'
+                                          : '⏳ Esperando que el otro usuario confirme...'),
+                                      backgroundColor: ambos ? Colors.green : Colors.blue,
+                                    ),
+                                  );
+                                }
+
+                                await _cargarMensajes(_conversacionIdActual);
+                              }
+                            } catch (e) {
+                              print('Error al cerrar trato: $e');
+                            }
+                          },
+                          icon: const Icon(Icons.check_circle, size: 18),
+                          label: const Text('Confirmar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _mostrarBotonesCerrarTrato = false;
+                            });
+                          },
+                          icon: const Icon(Icons.help_outline, size: 18),
+                          label: const Text('Tengo más preguntas'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -4079,114 +4190,7 @@ ListTile(
  // 🔥 PRINT 5: ANTES DEL IF
 
 
-  // 🔥 BOTONES DE CERRAR TRATO
-  if (index == 0 && _mostrarBotonesCerrarTrato && !_usuarioConfirmoCerrarTrato) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200, width: 2),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.handshake, color: Colors.blue, size: 32),
-          const SizedBox(height: 8),
-          const Text(
-            '¿Ya está todo listo para el encuentro?',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    // 🔥 Verificar si hay propuesta de encuentro
-                    final hayPropuesta = await _hayPropuestaEncuentro();
-                    if (!hayPropuesta) {
-                      setState(() {
-                        _mostrarBotonesCerrarTrato = false;
-                      });
-                      _mostrarInterfazEncuentro();
-                      return;
-                    }
 
-                    // 🔥 Enviar confirmación al backend
-                    final user = FirebaseAuth.instance.currentUser;
-                    if (user == null) return;
-
-                    try {
-                      final r = await http.post(
-                        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
-                        headers: {'Content-Type': 'application/json'},
-                        body: jsonEncode({'usuario_id': user.uid}),
-                      );
-
-                      if (r.statusCode == 200) {
-                        final data = jsonDecode(r.body);
-                        final ambos = data['ambos_confirmaron'] == true;
-
-                        setState(() {
-                          _usuarioConfirmoCerrarTrato = true;
-                          _mostrarBotonesCerrarTrato = false;
-
-                          if (ambos) {
-                            _esperandoConfirmacionCerrarTrato = false;
-                          } else {
-                            _esperandoConfirmacionCerrarTrato = true;
-                          }
-                        });
-
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(ambos
-                                  ? '✅ Trato cerrado. Esperando el encuentro.'
-                                  : '⏳ Esperando que el otro usuario confirme...'),
-                              backgroundColor: ambos ? Colors.green : Colors.blue,
-                            ),
-                          );
-                        }
-
-                        await _cargarMensajes(_conversacionIdActual);
-                      }
-                    } catch (e) {
-                      print('Error al cerrar trato: $e');
-                    }
-                  },
-                  icon: const Icon(Icons.check_circle, size: 18),
-                  label: const Text('Confirmar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _mostrarBotonesCerrarTrato = false;
-                    });
-                  },
-                  icon: const Icon(Icons.help_outline, size: 18),
-                  label: const Text('Tengo más preguntas'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
   // 🔥 SOLICITUD DE CALIFICACIÓN - SOLO PARA EL COMPRADOR
 if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
