@@ -4087,10 +4087,12 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         )
       // 🔥 BOTONES DE CONFIRMAR / SEGUIR CONVERSANDO
       else if (_mostrarBotonesConfirmar && !_chatBloqueado)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
+        SizedBox(
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () => _confirmarEncuentro(),
@@ -4117,6 +4119,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                 ),
               ),
             ],
+          ),
           ),
         )
       // 🔥 BLOQUEAR TODO EL INPUT SI HAY PROPUESTA PENDIENTE
