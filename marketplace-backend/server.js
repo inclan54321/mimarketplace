@@ -2799,7 +2799,8 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO:
 {
   "estado": "good" | "warning" | "danger" | "neutral",
   "analisis": "Explicación breve en español (máximo 150 caracteres) de por qué elegiste ese estado",
-  "quiere_encuentro": true/false
+  "quiere_encuentro": true/false,
+  "acuerdo_cerrado": true/false
 }
 
 CRITERIOS:
@@ -2811,6 +2812,10 @@ CRITERIOS:
 SOBRE "quiere_encuentro":
 - true: si ALGUNO de los dos usuarios está proponiendo o sugiriendo un encuentro presencial (ej: "¿nos vemos?", "¿dónde nos encontramos?", "¿a qué hora quedamos?", "¿te parece el sábado?", "¿en qué lugar?")
 - false: si NO hay ninguna sugerencia de encuentro presencial en la conversación
+
+SOBRE "acuerdo_cerrado":
+- true: si AMBOS usuarios ya llegaron a un acuerdo concreto sobre el encuentro. Ejemplos: "dale, nos vemos el sábado a las 3", "listo, quedamos en el parque", "perfecto, ahí nos vemos", "confirmado, mañana a las 10 en la entrada". O sea, ya se pusieron de acuerdo en fecha, hora o lugar, y ambos aceptaron.
+- false: si todavía están negociando, preguntando, o no hay un acuerdo claro de ambas partes.
 
 En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neutral".`;
 
@@ -2851,16 +2856,21 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
                 const analisis = resultado.analisis || 'Análisis completado';
                 const quiereEncuentro = resultado.quiere_encuentro === true;
 
-                // 🔥 4. GUARDAR EN LA BD (incluye quiere_encuentro)
+                // 🔥 4. GUARDAR EN LA BD (incluye quiere_encuentro y acuerdo_cerrado)
+                const acuerdoCerrado = resultado.acuerdo_cerrado === true;
+
                 await pool.query(
                     `UPDATE conversaciones_app 
                      SET analisis_ia = $1, 
                          estado_ia = $2, 
                          quiere_encuentro = $3,
+                         acuerdo_cerrado = $4,
                          fecha_analisis = NOW()
-                     WHERE id = $4`,
-                    [analisis, estado, quiereEncuentro, conversacionId]
+                     WHERE id = $5`,
+                    [analisis, estado, quiereEncuentro, acuerdoCerrado, conversacionId]
                 );
+
+                console.log('>>> 🤝 ¿Acuerdo cerrado?:', acuerdoCerrado);
 
                 console.log('>>> ✅ Análisis guardado en conversación', conversacionId);
                 console.log('>>> 🤝 ¿Quiere encuentro?:', quiereEncuentro);

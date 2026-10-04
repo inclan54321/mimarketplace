@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/boton_grabacion.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -96,8 +97,12 @@ class _ChatScreenState extends State<ChatScreen>
 
   // 🔥 NUEVO: Si el panel de análisis del chat está abierto
   bool _panelAnalisisAbierto = false;
+
+  // 🔥 CACHÉ DE PROPUESTAS DE ENCUENTRO
+  final Map<String, Map<String, dynamic>> _cachePropuestas = {};
   bool _escudoCargado = false; // 🔥 NUEVO
   bool _interfazEncuentroMostrada = false; // 🔥 NUEVO: para no mostrar dos veces
+  bool _propuestaEncuentroPendiente = false; // 🔥 NUEVO
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -586,6 +591,9 @@ void dispose() {
       if (hayCambios) {
         _analizarMensajeConIA('', user.uid);
       }
+      
+      // 🔥 SIEMPRE VERIFICAR PROPUESTA PENDIENTE
+      _verificarPropuestaPendiente();
 
       // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
       await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
@@ -616,6 +624,56 @@ void dispose() {
 
   String _extraerCalificadorId(String texto) {
     return texto.replaceAll('||CALIFICACION_REALIZADA||', '').trim();
+  }
+
+  // 🔥 VERIFICAR SI HAY PROPUESTA PENDIENTE (solo bloquea al que propuso)
+  Future<void> _verificarPropuestaPendiente() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    for (final m in _mensajes) {
+      final texto = m['texto'] ?? '';
+      if (_esPropuestaEncuentro(texto)) {
+        final propuestaId = _extraerPropuestaId(texto);
+
+        String estado = 'pendiente';
+        String? usuarioPropuso;
+
+        // 🔥 SI NO ESTÁ EN CACHÉ, PEDIRLA AL SERVER
+        if (!_cachePropuestas.containsKey(propuestaId)) {
+          try {
+            final response = await http.get(
+              Uri.parse(
+                  'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'),
+            );
+            if (response.statusCode == 200) {
+              final data = jsonDecode(response.body) as Map<String, dynamic>;
+              _cachePropuestas[propuestaId] = data;
+            }
+          } catch (e) {
+            print('Error al obtener propuesta: $e');
+          }
+        }
+
+        if (_cachePropuestas.containsKey(propuestaId)) {
+          final prop = _cachePropuestas[propuestaId]!;
+          estado = prop['estado'] ?? 'pendiente';
+          usuarioPropuso = prop['usuario_propone_id']?.toString();
+        }
+
+        // 🔥 Solo bloquea si YO propuse Y está pendiente
+        if (estado == 'pendiente') {
+          if (mounted) {
+            setState(() => _propuestaEncuentroPendiente = true);
+          }
+          return;
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() => _propuestaEncuentroPendiente = false);
+    }
   }
 
   // 🔥 DETECTAR SI ES UN MENSAJE DE PROPUESTA DE ENCUENTRO
@@ -2925,6 +2983,132 @@ ListTile(
     );
   }
 
+  // 🔥 TARJETA DE PROPUESTA DIRECTA (SIN FUTUREBUILDER)
+  Widget _buildTarjetaPropuestaDirecta(Map<String, dynamic> propuesta) {
+    final estado = propuesta['estado'] ?? 'pendiente';
+    final user = FirebaseAuth.instance.currentUser;
+    final yoPropuse = propuesta['usuario_propone_id'] == user?.uid;
+
+    return GestureDetector(
+      onTap: () => _mostrarDetallePropuesta(propuesta),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: estado == 'confirmada'
+                ? Colors.green
+                : estado == 'rechazada'
+                    ? Colors.red
+                    : Colors.blue,
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.event,
+                  color: estado == 'confirmada'
+                      ? Colors.green
+                      : estado == 'rechazada'
+                          ? Colors.red
+                          : Colors.blue,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Propuesta de encuentro',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: estado == 'confirmada'
+                          ? Colors.green
+                          : estado == 'rechazada'
+                              ? Colors.red
+                              : Colors.blue,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: estado == 'confirmada'
+                        ? Colors.green.shade50
+                        : estado == 'rechazada'
+                            ? Colors.red.shade50
+                            : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    estado.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: estado == 'confirmada'
+                          ? Colors.green
+                          : estado == 'rechazada'
+                              ? Colors.red
+                              : Colors.blue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${propuesta['lugar_nombre'] ?? ''}\n'
+                    '${propuesta['distrito'] ?? ''}, ${propuesta['canton'] ?? ''}, ${propuesta['provincia'] ?? ''}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                Text(
+                  _formatearFechaPropuesta(propuesta['fecha_encuentro']),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              yoPropuse
+                  ? 'Esperando respuesta...'
+                  : 'Toca para ver detalles y responder',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 🔥 TARJETA DE PROPUESTA DE ENCUENTRO
   Widget _buildTarjetaPropuesta(String propuestaId) {
     return FutureBuilder<Map<String, dynamic>?>(
@@ -3090,21 +3274,28 @@ ListTile(
     }
   }
 
-  // 🔥 OBTENER PROPUESTA DEL BACKEND
-  Future<Map<String, dynamic>?> _obtenerPropuesta(String propuestaId) async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-            'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'),
-      );
+  // 🔥 OBTENER PROPUESTA DEL BACKEND (con caché, sin async en la devolución)
+  Future<Map<String, dynamic>?> _obtenerPropuesta(String propuestaId) {
+    // 🔥 SI YA ESTÁ EN CACHÉ, DEVOLVER UN FUTURE YA RESUELTO
+    if (_cachePropuestas.containsKey(propuestaId)) {
+      return Future.value(_cachePropuestas[propuestaId]);
+    }
+
+    // 🔥 SI NO, PEDIR AL SERVER
+    return http.get(
+      Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'),
+    ).then<Map<String, dynamic>?>((response) {
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _cachePropuestas[propuestaId] = data;
+        return data;
       }
       return null;
-    } catch (e) {
+    }).catchError((e) {
       print('Error al obtener propuesta: $e');
       return null;
-    }
+    });
   }
 
   // 🔥 MOSTRAR DETALLE DE LA PROPUESTA
@@ -3278,7 +3469,12 @@ ListTile(
                   accion == 'aceptar' ? Colors.green : Colors.red,
             ),
           );
+
+          // 🔥 LIMPIAR CACHÉ DE ESA PROPUESTA PARA FORZAR REFRESCO
+          _cachePropuestas.remove(propuestaId);
+
           await _cargarMensajes(_conversacionIdActual);
+          _verificarPropuestaPendiente();
         }
       } else {
         throw Exception('Error ${response.statusCode}');
@@ -3455,7 +3651,8 @@ ListTile(
                           style: TextStyle(color: Colors.grey),
                         ),
                       )
-                    : ListView.builder(
+                    : RepaintBoundary(
+                        child: ListView.builder(
                         reverse: true,
                         itemCount: _mensajes.length,
               itemBuilder: (context, index) {
@@ -3479,6 +3676,10 @@ ListTile(
   // 🔥 PROPUESTA DE ENCUENTRO
   if (_esPropuestaEncuentro(mensaje['texto'] ?? '')) {
     final propuestaId = _extraerPropuestaId(mensaje['texto']!);
+    // 🔥 SI YA ESTÁ EN CACHÉ, MOSTRAR DIRECTO SIN FUTUREBUILDER
+    if (_cachePropuestas.containsKey(propuestaId)) {
+      return _buildTarjetaPropuestaDirecta(_cachePropuestas[propuestaId]!);
+    }
     return _buildTarjetaPropuesta(propuestaId);
   }
 
@@ -3566,10 +3767,7 @@ ListTile(
   }
   // 🔥 SOLICITUD DE CALIFICACIÓN - SOLO PARA EL COMPRADOR
  // 🔥 PRINT 5: ANTES DEL IF
-print('>>> 🔥 LISTVIEW - ANTES DEL IF');
-print('>>> 🔥 LISTVIEW - mensaje: ${mensaje['texto']}');
-print('>>> 🔥 LISTVIEW - _vendedorId: $_vendedorId');
-print('>>> 🔥 LISTVIEW - user.uid: ${FirebaseAuth.instance.currentUser?.uid}');
+
 
 if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   final user = FirebaseAuth.instance.currentUser;
@@ -3746,6 +3944,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
 },
                       ),
           ),
+          ),
           
          // 🔥 BOTÓN DE CALIFICACIÓN ELIMINADO - AHORA SOLO APARECE EN EL LISTVIEW
          Padding(
@@ -3756,207 +3955,154 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
            // 🔥 BOTÓN DE GRABACIÓN CON ANIMACIÓN (CRECE AL GRABAR)
             // 🔥 BOTÓN DE GRABACIÓN CON PRESIÓN LARGA (VERSIÓN SIMPLE)
           // 🔥 BOTÓN DE GRABACIÓN - DESLIZAR FUERA = CANCELAR CON SNACKBAR
-      Listener(
-        key: _audioButtonKey,  // 🔥 AGREGAR KEY
-        onPointerDown: (event) {
-          _startRecording();
-          _startPosition = event.localPosition;
-        },
-        onPointerUp: (event) {
-          if (_isRecording) {
-            final distance = (event.localPosition - _startPosition).distance;
-            if (distance > 80) {
-              _cancelRecording();
-            } else {
-              _stopRecordingAndSend();
-            }
-          }
-        },
-        onPointerCancel: (event) {
-          if (_isRecording) {
-            _cancelRecording();
-          }
-        },
-        onPointerMove: (event) {
-          if (_isRecording) {
-            final distance = (event.localPosition - _startPosition).distance;
-            setState(() {
-              _isDraggingOut = distance > 80;
-              _mostrarMensajeCancelar = distance > 80;
-            });
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
-            shape: BoxShape.circle,
-          ),
-          // 🔥 TRANSICIÓN SUAVE DEL ÍCONO
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
-            switchInCurve: Curves.easeInOutCubic,
-            switchOutCurve: Curves.easeInOutCubic,
-            transitionBuilder: (child, animation) {
-              return ScaleTransition(
-                scale: animation,
-                child: RotationTransition(
-                  turns: animation,
-                  child: FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
+      // 🔥 BLOQUEAR TODO EL INPUT SI HAY PROPUESTA PENDIENTE
+      if (_propuestaEncuentroPendiente && !_isRecording)
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.hourglass_top, color: Colors.orange, size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Propuesta de encuentro pendiente. Esperá a que se resuelva para escribir.',
+                  style: TextStyle(color: Colors.orange, fontSize: 13),
                 ),
-              );
-            },
-            child: _isRecording
-                ? const SizedBox(
-                    key: ValueKey('empty'),
-                    width: 28,
-                    height: 28,
-                  )
-                : Icon(
-                    key: const ValueKey('mic'),
-                    Icons.mic,
-                    color: Colors.grey.shade600,
-                    size: 28,
-                  ),
-          ),
-        ),
-      ),
-      // 🔥 OCULTAR BOTÓN DE IMAGEN SI ESTÁ GRABANDO
-      if (!_isRecording) ...[
-        IconButton(
-          icon: const Icon(Icons.image, color: Colors.grey),
-          onPressed: _enviandoImagen ? null : _mostrarOpcionesImagen,
-          tooltip: 'Adjuntar imagen',
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: TextField(
-            controller: _controller,
-            maxLines: null,
-            minLines: 1,
-            decoration: const InputDecoration(
-              hintText: 'Escribe un mensaje...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(24)),
               ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            ),
-            onSubmitted: (_) {}, // 🔥 Ya no dispara envío desde el teclado
+            ],
           ),
+        )
+      else ...[
+        BotonGrabacion(
+          buttonKey: _audioButtonKey,
+          isRecording: _isRecording,
+          recordingTime: _recordingTime,
+          mostrarMensajeCancelar: _mostrarMensajeCancelar,
+          onStart: _startRecording,
+          onStop: _stopRecordingAndSend,
+          onCancel: _cancelRecording,
+          onDragChange: (mostrar) {
+            if (_mostrarMensajeCancelar != mostrar) {
+              setState(() {
+                _mostrarMensajeCancelar = mostrar;
+              });
+            }
+          },
         ),
-        IconButton(
-          icon: _enviandoImagen
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.send, color: Colors.blue),
-          onPressed: _enviandoImagen ? null : _enviarMensaje,
-        ),
-      ] else ...[
-        // 🔥 MIENTRAS GRABAS: círculo oscilante + texto + tiempo
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 50, right: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 🔥 CÍRCULO OSCILANTE (izquierda ↔ derecha, grande ↔ pequeño)
-                AnimatedBuilder(
-                  animation: _oscilacionAnim,
-                  builder: (context, child) {
-                    // t va de 0.0 (izquierda) → 1.0 (derecha) → 0.0 ...
-                    final t = _oscilacionAnim.value;
+        // 🔥 OCULTAR BOTÓN DE IMAGEN SI ESTÁ GRABANDO
+        if (!_isRecording) ...[
+          IconButton(
+            icon: const Icon(Icons.image, color: Colors.grey),
+            onPressed: _enviandoImagen ? null : _mostrarOpcionesImagen,
+            tooltip: 'Adjuntar imagen',
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              maxLines: null,
+              minLines: 1,
+              decoration: const InputDecoration(
+                hintText: 'Escribe un mensaje...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(24)),
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              onSubmitted: (_) {},
+            ),
+          ),
+          IconButton(
+            icon: _enviandoImagen
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send, color: Colors.blue),
+            onPressed: _enviandoImagen ? null : _enviarMensaje,
+          ),
+        ] else ...[
+          // 🔥 MIENTRAS GRABAS: círculo oscilante + texto + tiempo
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(left: 50, right: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedBuilder(
+                    animation: _oscilacionAnim,
+                    builder: (context, child) {
+                      final t = _oscilacionAnim.value;
+                      final distanciaAlCentro = (t - 0.5).abs() * 2;
+                      final tamano = 6.0 + (distanciaAlCentro * 8.0);
 
-                    // 🔥 Tamaño: máximo en extremos, mínimo en el centro
-                    // Distancia al centro: 0.5 en extremos, 0.0 en el centro
-                    // Multiplicamos x2 para que vaya de 0.0 a 1.0
-                    final distanciaAlCentro = (t - 0.5).abs() * 2;
-
-                    // Tamaño entre 6px (centro) y 14px (extremos)
-                    final tamano = 6.0 + (distanciaAlCentro * 8.0);
-
-                    return Container(
-                      width: 120,
-                      height: 20,
-                      alignment: Alignment.center,
-                      child: Align(
-                        // 🔥 Movimiento horizontal progresivo
-                        alignment: Alignment(-1.0 + (t * 2.0), 0.0),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 80),
-                          width: tamano,
-                          height: tamano,
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.6),
-                            shape: BoxShape.circle,
+                      return Container(
+                        width: 120,
+                        height: 20,
+                        alignment: Alignment.center,
+                        child: Align(
+                          alignment: Alignment(-1.0 + (t * 2.0), 0.0),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 80),
+                            width: tamano,
+                            height: tamano,
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.6),
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  '🎤 Grabando... desliza para cancelar',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
+                      );
+                    },
                   ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _recordingTime,
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 4),
+                  const Text(
+                    '🎤 Grabando... desliza para cancelar',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
-                ),
-
-                // 🔥 MENSAJE VERDE CON TRANSICIÓN SUAVE
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 150),
-                    curve: Curves.easeOut,
-                    opacity: _mostrarMensajeCancelar ? 1.0 : 0.0,
-                    child: _mostrarMensajeCancelar
-                        ? const Padding(
-                            padding: EdgeInsets.only(top: 4),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.delete_outline,
-                                    color: Colors.green, size: 16),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Suelta para cancelar',
-                                  style: TextStyle(
-                                    color: Colors.green,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    _recordingTime,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_mostrarMensajeCancelar)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.delete_outline,
+                              color: Colors.green, size: 16),
+                          SizedBox(width: 4),
+                          Text(
+                            'Suelta para cancelar',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
                             ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ),
-              ],
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
+        ],
       ],
     ],
   ),
