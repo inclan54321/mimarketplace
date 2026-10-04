@@ -3764,6 +3764,106 @@ app.get('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
     }
 });
 
+// ============================================================
+// 🔥 CERRAR TRATO (mutuo)
+// ============================================================
+
+// POST - Marcar que un usuario confirma cerrar el trato
+app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { usuario_id } = req.body;
+
+        if (!usuario_id) {
+            return res.status(400).json({ error: 'usuario_id requerido' });
+        }
+
+        // 🔥 VERIFICAR QUE NO EXISTA YA (para no duplicar)
+        const yaExiste = await pool.query(
+            `SELECT id FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto = $2
+             LIMIT 1`,
+            [id, `||CERRAR_TRATO||${usuario_id}`]
+        );
+
+        if (yaExiste.rows.length === 0) {
+            await pool.query(
+                `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                 VALUES ($1, $2, $3, '', NOW())`,
+                [id, usuario_id, `||CERRAR_TRATO||${usuario_id}`]
+            );
+        }
+
+        // 🔥 CONTAR CUÁNTOS CONFIRMARON
+        const result = await pool.query(
+            `SELECT DISTINCT usuario_id 
+             FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||CERRAR_TRATO||%'`,
+            [id]
+        );
+
+        const usuarios = result.rows.map(r => r.usuario_id);
+        const ambos = usuarios.length >= 2;
+
+        console.log(`>>> 🟢 Cerrar trato: conv=${id}, user=${usuario_id}, total=${usuarios.length}, ambos=${ambos}`);
+
+        // 🔥 SI AMBOS CONFIRMARON, INSERTAR MENSAJE FINAL
+        if (ambos) {
+            const yaExisteFinal = await pool.query(
+                `SELECT id FROM mensajes_app 
+                 WHERE conversacion_id = $1 
+                   AND texto = '||TRATO_CERRADO||'
+                 LIMIT 1`,
+                [id]
+            );
+            if (yaExisteFinal.rows.length === 0) {
+                await pool.query(
+                    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                     VALUES ($1, 'SYSTEM', '||TRATO_CERRADO||', '', NOW())`,
+                    [id]
+                );
+                console.log(`>>> ✅ Trato CERRADO en conv ${id}`);
+            }
+        }
+
+        res.json({
+            success: true,
+            ambos_confirmaron: ambos,
+            usuarios: usuarios,
+        });
+    } catch (error) {
+        console.error('Error al cerrar trato:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET - Consultar quién confirmó cerrar trato
+app.get('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(
+            `SELECT DISTINCT usuario_id 
+             FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||CERRAR_TRATO||%'`,
+            [id]
+        );
+
+        const usuarios = result.rows.map(r => r.usuario_id);
+        console.log(`>>> 🟢 GET cerrar-trato conv=${id}: usuarios=${JSON.stringify(usuarios)}`);
+        res.json({
+            ambos_confirmaron: usuarios.length >= 2,
+            usuarios: usuarios,
+        });
+    } catch (error) {
+        console.error('Error al consultar cerrar trato:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // 🔥 CONTRAPROPUESTA
 app.put('/api/encuentro/propuesta/:id/contrapropuesta', async (req, res) => {
     try {

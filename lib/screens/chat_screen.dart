@@ -110,6 +110,8 @@ class _ChatScreenState extends State<ChatScreen>
   bool _quiereCerrarTrato = false; // 🔥 NUEVO
   bool _mostrarBotonesCerrarTrato = false; // 🔥 NUEVO
   bool _usuarioConfirmoCerrarTrato = false; // 🔥 NUEVO
+  bool _otroUsuarioConfirmoCerrarTrato = false; // 🔥 NUEVO
+  bool _esperandoConfirmacionCerrarTrato = false; // 🔥 NUEVO
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -605,7 +607,43 @@ void dispose() {
 
       // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
       await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
+      // 🔥 CONSULTAR SI ALGUIEN QUIERE CERRAR EL TRATO
+      try {
+        final r = await http.get(
+          Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
+        );
+        if (r.statusCode == 200) {
+          final data = jsonDecode(r.body);
+          final ambos = data['ambos_confirmaron'] == true;
+          final List usuarios = data['usuarios'] ?? [];
+          final yoConfirme = usuarios.contains(user.uid);
+          final otroConfirme = usuarios.any((u) => u != user.uid);
 
+          print('>>> 🟢 CERRAR TRATO (DB): ambos=$ambos, yoConfirme=$yoConfirme, otroConfirme=$otroConfirme');
+
+          if (mounted) {
+            setState(() {
+              _usuarioConfirmoCerrarTrato = yoConfirme;
+              _otroUsuarioConfirmoCerrarTrato = otroConfirme;
+
+              if (ambos) {
+                // 🔥 Los dos confirmaron → trato cerrado
+                _mostrarBotonesCerrarTrato = false;
+                _esperandoConfirmacionCerrarTrato = false;
+              } else if (yoConfirme && !otroConfirme) {
+                // 🔥 Yo confirmé, el otro no → esperando
+                _esperandoConfirmacionCerrarTrato = true;
+                _mostrarBotonesCerrarTrato = false;
+              } else if (_quiereCerrarTrato && !yoConfirme && !otroConfirme) {
+                // 🔥 Nadie confirmó pero la IA dice que quieren cerrar → mostrar botones
+                _mostrarBotonesCerrarTrato = true;
+              }
+            });
+          }
+        }
+      } catch (e) {
+        print('Error al consultar cerrar-trato: $e');
+      }
       // 🔥 CONSULTAR EN DB SI AMBOS QUIEREN SEGUIR CONVERSANDO
       try {
         final r = await http.get(
@@ -3919,6 +3957,35 @@ ListTile(
       ),
     );
   }
+  // 🔥 MENSAJE DE "TRATO CERRADO"
+  if ((mensaje['texto'] ?? '').startsWith('||TRATO_CERRADO||')) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200, width: 2),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.handshake, color: Colors.green, size: 24),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '✅ Trato cerrado. Ambos confirmaron. ¡Nos vemos el día del encuentro!',
+              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 MENSAJE DE "CERRAR TRATO" CONFIRMADO POR UNO
+  if ((mensaje['texto'] ?? '').startsWith('||CERRAR_TRATO||')) {
+    return const SizedBox.shrink(); // No mostrar este mensaje directamente
+  }
 
   // 🔥 MENSAJE DE "AMBOS SIGUEN CONVERSANDO"
   if ((mensaje['texto'] ?? '').startsWith('||AMBOS_SEGUIR_CONVERSANDO||')) {
@@ -4037,6 +4104,7 @@ ListTile(
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () async {
+                    // 🔥 Verificar si hay propuesta de encuentro
                     final hayPropuesta = await _hayPropuestaEncuentro();
                     if (!hayPropuesta) {
                       setState(() {
@@ -4045,17 +4113,48 @@ ListTile(
                       _mostrarInterfazEncuentro();
                       return;
                     }
-                    setState(() {
-                      _usuarioConfirmoCerrarTrato = true;
-                      _mostrarBotonesCerrarTrato = false;
-                    });
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('✅ Trato cerrado. Esperando el encuentro.'),
-                          backgroundColor: Colors.green,
-                        ),
+
+                    // 🔥 Enviar confirmación al backend
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) return;
+
+                    try {
+                      final r = await http.post(
+                        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({'usuario_id': user.uid}),
                       );
+
+                      if (r.statusCode == 200) {
+                        final data = jsonDecode(r.body);
+                        final ambos = data['ambos_confirmaron'] == true;
+
+                        setState(() {
+                          _usuarioConfirmoCerrarTrato = true;
+                          _mostrarBotonesCerrarTrato = false;
+
+                          if (ambos) {
+                            _esperandoConfirmacionCerrarTrato = false;
+                          } else {
+                            _esperandoConfirmacionCerrarTrato = true;
+                          }
+                        });
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(ambos
+                                  ? '✅ Trato cerrado. Esperando el encuentro.'
+                                  : '⏳ Esperando que el otro usuario confirme...'),
+                              backgroundColor: ambos ? Colors.green : Colors.blue,
+                            ),
+                          );
+                        }
+
+                        await _cargarMensajes(_conversacionIdActual);
+                      }
+                    } catch (e) {
+                      print('Error al cerrar trato: $e');
                     }
                   },
                   icon: const Icon(Icons.check_circle, size: 18),
@@ -4358,7 +4457,29 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         );
         }),
 
-      // 🔥 MENSAJE DE ESPERA
+      // 🔥 MENSAJE DE ESPERA - CONFIRMÉ CERRAR TRATO
+      if (_esperandoConfirmacionCerrarTrato)
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.hourglass_top, color: Colors.blue),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '⏳ Confirmaste cerrar el trato. Esperando que el otro usuario confirme...',
+                  style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
       if (_esperandoRespuestaOtro && !_mostrarBotonesConfirmar)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -4382,8 +4503,11 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           ),
         ),
 
-      // 🔥 INPUT (solo si NO hay botones ni espera)
-      if ((!_mostrarBotonesConfirmar && !_esperandoRespuestaOtro) || _chatBloqueado)
+      // 🔥 INPUT (solo si NO hay botones de cerrar trato ni espera)
+      if ((!_mostrarBotonesConfirmar &&
+           !_esperandoRespuestaOtro &&
+           !_mostrarBotonesCerrarTrato &&
+           !_esperandoConfirmacionCerrarTrato) || _chatBloqueado)
       Row(
     children: [
            // 🔥 BOTÓN DE GRABACIÓN CON PRESIÓN LARGA Y DESLIZAR PARA CANCELAR
