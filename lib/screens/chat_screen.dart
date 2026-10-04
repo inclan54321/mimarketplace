@@ -107,6 +107,9 @@ class _ChatScreenState extends State<ChatScreen>
   bool _mostrarBotonesConfirmar = false; // 🔥 NUEVO
   bool _esperandoRespuestaOtro = false; // 🔥 NUEVO
   bool _usuarioDecidioSeguirConversando = false; // 🔥 NUEVO
+  bool _quiereCerrarTrato = false; // 🔥 NUEVO
+  bool _mostrarBotonesCerrarTrato = false; // 🔥 NUEVO
+  bool _usuarioConfirmoCerrarTrato = false; // 🔥 NUEVO
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -1038,9 +1041,11 @@ Future<void> _obtenerFotoVendedorReal() async {
         }
 
         final quiereEncuentro = data['quiere_encuentro'] == true;
+        final quiereCerrarTrato = data['quiere_cerrar_trato'] == true;
 
         setState(() {
           _analisisIA = analisis;
+          _quiereCerrarTrato = quiereCerrarTrato;
           switch (estado) {
             case 'good':
               _conversationStatus = ConversationStatus.good;
@@ -1059,6 +1064,11 @@ Future<void> _obtenerFotoVendedorReal() async {
           if (quiereEncuentro && _iaActiva && !_interfazEncuentroMostrada) {
             _interfazEncuentroMostrada = true;
             _mostrarInterfazEncuentro();
+          }
+
+          // 🔥 SI LA IA DETECTA QUE QUIEREN CERRAR EL TRATO
+          if (quiereCerrarTrato && !_usuarioConfirmoCerrarTrato) {
+            _mostrarBotonesCerrarTrato = true;
           }
         });
       }
@@ -3645,6 +3655,21 @@ ListTile(
     }
   }
 
+  Future<bool> _hayPropuestaEncuentro() async {
+    try {
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/conversacion/$_conversacionIdActual'),
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        return data['encuentro'] != null;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
   print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | esperando=$_esperandoRespuestaOtro | decidioSeguir=$_usuarioDecidioSeguirConversando | bloqueado=$_chatBloqueado');
@@ -3806,6 +3831,7 @@ ListTile(
                     : RepaintBoundary(
                         child: ListView.builder(
                         reverse: true,
+                        padding: const EdgeInsets.only(bottom: 30),
                         itemCount: _mensajes.length,
               itemBuilder: (context, index) {
   final mensaje = _mensajes[_mensajes.length - 1 - index];
@@ -3977,6 +4003,84 @@ ListTile(
  // 🔥 PRINT 5: ANTES DEL IF
 
 
+  // 🔥 BOTONES DE CERRAR TRATO
+  if (index == 0 && _mostrarBotonesCerrarTrato && !_usuarioConfirmoCerrarTrato) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200, width: 2),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.handshake, color: Colors.blue, size: 32),
+          const SizedBox(height: 8),
+          const Text(
+            '¿Ya está todo listo para el encuentro?',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final hayPropuesta = await _hayPropuestaEncuentro();
+                    if (!hayPropuesta) {
+                      setState(() {
+                        _mostrarBotonesCerrarTrato = false;
+                      });
+                      _mostrarInterfazEncuentro();
+                      return;
+                    }
+                    setState(() {
+                      _usuarioConfirmoCerrarTrato = true;
+                      _mostrarBotonesCerrarTrato = false;
+                    });
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✅ Trato cerrado. Esperando el encuentro.'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.check_circle, size: 18),
+                  label: const Text('Confirmar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _mostrarBotonesCerrarTrato = false;
+                    });
+                  },
+                  icon: const Icon(Icons.help_outline, size: 18),
+                  label: const Text('Tengo más preguntas'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 SOLICITUD DE CALIFICACIÓN - SOLO PARA EL COMPRADOR
 if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   final user = FirebaseAuth.instance.currentUser;
   
@@ -4155,10 +4259,11 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           ),
           
          // 🔥 BOTÓN DE CALIFICACIÓN ELIMINADO - AHORA SOLO APARECE EN EL LISTVIEW
-         Transform.translate(
-  offset: const Offset(0, -40),
+         SafeArea(
+  top: false,
+  bottom: true,
   child: Padding(
-  padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+  padding: const EdgeInsets.fromLTRB(16, 20, 8, 8),
   child: Column(
     mainAxisSize: MainAxisSize.min,
     children: [
@@ -4196,11 +4301,27 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                     if (user == null) return;
                     
                     try {
+                      // 🔥 PASO 1: ENVIAR MENSAJE AL CHAT
+                      print('>>> 🟠 PASO 1: enviando mensaje ||SEGUIR_CONVERSANDO||');
+                      await http.post(
+                        Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({
+                          'conversacion_id': int.parse(_conversacionIdActual),
+                          'usuario_id': user.uid,
+                          'texto': '||SEGUIR_CONVERSANDO||${user.uid}',
+                        }),
+                      );
+                      
+                      // 🔥 PASO 2: CONSULTAR ENDPOINT
+                      print('>>> 🟠 PASO 2: consultando endpoint');
                       final r = await http.post(
                         Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
                         headers: {'Content-Type': 'application/json'},
                         body: jsonEncode({'usuario_id': user.uid}),
                       );
+                      print('>>> 🟠 RESPUESTA: status=${r.statusCode}, body=${r.body}');
+                      
                       if (r.statusCode == 200) {
                         final data = jsonDecode(r.body);
                         if (data['ambos_seguir'] == true && mounted) {
@@ -4209,8 +4330,11 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                           });
                         }
                       }
+                      
+                      // 🔥 PASO 3: RECARGAR MENSAJES
+                      await _cargarMensajes(_conversacionIdActual);
                     } catch (e) {
-                      print('Error: $e');
+                      print('>>> 🟠 ERROR: $e');
                     }
                   },
                   icon: const Icon(Icons.chat, size: 18),
@@ -4430,7 +4554,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
     ],
   ),
 ),
-  ),   // ← cierra el Transform.translate
+  ),
         ],
       ),
     );
