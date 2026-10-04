@@ -775,31 +775,7 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
         // El chat reaparece en la lista por el cambio en GET /api/conversaciones
         console.log(`>>> 🔄 Mensaje guardado, conversación ${conversacion_id} mantiene fecha_ocultado`);
 
-        // 🔥 DETECTAR CIERRE DE TRATO POR PALABRA CLAVE
-        const textoLower = (texto || '').toLowerCase();
-        const frasesCierre = [
-            'me retiro', 'nos vemos', 'hasta luego', 'en eso quedamos',
-            'quedamos así', 'quedamos asi', 'estoy de acuerdo', 'listo',
-            'perfecto', 'ya está', 'ya esta', 'cualquier cosa me avisas',
-            'así lo dejamos', 'asi lo dejamos', 'de acuerdo', 'chao',
-            'adiós', 'adios', 'gracias', 'ok', 'bien', 'hasta pronto',
-            'nos vemos el día', 'nos vemos el dia', 'día del encuentro',
-            'dia del encuentro', 'terminamos', 'ya listo',
-        ];
 
-        
-        if (esCierre) {
-            console.log('>>> 🎯 CIERRE DE TRATO DETECTADO por palabra clave');
-            await pool.query(
-                `UPDATE conversaciones_app 
-                 SET quiere_cerrar_trato = true,
-                     fecha_analisis = NOW()
-                 WHERE id = $1`,
-                [conversacion_id]
-            );
-        }
-
-        // 🔥 2. ANALIZAR SOLO SI EL ESCUDO ESTÁ ACTIVO
         const escudoVerif = await pool.query(
             `SELECT activo FROM escudos_conversacion 
              WHERE conversacion_id = $1 AND usuario_id = $2`,
