@@ -611,12 +611,27 @@ void dispose() {
         if (r.statusCode == 200) {
           final data = jsonDecode(r.body);
           final ambos = data['ambos_seguir'] == true;
-          print('>>> 🟢 SEGUIR CONVERSANDO (DB): ambos=$ambos');
-          if (ambos && mounted && !_usuarioDecidioSeguirConversando) {
-            setState(() {
-              _usuarioDecidioSeguirConversando = true;
-              _esperandoRespuestaOtro = false;
-            });
+          final List usuarios = data['usuarios'] ?? [];
+          final yoYaDecidi = usuarios.contains(user.uid);
+          print('>>> 🟢 SEGUIR CONVERSANDO (DB): ambos=$ambos, yoYaDecidi=$yoYaDecidi, usuarios=$usuarios');
+          
+          if (mounted) {
+            // 🔥 Si AMBOS quieren seguir → desbloquear todo
+            if (ambos && !_usuarioDecidioSeguirConversando) {
+              setState(() {
+                _usuarioDecidioSeguirConversando = true;
+                _esperandoRespuestaOtro = false;
+                _mostrarBotonesConfirmar = false;
+              });
+            }
+            // 🔥 Si YO ya decidí pero el otro no → ocultar botones y esperar
+            else if (yoYaDecidi && !ambos && !_esperandoRespuestaOtro) {
+              setState(() {
+                _usuarioDecidioSeguirConversando = true;
+                _esperandoRespuestaOtro = true;
+                _mostrarBotonesConfirmar = false;
+              });
+            }
           }
         }
       } catch (e) {
@@ -3870,6 +3885,31 @@ ListTile(
     );
   }
 
+  // 🔥 MENSAJE DE "AMBOS SIGUEN CONVERSANDO"
+  if ((mensaje['texto'] ?? '').startsWith('||AMBOS_SEGUIR_CONVERSANDO||')) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.check_circle, color: Colors.green),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '✅ Ambos decidieron seguir conversando',
+              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 🔥 MENSAJE DE "SEGUIR CONVERSANDO" PROPUESTO
   if ((mensaje['texto'] ?? '').startsWith('||SEGUIR_CONVERSANDO||')) {
     final proponenteId = (mensaje['texto'] ?? '').replaceAll('||SEGUIR_CONVERSANDO||', '').trim();
@@ -4184,6 +4224,30 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           ),
         );
         }),
+
+      // 🔥 MENSAJE DE ESPERA
+      if (_esperandoRespuestaOtro && !_mostrarBotonesConfirmar)
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange.shade200),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.hourglass_top, color: Colors.orange),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '⏳ Esperando que el otro usuario decida...',
+                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
 
       // 🔥 INPUT (solo si NO hay botones ni espera)
       if ((!_mostrarBotonesConfirmar && !_esperandoRespuestaOtro) || _chatBloqueado)

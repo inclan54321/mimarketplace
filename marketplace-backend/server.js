@@ -3691,6 +3691,26 @@ app.post('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
 
         console.log(`>>> 🟢 Seguir conversando: conv=${id}, user=${usuario_id}, total=${total}, ambos=${ambosSeguir}`);
 
+        // 🔥 SI AMBOS QUIEREN SEGUIR, INSERTAR MENSAJE EN EL CHAT
+        if (ambosSeguir) {
+            // Verificar que no exista ya
+            const yaExiste = await pool.query(
+                `SELECT id FROM mensajes_app 
+                 WHERE conversacion_id = $1 
+                   AND texto = '||AMBOS_SEGUIR_CONVERSANDO||'
+                 LIMIT 1`,
+                [id]
+            );
+            if (yaExiste.rows.length === 0) {
+                await pool.query(
+                    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                     VALUES ($1, 'SYSTEM', '||AMBOS_SEGUIR_CONVERSANDO||', '', NOW())`,
+                    [id]
+                );
+                console.log(`>>> ✅ Mensaje "ambos seguir" insertado en conv ${id}`);
+            }
+        }
+
         res.json({
             success: true,
             ambos_seguir: ambosSeguir,
