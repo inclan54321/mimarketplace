@@ -2836,15 +2836,19 @@ SOBRE "acuerdo_cerrado":
 - false: si todavía están negociando, preguntando, o no hay un acuerdo claro de ambas partes.
 
 SOBRE "quiere_cerrar_trato":
-Analiza el SENTIDO de la conversación, no frases exactas. Preguntate:
-. ¿El último mensaje indica que uno de los dos se está despidiendo, cerrando el tema, o dando por terminada la conversación?
+Pon "quiere_cerrar_trato": true SOLO si se cumplen LAS DOS condiciones:
+1. Un usuario escribió un mensaje indicando que quiere cerrar la conversación (despedida, "hasta pronto", "nos vemos", "en eso quedamos", "me retiro", etc.)
+2. El OTRO usuario respondió confirmando el cierre ("sí", "así quedamos", "perfecto", "de acuerdo", "listo", etc.)
 
-Si la respuesta a las 3 es SÍ, pon "quiere_cerrar_trato": true.
-Si alguna respuesta es NO, pon "quiere_cerrar_trato": false.
+Si SOLO UN usuario expresó el cierre y el otro todavía no respondió, pon "quiere_cerrar_trato": false.
 
-NO busques frases exactas. Interpretá la INTENCIÓN del último mensaje:
-- Si alguien se despide, cierra, agradece, o da por terminado → true
-- Si alguien pregunta, duda, o pide más info → false
+Ejemplos:
+- "[A]: listo, nos vemos" → false (solo uno expresó)
+- "[A]: listo, nos vemos / [B]: sí, nos vemos" → true (los dos expresaron)
+- "[A]: en eso quedamos, hasta entonces" → false (solo uno)
+- "[A]: en eso quedamos, hasta entonces / [B]: sí, así quedamos" → true (los dos)
+
+NO cuentes mensajes repetidos del MISMO usuario. Tienen que ser DOS usuarios DISTINTOS.
 
 En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neutral".`;
 

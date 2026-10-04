@@ -658,7 +658,8 @@ void dispose() {
           
           if (mounted) {
             // 🔥 Si AMBOS quieren seguir → desbloquear todo
-            if (ambos && !_usuarioDecidioSeguirConversando) {
+            // PERO no pisar si la IA ya detectó cierre de trato
+            if (ambos && !_usuarioDecidioSeguirConversando && !_quiereCerrarTrato) {
               setState(() {
                 _usuarioDecidioSeguirConversando = true;
                 _esperandoRespuestaOtro = false;
@@ -666,7 +667,7 @@ void dispose() {
               });
             }
             // 🔥 Si YO ya decidí pero el otro no → ocultar botones y esperar
-            else if (yoYaDecidi && !ambos && !_esperandoRespuestaOtro) {
+            else if (yoYaDecidi && !ambos && !_esperandoRespuestaOtro && !_quiereCerrarTrato) {
               setState(() {
                 _usuarioDecidioSeguirConversando = true;
                 _esperandoRespuestaOtro = true;
@@ -1102,13 +1103,8 @@ Future<void> _obtenerFotoVendedorReal() async {
           }
 
           // 🔥 SI LA IA DETECTA QUE QUIEREN CERRAR EL TRATO
-          // Resetear el flujo de "seguir conversando" para que puedan volver a cerrar
           if (quiereCerrarTrato && !_usuarioConfirmoCerrarTrato) {
             _mostrarBotonesCerrarTrato = true;
-            // 🔥 RESETEAR seguir-conversando: el flujo es circular
-            _usuarioDecidioSeguirConversando = false;
-            _esperandoRespuestaOtro = false;
-            _mostrarBotonesConfirmar = false;
           }
         });
 
@@ -3961,14 +3957,24 @@ ListTile(
                           onPressed: () async {
                             setState(() {
                               _mostrarBotonesCerrarTrato = false;
+                              _quiereCerrarTrato = false;
                             });
 
-                            // 🔥 Avisar al backend que ya no quiere cerrar
                             try {
+                              // 🔥 1. Cancelar cierre de trato
                               await http.post(
                                 Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cancelar-cierre-trato'),
                                 headers: {'Content-Type': 'application/json'},
                               );
+
+                              // 🔥 2. Resetear seguir-conversando (borra los mensajes)
+                              await http.post(
+                                Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/reset-seguir-conversando'),
+                                headers: {'Content-Type': 'application/json'},
+                              );
+
+                              // 🔥 3. Recargar mensajes
+                              await _cargarMensajes(_conversacionIdActual);
                             } catch (e) {
                               print('Error al cancelar cierre de trato: $e');
                             }
