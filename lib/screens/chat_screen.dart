@@ -105,6 +105,8 @@ class _ChatScreenState extends State<ChatScreen>
   bool _propuestaEncuentroPendiente = false; // 🔥 NUEVO
   bool _chatBloqueado = false; // 🔥 NUEVO
   bool _mostrarBotonesConfirmar = false; // 🔥 NUEVO
+  bool _esperandoRespuestaOtro = false; // 🔥 NUEVO
+  bool _usuarioDecidioSeguirConversando = false; // 🔥 NUEVO
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -601,6 +603,26 @@ void dispose() {
       // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
       await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
 
+      // 🔥 CONSULTAR EN DB SI AMBOS QUIEREN SEGUIR CONVERSANDO
+      try {
+        final r = await http.get(
+          Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
+        );
+        if (r.statusCode == 200) {
+          final data = jsonDecode(r.body);
+          final ambos = data['ambos_seguir'] == true;
+          print('>>> 🟢 SEGUIR CONVERSANDO (DB): ambos=$ambos');
+          if (ambos && mounted && !_usuarioDecidioSeguirConversando) {
+            setState(() {
+              _usuarioDecidioSeguirConversando = true;
+              _esperandoRespuestaOtro = false;
+            });
+          }
+        }
+      } catch (e) {
+        print('Error al consultar seguir-conversando: $e');
+      }
+
     } else {
       setState(() => _isLoading = false);
     }
@@ -716,8 +738,13 @@ void dispose() {
     }
 
     if (mounted) {
+      final resultado = mostrar && 
+                        !_chatBloqueado && 
+                        !_esperandoRespuestaOtro &&
+                        !_usuarioDecidioSeguirConversando;
+      print('>>> 🔥 _verificarBotonConfirmar: resultado=$resultado (mostrar=$mostrar, bloqueado=$_chatBloqueado, esperando=$_esperandoRespuestaOtro, decidioSeguir=$_usuarioDecidioSeguirConversando)');
       setState(() {
-        _mostrarBotonesConfirmar = mostrar && !_chatBloqueado;
+        _mostrarBotonesConfirmar = resultado;
       });
     }
   }
@@ -3605,9 +3632,7 @@ ListTile(
 
   @override
   Widget build(BuildContext context) {
-  print('>>> productoImagen en ChatScreen: ${widget.productoImagen}');
-  print('>>> productoId en ChatScreen: ${widget.productoId}');
-  print('>>> productoPrecio en ChatScreen: ${widget.productoPrecio}');
+  print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | esperando=$_esperandoRespuestaOtro | decidioSeguir=$_usuarioDecidioSeguirConversando | bloqueado=$_chatBloqueado');
   final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -3845,6 +3870,37 @@ ListTile(
     );
   }
 
+  // 🔥 MENSAJE DE "SEGUIR CONVERSANDO" PROPUESTO
+  if ((mensaje['texto'] ?? '').startsWith('||SEGUIR_CONVERSANDO||')) {
+    final proponenteId = (mensaje['texto'] ?? '').replaceAll('||SEGUIR_CONVERSANDO||', '').trim();
+    final user = FirebaseAuth.instance.currentUser;
+    final yoPropuse = user?.uid == proponenteId;
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.hourglass_top, color: Colors.orange),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              yoPropuse
+                  ? '⏳ Esperando la respuesta del usuario...'
+                  : '💬 El usuario quiere seguir conversando',
+              style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 🔥 CONFIRMACIÓN DE CALIFICACIÓN (solo la ve el que calificó) 🔥
   if (_esConfirmacionCalificacion(mensaje['texto'] ?? '')) {
     final calificadorId = _extraerCalificadorId(mensaje['texto']!);
@@ -4059,9 +4115,79 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           ),
           
          // 🔥 BOTÓN DE CALIFICACIÓN ELIMINADO - AHORA SOLO APARECE EN EL LISTVIEW
-         Padding(
-  padding: const EdgeInsets.fromLTRB(16, 8, 8, 56),
-  child: Row(
+         Transform.translate(
+  offset: const Offset(0, -40),
+  child: Padding(
+  padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+  child: Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      // 🔥 BOTONES DE CONFIRMAR / SEGUIR CONVERSANDO
+      if (_mostrarBotonesConfirmar && !_chatBloqueado)
+        Builder(builder: (context) {
+          print('>>> 🔴🔴🔴 DIBUJANDO BOTONES: mostrar=$_mostrarBotonesConfirmar, decidioSeguir=$_usuarioDecidioSeguirConversando, esperando=$_esperandoRespuestaOtro');
+          return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _confirmarEncuentro(),
+                  icon: const Icon(Icons.check_circle, size: 18),
+                  label: const Text('Confirmar encuentro'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    setState(() {
+                      _mostrarBotonesConfirmar = false;
+                      _esperandoRespuestaOtro = true;
+                      _usuarioDecidioSeguirConversando = true;
+                    });
+
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) return;
+                    
+                    try {
+                      final r = await http.post(
+                        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({'usuario_id': user.uid}),
+                      );
+                      if (r.statusCode == 200) {
+                        final data = jsonDecode(r.body);
+                        if (data['ambos_seguir'] == true && mounted) {
+                          setState(() {
+                            _esperandoRespuestaOtro = false;
+                          });
+                        }
+                      }
+                    } catch (e) {
+                      print('Error: $e');
+                    }
+                  },
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('Seguir conversando'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        }),
+
+      // 🔥 INPUT (solo si NO hay botones ni espera)
+      if ((!_mostrarBotonesConfirmar && !_esperandoRespuestaOtro) || _chatBloqueado)
+      Row(
     children: [
            // 🔥 BOTÓN DE GRABACIÓN CON PRESIÓN LARGA Y DESLIZAR PARA CANCELAR
            // 🔥 BOTÓN DE GRABACIÓN CON ANIMACIÓN (CRECE AL GRABAR)
@@ -4085,43 +4211,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             ],
           ),
         )
-      // 🔥 BOTONES DE CONFIRMAR / SEGUIR CONVERSANDO
-      else if (_mostrarBotonesConfirmar && !_chatBloqueado)
-        SizedBox(
-          width: double.infinity,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _confirmarEncuentro(),
-                  icon: const Icon(Icons.check_circle, size: 18),
-                  label: const Text('Confirmar encuentro'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() => _mostrarBotonesConfirmar = false);
-                  },
-                  icon: const Icon(Icons.chat, size: 18),
-                  label: const Text('Seguir conversando'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          ),
-        )
+
       // 🔥 BLOQUEAR TODO EL INPUT SI HAY PROPUESTA PENDIENTE
       else if (_propuestaEncuentroPendiente && !_isRecording)
         const Padding(
@@ -4271,9 +4361,12 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           ),
         ],
       ],
+        ],
+      ),
     ],
   ),
 ),
+  ),   // ← cierra el Transform.translate
         ],
       ),
     );

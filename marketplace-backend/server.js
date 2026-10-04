@@ -3655,6 +3655,73 @@ app.post('/api/encuentro/confirmar', async (req, res) => {
     }
 });
 
+// ============================================================
+// 🔥 SEGUIR CONVERSANDO (mutuo)
+// ============================================================
+
+// POST - Marcar que un usuario quiere seguir conversando
+app.post('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { usuario_id } = req.body;
+
+        if (!usuario_id) {
+            return res.status(400).json({ error: 'usuario_id requerido' });
+        }
+
+        // Insertar (ignorar si ya existe)
+        await pool.query(
+            `INSERT INTO seguimiento_conversacion (conversacion_id, usuario_id)
+             VALUES ($1, $2)
+             ON CONFLICT (conversacion_id, usuario_id) DO NOTHING`,
+            [id, usuario_id]
+        );
+
+        // Contar cuántos usuarios quieren seguir
+        const result = await pool.query(
+            `SELECT COUNT(*) as total FROM seguimiento_conversacion
+             WHERE conversacion_id = $1`,
+            [id]
+        );
+
+        const total = parseInt(result.rows[0].total);
+        const ambosSeguir = total >= 2;
+
+        console.log(`>>> 🟢 Seguir conversando: conv=${id}, user=${usuario_id}, total=${total}, ambos=${ambosSeguir}`);
+
+        res.json({
+            success: true,
+            ambos_seguir: ambosSeguir,
+            total_usuarios: total,
+        });
+    } catch (error) {
+        console.error('Error al marcar seguir conversando:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET - Consultar si ambos quieren seguir
+app.get('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(
+            `SELECT usuario_id FROM seguimiento_conversacion
+             WHERE conversacion_id = $1`,
+            [id]
+        );
+
+        const usuarios = result.rows.map(r => r.usuario_id);
+        res.json({
+            ambos_seguir: usuarios.length >= 2,
+            usuarios: usuarios,
+        });
+    } catch (error) {
+        console.error('Error al consultar seguir conversando:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // 🔥 CONTRAPROPUESTA
 app.put('/api/encuentro/propuesta/:id/contrapropuesta', async (req, res) => {
     try {
