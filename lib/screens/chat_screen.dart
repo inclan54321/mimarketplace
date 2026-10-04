@@ -1029,6 +1029,7 @@ Future<void> _obtenerFotoVendedorReal() async {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('>>> 🟡 ANÁLISIS COMPLETO: $data');
         final estado = data['estado_ia'] ?? 'neutral';
         final analisis = data['analisis_ia'] ?? '';
 
@@ -1042,6 +1043,8 @@ Future<void> _obtenerFotoVendedorReal() async {
 
         final quiereEncuentro = data['quiere_encuentro'] == true;
         final quiereCerrarTrato = data['quiere_cerrar_trato'] == true;
+
+        print('>>> 🟡 quiere_cerrar_trato=$quiereCerrarTrato | usuarioConfirmo=$_usuarioConfirmoCerrarTrato');
 
         setState(() {
           _analisisIA = analisis;
@@ -1068,6 +1071,7 @@ Future<void> _obtenerFotoVendedorReal() async {
 
           // 🔥 SI LA IA DETECTA QUE QUIEREN CERRAR EL TRATO
           if (quiereCerrarTrato && !_usuarioConfirmoCerrarTrato) {
+            print('>>> 🟡 🟡 🟡 MOSTRANDO BOTONES DE CERRAR TRATO');
             _mostrarBotonesCerrarTrato = true;
           }
         });
@@ -3672,7 +3676,7 @@ ListTile(
 
   @override
   Widget build(BuildContext context) {
-  print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | esperando=$_esperandoRespuestaOtro | decidioSeguir=$_usuarioDecidioSeguirConversando | bloqueado=$_chatBloqueado');
+  print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | esperando=$_esperandoRespuestaOtro | decidioSeguir=$_usuarioDecidioSeguirConversando | cerrarTrato=$_mostrarBotonesCerrarTrato | confirmoCerrar=$_usuarioConfirmoCerrarTrato');
   final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(

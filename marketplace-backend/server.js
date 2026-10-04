@@ -2836,8 +2836,17 @@ SOBRE "acuerdo_cerrado":
 - false: si todavía están negociando, preguntando, o no hay un acuerdo claro de ambas partes.
 
 SOBRE "quiere_cerrar_trato":
-- true: si AMBOS usuarios ya dejaron claro que quieren comprar/vender el producto Y alguno de los dos quiere dar por terminada la conversación. Ejemplos: "listo, entonces quedamos así", "perfecto, ya está", "cualquier cosa me avisas", "nos vemos el día del encuentro", "ya quedamos". NO debe ser true si todavía hay preguntas sin responder o dudas sobre el producto.
-- false: si todavía hay preguntas, dudas, o la conversación sigue activa.
+Analiza el SENTIDO de la conversación, no frases exactas. Preguntate:
+1. ¿Los dos usuarios ya saben qué producto se está comprando?
+2. ¿Ya está claro el precio y el lugar?
+3. ¿El último mensaje indica que uno de los dos se está despidiendo, cerrando el tema, o dando por terminada la conversación?
+
+Si la respuesta a las 3 es SÍ, pon "quiere_cerrar_trato": true.
+Si alguna respuesta es NO, pon "quiere_cerrar_trato": false.
+
+NO busques frases exactas. Interpretá la INTENCIÓN del último mensaje:
+- Si alguien se despide, cierra, agradece, o da por terminado → true
+- Si alguien pregunta, duda, o pide más info → false
 
 En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neutral".`;
 
