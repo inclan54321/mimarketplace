@@ -3897,10 +3897,12 @@ app.get('/api/encuentro/proximo/:usuario_id', async (req, res) => {
 app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
     try {
         const { conversacion_id } = req.params;
+
+        // 🔥 BUSCAR EN propuestas_encuentro (no en encuentros_agendados)
         const result = await pool.query(
-            `SELECT * FROM encuentros_agendados 
+            `SELECT * FROM propuestas_encuentro 
              WHERE conversacion_id = $1
-             ORDER BY fecha_creacion DESC
+             ORDER BY id DESC
              LIMIT 1`,
             [conversacion_id]
         );
@@ -3909,6 +3911,7 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
             return res.json({ encuentro: null });
         }
 
+        console.log(`>>> 🟢 Encuentro encontrado para conv ${conversacion_id}: propuesta ${result.rows[0].id} (estado: ${result.rows[0].estado})`);
         res.json({ encuentro: result.rows[0] });
     } catch (error) {
         console.error('Error al obtener encuentro:', error);

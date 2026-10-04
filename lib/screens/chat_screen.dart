@@ -1063,18 +1063,23 @@ Future<void> _obtenerFotoVendedorReal() async {
               _conversationStatus = ConversationStatus.neutral;
           }
 
-          // 🔥 SI LA IA DETECTA QUE QUIEREN UN ENCUENTRO Y EL ESCUDO ESTÁ ACTIVO
-          if (quiereEncuentro && _iaActiva && !_interfazEncuentroMostrada) {
-            _interfazEncuentroMostrada = true;
-            _mostrarInterfazEncuentro();
-          }
-
           // 🔥 SI LA IA DETECTA QUE QUIEREN CERRAR EL TRATO
           if (quiereCerrarTrato && !_usuarioConfirmoCerrarTrato) {
-            print('>>> 🟡 🟡 🟡 MOSTRANDO BOTONES DE CERRAR TRATO');
             _mostrarBotonesCerrarTrato = true;
           }
         });
+
+        // 🔥 SI LA IA DETECTA QUE QUIEREN UN ENCUENTRO Y EL ESCUDO ESTÁ ACTIVO
+        // (FUERA del setState, porque abre un modal)
+        if (quiereEncuentro && _iaActiva && !_interfazEncuentroMostrada) {
+          final yaHayPropuesta = await _hayPropuestaEncuentro();
+          if (!yaHayPropuesta && mounted) {
+            _interfazEncuentroMostrada = true;
+            _mostrarInterfazEncuentro();
+          } else {
+            _interfazEncuentroMostrada = true;
+          }
+        }
       }
     } catch (e) {
       print('Error al consultar análisis: $e');
@@ -3676,7 +3681,7 @@ ListTile(
 
   @override
   Widget build(BuildContext context) {
-  print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | esperando=$_esperandoRespuestaOtro | decidioSeguir=$_usuarioDecidioSeguirConversando | cerrarTrato=$_mostrarBotonesCerrarTrato | confirmoCerrar=$_usuarioConfirmoCerrarTrato');
+  print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | esperando=$_esperandoRespuestaOtro | decidioSeguir=$_usuarioDecidioSeguirConversando | bloqueado=$_chatBloqueado');
   final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
