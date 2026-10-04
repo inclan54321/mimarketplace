@@ -2837,9 +2837,7 @@ SOBRE "acuerdo_cerrado":
 
 SOBRE "quiere_cerrar_trato":
 Analiza el SENTIDO de la conversación, no frases exactas. Preguntate:
-1. ¿Los dos usuarios ya saben qué producto se está comprando?
-2. ¿Ya está claro el precio y el lugar?
-3. ¿El último mensaje indica que uno de los dos se está despidiendo, cerrando el tema, o dando por terminada la conversación?
+. ¿El último mensaje indica que uno de los dos se está despidiendo, cerrando el tema, o dando por terminada la conversación?
 
 Si la respuesta a las 3 es SÍ, pon "quiere_cerrar_trato": true.
 Si alguna respuesta es NO, pon "quiere_cerrar_trato": false.
