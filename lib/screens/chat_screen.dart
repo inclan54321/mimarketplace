@@ -103,6 +103,8 @@ class _ChatScreenState extends State<ChatScreen>
   bool _escudoCargado = false; // 🔥 NUEVO
   bool _interfazEncuentroMostrada = false; // 🔥 NUEVO: para no mostrar dos veces
   bool _propuestaEncuentroPendiente = false; // 🔥 NUEVO
+  bool _chatBloqueado = false; // 🔥 NUEVO
+  bool _mostrarBotonesConfirmar = false; // 🔥 NUEVO
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -593,7 +595,8 @@ void dispose() {
       }
       
       // 🔥 SIEMPRE VERIFICAR PROPUESTA PENDIENTE
-      _verificarPropuestaPendiente();
+      await _verificarPropuestaPendiente();
+      await _verificarBotonConfirmar(user.uid);
 
       // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
       await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
@@ -673,6 +676,49 @@ void dispose() {
 
     if (mounted) {
       setState(() => _propuestaEncuentroPendiente = false);
+    }
+  }
+
+  // 🔥 VERIFICAR SI HAY QUE MOSTRAR BOTONES DE CONFIRMAR
+  Future<void> _verificarBotonConfirmar(String miUid) async {
+    bool mostrar = false;
+
+    // 1. ¿Hay propuesta de encuentro ACEPTADA?
+    for (final m in _mensajes) {
+      final texto = m['texto'] ?? '';
+      if (_esPropuestaEncuentro(texto)) {
+        final propuestaId = _extraerPropuestaId(texto);
+        if (!_cachePropuestas.containsKey(propuestaId)) {
+          try {
+            final r = await http.get(Uri.parse(
+                'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'));
+            if (r.statusCode == 200) {
+              _cachePropuestas[propuestaId] = jsonDecode(r.body);
+            }
+          } catch (_) {}
+        }
+        final prop = _cachePropuestas[propuestaId];
+        if (prop != null && prop['estado'] == 'aceptada') {
+          mostrar = true;
+          break;
+        }
+      }
+    }
+
+    // 2. ¿La IA dice que el acuerdo está cerrado?
+    if (!mostrar && _analisisIA != null) {
+      // No lo sabemos desde acá, así que consultamos al server
+      try {
+        final r = await http.get(Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual'));
+        // (si no tenés ese endpoint, dejalo así por ahora)
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      setState(() {
+        _mostrarBotonesConfirmar = mostrar && !_chatBloqueado;
+      });
     }
   }
 
@@ -3448,6 +3494,72 @@ ListTile(
     );
   }
 
+  // 🔥 CONFIRMAR ENCUENTRO (BLOQUEA EL CHAT)
+  Future<void> _confirmarEncuentro() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Confirmar encuentro?'),
+        content: const Text(
+          'Una vez confirmado, no podrán escribir por chat hasta que se vean en persona.\n\n'
+          '• No llegues tarde\n'
+          '• Se pedirá reconocimiento facial\n'
+          '• Se activará el GPS el día del encuentro',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      final r = await http.post(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/confirmar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'conversacion_id': _conversacionIdActual,
+          'usuario_confirma_id': user.uid,
+        }),
+      );
+
+      if (r.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _chatBloqueado = true;
+            _mostrarBotonesConfirmar = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Encuentro confirmado'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception('Error ${r.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   // 🔥 RESPONDER PROPUESTA (ACEPTAR O RECHAZAR)
   Future<void> _responderPropuesta(String propuestaId, String accion) async {
     try {
@@ -3955,8 +4067,60 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
            // 🔥 BOTÓN DE GRABACIÓN CON ANIMACIÓN (CRECE AL GRABAR)
             // 🔥 BOTÓN DE GRABACIÓN CON PRESIÓN LARGA (VERSIÓN SIMPLE)
           // 🔥 BOTÓN DE GRABACIÓN - DESLIZAR FUERA = CANCELAR CON SNACKBAR
+      // 🔥 CHAT BLOQUEADO POR ENCUENTRO CONFIRMADO
+      if (_chatBloqueado && !_isRecording)
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock, color: Colors.red, size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Chat bloqueado. Se verán en persona. No llegues tarde.',
+                  style: TextStyle(color: Colors.red, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        )
+      // 🔥 BOTONES DE CONFIRMAR / SEGUIR CONVERSANDO
+      else if (_mostrarBotonesConfirmar && !_chatBloqueado)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _confirmarEncuentro(),
+                  icon: const Icon(Icons.check_circle, size: 18),
+                  label: const Text('Confirmar encuentro'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() => _mostrarBotonesConfirmar = false);
+                  },
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('Seguir conversando'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        )
       // 🔥 BLOQUEAR TODO EL INPUT SI HAY PROPUESTA PENDIENTE
-      if (_propuestaEncuentroPendiente && !_isRecording)
+      else if (_propuestaEncuentroPendiente && !_isRecording)
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(

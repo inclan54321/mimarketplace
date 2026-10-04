@@ -734,6 +734,18 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
         const { conversacion_id, usuario_id, texto } = req.body;
         const imagen_url = req.file ? `/uploads/${req.file.filename}` : '';
 
+        // 🔥 VERIFICAR SI EL CHAT ESTÁ BLOQUEADO
+        const bloqueadoResult = await pool.query(
+            `SELECT chat_bloqueado FROM conversaciones_app WHERE id = $1`,
+            [conversacion_id]
+        );
+        if (bloqueadoResult.rows[0]?.chat_bloqueado === true) {
+            return res.status(403).json({
+                error: 'El chat está bloqueado. Confirma el encuentro en persona.',
+                codigo: 'CHAT_BLOQUEADO'
+            });
+        }
+
         // 🔥 VERIFICAR SI EL ESCUDO ESTÁ ACTIVO
         const escudoResult = await pool.query(
             `SELECT activo FROM escudos_conversacion 
@@ -1192,6 +1204,11 @@ app.get('/api/mensajes/:conversacion_id', async (req, res) => {
         );
         if (convResult.rows.length === 0) {
             return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        // 🔥 SI EL CHAT ESTÁ BLOQUEADO, DEVOLVER LISTA VACÍA
+        if (convResult.rows[0].chat_bloqueado === true) {
+            return res.json([]);
         }
 
         const conv = convResult.rows[0];
@@ -3581,6 +3598,59 @@ app.put('/api/encuentro/propuesta/:id/rechazar', async (req, res) => {
         res.json({ success: true, propuesta: result.rows[0] });
     } catch (error) {
         console.error('Error al rechazar propuesta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 CONFIRMAR ENCUENTRO (BLOQUEA CHAT)
+app.post('/api/encuentro/confirmar', async (req, res) => {
+    try {
+        const { conversacion_id, usuario_confirma_id } = req.body;
+
+        if (!conversacion_id || !usuario_confirma_id) {
+            return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        // 1. Bloquear el chat
+        await pool.query(
+            `UPDATE conversaciones_app 
+             SET chat_bloqueado = TRUE 
+             WHERE id = $1`,
+            [conversacion_id]
+        );
+
+        // 2. Obtener los datos del último encuentro aceptado
+        const propuestaResult = await pool.query(
+            `SELECT * FROM propuestas_encuentro 
+             WHERE conversacion_id = $1 AND estado = 'aceptada'
+             ORDER BY id DESC LIMIT 1`,
+            [conversacion_id]
+        );
+
+        const propuesta = propuestaResult.rows[0];
+
+        // 3. Obtener los dos usuarios
+        const convResult = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [conversacion_id]
+        );
+        const conv = convResult.rows[0];
+
+        // 4. Crear alerta para los dos
+        const mensajeAlerta = propuesta
+            ? `📅 Encuentro confirmado.\n📍 ${propuesta.lugar_nombre}, ${propuesta.distrito}, ${propuesta.canton}, ${propuesta.provincia}\n🕐 ${new Date(propuesta.fecha_encuentro).toLocaleString('es-CR')}\n\n⚠️ No llegues tarde.\n🔒 Se pedirá reconocimiento facial.\n📍 Se activará GPS el día del encuentro.\n💬 El chat queda bloqueado hasta que se vean.`
+            : `📅 Encuentro confirmado. El chat queda bloqueado hasta que se vean en persona.`;
+
+        await pool.query(
+            `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+             VALUES ($1, $2, $3, 'encuentro', NOW()), ($4, $2, $3, 'encuentro', NOW())`,
+            [conv.usuario1_id, 0, mensajeAlerta, conv.usuario2_id]
+        );
+
+        console.log(`>>> ✅ Encuentro confirmado para conversación ${conversacion_id}`);
+        res.json({ success: true, bloqueado: true, propuesta });
+    } catch (error) {
+        console.error('>>> ❌ Error al confirmar encuentro:', error);
         res.status(500).json({ error: error.message });
     }
 });
