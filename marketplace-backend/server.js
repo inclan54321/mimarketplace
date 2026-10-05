@@ -11,7 +11,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const sharp = require('sharp');
 const fs = require('fs');
 
-// ============================================================
+// ==== ========================================================
 // 🔥 FIREBASE ADMIN
 // ============================================================
 const admin = require('firebase-admin');
