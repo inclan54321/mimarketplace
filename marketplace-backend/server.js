@@ -3147,7 +3147,7 @@ app.get('/api/usuarios/:uid', async (req, res) => {
 // ============================================================
 app.put('/api/usuarios/:uid', async (req, res) => {
     try {
-        const { uid } = req.params;
+         const { uid } = req.params;
         const { nombre, telefono, acepta_recoleccion } = req.body;
         
         // 🔥 CONSTRUIR QUERY DINÁMICA
