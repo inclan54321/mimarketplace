@@ -11,6 +11,21 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const sharp = require('sharp');
 const fs = require('fs');
 
+// ============================================================
+// 🔥 FIREBASE ADMIN
+// ============================================================
+const admin = require('firebase-admin');
+
+try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+    });
+    console.log('>>> 🔥 Firebase Admin inicializado correctamente');
+} catch (error) {
+    console.error('>>> ❌ Error al inicializar Firebase Admin:', error.message);
+    console.log('>>> ⚠️ Las notificaciones push no funcionarán');
+}
 
 const app = express();
 const port = 3000;
