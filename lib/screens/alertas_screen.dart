@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
+import 'reconocimiento_facial_screen.dart';
 import '../widgets/rewarded_ad_prueba.dart';
 
 class AlertasScreen extends StatefulWidget {
@@ -15,10 +18,351 @@ class _AlertasScreenState extends State<AlertasScreen> {
   List<Map<String, dynamic>> _alertas = [];
   bool _isLoading = true;
 
+  // 🔥 ALERTA DE PRUEBA DE RECONOCIMIENTO FACIAL
+  Map<String, dynamic>? _alertaTestReconocimiento;
+  Timer? _timerTestReconocimiento;
+  double _distanciaActual = 0;
+
   @override
   void initState() {
     super.initState();
     _cargarAlertas();
+  }
+
+  @override
+  void dispose() {
+    _timerTestReconocimiento?.cancel();
+    super.dispose();
+  }
+
+  void _iniciarAlertaTest() async {
+    if (_alertaTestReconocimiento != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⏳ Ya hay una verificación pendiente'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // 🔥 OBTENER UBICACIÓN ACTUAL
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('❌ Se necesita permiso de ubicación'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      final posicion = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _distanciaActual = 0;
+        _alertaTestReconocimiento = {
+          'tipo': 'test_reconocimiento',
+          'fecha_inicio': DateTime.now(),
+          'segundos_restantes': 20,
+          'lista_para_verificar': false,
+          'lat_objetivo': posicion.latitude,
+          'lng_objetivo': posicion.longitude,
+        };
+      });
+
+      _timerTestReconocimiento =
+          Timer.periodic(const Duration(seconds: 1), (timer) async {
+        if (_alertaTestReconocimiento == null) {
+          timer.cancel();
+          return;
+        }
+
+        final segundosRestantes =
+            _alertaTestReconocimiento!['segundos_restantes'] as int;
+
+        if (segundosRestantes <= 1) {
+          timer.cancel();
+
+          // 🔥 VERIFICAR UBICACIÓN
+          final dentro = await _estoyEnLaUbicacion(
+            _alertaTestReconocimiento!['lat_objetivo'] as double,
+            _alertaTestReconocimiento!['lng_objetivo'] as double,
+          );
+
+          if (!mounted) return;
+
+          if (dentro) {
+            setState(() {
+              _alertaTestReconocimiento!['segundos_restantes'] = 0;
+              _alertaTestReconocimiento!['lista_para_verificar'] = true;
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🔔 Es hora de verificar tu identidad'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          } else {
+            setState(() {
+              _alertaTestReconocimiento = null;
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('❌ No estás en la ubicación acordada'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        } else {
+          setState(() {
+            _alertaTestReconocimiento!['segundos_restantes'] =
+                segundosRestantes - 1;
+          });
+        }
+      });
+    } catch (e) {
+      print('Error al obtener ubicación: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al obtener ubicación: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // 🔥 VERIFICAR SI ESTOY EN LA UBICACIÓN
+  Future<bool> _estoyEnLaUbicacion(double latObjetivo, double lngObjetivo) async {
+    try {
+      final posicionActual = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+
+      final distancia = Geolocator.distanceBetween(
+        posicionActual.latitude,
+        posicionActual.longitude,
+        latObjetivo,
+        lngObjetivo,
+      );
+
+      print('>>> Distancia a la ubicación objetivo: ${distancia.toStringAsFixed(1)} metros');
+
+      if (mounted) {
+        setState(() {
+          _distanciaActual = distancia;
+        });
+      }
+
+      return distancia <= 100; // 100 metros de radio
+    } catch (e) {
+      print('Error al verificar ubicación: $e');
+      return false;
+    }
+  }
+
+  void _abrirModalReconocimiento() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.face_retouching_natural,
+                    size: 48, color: Colors.red),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Verificación de identidad',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Necesitamos verificar tu identidad para continuar con el encuentro.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+
+                    final user = FirebaseAuth.instance.currentUser;
+
+                    final resultado = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ReconocimientoFacialScreen(
+                          usuarioId: user?.uid ?? '',
+                        ),
+                      ),
+                    );
+
+                    if (resultado == true) {
+                      _finalizarAlertaTest();
+                    }
+                  },
+                  icon: const Icon(Icons.camera_front, size: 20),
+                  label: const Text('Hacer reconocimiento facial'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Más tarde',
+                    style: TextStyle(color: Colors.grey)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _finalizarAlertaTest() {
+    _timerTestReconocimiento?.cancel();
+    setState(() {
+      _alertaTestReconocimiento = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('📸 Reconocimiento facial iniciado'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  Widget _buildTarjetaTest() {
+    if (_alertaTestReconocimiento == null) return const SizedBox.shrink();
+
+    final segundos = _alertaTestReconocimiento!['segundos_restantes'] as int;
+    final lista = _alertaTestReconocimiento!['lista_para_verificar'] as bool;
+    final minutos = (segundos / 60).floor();
+    final segs = segundos % 60;
+    final tiempoFormateado =
+        '${minutos.toString().padLeft(2, '0')}:${segs.toString().padLeft(2, '0')}';
+
+    return GestureDetector(
+      onTap: lista ? _abrirModalReconocimiento : null,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: lista ? Colors.red.shade50 : Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: lista ? Colors.red : Colors.orange,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 6,
+              height: 90,
+              decoration: BoxDecoration(
+                color: lista ? Colors.red : Colors.orange,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(
+                      lista ? Icons.face_retouching_natural : Icons.timer,
+                      color: lista ? Colors.red : Colors.orange,
+                      size: 32,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            lista
+                                ? 'Es hora de verificar tu identidad'
+                                : 'Verificación de identidad pendiente',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  lista ? Colors.red : Colors.orange.shade800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            lista
+                                ? 'Toca para hacer el reconocimiento facial'
+                                : 'Disponible en $tiempoFormateado',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: lista
+                                  ? Colors.red.shade700
+                                  : Colors.orange.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Distancia: ${_distanciaActual.toStringAsFixed(1)}m',
+                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (lista)
+                      const Icon(Icons.arrow_forward_ios,
+                          size: 16, color: Colors.red),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _cargarAlertas() async {
@@ -196,6 +540,11 @@ class _AlertasScreenState extends State<AlertasScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.bug_report, color: Colors.yellow),
+            onPressed: _iniciarAlertaTest,
+            tooltip: 'Test: Reconocimiento facial',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _cargarAlertas,
             tooltip: 'Recargar',
@@ -209,17 +558,21 @@ class _AlertasScreenState extends State<AlertasScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _alertas.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No tienes alertas',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: _alertas.length,
-                  itemBuilder: (context, index) {
-                    final alerta = _alertas[index];
+          : ListView(
+              children: [
+                _buildTarjetaTest(),
+                if (_alertas.isEmpty && _alertaTestReconocimiento == null)
+                  const Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Center(
+                      child: Text(
+                        'No tienes alertas',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ),
+                  )
+                else
+                  ..._alertas.map((alerta) {
                     final esLeida = alerta['leida'] ?? false;
                     final tipo = alerta['tipo'] ?? 'info';
                     final mensaje = alerta['mensaje'] ?? '';
@@ -347,8 +700,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
                         ],
                       ),
                     );
-                  },
-                ),
+                  }),
+              ],
+            ),
     );
   }
 }
