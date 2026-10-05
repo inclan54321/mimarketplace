@@ -15,11 +15,12 @@ const fs = require('fs');
 // 🔥 FIREBASE ADMIN
 // ============================================================
 const admin = require('firebase-admin');
+const { cert } = require('firebase-admin/app');
 
 try {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     admin.initializeApp({
-         credential: admin.credential.cert(serviceAccount),
+         credential: cert(serviceAccount),
     });
     console.log('>>> 🔥 Firebase Admin inicializado correctamente');
 } catch (error) {
