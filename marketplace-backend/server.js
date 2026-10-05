@@ -3666,7 +3666,7 @@ app.put('/api/encuentro/propuesta/:id/rechazar', async (req, res) => {
     }
 });
 
-// 🔥 CONFIRMAR ENCUENTRO (BLOQUEA CHAT Y CREA ENCUENTRO AGENDADO)
+// 🔥 CONFIRMAR ENCUENTRO (BLOQUEA CHAT)
 app.post('/api/encuentro/confirmar', async (req, res) => {
     try {
         const { conversacion_id, usuario_confirma_id } = req.body;
@@ -3693,10 +3693,6 @@ app.post('/api/encuentro/confirmar', async (req, res) => {
 
         const propuesta = propuestaResult.rows[0];
 
-        if (!propuesta) {
-            return res.status(400).json({ error: 'No hay propuesta aceptada' });
-        }
-
         // 3. Obtener los dos usuarios
         const convResult = await pool.query(
             'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
@@ -3704,40 +3700,10 @@ app.post('/api/encuentro/confirmar', async (req, res) => {
         );
         const conv = convResult.rows[0];
 
-        // 4. Insertar en encuentros_agendados (si no existe ya)
-        const yaExiste = await pool.query(
-            `SELECT id FROM encuentros_agendados 
-             WHERE conversacion_id = $1 AND fecha_encuentro = $2`,
-            [conversacion_id, propuesta.fecha_encuentro]
-        );
-
-        let encuentroId;
-        if (yaExiste.rows.length > 0) {
-            encuentroId = yaExiste.rows[0].id;
-            console.log(`>>> 📅 Encuentro ya agendado: ${encuentroId}`);
-        } else {
-            const insertResult = await pool.query(
-                `INSERT INTO encuentros_agendados 
-                 (conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, 
-                  lugar_nombre, lugar_lat, lugar_lng, estado, escudo_verificado)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'agendado', false)
-                 RETURNING *`,
-                [
-                    conversacion_id,
-                    conv.usuario1_id,
-                    conv.usuario2_id,
-                    propuesta.fecha_encuentro,
-                    propuesta.lugar_nombre || '',
-                    propuesta.lugar_lat || null,
-                    propuesta.lugar_lng || null,
-                ]
-            );
-            encuentroId = insertResult.rows[0].id;
-            console.log(`>>> 📅 Encuentro agendado creado: ${encuentroId}`);
-        }
-
-        // 5. Crear alerta para los dos
-        const mensajeAlerta = `📅 Encuentro confirmado.\n📍 ${propuesta.lugar_nombre}, ${propuesta.distrito}, ${propuesta.canton}, ${propuesta.provincia}\n🕐 ${new Date(propuesta.fecha_encuentro).toLocaleString('es-CR')}\n\n⚠️ No llegues tarde.\n🔒 Se pedirá reconocimiento facial.\n📍 Se activará GPS el día del encuentro.\n💬 El chat queda bloqueado hasta que se vean.`;
+        // 4. Crear alerta para los dos
+        const mensajeAlerta = propuesta
+            ? `📅 Encuentro confirmado.\n📍 ${propuesta.lugar_nombre}, ${propuesta.distrito}, ${propuesta.canton}, ${propuesta.provincia}\n🕐 ${new Date(propuesta.fecha_encuentro).toLocaleString('es-CR')}\n\n⚠️ No llegues tarde.\n🔒 Se pedirá reconocimiento facial.\n📍 Se activará GPS el día del encuentro.\n💬 El chat queda bloqueado hasta que se vean.`
+            : `📅 Encuentro confirmado. El chat queda bloqueado hasta que se vean en persona.`;
 
         await pool.query(
             `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
@@ -3746,12 +3712,7 @@ app.post('/api/encuentro/confirmar', async (req, res) => {
         );
 
         console.log(`>>> ✅ Encuentro confirmado para conversación ${conversacion_id}`);
-        res.json({ 
-            success: true, 
-            bloqueado: true, 
-            propuesta,
-            encuentro_id: encuentroId,
-        });
+        res.json({ success: true, bloqueado: true, propuesta });
     } catch (error) {
         console.error('>>> ❌ Error al confirmar encuentro:', error);
         res.status(500).json({ error: error.message });
