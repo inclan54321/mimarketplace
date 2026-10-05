@@ -596,10 +596,8 @@ void dispose() {
         }
       }
 
-      // 🔥 CONSULTAR EL ANÁLISIS SOLO SI HAY CAMBIOS (para evitar recargas infinitas)
-      if (hayCambios) {
-        _analizarMensajeConIA('', user.uid);
-      }
+      // 🔥 CONSULTAR EL ANÁLISIS SIEMPRE (no solo cuando hay cambios)
+      await _analizarMensajeConIA('', user.uid);
       
       // 🔥 SIEMPRE VERIFICAR PROPUESTA PENDIENTE
       await _verificarPropuestaPendiente();
@@ -634,7 +632,7 @@ void dispose() {
                 // 🔥 Yo confirmé, el otro no → esperando
                 _esperandoConfirmacionCerrarTrato = true;
                 _mostrarBotonesCerrarTrato = false;
-              } else if (_quiereCerrarTrato && !yoConfirme && !otroConfirme) {
+              } else if (!yoConfirme && _quiereCerrarTrato) {
                 // 🔥 Nadie confirmó pero la IA dice que quieren cerrar → mostrar botones
                 _mostrarBotonesCerrarTrato = true;
               }
@@ -798,8 +796,9 @@ void dispose() {
       final resultado = mostrar && 
                         !_chatBloqueado && 
                         !_esperandoRespuestaOtro &&
-                        !_usuarioDecidioSeguirConversando;
-      print('>>> 🔥 _verificarBotonConfirmar: resultado=$resultado (mostrar=$mostrar, bloqueado=$_chatBloqueado, esperando=$_esperandoRespuestaOtro, decidioSeguir=$_usuarioDecidioSeguirConversando)');
+                        !_usuarioDecidioSeguirConversando &&
+                        !_quiereCerrarTrato;
+      print('>>> 🔥 _verificarBotonConfirmar: resultado=$resultado (mostrar=$mostrar, bloqueado=$_chatBloqueado, esperando=$_esperandoRespuestaOtro, decidioSeguir=$_usuarioDecidioSeguirConversando, quiereCerrar=$_quiereCerrarTrato)');
       setState(() {
         _mostrarBotonesConfirmar = resultado;
       });
@@ -3720,7 +3719,7 @@ ListTile(
 
   @override
   Widget build(BuildContext context) {
-  print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | esperando=$_esperandoRespuestaOtro | decidioSeguir=$_usuarioDecidioSeguirConversando | bloqueado=$_chatBloqueado');
+  print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | mostrarCerrar=$_mostrarBotonesCerrarTrato | quiereCerrar=$_quiereCerrarTrato | usuarioConfirmo=$_usuarioConfirmoCerrarTrato | decidioSeguir=$_usuarioDecidioSeguirConversando');
   final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
