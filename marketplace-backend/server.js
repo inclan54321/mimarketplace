@@ -3139,6 +3139,31 @@ app.post('/api/productos/renovar/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// ============================================================
+// 🔥 GUARDAR FCM TOKEN DE UN USUARIO
+// ============================================================
+app.post('/api/usuarios/fcm-token', async (req, res) => {
+    try {
+        const { uid, fcm_token } = req.body;
+
+        if (!uid || !fcm_token) {
+            return res.status(400).json({ error: 'uid y fcm_token requeridos' });
+        }
+
+        await pool.query(
+            'UPDATE usuarios SET fcm_token = $1 WHERE uid = $2',
+            [fcm_token, uid]
+        );
+
+        console.log(`>>> 📱 FCM token guardado para usuario ${uid}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error al guardar FCM token:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ============================================================
 // 🔥 OBTENER DATOS DE UN USUARIO
 // ============================================================

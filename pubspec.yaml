@@ -31,16 +31,16 @@ dependencies:
   flutter_phoenix: ^1.1.0
   google_generative_ai: ^0.4.7
   flutter_sound: ^9.2.13
-  permission_handler: 12.0.3
+  permission_handler: ^12.0.3
+  flutter_face_liveness: ^3.6.0
+  geolocator: ^14.0.2
   audioplayers: ^6.0.0
   google_mobile_ads: ^9.1.0
   google_sign_in: ^6.2.2
   cached_network_image: ^4.0.0
   firebase_messaging: 15.2.0
   flutter_local_notifications: 17.2.4
-  video_player: ^2.8.6
-  flutter_face_liveness: ^3.6.0
-
+  video_player: ^2.9.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -54,7 +54,7 @@ flutter:
     - assets/images/categorias/
     - assets/icon/
     - assets/sounds/
-    - assets/videos/ 
+    - assets/videos/
 
 flutter_launcher_icons:
   android: "launcher_icon"

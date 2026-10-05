@@ -268,6 +268,12 @@ class _MainScreenState extends State<MainScreen> {
     _verificarAlertasNuevas();
     _verificarMensajesNuevos();
     _escucharNotificaciones();
+
+    // 🔥 GUARDAR FCM TOKEN CADA VEZ QUE SE ABRE LA APP
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      NotificationService.guardarToken(user.uid);
+    }
   }
 
   // 🔥 Verificar si hay mensajes no leídos al abrir la app
