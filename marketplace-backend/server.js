@@ -3146,13 +3146,14 @@ app.post('/api/usuarios/fcm-token', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
 // ============================================================
 // 🔥 OBTENER DATOS DE UN USUARIO
 // ============================================================
 app.get('/api/usuarios/:uid', async (req, res) => {
     try {
         const { uid } = req.params;
-        const result = await pool.query(
+         const result = await pool.query(
             'SELECT uid, email, nombre, telefono, acepta_recoleccion FROM usuarios WHERE uid = $1',
             [uid]
         );
