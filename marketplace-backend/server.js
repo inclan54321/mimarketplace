@@ -3525,25 +3525,31 @@ app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
 // 📅 PROPUESTAS DE ENCUENTRO (NUEVO FLUJO)
 // ============================================================
 
-// 🔥 PROPONER ENCUENTRO
+// 🔥 PROPONER ENCUENTRO (CON LUGAR SEGURO)
 app.post('/api/encuentro/proponer', async (req, res) => {
     try {
         const {
             conversacion_id,
             usuario_propone_id,
             usuario_recibe_id,
-            provincia,
-            canton,
-            distrito,
-            lugar_nombre,
-            lugar_lat,
-            lugar_lng,
+            lugar_id,
             fecha_encuentro,
         } = req.body;
 
-        if (!conversacion_id || !usuario_propone_id || !usuario_recibe_id || !fecha_encuentro) {
+        if (!conversacion_id || !usuario_propone_id || !usuario_recibe_id || !lugar_id || !fecha_encuentro) {
             return res.status(400).json({ error: 'Faltan datos obligatorios' });
         }
+
+        const lugarResult = await pool.query(
+            'SELECT * FROM lugares_seguros WHERE id = $1 AND activo = TRUE',
+            [lugar_id]
+        );
+
+        if (lugarResult.rows.length === 0) {
+            return res.status(400).json({ error: 'Lugar no válido' });
+        }
+
+        const lugar = lugarResult.rows[0];
 
         const result = await pool.query(
             `INSERT INTO propuestas_encuentro 
@@ -3554,8 +3560,8 @@ app.post('/api/encuentro/proponer', async (req, res) => {
              RETURNING *`,
             [
                 conversacion_id, usuario_propone_id, usuario_recibe_id,
-                provincia, canton, distrito, lugar_nombre,
-                lugar_lat || null, lugar_lng || null,
+                lugar.provincia, lugar.canton, lugar.distrito || '',
+                lugar.nombre, lugar.lat, lugar.lng,
                 fecha_encuentro
             ]
         );
@@ -4275,6 +4281,66 @@ app.get('/api/encuentro/gps/:encuentro_id', async (req, res) => {
         res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener GPS:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// ============================================================
+// 🔥 LUGARES SEGUROS - PROVINCIAS DISPONIBLES
+// ============================================================
+app.get('/api/lugares-seguros/provincias', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT DISTINCT provincia FROM lugares_seguros 
+             WHERE activo = TRUE 
+             ORDER BY provincia`
+        );
+        res.json(result.rows.map(r => r.provincia));
+    } catch (error) {
+        console.error('Error al obtener provincias:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// 🔥 LUGARES SEGUROS - CANTONES DISPONIBLES POR PROVINCIA
+// ============================================================
+app.get('/api/lugares-seguros/cantones', async (req, res) => {
+    try {
+        const { provincia } = req.query;
+        if (!provincia) {
+            return res.status(400).json({ error: 'provincia requerida' });
+        }
+        const result = await pool.query(
+            `SELECT DISTINCT canton FROM lugares_seguros 
+             WHERE activo = TRUE AND provincia = $1
+             ORDER BY canton`,
+            [provincia]
+        );
+        res.json(result.rows.map(r => r.canton));
+    } catch (error) {
+        console.error('Error al obtener cantones:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// 🔥 LUGARES SEGUROS - DISTRITOS DISPONIBLES POR PROVINCIA Y CANTÓN
+// ============================================================
+app.get('/api/lugares-seguros/distritos', async (req, res) => {
+    try {
+        const { provincia, canton } = req.query;
+        if (!provincia || !canton) {
+            return res.status(400).json({ error: 'provincia y canton requeridos' });
+        }
+        const result = await pool.query(
+            `SELECT DISTINCT distrito FROM lugares_seguros 
+             WHERE activo = TRUE AND provincia = $1 AND canton = $2
+             ORDER BY distrito`,
+            [provincia, canton]
+        );
+        res.json(result.rows.map(r => r.distrito).filter(d => d && d !== ''));
+    } catch (error) {
+        console.error('Error al obtener distritos:', error);
         res.status(500).json({ error: error.message });
     }
 });
