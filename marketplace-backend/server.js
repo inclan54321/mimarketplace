@@ -4344,6 +4344,45 @@ app.get('/api/lugares-seguros/distritos', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// ============================================================
+// 🔥 LUGARES SEGUROS - LISTA CON FILTROS
+// ============================================================
+app.get('/api/lugares-seguros', async (req, res) => {
+    try {
+        const { provincia, canton, distrito } = req.query;
+
+        let query = 'SELECT * FROM lugares_seguros WHERE activo = TRUE';
+        const params = [];
+        let idx = 1;
+
+        if (provincia) {
+            query += ` AND provincia = $${idx}`;
+            params.push(provincia);
+            idx++;
+        }
+        if (canton) {
+            query += ` AND canton = $${idx}`;
+            params.push(canton);
+            idx++;
+        }
+        if (distrito) {
+            query += ` AND distrito = $${idx}`;
+            params.push(distrito);
+            idx++;
+        }
+
+        query += ' ORDER BY nombre ASC';
+
+        const result = await pool.query(query, params);
+        console.log(`>>> 🏛️ Lugares seguros encontrados: ${result.rows.length} (prov=${provincia || '-'}, cant=${canton || '-'}, dist=${distrito || '-'})`);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener lugares seguros:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
 });
