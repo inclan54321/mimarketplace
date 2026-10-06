@@ -132,6 +132,134 @@ cron.schedule('* * * * *', async () => {
 });
 console.log('>>> ⏰ CRON de caducidad activado (cada 1 minuto)');
 
+// ============================================================
+// 🔥 CRON DE RECORDATORIOS DE ENCUENTRO (cada 1 minuto)
+// ============================================================
+cron.schedule('* * * * *', async () => {
+    try {
+        // ============================================================
+        // 1. RECORDATORIO 1 HORA ANTES
+        // ============================================================
+        const enUnaHora = await pool.query(
+            `SELECT e.*, 
+                    u1.fcm_token AS token1, u1.nombre AS nombre1,
+                    u2.fcm_token AS token2, u2.nombre AS nombre2
+             FROM encuentros_agendados e
+             LEFT JOIN usuarios u1 ON e.usuario1_id = u1.uid
+             LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
+             WHERE e.estado = 'agendado'
+               AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '59 minutes'
+                                          AND NOW() + INTERVAL '61 minutes'`
+        );
+
+        for (const enc of enUnaHora.rows) {
+            const titulo = '⏰ Encuentro en 1 hora';
+            const cuerpo = `Tu encuentro es en 1 hora.\n📍 ${enc.lugar_nombre}\n\nLlegá 10 minutos antes.`;
+
+            if (enc.token1) {
+                try {
+                    const { getMessaging } = require('firebase-admin/messaging');
+                    await getMessaging().send({
+                        token: enc.token1,
+                        notification: { title: titulo, body: cuerpo },
+                        data: { tipo: 'recordatorio_1h', encuentro_id: enc.id.toString() }
+                    });
+                    console.log(`>>> 📨 Push 1h enviada a ${enc.usuario1_id}`);
+                } catch (e) { console.error('>>> ❌ Error push 1h:', e.message); }
+            }
+            if (enc.token2) {
+                try {
+                    const { getMessaging } = require('firebase-admin/messaging');
+                    await getMessaging().send({
+                        token: enc.token2,
+                        notification: { title: titulo, body: cuerpo },
+                        data: { tipo: 'recordatorio_1h', encuentro_id: enc.id.toString() }
+                    });
+                    console.log(`>>> 📨 Push 1h enviada a ${enc.usuario2_id}`);
+                } catch (e) { console.error('>>> ❌ Error push 1h:', e.message); }
+            }
+            console.log(`>>> ⏰ Recordatorio 1h procesado para encuentro ${enc.id}`);
+        }
+
+        // ============================================================
+        // 2. RECORDATORIO 10 MINUTOS ANTES
+        // ============================================================
+        const enDiezMin = await pool.query(
+            `SELECT e.*, 
+                    u1.fcm_token AS token1, u2.fcm_token AS token2
+             FROM encuentros_agendados e
+             LEFT JOIN usuarios u1 ON e.usuario1_id = u1.uid
+             LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
+             WHERE e.estado = 'agendado'
+               AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '9 minutes'
+                                          AND NOW() + INTERVAL '11 minutes'`
+        );
+
+        for (const enc of enDiezMin.rows) {
+            const titulo = '🚨 Encuentro en 10 minutos';
+            const cuerpo = `Estás a 10 minutos.\n📍 ${enc.lugar_nombre}\n\nAndá al lugar y hacé el reconocimiento facial.`;
+
+            if (enc.token1) {
+                try {
+                    const { getMessaging } = require('firebase-admin/messaging');
+                    await getMessaging().send({
+                        token: enc.token1,
+                        notification: { title: titulo, body: cuerpo },
+                        data: { tipo: 'recordatorio_10m', encuentro_id: enc.id.toString() }
+                    });
+                    console.log(`>>> 📨 Push 10m enviada a ${enc.usuario1_id}`);
+                } catch (e) { console.error('>>> ❌ Error push 10m:', e.message); }
+            }
+            if (enc.token2) {
+                try {
+                    const { getMessaging } = require('firebase-admin/messaging');
+                    await getMessaging().send({
+                        token: enc.token2,
+                        notification: { title: titulo, body: cuerpo },
+                        data: { tipo: 'recordatorio_10m', encuentro_id: enc.id.toString() }
+                    });
+                    console.log(`>>> 📨 Push 10m enviada a ${enc.usuario2_id}`);
+                } catch (e) { console.error('>>> ❌ Error push 10m:', e.message); }
+            }
+            console.log(`>>> 🚨 Recordatorio 10m procesado para encuentro ${enc.id}`);
+        }
+
+        // ============================================================
+        // 3. MARCAR 'TARDE' (5 min después de la hora)
+        // ============================================================
+        const marcadosTarde = await pool.query(
+            `UPDATE encuentros_agendados 
+             SET estado = 'tarde'
+             WHERE estado = 'agendado'
+               AND fecha_encuentro < NOW() - INTERVAL '5 minutes'
+               AND fecha_encuentro > NOW() - INTERVAL '6 minutes'
+             RETURNING id`
+        );
+        if (marcadosTarde.rowCount > 0) {
+            console.log(`>>> ⏳ ${marcadosTarde.rowCount} encuentros marcados como 'tarde'`);
+        }
+
+        // ============================================================
+        // 4. MARCAR 'NO_PRESENTADO' (15 min después de la hora)
+        // ============================================================
+        const marcadosNoPresentado = await pool.query(
+            `UPDATE encuentros_agendados 
+             SET estado = 'no_presentado'
+             WHERE estado IN ('agendado', 'tarde')
+               AND fecha_encuentro < NOW() - INTERVAL '15 minutes'
+               AND fecha_encuentro > NOW() - INTERVAL '16 minutes'
+             RETURNING id`
+        );
+        if (marcadosNoPresentado.rowCount > 0) {
+            console.log(`>>> 🚫 ${marcadosNoPresentado.rowCount} encuentros marcados como 'no_presentado'`);
+        }
+
+    } catch (error) {
+        console.error('Error en cron de recordatorios:', error);
+    }
+});
+console.log('>>> ⏰ CRON de recordatorios de encuentro activado (cada 1 minuto)');
+
 // ===== FUNCIÓN DE MODERACIÓN CON DEEPSEEK =====
 async function moderarProducto(nombre, descripcion, categoria, imagenUrl) {
     try {
