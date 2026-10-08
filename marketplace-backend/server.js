@@ -4514,6 +4514,128 @@ app.get('/api/lugares-seguros/distritos', async (req, res) => {
 // ============================================================
 // 🔥 LUGARES SEGUROS - LISTA CON FILTROS
 // ============================================================
+// ============================================================
+// 🔥 VERIFICAR SI EL USUARIO ESTÁ CERCA DEL LUGAR
+// ============================================================
+app.post('/api/encuentro/:id/verificar-ubicacion', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { usuario_id, lat, lng } = req.body;
+
+        if (!usuario_id || lat === undefined || lng === undefined) {
+            return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        // Obtener el encuentro
+        const encResult = await pool.query(
+            `SELECT * FROM encuentros_agendados WHERE id = $1`,
+            [id]
+        );
+
+        if (encResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Encuentro no encontrado' });
+        }
+
+        const enc = encResult.rows[0];
+
+        if (enc.lugar_lat === null || enc.lugar_lng === null) {
+            return res.status(400).json({ error: 'El encuentro no tiene coordenadas' });
+        }
+
+        // Distancia en metros (fórmula de Haversine)
+        const R = 6371000; // radio de la Tierra en metros
+        const lat1 = parseFloat(lat) * Math.PI / 180;
+        const lat2 = parseFloat(enc.lugar_lat) * Math.PI / 180;
+        const dLat = (parseFloat(enc.lugar_lat) - parseFloat(lat)) * Math.PI / 180;
+        const dLng = (parseFloat(enc.lugar_lng) - parseFloat(lng)) * Math.PI / 180;
+
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1) * Math.cos(lat2) *
+                  Math.sin(dLng/2) * Math.sin(dLng/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distanciaMetros = R * c;
+
+        const RADIO_PERMITIDO = 150; // metros
+        const enLugar = distanciaMetros <= RADIO_PERMITIDO;
+
+        // Guardar tracking en cualquier caso
+        await pool.query(
+            `INSERT INTO gps_tracking (encuentro_id, usuario_id, lat, lng)
+             VALUES ($1, $2, $3, $4)`,
+            [id, usuario_id, lat, lng]
+        );
+
+        console.log(`>>> 📍 Usuario ${usuario_id} a ${Math.round(distanciaMetros)}m del lugar (${enLugar ? 'DENTRO' : 'FUERA'})`);
+
+        res.json({
+            en_lugar: enLugar,
+            distancia_metros: Math.round(distanciaMetros),
+            radio_permitido: RADIO_PERMITIDO,
+        });
+    } catch (error) {
+        console.error('Error al verificar ubicación:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// 🔥 ESTADO DEL ENCUENTRO (verifica si ambos están presentes)
+// ============================================================
+app.get('/api/encuentro/:id/estado', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // 1. Obtener el encuentro
+        const encResult = await pool.query(
+            `SELECT * FROM encuentros_agendados WHERE id = $1`,
+            [id]
+        );
+
+        if (encResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Encuentro no encontrado' });
+        }
+
+        const enc = encResult.rows[0];
+
+        // 2. Verificar cuántos usuarios verificaron facialmente
+        const verifResult = await pool.query(
+            `SELECT DISTINCT usuario_id 
+             FROM verificaciones_faciales 
+             WHERE encuentro_id = $1 AND aprobado = TRUE`,
+            [id]
+        );
+
+        const usuariosVerificados = verifResult.rows.map(r => r.usuario_id);
+        const ambosPresentes = 
+            usuariosVerificados.includes(enc.usuario1_id) && 
+            usuariosVerificados.includes(enc.usuario2_id);
+
+        // 3. Si ambos están presentes, desbloquear el chat
+        if (ambosPresentes) {
+            await pool.query(
+                `UPDATE conversaciones_app 
+                 SET chat_bloqueado = FALSE 
+                 WHERE id = $1 AND chat_bloqueado = TRUE`,
+                [enc.conversacion_id]
+            );
+            console.log(`>>> 🔓 Chat desbloqueado para conv ${enc.conversacion_id} (ambos presentes)`);
+        }
+
+        // 4. Devolver estado
+        res.json({
+            encuentro_id: enc.id,
+            estado: enc.estado,
+            usuario1_verificado: usuariosVerificados.includes(enc.usuario1_id),
+            usuario2_verificado: usuariosVerificados.includes(enc.usuario2_id),
+            ambos_presentes: ambosPresentes,
+            chat_desbloqueado: ambosPresentes,
+        });
+    } catch (error) {
+        console.error('Error al consultar estado del encuentro:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/lugares-seguros', async (req, res) => {
     try {
         const { provincia, canton, distrito } = req.query;
