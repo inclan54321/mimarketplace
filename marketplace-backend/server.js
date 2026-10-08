@@ -4671,6 +4671,44 @@ app.get('/api/lugares-seguros', async (req, res) => {
     }
 });
 
+// ============================================================
+// 🔥 DATOS DEL ENCUENTRO (foto del otro usuario)
+// ============================================================
+app.get('/api/encuentro/:id/datos', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { usuario_id } = req.query;
+
+        const encResult = await pool.query(
+            `SELECT * FROM encuentros_agendados WHERE id = $1`,
+            [id]
+        );
+
+        if (encResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Encuentro no encontrado' });
+        }
+
+        const enc = encResult.rows[0];
+        const otroUsuarioId = enc.usuario1_id === usuario_id
+            ? enc.usuario2_id
+            : enc.usuario1_id;
+
+        const fotoResult = await pool.query(
+            `SELECT foto_perfil FROM usuarios WHERE uid = $1`,
+            [otroUsuarioId]
+        );
+
+        res.json({
+            encuentro_id: enc.id,
+            otro_usuario_id: otroUsuarioId,
+            otro_usuario_foto: fotoResult.rows[0]?.foto_perfil || '',
+        });
+    } catch (error) {
+        console.error('Error al obtener datos del encuentro:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
 });
