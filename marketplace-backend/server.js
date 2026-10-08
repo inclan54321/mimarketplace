@@ -154,8 +154,8 @@ cron.schedule('* * * * *', async () => {
         );
 
         for (const enc of enUnaHora.rows) {
-            const titulo = '⏰ Encuentro en 1 hora';
-            const cuerpo = `Tu encuentro es en 1 hora.\n📍 ${enc.lugar_nombre}\n\nLlegá 10 minutos antes.`;
+            const titulo = 'Encuentro en 1 hora';
+            const cuerpo = `Tu encuentro es en 1 hora.\n${enc.lugar_nombre}\n\nLlegá 10 minutos antes.`;
 
             if (enc.token1) {
                 try {
@@ -210,13 +210,14 @@ cron.schedule('* * * * *', async () => {
              LEFT JOIN usuarios u1 ON e.usuario1_id = u1.uid
              LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
              WHERE e.estado = 'agendado'
+               AND e.recordatorio_10m_enviado = FALSE
                AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '9 minutes'
                                           AND NOW() + INTERVAL '11 minutes'`
         );
 
         for (const enc of enDiezMin.rows) {
-            const titulo = '🚨 Encuentro en 10 minutos';
-            const cuerpo = `Estás a 10 minutos.\n📍 ${enc.lugar_nombre}\n\nAndá al lugar y hacé el reconocimiento facial.`;
+            const titulo = 'Encuentro en 10 minutos';
+            const cuerpo = `Estás a 10 minutos.\n${enc.lugar_nombre}\n\nAndá al lugar y hacé el reconocimiento facial.`;
 
             if (enc.token1) {
                 try {
@@ -240,6 +241,24 @@ cron.schedule('* * * * *', async () => {
                     console.log(`>>> 📨 Push 10m enviada a ${enc.usuario2_id}`);
                 } catch (e) { console.error('>>> ❌ Error push 10m:', e.message); }
             }
+
+            // 🔥 INSERTAR ALERTA EN LA APP
+            try {
+                await pool.query(
+                    `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+                     VALUES ($1, 0, $2, 'recordatorio_encuentro', NOW()),
+                            ($3, 0, $2, 'recordatorio_encuentro', NOW())`,
+                    [enc.usuario1_id, `${titulo}\n${cuerpo}`, enc.usuario2_id]
+                );
+                console.log(`>>> 📥 Alerta 10m insertada para usuarios ${enc.usuario1_id} y ${enc.usuario2_id}`);
+            } catch (e) { console.error('>>> ❌ Error INSERT alerta 10m:', e.message); }
+
+            // 🔥 MARCAR COMO ENVIADO
+            await pool.query(
+                `UPDATE encuentros_agendados SET recordatorio_10m_enviado = TRUE WHERE id = $1`,
+                [enc.id]
+            );
+
             console.log(`>>> 🚨 Recordatorio 10m procesado para encuentro ${enc.id}`);
         }
 
