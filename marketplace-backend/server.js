@@ -4377,18 +4377,46 @@ app.post('/api/encuentro/cancelar/:id', async (req, res) => {
 
 app.post('/api/encuentro/verificar-facial', async (req, res) => {
     try {
-        const { encuentro_id, usuario_id, aprobado, confianza } = req.body;
+        const { encuentro_id, usuario_id, aprobado, confianza, selfie_base64 } = req.body;
 
         if (!encuentro_id || !usuario_id) {
             return res.status(400).json({ error: 'Faltan datos' });
         }
 
+        // 🔥 GUARDAR LA SELFIE SI VIENE EN BASE64
+        let fotoSelfieUrl = null;
+        if (selfie_base64 && selfie_base64.length > 0) {
+            try {
+                // Crear carpeta si no existe
+                const selfiesDir = path.join(__dirname, 'uploads/selfies');
+                if (!fs.existsSync(selfiesDir)) {
+                    fs.mkdirSync(selfiesDir, { recursive: true });
+                }
+
+                // Convertir base64 a buffer
+                const base64Data = selfie_base64.replace(/^data:image\/\w+;base64,/, '');
+                const buffer = Buffer.from(base64Data, 'base64');
+
+                // Nombre único
+                const filename = `selfie_${encuentro_id}_${usuario_id}_${Date.now()}.jpg`;
+                const filepath = path.join(selfiesDir, filename);
+
+                // Guardar archivo
+                fs.writeFileSync(filepath, buffer);
+                fotoSelfieUrl = `/uploads/selfies/${filename}`;
+
+                console.log(`>>> 📸 Selfie guardada: ${fotoSelfieUrl}`);
+            } catch (e) {
+                console.error('>>> ❌ Error guardando selfie:', e.message);
+            }
+        }
+
         const result = await pool.query(
             `INSERT INTO verificaciones_faciales 
-             (encuentro_id, usuario_id, aprobado, confianza)
-             VALUES ($1, $2, $3, $4)
+             (encuentro_id, usuario_id, aprobado, confianza, foto_selfie, fecha_selfie)
+             VALUES ($1, $2, $3, $4, $5, NOW())
              RETURNING *`,
-            [encuentro_id, usuario_id, aprobado === true, confianza || 0]
+            [encuentro_id, usuario_id, aprobado === true, confianza || 0, fotoSelfieUrl]
         );
 
         // Si el usuario verifica OK, marcar en el encuentro
@@ -4401,7 +4429,11 @@ app.post('/api/encuentro/verificar-facial', async (req, res) => {
             );
         }
 
-        res.status(201).json({ success: true, verificacion: result.rows[0] });
+        res.status(201).json({ 
+            success: true, 
+            verificacion: result.rows[0],
+            foto_selfie: fotoSelfieUrl,
+        });
     } catch (error) {
         console.error('Error al guardar verificación facial:', error);
         res.status(500).json({ error: error.message });
