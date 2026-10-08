@@ -4693,15 +4693,48 @@ app.get('/api/encuentro/:id/datos', async (req, res) => {
             ? enc.usuario2_id
             : enc.usuario1_id;
 
-        const fotoResult = await pool.query(
-            `SELECT foto_perfil FROM usuarios WHERE uid = $1`,
+        // 🔥 Datos del otro usuario
+        const userResult = await pool.query(
+            `SELECT nombre, foto_perfil FROM usuarios WHERE uid = $1`,
             [otroUsuarioId]
         );
+
+        // 🔥 Datos de la conversación y producto
+        const convResult = await pool.query(
+            `SELECT c.*, 
+                    p.nombre AS producto_nombre,
+                    p.imagen_url AS producto_imagen,
+                    p.imagen_miniatura AS producto_imagen_miniatura,
+                    p.precio AS producto_precio,
+                    p.categoria AS producto_categoria,
+                    p.descripcion AS producto_descripcion,
+                    p.direccion AS producto_direccion,
+                    p.imagen_destacada AS producto_imagen_destacada,
+                    p.imagenes_reales AS producto_imagenes_reales
+             FROM conversaciones_app c
+             LEFT JOIN productos_app p ON c.producto_id = p.id
+             WHERE c.id = $1`,
+            [enc.conversacion_id]
+        );
+
+        const conv = convResult.rows[0] || {};
 
         res.json({
             encuentro_id: enc.id,
             otro_usuario_id: otroUsuarioId,
-            otro_usuario_foto: fotoResult.rows[0]?.foto_perfil || '',
+            otro_usuario_foto: userResult.rows[0]?.foto_perfil || '',
+            otro_usuario_nombre: userResult.rows[0]?.nombre || 'Usuario',
+            conversacion_id: enc.conversacion_id,
+            producto_id: conv.producto_id || '',
+            producto_nombre: conv.producto_nombre || 'Producto',
+            producto_imagen: conv.producto_imagen || '',
+            producto_imagen_miniatura: conv.producto_imagen_miniatura || '',
+            producto_precio: conv.producto_precio?.toString() || '0',
+            producto_categoria: conv.producto_categoria || '',
+            producto_descripcion: conv.producto_descripcion || '',
+            producto_direccion: conv.producto_direccion || '',
+            producto_imagen_destacada: conv.producto_imagen_destacada || '',
+            producto_imagenes_reales: conv.producto_imagenes_reales || '',
         });
     } catch (error) {
         console.error('Error al obtener datos del encuentro:', error);
