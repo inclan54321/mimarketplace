@@ -148,6 +148,7 @@ cron.schedule('* * * * *', async () => {
              LEFT JOIN usuarios u1 ON e.usuario1_id = u1.uid
              LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
              WHERE e.estado = 'agendado'
+               AND e.recordatorio_1h_enviado = FALSE
                AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '59 minutes'
                                           AND NOW() + INTERVAL '61 minutes'`
         );
@@ -178,6 +179,24 @@ cron.schedule('* * * * *', async () => {
                     console.log(`>>> 📨 Push 1h enviada a ${enc.usuario2_id}`);
                 } catch (e) { console.error('>>> ❌ Error push 1h:', e.message); }
             }
+
+            // 🔥 INSERTAR ALERTA EN LA APP
+            try {
+                await pool.query(
+                    `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+                     VALUES ($1, 0, $2, 'recordatorio_encuentro', NOW()),
+                            ($3, 0, $2, 'recordatorio_encuentro', NOW())`,
+                    [enc.usuario1_id, `${titulo}\n${cuerpo}`, enc.usuario2_id]
+                );
+                console.log(`>>> 📥 Alerta 1h insertada para usuarios ${enc.usuario1_id} y ${enc.usuario2_id}`);
+            } catch (e) { console.error('>>> ❌ Error INSERT alerta 1h:', e.message); }
+
+            // 🔥 MARCAR COMO ENVIADO
+            await pool.query(
+                `UPDATE encuentros_agendados SET recordatorio_1h_enviado = TRUE WHERE id = $1`,
+                [enc.id]
+            );
+
             console.log(`>>> ⏰ Recordatorio 1h procesado para encuentro ${enc.id}`);
         }
 
