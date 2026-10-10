@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/rewarded_ad_prueba.dart';
 
 class IaChatButton extends StatefulWidget {

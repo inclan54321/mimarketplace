@@ -247,7 +247,7 @@ class _PortafolioVendedorScreenState extends State<PortafolioVendedorScreen> {
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
+                        errorBuilder: (_, _, _) => const Icon(
                           Icons.person,
                           size: 32,
                           color: Colors.grey,

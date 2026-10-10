@@ -2020,7 +2020,72 @@ app.delete('/api/productos/:id', async (req, res) => {
     }
 });
 
+// ===== MARCAR PRODUCTO COMO VENDIDO =====
+app.post('/api/productos/:id/vendido', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { vendedor_id } = req.body;
 
+        if (!vendedor_id) {
+            return res.status(400).json({ error: 'vendedor_id requerido' });
+        }
+
+        // 1. VERIFICAR QUE EL PRODUCTO PERTENEZCA AL VENDEDOR
+        const checkResult = await pool.query(
+            'SELECT * FROM productos_app WHERE id = $1 AND vendedor_id = $2',
+            [id, vendedor_id]
+        );
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Producto no encontrado o no te pertenece' });
+        }
+
+        const producto = checkResult.rows[0];
+
+        if (producto.vendido === true) {
+            return res.status(400).json({ error: 'Este producto ya fue marcado como vendido' });
+        }
+
+        // 2. MARCAR COMO VENDIDO
+        await pool.query(
+            `UPDATE productos_app 
+             SET vendido = TRUE, fecha_vendido = NOW(), estado = 'vendido'
+             WHERE id = $1`,
+            [id]
+        );
+
+        console.log(`>>> ✅ Producto ${id} marcado como VENDIDO`);
+
+        // 3. BUSCAR TODAS LAS CONVERSACIONES DE ESTE PRODUCTO
+        const convResult = await pool.query(
+            `SELECT id, usuario1_id, usuario2_id 
+             FROM conversaciones_app 
+             WHERE producto_id = $1`,
+            [id]
+        );
+
+        console.log(`>>> 📩 Enviando mensaje a ${convResult.rows.length} conversaciones`);
+
+        // 4. INSERTAR UN MENSAJE EN CADA CONVERSACIÓN
+        for (const conv of convResult.rows) {
+            await pool.query(
+                `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                 VALUES ($1, 'SYSTEM', $2, '', NOW())`,
+                [conv.id, `||ARTICULO_VENDIDO||${producto.nombre}`]
+            );
+            console.log(`>>> 📩 Mensaje "vendido" insertado en conversación ${conv.id}`);
+        }
+
+        res.json({
+            success: true,
+            mensaje: 'Producto marcado como vendido',
+            conversaciones_notificadas: convResult.rows.length,
+        });
+    } catch (error) {
+        console.error('Error al marcar producto como vendido:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 app.post('/api/agenda', async (req, res) => {
     console.log('>>> 🔥🔥🔥 VERSIÓN 3 CON productos_lista 🔥🔥🔥');
     try {

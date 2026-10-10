@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
@@ -15,7 +15,6 @@ import 'screens/alertas_screen.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'services/notification_service.dart';
 
 // 🔥 HANDLER PARA MENSAJES EN SEGUNDO PLANO
 @pragma('vm:entry-point')
@@ -52,6 +51,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NotificationService.navigatorKey,
       title: 'Mi Marketplace',
       theme: ThemeData(primarySwatch: Colors.blue),
       initialRoute: '/',

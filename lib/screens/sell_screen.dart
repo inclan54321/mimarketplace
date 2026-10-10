@@ -8,7 +8,7 @@ class SellScreen extends StatelessWidget {
 
   final Map<String, Map<String, dynamic>> categoriasConSubcategorias = const {
     'Electrónicos': {
-      'imagen': 'electronica.jpg',
+      'imagen': 'electronica.png',
       'subcategorias': ['Televisores', 'Audio', 'Cámaras', 'Drones', 'Accesorios'],
       'icono': Icons.memory,
       'subtitulo': 'Móviles, Laptops, Audio',
@@ -24,7 +24,7 @@ class SellScreen extends StatelessWidget {
       'colorFin': Color(0xFF10B981),
     },
     'Hogar': {
-      'imagen': 'hogar.png',
+      'imagen': 'hogar.jpg',
       'subcategorias': ['Muebles', 'Decoración', 'Iluminación', 'Almacenamiento', 'Textiles'],
       'icono': Icons.home,
       'subtitulo': 'Muebles, Decoración, Cocina',
@@ -40,7 +40,7 @@ class SellScreen extends StatelessWidget {
       'colorFin': Color(0xFFF472B6),
     },
     'Cocina': {
-      'imagen': 'cocina.png',
+      'imagen': 'cocina.jpg',
       'subcategorias': ['Ollas', 'Sartenes', 'Utensilios', 'Electrodomésticos', 'Vajilla'],
       'icono': Icons.restaurant,
       'subtitulo': 'Ollas, Utensilios, Vajilla',
@@ -72,7 +72,7 @@ class SellScreen extends StatelessWidget {
       'colorFin': Color(0xFF06B6D4),
     },
     'Juegos de Mesa': {
-      'imagen': 'juegosdemesa.png',
+      'imagen': 'juegosdemesa.jpg',
       'subcategorias': ['Cartas', 'Tableros', 'Estrategia', 'Familiares', 'Rol'],
       'icono': Icons.casino,
       'subtitulo': 'Cartas, Tableros, Estrategia',
@@ -88,7 +88,7 @@ class SellScreen extends StatelessWidget {
       'colorFin': Color(0xFFEC4899),
     },
     'Figuras': {
-      'imagen': 'figuras.png',
+      'imagen': 'figuras.jpg',
       'subcategorias': ['Acción', 'Coleccionables', 'Anime', 'Estatua', 'Miniaturas'],
       'icono': Icons.emoji_people,
       'subtitulo': 'Acción, Coleccionables, Anime',

@@ -47,7 +47,7 @@ class ImagenCompletaScreen extends StatelessWidget {
                   child: Image.network(
                     'https://mimarketplace-production.up.railway.app$imagenUrl',
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Center(
+                    errorBuilder: (_, _, _) => const Center(
                       child: Icon(Icons.broken_image,
                           size: 80, color: Colors.grey),
                     ),

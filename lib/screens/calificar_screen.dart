@@ -157,7 +157,7 @@ class _CalificarScreenState extends State<CalificarScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _puntuacion > 0 ? '${_puntuacion} estrella${_puntuacion > 1 ? 's' : ''}' : 'Selecciona una calificación',
+              _puntuacion > 0 ? '$_puntuacion estrella${_puntuacion > 1 ? 's' : ''}' : 'Selecciona una calificación',
               style: const TextStyle(
                 fontSize: 16,
                 color: Colors.grey,

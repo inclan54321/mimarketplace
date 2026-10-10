@@ -4,14 +4,15 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_linux
+  face_detection_tflite
   file_selector_linux
   flutter_sound
   url_launcher_linux
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  flutter_litert
   jni
-  tflite_flutter
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

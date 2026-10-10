@@ -579,7 +579,7 @@ void _mostrarDialogoDenuncia() {
                   activeColor: Colors.red,
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                )).toList(),
+                )),
                 const SizedBox(height: 8),
                 const Text(
                   'Esta denuncia será revisada por nuestro equipo de moderación.',
@@ -681,6 +681,48 @@ Future<void> _enviarDenuncia(String motivo) async {
     }
   }
 
+  void _mostrarImagenCompleta(String url) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (context) => GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 5.0,
+                  child: CachedNetworkImage(
+                    imageUrl: url,
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (context, url, error) => const Center(
+                      child: Icon(Icons.image_not_supported,
+                          size: 80, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 40,
+                right: 16,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildImageCarousel() {
   List<String> imagenes = [];
   final baseUrl = 'https://mimarketplace-production.up.railway.app';
@@ -716,25 +758,35 @@ Future<void> _enviarDenuncia(String motivo) async {
     children: [
       // Imagen Principal ajustada a BoxFit.contain para no forzar zoom gigante
       Positioned.fill(
-        child: PageView.builder(
-          itemCount: imagenes.length,
-          onPageChanged: (index) {
-            setState(() {
-              _imagenActual = index;
-            });
+        child: GestureDetector(
+          onDoubleTap: () {
+            _mostrarImagenCompleta('$baseUrl${imagenes[_imagenActual]}');
           },
-          itemBuilder: (context, index) {
-            return CachedNetworkImage(
-  imageUrl: '$baseUrl${imagenes[index]}',
-  fit: BoxFit.contain,
-  placeholder: (context, url) => const Center(
-    child: CircularProgressIndicator(color: Colors.white),
-  ),
-  errorWidget: (context, url, error) => const Center(
-    child: Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
-  ),
-);
-          },
+          child: PageView.builder(
+            itemCount: imagenes.length,
+            onPageChanged: (index) {
+              setState(() {
+                _imagenActual = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onDoubleTap: () {
+                  _mostrarImagenCompleta('$baseUrl${imagenes[index]}');
+                },
+                child: CachedNetworkImage(
+                  imageUrl: '$baseUrl${imagenes[index]}',
+                  fit: BoxFit.contain,
+                  placeholder: (context, url) => const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                  errorWidget: (context, url, error) => const Center(
+                    child: Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
       // Miniaturas superiores ajustadas en tamaño
@@ -746,7 +798,7 @@ Future<void> _enviarDenuncia(String motivo) async {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(12),
             ),
             child: SingleChildScrollView(
@@ -793,7 +845,7 @@ Future<void> _enviarDenuncia(String motivo) async {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -832,7 +884,7 @@ Future<void> _enviarDenuncia(String motivo) async {
             left: 16,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -852,7 +904,7 @@ Future<void> _enviarDenuncia(String motivo) async {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    Colors.black.withOpacity(0.9),
+                    Colors.black.withValues(alpha: 0.9),
                     Colors.transparent,
                   ],
                 ),
@@ -870,7 +922,7 @@ Future<void> _enviarDenuncia(String motivo) async {
                     style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  if (_producto.descripcion != null && _producto.descripcion.isNotEmpty)
+                  if (_producto.descripcion.isNotEmpty)
                     Text(
                       _producto.descripcion,
                       style: const TextStyle(color: Colors.white70, fontSize: 14),
@@ -1102,7 +1154,7 @@ Future<void> _enviarDenuncia(String motivo) async {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Column(

@@ -1,0 +1,18 @@
+import 'package:flutter/material.dart';
+
+class LivenessProgressBar extends StatelessWidget {
+  final double progress;
+
+  const LivenessProgressBar({
+    super.key,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LinearProgressIndicator(
+      value: progress,
+      backgroundColor: Colors.grey.withValues(alpha: 0.5),
+    );
+  }
+}

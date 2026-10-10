@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/producto.dart';
 import 'detalle_producto_screen.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 
 final Map<String, Color> coloresProvincias = {

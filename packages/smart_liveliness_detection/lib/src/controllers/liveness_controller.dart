@@ -1,0 +1,980 @@
+import 'package:camera/camera.dart';
+import 'package:flutter/widgets.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:smart_liveliness_detection/smart_liveliness_detection.dart';
+import 'package:smart_liveliness_detection/src/controllers/zoom_challenge_controller.dart';
+import 'package:smart_liveliness_detection/src/services/camera_service.dart';
+import 'package:smart_liveliness_detection/src/services/capture_service.dart';
+import 'package:smart_liveliness_detection/src/services/face_detection_service.dart';
+import 'package:smart_liveliness_detection/src/services/motion_service.dart';
+import 'package:smart_liveliness_detection/src/services/biometric_template_service.dart';
+import 'package:smart_liveliness_detection/src/services/depth_detection_service.dart';
+import 'package:smart_liveliness_detection/src/services/face_quality_service.dart';
+import 'package:smart_liveliness_detection/src/services/screen_flash_service.dart';
+import 'package:smart_liveliness_detection/src/services/voice_guidance_service.dart';
+
+/// Controller for liveness detection session
+class LivenessController extends ChangeNotifier {
+  /// Camera service
+  final CameraService _cameraService;
+
+  /// Face detection service
+  final FaceDetectionService _faceDetectionService;
+
+  /// Motion service
+  final MotionService _motionService;
+
+  /// Single capture service
+  CaptureService? _singleCaptureService;
+
+  /// Available cameras
+  final List<CameraDescription> _cameras;
+
+  /// Configuration
+  LivenessConfig _config;
+
+  /// Theme
+  LivenessTheme _theme;
+
+  /// Liveness session
+  LivenessSession _session;
+
+  /// Message for face centering guidance
+  String _faceCenteringMessage = '';
+
+  /// Whether a face is currently detected
+  bool _isFaceDetected = false;
+
+  /// Whether currently processing an image
+  bool _isProcessing = false;
+
+  /// Whether this controller is disposed
+  bool _isDisposed = false;
+
+  /// Current status message
+  String _statusMessage = 'Initializing...';
+
+  /// Callback for when a challenge is completed
+  final ChallengeCompletedCallback? _onChallengeCompleted;
+
+  /// Callback for when liveness verification is completed
+  final LivenessCompletedCallback? _onLivenessCompleted;
+
+  /// Callback for when face is detected
+  final FaceDetectedCallback? _onFaceDetected;
+
+  /// Callback for when face is NOT detected (It will trigger the first face non-detection event after any face detection)
+  final FaceNotDetectedCallback? _onFaceNotDetected;
+
+  /// Callback for when final image is captured
+  final FinalImageCapturedCallback? _onFinalImageCaptured;
+
+  /// Whether verification was successful (after completion)
+  bool _isVerificationSuccessful = false;
+
+  late final ZoomChallengeController _zoomChallengeController;
+
+  /// Whether to capture image at end of verification
+  final bool _captureFinalImage;
+
+  final VoidCallback? onReset;
+
+  // Anti-spoofing flags
+  bool _screenGlareDetected = false;
+  bool _lackOfFacialContoursDetected = false;
+
+  bool _firstChallengePassed = false;
+
+  /// Voice guidance service (null when voice guidance is disabled)
+  VoiceGuidanceService? _voiceGuidanceService;
+
+  /// Face quality analysis service
+  final FaceQualityService _faceQualityService = FaceQualityService();
+
+  /// Screen-flash anti-spoofing service (lazy-initialised when config present)
+  ScreenFlashService? _screenFlashService;
+
+  /// Whether the screen-flash test detected a spoofing attempt
+  bool _screenFlashSpoofDetected = false;
+
+  /// Last computed face quality result
+  FaceQualityResult? _lastQualityResult;
+
+  /// Frame counter for throttling quality checks (every 10 face-detected frames)
+  int _qualityFrameCounter = 0;
+
+  /// Callback fired each time quality is re-evaluated
+  final FaceQualityCallback? _onFaceQualityCheck;
+
+  /// Callback fired when a biometric template is generated at session completion
+  final BiometricTemplateCallback? _onBiometricTemplateGenerated;
+
+  /// Biometric template service
+  final BiometricTemplateService _biometricTemplateService = BiometricTemplateService();
+
+  /// Last face detected — held so template can be generated at completion
+  Face? _lastDetectedFace;
+
+  /// Depth detection service (iOS TrueDepth / ARKit)
+  final DepthDetectionService _depthDetectionService = DepthDetectionService();
+
+  /// Recent depth results accumulated during the session
+  final List<DepthDetectionResult> _depthResults = [];
+
+  /// Whether depth spoofing was detected at session completion
+  bool _depthSpoofDetected = false;
+
+  /// Constructor
+  LivenessController({
+    required List<CameraDescription> cameras,
+    required TickerProvider vsync,
+    LivenessConfig? config,
+    LivenessTheme? theme,
+    CameraService? cameraService,
+    FaceDetectionService? faceDetectionService,
+    MotionService? motionService,
+    List<ChallengeType>? challengeTypes,
+    ChallengeCompletedCallback? onChallengeCompleted,
+    LivenessCompletedCallback? onLivenessCompleted,
+    FaceDetectedCallback? onFaceDetected,
+    FaceNotDetectedCallback? onFaceNotDetected,
+    FinalImageCapturedCallback? onFinalImageCaptured,
+    FaceQualityCallback? onFaceQualityCheck,
+    BiometricTemplateCallback? onBiometricTemplateGenerated,
+    bool captureFinalImage = true,
+    this.onReset,
+  })  : _onBiometricTemplateGenerated = onBiometricTemplateGenerated,
+        _cameras = cameras,
+        _config = config ?? const LivenessConfig(),
+        _currentZoomFactor = config?.initialZoomFactor ?? 1.0,
+        _theme = theme ?? const LivenessTheme(),
+        _cameraService = cameraService ?? CameraService(config: config),
+        _faceDetectionService =
+            faceDetectionService ?? FaceDetectionService(config: config),
+        _motionService = motionService ?? MotionService(config: config),
+        _onChallengeCompleted = onChallengeCompleted,
+        _onLivenessCompleted = onLivenessCompleted,
+        _onFaceDetected = onFaceDetected,
+        _onFaceNotDetected = onFaceNotDetected,
+        _onFinalImageCaptured = onFinalImageCaptured,
+        _onFaceQualityCheck = onFaceQualityCheck,
+        _captureFinalImage = captureFinalImage,
+        _session = LivenessSession(
+          challenges: LivenessSession.generateRandomChallenges(
+              config ?? const LivenessConfig()),
+        ) {
+    // Apply "sandwich" logic if enabled and using random challenges
+    if (_config.sandwichNormalChallenge && challengeTypes == null) {
+      final challenges = _session.challenges;
+      // Add normal challenge at the beginning if not present
+      if (challenges.isEmpty || challenges.first.type != ChallengeType.normal) {
+        challenges.insert(
+            0,
+            Challenge(
+              ChallengeType.normal,
+              customInstruction:
+                  _config.challengeInstructions?[ChallengeType.normal] ??
+                      _config.messages.initialInstruction,
+            ));
+      }
+
+      // Add normal challenge at the end if not present
+      if (challenges.last.type != ChallengeType.normal) {
+        challenges.add(Challenge(
+          ChallengeType.normal,
+          customInstruction:
+              _config.challengeInstructions?[ChallengeType.normal] ??
+                  _config.messages.initialInstruction,
+        ));
+      }
+    }
+
+    _zoomChallengeController = ZoomChallengeController(
+        vsync: vsync, initialValue: _config.initialZoomFactor);
+    initialize();
+  }
+
+  /// Initialize the controller and services
+  @protected
+  @visibleForTesting
+  Future<void> initialize() async {
+    try {
+      _statusMessage = _config.messages.initializingCamera;
+      if (!_isDisposed) notifyListeners();
+
+      _zoomChallengeController.reset();
+
+      // Initialize camera service
+      await _cameraService.initialize(_cameras);
+
+      // Start motion tracking
+      _motionService.startAccelerometerTracking();
+
+      // Start image stream with error handling
+      await _cameraService.startImageStream(processCameraImage);
+
+      // Initialize single capture service if enabled
+      if (_captureFinalImage && _cameraService.controller != null) {
+        _singleCaptureService = CaptureService(
+          cameraController: _cameraService.controller,
+        );
+      }
+
+      _statusMessage = _config.messages.initialInstruction;
+      if (!_isDisposed) notifyListeners();
+
+      // Initialise depth detection if configured (iOS TrueDepth only)
+      if (_config.depthDetection?.enabled == true) {
+        final available = await _depthDetectionService.checkAvailability();
+        if (available) {
+          await _depthDetectionService.startSession();
+          _depthDetectionService.results.listen((result) {
+            if (!_isDisposed && !_session.isComplete) {
+              _depthResults.add(result);
+              // Keep only the last 30 readings
+              if (_depthResults.length > 30) _depthResults.removeAt(0);
+            }
+          });
+        } else if (_config.depthDetection!.requireTrueDepth) {
+          _statusMessage = _config.messages.errorInitializingCamera;
+          if (!_isDisposed) notifyListeners();
+          return;
+        }
+      }
+
+      // Initialise voice guidance if configured
+      if (_config.voiceGuidance?.enabled == true) {
+        _voiceGuidanceService =
+            VoiceGuidanceService(config: _config.voiceGuidance!);
+        await _voiceGuidanceService!.initialize();
+        _voiceGuidanceService!.speak(_config.messages.initialInstruction);
+      }
+    } catch (e) {
+      debugPrint('Error initializing liveness controller: $e');
+      _statusMessage = _config.messages.errorInitializingCamera;
+      if (!_isDisposed) notifyListeners();
+    }
+  }
+
+  /// Process images from the camera stream
+  @visibleForTesting
+  Future<void> processCameraImage(CameraImage image) async {
+    if (_isDisposed) {
+      return;
+    }
+
+    if (_isProcessing || !_cameraService.isInitialized) return;
+
+    _isProcessing = true;
+
+    try {
+      // Check session expiry
+      if (_session.isExpired(_config.maxSessionDuration)) {
+        _session = _session.reset(_config);
+        _faceDetectionService.resetTracking();
+        _motionService.resetTracking();
+        if (!_isDisposed) notifyListeners();
+        return;
+      }
+
+      // Calculate lighting with error handling
+      try {
+        _cameraService.calculateLightingCondition(image);
+      } catch (e) {
+        debugPrint('Error calculating lighting: $e');
+      }
+
+      // Detect screen glare if enabled
+      if (_config.enableScreenGlareDetection) {
+        try {
+          if (_cameraService.detectScreenGlare(image)) {
+            debugPrint(
+                'Detected potential screen glare, possible spoofing attempt');
+            _screenGlareDetected = true;
+          }
+        } catch (e) {
+          debugPrint('Error detecting screen glare: $e');
+        }
+      }
+
+      // Get the front camera
+      final camera = _cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+        orElse: () => _cameras.first,
+      );
+
+      // Process faces with error handling
+      List<Face>? faces = [];
+      try {
+        faces = await _faceDetectionService.processImage(image, camera);
+      } catch (e) {
+        debugPrint('Error in face detection: $e');
+        // Continue with empty face list
+      }
+
+      if (faces != null) {
+        if (faces.isNotEmpty) {
+          final face = faces.first;
+          _isFaceDetected = true;
+          _lastDetectedFace = face;
+
+          // Face quality scoring
+          if (_config.enableFaceQualityScoring && !_session.isComplete) {
+            _qualityFrameCounter++;
+            if (_qualityFrameCounter >= 10) {
+              _qualityFrameCounter = 0;
+              try {
+                _lastQualityResult = _faceQualityService.analyze(face, image);
+                _onFaceQualityCheck?.call(_lastQualityResult!);
+              } catch (e) {
+                debugPrint('Error in face quality scoring: $e');
+              }
+            }
+          }
+
+          // Contour analysis on centering phase
+          if (_config.enableContourAnalysisOnCentering &&
+              _session.state == LivenessState.centeringFace) {
+            if (!_faceDetectionService.isContourComplete(face)) {
+              debugPrint(
+                  'Detected potential lack of facial contours on centering, possible spoofing attempt');
+              _lackOfFacialContoursDetected = true;
+            }
+          }
+
+          //region ## 1. Calculate the screen size from the camera image
+          // (exactly like you do in _updateFaceCenteringGuidance)
+          final screenSize = Size(
+            image.width.toDouble(),
+            image.height.toDouble(),
+          );
+
+          Size screenSizeAux = Size(
+              screenSize.width > screenSize.height
+                  ? screenSize.height
+                  : screenSize.width,
+              screenSize.width > screenSize.height
+                  ? screenSize.width
+                  : screenSize.height);
+          //endregion
+
+          //region ## 2. Calculate the rectangle of the oval
+          final ovalCenterY =
+              screenSizeAux.height / 2 - screenSizeAux.height * 0.05;
+          final ovalHeight = screenSizeAux.height * 0.55;
+          final ovalWidth = ovalHeight * 0.75;
+          final ovalRect = Rect.fromCenter(
+            center: Offset(screenSizeAux.width / 2, ovalCenterY),
+            width: ovalWidth,
+            height: ovalHeight,
+          );
+          //endregion
+
+          bool isCentered = false;
+
+          try {
+            isCentered =
+                _faceDetectionService.checkFaceCentering(face, screenSize);
+            _updateFaceCenteringGuidance(face, screenSize);
+          } catch (e) {
+            if (!_session.isComplete) {
+              debugPrint('Error checking face centering: $e');
+              _faceCenteringMessage =
+                  _config.messages.errorCheckingFacePosition;
+            }
+          }
+
+          //region ## 3. Pass the calculated ovalRect to the processing method
+          if (_session.state == LivenessState.centeringFace && isCentered) {
+            _processLivenessDetection(face, ovalRect, image);
+          } else if (_session.state != LivenessState.centeringFace) {
+            _processLivenessDetection(face, ovalRect, image);
+          }
+          //endregion
+
+          // Notify via callback
+          _onFaceDetected?.call(_session.currentChallenge!.type,
+              _firstChallengePassed, image, faces, camera);
+        } else {
+          // WARNING: It will be called only after onFaceDetected is called! It will trigger the first face non-detection event after any face detection
+          if (_isFaceDetected) {
+            // 🔥 FIX 1: Cualquier pérdida de cara durante los challenges resetea la sesión.
+            // Sin importar si es un challenge de movimiento o no.
+            if (_session.state == LivenessState.performingChallenges) {
+              debugPrint(
+                  '🔥 Face lost during challenge, resetting session HARD.');
+              _statusMessage = _config.messages.noFaceDetected;
+              resetSession();
+              return;
+            }
+
+            // Notify via callback
+            _onFaceNotDetected?.call(_session.currentChallenge!.type, this);
+          }
+
+          // 🔥 FIX 2: Si la sesión ya está completada (todos los challenges pasaron)
+          // y el usuario saca la cara, reseteamos. Esto evita que saque la cara,
+          // la vuelva a meter, y toque el botón de captura con la cara centrada.
+          if (_session.state == LivenessState.completed) {
+            debugPrint(
+                '🔥 Face lost after challenges completed, resetting session.');
+            _statusMessage = _config.messages.noFaceDetected;
+            resetSession();
+            return;
+          }
+
+          _isFaceDetected = false;
+          _faceCenteringMessage = _config.messages.noFaceDetected;
+        }
+
+        if (!_isDisposed) notifyListeners();
+      }
+    } catch (e) {
+      if (!session.isComplete) {
+        debugPrint('Error in _processCameraImage: $e');
+        _statusMessage = _config.messages.errorProcessing;
+      }
+      if (!_isDisposed) notifyListeners();
+    } finally {
+      _isProcessing = false;
+    }
+  }
+
+  /// Update face centering guidance message
+  void _updateFaceCenteringGuidance(Face face, Size screenSize) {
+    // Adjust screenSize because the camera may have rotated the image
+    Size screenSizeAux = Size(
+        screenSize.width > screenSize.height
+            ? screenSize.height
+            : screenSize.width,
+        screenSize.width > screenSize.height
+            ? screenSize.width
+            : screenSize.height);
+
+    // Oval center (adjusted 5% upwards from screen center)
+    final ovalCenterX = screenSizeAux.width / 2;
+    final ovalCenterY = screenSizeAux.height / 2 - screenSizeAux.height * 0.05;
+
+    // Oval dimensions
+    final ovalHeight = screenSizeAux.height * 0.55;
+    final ovalWidth = ovalHeight * 0.75;
+
+    final faceBox = face.boundingBox;
+
+    // Apply coordinate correction for front camera
+    double faceCenterX = faceBox.left + faceBox.width / 2;
+    // WARNING: This is really needed?
+    // This is where the problem is - we need to flip the X coordinate on Android with front camera
+    // if (_currentCamera?.lensDirection == CameraLensDirection.front) {
+    //   // Flip the X coordinate for Android front camera
+    //   faceCenterX = screenSizeAux.width - (faceBox.left + faceBox.width / 2);
+    // }
+    final faceCenterY = faceBox.top + faceBox.height / 2;
+
+    // Debug prints to verify coordinates
+    debugPrint('Face center: ($faceCenterX, $faceCenterY)');
+    debugPrint('Screen center: ($ovalCenterX, $ovalCenterY)');
+
+    // Calculate size ratios
+    final faceWidthRatio = faceBox.width / ovalWidth;
+    final isHorizontallyOff =
+        (faceCenterX - ovalCenterX).abs() > screenSize.width * 0.1;
+    final isVerticallyOff =
+        (faceCenterY - ovalCenterY).abs() > screenSize.height * 0.1;
+
+    // Updated thresholds to be consistent with initialization and challenge requirements
+    // Challenges require 0.70 minimum, so we guide users to stay above 0.60
+    final isTooBig = faceWidthRatio > 1.0;
+    final isTooSmall = faceWidthRatio < 0.60;
+
+    // Direction logic using the corrected coordinates
+    if (isTooBig) {
+      _faceCenteringMessage = _config.messages.moveFartherAway;
+    } else if (isTooSmall) {
+      _faceCenteringMessage = _config.messages.moveCloser;
+    } else if (isHorizontallyOff) {
+      if (faceCenterX > ovalCenterX) {
+        _faceCenteringMessage = _config.messages.moveRight;
+      } else {
+        _faceCenteringMessage = _config.messages.moveLeft;
+      }
+    } else if (isVerticallyOff) {
+      if (faceCenterY < ovalCenterY) {
+        _faceCenteringMessage = _config.messages.moveDown;
+      } else {
+        _faceCenteringMessage = _config.messages.moveUp;
+      }
+    } else {
+      _faceCenteringMessage = _config.messages.perfectHoldStill;
+    }
+
+    if (!isTooBig && !isTooSmall && !isHorizontallyOff && !isVerticallyOff) {
+      _faceCenteringMessage = _config.messages.perfectHoldStill;
+      // Force the face detection service to consider the face centered
+      _faceDetectionService.forceFaceCentered(true);
+    }
+  }
+
+  /// Process liveness detection for the current state
+  void _processLivenessDetection(Face face, Rect ovalRect, CameraImage image) {
+    if (!_cameraService.isLightingGood) {
+      _statusMessage = _config.messages.poorLighting;
+      return;
+    }
+
+    //region !! Anti-spoofing detection: Additional contour check for specific challenges
+    final currentChallenge = _session.currentChallenge;
+    if (currentChallenge != null &&
+        _config.contourChallengeTypes?.contains(currentChallenge.type) ==
+            true) {
+      if (!_faceDetectionService.isContourComplete(face)) {
+        debugPrint(
+            'Detected potential lack of facial contours on challenge ${currentChallenge.type}, possible spoofing attempt');
+        _lackOfFacialContoursDetected = true;
+      }
+    }
+    //endregion
+
+    switch (_session.state) {
+      case LivenessState.initial:
+        _session.state = LivenessState.centeringFace;
+        _statusMessage = _config.messages.initialInstruction;
+        break;
+
+      case LivenessState.centeringFace:
+        if (_faceDetectionService.isFaceCentered) {
+          // Block challenge start if quality is below threshold
+          if (_config.blockChallengesOnLowQuality &&
+              _config.enableFaceQualityScoring &&
+              _lastQualityResult != null &&
+              _lastQualityResult!.score < _config.minFaceQualityScore) {
+            _statusMessage = _config.messages.lowFaceQuality;
+            break;
+          }
+          _faceDetectionService.resetTracking();
+          _motionService.resetTracking();
+
+          // Route through flash test if configured
+          if (_config.screenFlash?.enabled == true) {
+            _screenFlashService = ScreenFlashService(config: _config.screenFlash!);
+            _screenFlashService!.start();
+            _cameraService.lockExposure(); // prevent AEC fighting the flash
+            _session.state = LivenessState.screenFlashTest;
+            _statusMessage = _config.messages.screenFlashInstruction;
+          } else {
+            _session.state = LivenessState.performingChallenges;
+            _updateStatusMessage();
+          }
+          _speak(_statusMessage);
+          if (!_isDisposed) notifyListeners();
+
+          Future.delayed(Duration.zero, () {
+            if (_session.currentChallenge?.type == ChallengeType.zoom &&
+                _zoomChallengeController.state == ZoomChallengeState.initial) {
+              _zoomChallengeController.startChallenge();
+            }
+          });
+          return;
+        } else {
+          _statusMessage = _faceCenteringMessage;
+          _speak(_faceCenteringMessage, isPositioning: true);
+        }
+        break;
+
+      case LivenessState.screenFlashTest:
+        if (_screenFlashService == null) break;
+        final flashResult = _screenFlashService!.processFrame(face, image);
+        if (flashResult != null) {
+          _cameraService.unlockExposure();
+          if (!flashResult.passed && _config.screenFlash?.failSessionOnSpoofing == true) {
+            _screenFlashSpoofDetected = true;
+            _statusMessage = _config.messages.screenFlashSpoofingDetected;
+            _completeSession();
+          } else {
+            _screenFlashSpoofDetected = !flashResult.passed;
+            _session.state = LivenessState.performingChallenges;
+            _updateStatusMessage();
+            _speak(_statusMessage);
+            Future.delayed(Duration.zero, () {
+              if (_session.currentChallenge?.type == ChallengeType.zoom &&
+                  _zoomChallengeController.state == ZoomChallengeState.initial) {
+                _zoomChallengeController.startChallenge();
+              }
+            });
+          }
+        }
+        break;
+
+      case LivenessState.performingChallenges:
+        if (_session.currentChallengeIndex >= _session.challenges.length) {
+          _completeSession();
+          break;
+        }
+
+        final currentChallenge = _session.currentChallenge!;
+
+        if (currentChallenge.type == ChallengeType.zoom &&
+            _zoomChallengeController.state == ZoomChallengeState.initial) {
+          _zoomChallengeController.startChallenge();
+        }
+
+        bool challengePassed = _faceDetectionService.detectChallengeCompletion(
+          face,
+          currentChallenge.type,
+          // Parameters relevant only to the zoom challenge
+          ovalRect: ovalRect,
+          zoomFactor: _zoomChallengeController.zoomFactor,
+        );
+
+        // If the challenge is zoom, add a check to ensure the animation has finished.
+        if (currentChallenge.type == ChallengeType.zoom) {
+          // The zoom animation is "complete" when the zoomFactor is 1.0.
+          // We use a small tolerance to avoid precision issues with doubles.
+          challengePassed =
+              challengePassed && (_zoomChallengeController.zoomFactor > 0.99);
+        }
+
+        if (challengePassed) {
+          currentChallenge.isCompleted = true;
+
+          if (!_firstChallengePassed) {
+            _firstChallengePassed = true;
+          }
+
+          // If the challenge that ended was a zoom, reset the animation controller.
+          if (currentChallenge.type == ChallengeType.zoom) {
+            _currentZoomFactor = _zoomChallengeController.zoomFactor;
+            _zoomChallengeController.reset();
+          }
+
+          _session.currentChallengeIndex++;
+
+          // Notify via callback
+          _onChallengeCompleted?.call(currentChallenge.type);
+
+          _updateStatusMessage();
+          _speak(_statusMessage);
+
+          if (!_isDisposed) notifyListeners();
+
+          //region ## Check next challenge -> Zoom challenge
+          // After passing a challenge, check if the NEXT one is zoom, to start it.
+          final nextChallenge = _session.currentChallenge;
+          if (nextChallenge?.type == ChallengeType.zoom &&
+              _zoomChallengeController.state == ZoomChallengeState.initial) {
+            // A small delay so that the user notices the transition of challenges.
+            Future.delayed(const Duration(milliseconds: 500), () {
+              // Check again as the state may have changed.
+              if (_zoomChallengeController.state ==
+                  ZoomChallengeState.initial) {
+                _zoomChallengeController.startChallenge();
+              }
+            });
+          }
+          //endregion
+        }
+        break;
+
+      case LivenessState.completed:
+        break;
+    }
+  }
+
+  /// Complete the liveness session
+  void _completeSession() async {
+    _session.state = LivenessState.completed;
+
+    bool motionCorrelationFailed = false;
+    if (_config.enableMotionCorrelationCheck) {
+      if (!_motionService
+          .verifyMotionCorrelation(_faceDetectionService.headAngleReadings)) {
+        debugPrint(
+            'Potential spoofing detected: Motion correlation check failed.');
+        motionCorrelationFailed = true;
+      }
+    }
+
+    // Determine overall success based on configuration
+    _isVerificationSuccessful = true;
+    if (_config.failOnMotionCorrelationFailedAtTheEnd &&
+        motionCorrelationFailed) {
+      _isVerificationSuccessful = false;
+    }
+
+    if (!_isVerificationSuccessful) {
+      _statusMessage = _config.messages.spoofingDetected;
+    } else {
+      _statusMessage = _config.messages.verificationComplete;
+    }
+    _speak(_statusMessage, isCompletion: true);
+
+    // Evaluate depth detection results
+    if (_config.depthDetection?.enabled == true && _depthResults.isNotEmpty) {
+      final cfg = _config.depthDetection!;
+      if (_depthResults.length >= cfg.minFramesRequired) {
+        final flatCount =
+            _depthResults.where((r) => r.depthStdDev < cfg.depthThreshold).length;
+        _depthSpoofDetected = flatCount > _depthResults.length ~/ 2;
+        if (_depthSpoofDetected && cfg.failSessionOnSpoofing) {
+          _isVerificationSuccessful = false;
+          _statusMessage = _config.messages.spoofingDetected;
+        }
+      }
+    }
+
+    final antiSpoofingResults = {
+      'screenGlareDetected': _screenGlareDetected,
+      'lackOfFacialContoursDetected': _lackOfFacialContoursDetected,
+      'motionCorrelationCheckFailed': motionCorrelationFailed,
+      'screenFlashSpoofDetected': _screenFlashSpoofDetected,
+      'depthSpoofDetected': _depthSpoofDetected,
+    };
+
+    final metadata = <String, dynamic>{
+      'antiSpoofingDetection': antiSpoofingResults,
+    };
+
+    // Capture final image if enabled
+    if (_captureFinalImage && _singleCaptureService != null) {
+      try {
+        final XFile? finalImage = await _singleCaptureService!.captureImage();
+
+        if (finalImage != null && _onFinalImageCaptured != null) {
+          // Create metadata for the captured image
+          final fullMetadata = {
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+            'verificationResult': _isVerificationSuccessful,
+            'challenges':
+                _session.challenges.map((c) => c.type.toString()).toList(),
+            'sessionDuration':
+                DateTime.now().difference(_session.startTime).inMilliseconds,
+            'lightingValue': _cameraService.lightingValue,
+            'antiSpoofingDetection': antiSpoofingResults,
+          };
+
+          // Call the callback with the image and metadata
+          _onFinalImageCaptured!(_session.sessionId, finalImage, fullMetadata);
+        }
+      } catch (e) {
+        debugPrint('Error capturing final image: $e');
+      }
+    }
+
+    // Generate biometric template and/or match against reference
+    if ((_config.generateBiometricTemplate || _config.referenceTemplate != null) &&
+        _lastDetectedFace != null) {
+      try {
+        final template = _biometricTemplateService.generate(
+          _lastDetectedFace!,
+          _session.sessionId,
+          _config.templateConfig,
+        );
+        if (template != null) {
+          _onBiometricTemplateGenerated?.call(template);
+
+          // Match against enrolled reference if provided
+          if (_config.referenceTemplate != null) {
+            final score = BiometricMatcher.compare(
+              _config.referenceTemplate!,
+              template,
+            );
+            final passed = score >= _config.biometricMatchThreshold;
+            metadata['biometricMatchScore'] = score;
+            metadata['biometricMatchPassed'] = passed;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error generating biometric template: $e');
+      }
+    }
+
+    // Notify via callback
+    _onLivenessCompleted?.call(
+        _session.sessionId, _isVerificationSuccessful, metadata);
+  }
+
+  /// Update the current status message
+  void _updateStatusMessage() {
+    if (_session.currentChallenge != null) {
+      _statusMessage = _session.currentChallenge!.instruction;
+    } else {
+      _statusMessage = _config.messages.processingVerification;
+    }
+  }
+
+  /// Speaks [text] via the voice guidance service, respecting the per-category
+  /// enable flags on [VoiceGuidanceConfig]. Does nothing when voice guidance
+  /// is disabled or not configured.
+  void _speak(String text,
+      {bool isPositioning = false, bool isCompletion = false}) {
+    final voice = _config.voiceGuidance;
+    if (voice == null || !voice.enabled) return;
+    if (isPositioning && !voice.speakPositioningFeedback) return;
+    if (isCompletion && !voice.speakCompletion) return;
+    // Challenge instructions: only spoken when neither flag is set
+    if (!isPositioning && !isCompletion && !voice.speakChallengeInstructions) {
+      return;
+    }
+    _voiceGuidanceService?.speak(text);
+  }
+
+  /// Reset the session
+  void resetSession() {
+    _voiceGuidanceService?.stop();
+    _session = _session.reset(_config);
+    _faceDetectionService.resetTracking();
+    _motionService.resetTracking();
+    _statusMessage = _config.messages.initializing;
+    _isVerificationSuccessful = false;
+    _screenGlareDetected = false;
+    _lackOfFacialContoursDetected = false;
+    _firstChallengePassed = false;
+    _lastQualityResult = null;
+    _qualityFrameCounter = 0;
+    _screenFlashSpoofDetected = false;
+    _screenFlashService?.reset();
+    _cameraService.unlockExposure();
+    _depthResults.clear();
+    _depthSpoofDetected = false;
+    _lastDetectedFace = null;
+
+    _currentZoomFactor = _config.initialZoomFactor;
+    _zoomChallengeController.reset();
+
+    if (onReset != null) {
+      onReset!();
+    }
+
+    if (!_isDisposed) notifyListeners();
+  }
+
+  /// Update configuration
+  @visibleForTesting
+  void updateConfig(LivenessConfig config) {
+    _config = config;
+    _cameraService.updateConfig(config);
+    _faceDetectionService.updateConfig(config);
+    _motionService.updateConfig(config);
+    if (!_isDisposed) notifyListeners();
+  }
+
+  /// Update theme
+  void updateTheme(LivenessTheme theme) {
+    _theme = theme;
+    if (!_isDisposed) notifyListeners();
+  }
+
+  /// Whether camera is initialized
+  bool get isInitialized => _cameraService.isInitialized;
+
+  /// Whether a face is currently detected
+  bool get isFaceDetected => _isFaceDetected;
+
+  /// Whether lighting conditions are good
+  bool get isLightingGood => _cameraService.isLightingGood;
+
+  /// Current status message
+  String get statusMessage => _statusMessage;
+
+  /// Current state of liveness detection
+  LivenessState get currentState => _session.state;
+
+  /// Progress as percentage (0.0-1.0)
+  double get progress => _session.getProgressPercentage();
+
+  /// Session ID
+  String get sessionId => _session.sessionId;
+
+  /// Camera controller
+  CameraController? get cameraController => _cameraService.controller;
+
+  /// Face centering message
+  String get faceCenteringMessage => _faceCenteringMessage;
+
+  /// Current liveness session
+  LivenessSession get session => _session;
+
+  /// Current configuration
+  LivenessConfig get config => _config;
+
+  /// Current theme
+  LivenessTheme get theme => _theme;
+
+  /// Whether verification was successful
+  bool get isVerificationSuccessful => _isVerificationSuccessful;
+
+  /// Current lighting value (0.0-1.0)
+  double get lightingValue => _cameraService.lightingValue;
+
+  /// Most recent face quality result (null if scoring disabled or no face yet)
+  FaceQualityResult? get lastQualityResult => _lastQualityResult;
+
+  /// Most recent depth detection result, or null if depth detection is disabled
+  /// or no frames have been collected yet.
+  DepthDetectionResult? get lastDepthResult =>
+      _depthResults.isNotEmpty ? _depthResults.last : null;
+
+  /// Active screen-flash overlay color, or null when no flash is in progress.
+  /// The UI should show a full-screen colored overlay of this color.
+  Color? get activeFlashColor => _screenFlashService?.activeFlashColor;
+
+  double _currentZoomFactor = 0.0;
+
+  /// Factor for oval zoom animation (0.0 to 1.0)
+  double get zoomFactor {
+    final currentChallenge = _session.currentChallenge;
+    // IF the current challenge is zoom and is in progress,
+    // use the real-time animation value.
+    if (currentChallenge?.type == ChallengeType.zoom &&
+        _zoomChallengeController.state == ZoomChallengeState.inProgress) {
+      return _zoomChallengeController.zoomFactor;
+    }
+    // ELSE, return the last value we saved.
+    return _currentZoomFactor;
+  }
+
+  ZoomChallengeState get zoomState => _zoomChallengeController.state;
+
+  /// Capture current image as a file
+  Future<XFile?> captureImage() async {
+    if (_singleCaptureService != null) {
+      return _singleCaptureService!.captureImage();
+    } else if (_cameraService.isInitialized &&
+        _cameraService.controller != null) {
+      try {
+        final XFile file = await _cameraService.controller!.takePicture();
+        return file;
+      } catch (e) {
+        debugPrint('Error capturing image: $e');
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /// Clean up resources
+  @override
+  void dispose() async {
+    _isDisposed = true;
+    _isProcessing = false;
+
+    try {
+      await _cameraService.stopImageStream();
+    } catch (e) {
+      debugPrint('Error stopping image stream: $e');
+    }
+
+    try {
+      _singleCaptureService?.dispose();
+      _cameraService.dispose();
+      _faceDetectionService.dispose();
+      _motionService.dispose();
+      _voiceGuidanceService?.dispose();
+      _depthDetectionService.dispose();
+    } catch (e) {
+      debugPrint('Error during disposal: $e');
+    }
+
+    super.dispose();
+  }
+}

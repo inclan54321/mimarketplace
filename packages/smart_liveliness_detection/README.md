@@ -1,0 +1,962 @@
+# Face Liveness Detection
+
+A highly customizable Flutter package for face liveness detection with multiple challenge types. This package helps you verify that a real person is present in front of the camera, not a photo, video, or mask.
+
+## Features
+
+- 💯 Multiple liveness challenge types (blinking, smiling, head turns, nodding, zoom, center the face, tilt up, tilt down)
+- 🔄 Random challenge sequence generation for enhanced security
+- 🎯 Face centering guidance with visual feedback
+- 🔍 Anti-spoofing measures (screen glare detection, motion correlation with gyroscope support)
+- 📊 Face Quality Scoring — real-time brightness, sharpness, pose, size and eye-openness score with actionable recommendations
+- 💡 Screen Flash Anti-Spoofing — RGB flash test that detects printed photos and video replays
+- 📐 3D Depth Detection (iOS) — ARKit TrueDepth anti-spoofing that measures the 3-D structure of the face mesh
+- 🔐 Biometric Template Generation — privacy-preserving face feature vector with cosine-similarity matching (no images stored)
+- 🎨 Fully customizable UI with theming support
+- 🌈 13 animated futuristic UI painter styles (quantum, hologram, cosmos, synapse, and more)
+- 🖼️ Futuristic oval overlay with animated progress ring and scan line
+- 🗂️ Runtime style picker bottom sheet with live animated previews
+- 🃏 Challenge hint widget with 5 visual styles and 4 entrance animations
+- 🔊 Voice Guidance — spoken TTS instructions for full accessibility support
+- 🎬 Challenge hint animations with GIF/Lottie support
+- 📱 Simple integration with Flutter apps
+- 📸 Optional image capture capability
+
+
+## Installation
+
+Add this package to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  smart_liveliness_detection: ^0.3.9
+```
+
+Then run:
+
+```
+flutter pub get
+```
+
+Make sure to add camera permissions to your app:
+
+### iOS
+
+Add the camera permission to your `Info.plist`:
+
+```xml
+<key>NSCameraUsageDescription</key>
+<string>This app needs camera access for face liveness verification</string>
+```
+
+If you use **3D Depth Detection**, add the camera usage description (already required) and ensure the device has a TrueDepth camera (iPhone X or later). No additional permissions are needed — ARKit is a system framework.
+
+If you use **Voice Guidance**, add the following to `ios/Runner/AppDelegate.swift` so TTS audio plays even when the ring/silent switch is off:
+
+```swift
+import AVFoundation
+
+// Inside application(_:didFinishLaunchingWithOptions:), before GeneratedPluginRegistrant.register:
+try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: .mixWithOthers)
+try? AVAudioSession.sharedInstance().setActive(true)
+```
+
+### Android
+
+Add the camera permission to your `AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+```
+
+If you use **Voice Guidance** and target Android 11+, also add the TTS query inside the `<queries>` block:
+
+```xml
+<queries>
+  <intent>
+    <action android:name="android.intent.action.TTS_SERVICE" />
+  </intent>
+</queries>
+```
+
+## Quick Start
+
+Here's how to quickly integrate face liveness detection into your app:
+
+```dart
+import 'package:camera/camera.dart';
+import 'package:smart_liveliness_detection/smart_liveliness_detection.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/developer.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Get available cameras
+  final cameras = await availableCameras();
+
+  runApp(MyApp(cameras: cameras));
+}
+
+class MyApp extends StatelessWidget {
+  final List<CameraDescription> cameras;
+
+  const MyApp({Key? key, required this.cameras}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        appBar: AppBar(title: const Text('Liveness Detection')),
+        body: LivenessDetectionScreen(
+          cameras: cameras,
+          onLivenessCompleted: (sessionId, isSuccessful, metadata) {
+            log('Liveness verification completed: $isSuccessful');
+            log('Session ID: $sessionId');
+            if (metadata != null) {
+              log('Anti-spoofing check results: ${metadata['antiSpoofingDetection']}');
+            }
+          },
+        ),
+      ),
+    );
+  }
+}
+```
+
+## Customization
+
+### Configuration
+
+Customize the detection settings using `LivenessConfig`:
+
+```dart
+LivenessConfig config = LivenessConfig(
+  // Challenge configuration
+  challengeTypes: [ChallengeType.blink, ChallengeType.smile, ChallengeType.turnRight],
+  numberOfRandomChallenges: 3,
+  alwaysIncludeBlink: true,
+
+  // Custom instructions
+  challengeInstructions: {
+    ChallengeType.blink: 'Please blink your eyes now',
+    ChallengeType.smile: 'Show us your best smile',
+  },
+
+  // Detection thresholds
+  eyeBlinkThresholdOpen: 0.7,
+  eyeBlinkThresholdClosed: 0.3,
+  smileThresholdNeutral: 0.3,
+  smileThresholdSmiling: 0.7,
+  headTurnThreshold: 20.0,
+
+  // UI configuration
+  ovalHeightRatio: 0.9,
+  ovalWidthRatio: 0.9,
+  strokeWidth: 4.0,
+
+  // Session settings
+  maxSessionDuration: Duration(minutes: 2),
+
+  // Motion Detection Settings
+  enableGyroscopeCheck: false, // Set to true to use Gyroscope for better accuracy
+  minDeviceMovementThreshold: 0.1, // Lower threshold to avoid false positives for steady hands
+  significantHeadMovementStdDev: 8.0, // Higher threshold for head movement detection
+  
+  // Relaxed Face Positioning (Tilt Down)
+  enableRelaxedFacePositioningOnTiltDown: true, // Allow face to be larger/closer during tilt down
+);
+```
+
+#### Plugin messages customization (Portuguese example)
+
+```dart
+LivenessDetectionScreen(
+  config: LivenessConfig(
+    // ... other settings
+    messages: const LivenessMessages(
+      // Face Centering Messages
+      moveFartherAway: 'Afaste-se um pouco',
+      moveCloser: 'Aproxime-se',
+      moveLeft: 'Mova para a esquerda',
+      moveRight: 'Mova para a direita',
+      moveUp: 'Mova para cima',
+      moveDown: 'Mova para baixo',
+      perfectHoldStill: 'Perfeito! Fique parado',
+      noFaceDetected: 'Nenhum rosto detectado',
+
+      // Process Status Messages
+      initializing: 'Inicializando...',
+      initialInstruction: 'Posicione seu rosto no oval',
+      poorLighting: 'Por favor, vá para uma área mais iluminada',
+      processingVerification: 'Processando verificação...',
+      verificationComplete: 'Verificação concluída!',
+      errorInitializingCamera: 'Erro ao iniciar a câmera. Por favor, reinicie.',
+      spoofingDetected: 'Possível fraude detectada',
+    ),
+  ),
+  onLivenessCompleted: (sessionId, isSuccessful, data) {
+    // ...
+  },
+)
+
+```
+
+### Theming
+
+Customize the appearance using `LivenessTheme`:
+
+```dart
+LivenessTheme theme = LivenessTheme(
+  // Colors
+  primaryColor: Colors.blue,
+  successColor: Colors.green,
+  errorColor: Colors.red,
+  warningColor: Colors.orange,
+  ovalGuideColor: Colors.purple,
+
+  // Text styles
+  instructionTextStyle: TextStyle(
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+  ),
+  guidanceTextStyle: TextStyle(
+    color: Colors.blue,
+    fontSize: 16,
+  ),
+
+  // Progress indicator
+  progressIndicatorColor: Colors.blue,
+  progressIndicatorHeight: 12,
+
+  // Animation
+  useOvalPulseAnimation: true,
+);
+```
+
+Or use a theme based on Material Design:
+
+```dart
+LivenessTheme theme = LivenessTheme.fromMaterialColor(
+  Colors.teal,
+  brightness: Brightness.dark,
+);
+```
+
+### Challenge Hints
+
+Display animated GIF or Lottie hints to guide users through challenges:
+
+#### Using Default Hints
+
+Enable built-in hint animations with default settings:
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: LivenessConfig(
+    defaultChallengeHintConfig: ChallengeHintConfig(
+      enabled: true,
+      position: ChallengeHintPosition.topCenter,
+      size: 100.0,
+      displayDuration: Duration(seconds: 2),
+    ),
+  ),
+);
+```
+
+#### Per-Challenge Configuration
+
+Configure different hints for specific challenge types:
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: LivenessConfig(
+    challengeHints: {
+      ChallengeType.blink: ChallengeHintConfig(
+        enabled: true,
+        position: ChallengeHintPosition.topCenter,
+        size: 120.0,
+      ),
+      ChallengeType.smile: ChallengeHintConfig(
+        enabled: true,
+        position: ChallengeHintPosition.bottomCenter,
+        size: 100.0,
+      ),
+      ChallengeType.turnLeft: ChallengeHintConfig(
+        enabled: false, // Disable hint for this challenge
+      ),
+    },
+    // Fallback for challenges not in the map
+    defaultChallengeHintConfig: ChallengeHintConfig(
+      enabled: true,
+    ),
+  ),
+);
+```
+
+#### Custom GIF/Lottie Files
+
+Use your own animations:
+
+```dart
+// Custom GIF
+ChallengeHintConfig(
+  enabled: true,
+  assetPath: 'assets/my_animations/custom_blink.gif',
+  position: ChallengeHintPosition.topCenter,
+  size: 100.0,
+)
+
+// Custom Lottie (requires lottie package)
+ChallengeHintConfig(
+  enabled: true,
+  assetPath: 'assets/my_animations/custom_smile.json',
+  isLottie: true,
+  position: ChallengeHintPosition.bottomCenter,
+)
+```
+
+**Available Positions:**
+- `ChallengeHintPosition.topCenter`
+- `ChallengeHintPosition.bottomCenter`
+- `ChallengeHintPosition.topLeft`
+- `ChallengeHintPosition.topRight`
+- `ChallengeHintPosition.bottomLeft`
+- `ChallengeHintPosition.bottomRight`
+
+**Built-in Hint Animations:**
+
+The package includes default GIF animations for:
+- `ChallengeType.blink` - Eye blinking animation
+- `ChallengeType.smile` - Smiling animation
+- `ChallengeType.nod` - Head nodding animation
+- `ChallengeType.turnLeft` - Head rotating left animation
+- `ChallengeType.turnRight` - Head rotating right animation
+
+For a complete guide on challenge hints, see [CHALLENGE_HINTS.md](CHALLENGE_HINTS.md).
+
+### Voice Guidance (Accessibility)
+
+Enable spoken TTS instructions so visually impaired users can complete liveness verification without looking at the screen.
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: LivenessConfig(
+    voiceGuidance: VoiceGuidanceConfig(
+      enabled: true,
+      language: 'en-US',       // Any BCP-47 language code
+      volume: 1.0,             // 0.0–1.0
+      speechRate: 0.5,         // 0.0–1.0 (0.5 = normal pace)
+      pitch: 1.0,              // 0.5–2.0
+      speakPositioningFeedback: true,    // "Move closer", "Move right", etc.
+      speakChallengeInstructions: true,  // Each challenge instruction
+      speakCompletion: true,             // Success/failure message
+      repeatInterval: Duration(seconds: 3), // Min time before repeating the same message
+    ),
+  ),
+  onLivenessCompleted: (sessionId, isSuccessful, metadata) {},
+);
+```
+
+**Convenience presets:**
+
+```dart
+// No centering feedback — only challenges and completion are spoken
+VoiceGuidanceConfig.minimal()
+
+// Slower speech rate and shorter repeat interval — optimised for screen-reader users
+VoiceGuidanceConfig.accessibility()
+```
+
+When `voiceGuidance` is `null` or `enabled: false`, zero TTS overhead is incurred.
+
+---
+
+### Face Quality Scoring
+
+Analyse the camera frame in real time and receive a 0–100 quality score with specific issues and recommendations before challenges begin.
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: const LivenessConfig(
+    enableFaceQualityScoring: true,
+    minFaceQualityScore: 60.0,        // minimum score to allow challenges
+    blockChallengesOnLowQuality: true, // hold centering phase until score is met
+  ),
+  onFaceQualityCheck: (FaceQualityResult result) {
+    print('Score: ${result.score}');               // e.g. 74.3
+    print('Issues: ${result.issues}');             // e.g. ["Poor lighting"]
+    print('Recommendations: ${result.recommendations}'); // e.g. ["Move to a brighter area"]
+    print('Metrics: ${result.metrics}');           // brightness, sharpness, headPose, faceSize, eyeOpenness
+  },
+  onLivenessCompleted: (sessionId, isSuccessful, metadata) {},
+);
+```
+
+**`FaceQualityResult` fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `score` | `double` | Overall quality score (0–100) |
+| `isAcceptable` | `bool` | `true` when score ≥ 60 |
+| `issues` | `List<String>` | Human-readable issues found |
+| `recommendations` | `List<String>` | Actionable suggestions |
+| `metrics` | `Map<String, double>` | Per-metric scores: `brightness`, `sharpness`, `headPose`, `faceSize`, `eyeOpenness` |
+
+**`LivenessConfig` options:**
+
+| Option | Default | Description |
+|---|---|---|
+| `enableFaceQualityScoring` | `false` | Enable quality analysis |
+| `minFaceQualityScore` | `60.0` | Threshold used when blocking is on |
+| `blockChallengesOnLowQuality` | `false` | Hold centering phase until score ≥ threshold |
+
+Quality is evaluated every 10 face-detected frames to avoid performance impact. The check runs on-device with no network calls.
+
+---
+
+### Screen Flash Anti-Spoofing
+
+After the face is centred, the screen briefly flashes red, green, and blue. The camera measures the luminance response in the face region — a real face reflects the light; a printed photo or video replay on another screen does not produce the expected response.
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: const LivenessConfig(
+    screenFlash: ScreenFlashConfig(
+      enabled: true,
+      framesPerColor: 5,          // frames sampled per color
+      baselineFrames: 3,          // frames captured before first flash
+      warmupFramesPerColor: 2,    // frames skipped per color while camera settles
+      reflectionThreshold: 4.0,  // minimum luminance delta (0–255) to pass
+      failSessionOnSpoofing: false, // true = end session on failure
+    ),
+  ),
+  onLivenessCompleted: (sessionId, isSuccessful, metadata) {
+    final anti = metadata?['antiSpoofingDetection'] as Map<String, dynamic>?;
+    final spoofDetected = anti?['screenFlashSpoofDetected'] ?? false;
+    print('Screen flash spoof detected: $spoofDetected');
+  },
+);
+```
+
+**How it works:**
+1. Face is centred → camera exposure is locked to prevent auto-exposure fighting the flash signal
+2. Baseline luminance is sampled from the face region (3 frames)
+3. Red, green, then blue full-screen overlays are shown in sequence
+4. For each color, 2 warmup frames are skipped then 5 frames are sampled
+5. Test passes if ≥ 2 colors show a positive luminance delta above `reflectionThreshold`
+6. Camera exposure is restored; session advances to challenges
+
+**`ScreenFlashResult` in metadata:**
+
+| Key | Type | Description |
+|---|---|---|
+| `screenFlashSpoofDetected` | `bool` | `true` if the test determined a spoofing attempt |
+
+The result is always included in the `antiSpoofingDetection` map when `screenFlash` is configured, regardless of `failSessionOnSpoofing`.
+
+---
+
+### 3D Depth Detection (iOS TrueDepth)
+
+Uses ARKit `ARFaceTrackingConfiguration` to measure the Z-axis variance of the ~1 220-vertex face mesh. A real 3-D face shows high variance (nose protrudes, eye sockets recede); a flat photo or screen replay shows near-zero variance.
+
+> **Requires** TrueDepth camera — iPhone X / iPad Pro and later. Falls back gracefully on unsupported devices when `requireTrueDepth: false`.
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: const LivenessConfig(
+    depthDetection: DepthDetectionConfig(
+      enabled: true,
+      depthThreshold: 0.004,      // Z-axis stdDev in metres — below this = flat
+      requireTrueDepth: false,    // silently skip on unsupported devices
+      failSessionOnSpoofing: false,
+      minFramesRequired: 5,       // frames before result is trusted
+    ),
+  ),
+  onLivenessCompleted: (sessionId, isSuccessful, metadata) {
+    final anti = metadata['antiSpoofingDetection'] as Map<String, dynamic>;
+    print('Depth spoof detected: ${anti['depthSpoofDetected']}');
+  },
+);
+```
+
+**`DepthDetectionConfig` options:**
+
+| Option | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Activate the ARKit session |
+| `depthThreshold` | `0.004` | Minimum Z-axis stdDev (metres) for a real face |
+| `requireTrueDepth` | `false` | Fail session if TrueDepth unavailable |
+| `failSessionOnSpoofing` | `false` | End session on a failing depth test |
+| `minFramesRequired` | `5` | Minimum frames before evaluating result |
+
+The depth session runs in parallel with the challenge flow — it does not add an extra phase. The result appears in `antiSpoofingDetection` as `depthSpoofDetected: bool`.
+
+---
+
+### Biometric Template Generation
+
+Generate a compact, privacy-preserving feature vector from the detected face. The vector encodes normalised geometric ratios from ML Kit face landmarks — no pixel data is stored and the template cannot be reversed into an image.
+
+#### Enroll
+
+```dart
+BiometricTemplate? _enrolled;
+
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: const LivenessConfig(
+    generateBiometricTemplate: true,
+    templateConfig: TemplateConfig(
+      algorithm: BiometricAlgorithm.geometricRatios,
+      // obfuscationKey: Uint8List.fromList([0x1A, 0x2B, ...]), // optional XOR key
+    ),
+  ),
+  onBiometricTemplateGenerated: (template) {
+    _enrolled = template; // persist this between sessions
+  },
+  onLivenessCompleted: (_, __, ___) {},
+);
+```
+
+#### Verify against an enrolled template
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: LivenessConfig(
+    generateBiometricTemplate: true,
+    referenceTemplate: _enrolled,        // template from enrollment session
+    biometricMatchThreshold: 0.80,       // cosine similarity 0.0–1.0
+  ),
+  onLivenessCompleted: (sessionId, isSuccessful, metadata) {
+    final score   = metadata['biometricMatchScore']  as double?; // 0.0–1.0
+    final matched = metadata['biometricMatchPassed'] as bool?;
+    print('Match: $matched  Score: ${(score! * 100).toStringAsFixed(1)}%');
+  },
+);
+```
+
+#### Manual comparison
+
+```dart
+final similarity = BiometricMatcher.compare(enrolledTemplate, liveTemplate);
+final isMatch    = BiometricMatcher.isMatch(enrolledTemplate, liveTemplate, threshold: 0.80);
+```
+
+**`BiometricTemplate` fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `encodedVector` | `String` | Base64-encoded feature bytes |
+| `rawVector` | `Float32List?` | Raw floats (only when no obfuscation key) |
+| `algorithm` | `BiometricAlgorithm` | Algorithm used |
+| `sessionId` | `String` | Session that produced this template |
+| `featureCount` | `int` | Number of float features (~27) |
+
+**`LivenessConfig` options:**
+
+| Option | Default | Description |
+|---|---|---|
+| `generateBiometricTemplate` | `false` | Enable template generation |
+| `templateConfig` | `TemplateConfig()` | Algorithm and optional obfuscation |
+| `referenceTemplate` | `null` | Template to match against |
+| `biometricMatchThreshold` | `0.80` | Cosine similarity pass threshold |
+
+---
+
+### Futuristic UI Painter Styles
+
+Choose from 13 animated canvas overlay styles via `LivenessStyle`:
+
+| Style | Description |
+|---|---|
+| `quantum` | Pulsing energy rings with particle scatter |
+| `liquidMetal` | Flowing chrome shimmer with metallic sheen |
+| `cosmos` | Deep-space star field with nebula gradient |
+| `hologram` | Cyan holographic scan lines and grid |
+| `singularity` | Gravitational lens distortion vortex |
+| `synapse` | Neural network node-and-edge animation |
+| `kinetic` | Motion-blur speed lines and momentum trails |
+| `prism` | Rainbow light refraction prismatic effect |
+| `obsidian` | Volcanic glass dark sheen with ember glow |
+| `monolith` | Stark geometric brutalist framing |
+| `chronos` | Clockwork gears and time-dial overlay |
+| `floating` | Soft levitating bubble particles |
+| `sumi` | Japanese ink-wash calligraphic brushwork |
+
+Pass the style to the screen:
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  livenessStyle: LivenessStyle.hologram, // pick any style
+  onLivenessCompleted: (sessionId, isSuccessful, metadata) {},
+);
+```
+
+#### Liveness Style Picker
+
+Let users switch styles at runtime using the built-in bottom sheet with live animated previews:
+
+```dart
+showLivenessStylePicker(
+  context,
+  currentStyle: _currentStyle,
+  onStyleSelected: (style) {
+    setState(() => _currentStyle = style);
+  },
+);
+```
+
+---
+
+### Challenge Hint Widget Styles & Animations
+
+The `ChallengeHintWidget` now supports visual styles and entrance animations:
+
+```dart
+ChallengeHintConfig(
+  enabled: true,
+  hintStyle: ChallengeHintStyle.glass,       // plain | glass | futuristic | minimal | neon
+  hintAnimation: ChallengeHintAnimation.bounceIn, // scaleIn | slideUp | bounceIn | flipIn
+  position: ChallengeHintPosition.topCenter,
+  size: 100.0,
+)
+```
+
+**Available styles:** `plain`, `glass`, `futuristic`, `minimal`, `neon`
+
+**Available animations:** `scaleIn`, `slideUp`, `bounceIn`, `flipIn`
+
+---
+
+### Callbacks
+
+Get notified about challenges and session completion:
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  config: config,
+  theme: theme,
+  onChallengeCompleted: (challengeType) {
+    log('Challenge completed: $challengeType');
+  },
+  onLivenessCompleted: (sessionId, isSuccessful, metadata) {
+    log('Liveness verification completed:');
+    log('Session ID: $sessionId');
+    log('Overall Success: $isSuccessful');
+
+    if (metadata != null && metadata.containsKey('antiSpoofingDetection')) {
+      final antiSpoofingResult = metadata['antiSpoofingDetection'] as Map<String, dynamic>;
+      final didPassMotionCheck = !antiSpoofingResult['motionCorrelationCheckFailed'];
+      final didPassGlareCheck = !antiSpoofingResult['screenGlareDetected'];
+      final didPassContourCheck = !antiSpoofingResult['lackOfFacialContoursDetected'];
+      final screenFlashSpoofDetected = antiSpoofingResult['screenFlashSpoofDetected'] ?? false;
+
+      log('Motion Check Passed: $didPassMotionCheck');
+      log('Glare Check Passed: $didPassGlareCheck');
+      log('Contour Check Passed: $didPassContourCheck');
+      log('Screen Flash Spoof Detected: $screenFlashSpoofDetected');
+      final depthSpoofDetected = antiSpoofingResult['depthSpoofDetected'] ?? false;
+      log('Depth Spoof Detected: $depthSpoofDetected');
+    }
+
+    // Biometric match result (present when referenceTemplate is configured)
+    if (metadata != null && metadata.containsKey('biometricMatchScore')) {
+      log('Biometric Match Score: ${metadata['biometricMatchScore']}');
+      log('Biometric Match Passed: ${metadata['biometricMatchPassed']}');
+    }
+
+    // You can now send this session ID and the detailed results to your backend
+    // for verification or proceed with your app flow.
+  },
+);
+```
+
+### Custom UI Elements
+
+Customize the UI with your own components:
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  showAppBar: false, // Hide default app bar
+  customAppBar: AppBar(
+    title: const Text('My Custom Verification'),
+    backgroundColor: Colors.transparent,
+  ),
+  customSuccessOverlay: MyCustomSuccessWidget(),
+);
+```
+
+### Image Capture
+
+Enable capturing the user's image after successful verification:
+
+```dart
+LivenessDetectionScreen(
+  cameras: cameras,
+  captureFinalImage: true, // Enable final image capture
+  onFinalImageCaptured: (sessionId, imageFile, metadata) {
+    // imageFile is an XFile that contains the captured image
+    log('Image saved to: ${imageFile.path}');
+
+    // The metadata map contains the detailed anti-spoofing results
+    final antiSpoofingResult = metadata['antiSpoofingDetection'];
+    log('Anti-spoofing results from capture: $antiSpoofingResult');
+
+    // You can now:
+    // 1. Display the image
+    // 2. Upload it to your server along with the metadata
+    // 3. Store it locally
+  },
+);
+```
+
+## Advanced Usage
+
+### Embedding in Custom UI
+
+You can incorporate the liveness detection into a larger flow:
+
+```dart
+class VerificationFlow extends StatefulWidget {
+  @override
+  _VerificationFlowState createState() => _VerificationFlowState();
+}
+
+class _VerificationFlowState extends State<VerificationFlow> {
+  int _currentStep = 0;
+  String? _sessionId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentStep,
+        children: [
+          // Step 1: Instructions
+          InstructionScreen(
+            onContinue: () => setState(() => _currentStep = 1),
+          ),
+
+          // Step 2: Liveness Detection
+          LivenessDetectionScreen(
+            cameras: cameras,
+            onLivenessCompleted: (sessionId, isSuccessful, result) {
+              if (isSuccessful) {
+                setState(() {
+                  _sessionId = sessionId;
+                  _currentStep = 2;
+                });
+              }
+            },
+          ),
+
+          // Step 3: Verification Complete
+          VerificationCompleteScreen(
+            sessionId: _sessionId,
+            onContinue: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+### Direct Controller Access
+
+For even more control, you can use the controller directly:
+
+```dart
+class CustomLivenessScreen extends StatefulWidget {
+  @override
+  _CustomLivenessScreenState createState() => _CustomLivenessScreenState();
+}
+
+class _CustomLivenessScreenState extends State<CustomLivenessScreen> {
+  late LivenessController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = LivenessController(
+      cameras: cameras,
+      config: LivenessConfig(...),
+      theme: LivenessTheme(...),
+      onLivenessCompleted: (sessionId, isSuccessful, result) {
+        // Handle completion
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: _controller,
+      child: Consumer<LivenessController>(
+        builder: (context, controller, _) {
+          return Scaffold(
+            body: Stack(
+              children: [
+                // Your custom UI...
+
+                if (controller.currentState == LivenessState.completed)
+                  // Show success UI
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
+## Available Challenge Types
+
+- `ChallengeType.blink` - Verify that the user can blink
+- `ChallengeType.turnLeft` - Verify that the user can turn their head left
+- `ChallengeType.turnRight` - Verify that the user can turn their head right
+- `ChallengeType.tiltUp` - Verify that the user can tilt their head up
+- `ChallengeType.tiltDown` - Verify that the user can tilt their head down
+- `ChallengeType.smile` - Verify that the user can smile
+- `ChallengeType.nod` - Verify that the user can nod their head
+- `ChallengeType.Zoom` - The user needs to move their face closer to the camera, filling the oval.
+- `ChallengeType.normal` - Checks whether the user's face is centered. Ideal for taking a photo of the user.
+
+## Advanced Anti-Spoofing Measures
+
+This package implements several advanced, configurable anti-spoofing measures to provide a robust defense against common presentation attacks. While some checks act as non-blocking flags, the motion correlation check determines the final success of the verification.
+
+Upon completion, the `onLivenessCompleted` and `onFinalImageCaptured` callbacks return a detailed metadata map with the results.
+
+### Anti-Spoofing Result Map
+
+Both callbacks provide a `metadata` map which may contain an `antiSpoofingDetection` key. This key holds a nested map with the following boolean flags:
+
+- `motionCorrelationCheckFailed`: The only blocking check by default. If `true`, the overall `isSuccessful` result of the liveness check will be `false`. This occurs if the head moves significantly but the device does not.
+- `screenGlareDetected`: A non-blocking flag. `true` if potential screen glare was detected on the user's face.
+- `lackOfFacialContoursDetected`: A non-blocking flag. `true` if the system failed to detect a sufficient number of facial contours, which could indicate a mask.
+- `screenFlashSpoofDetected`: Present when `screenFlash` is configured. `true` if the face region did not produce the expected luminance response during the RGB flash test. Blocking only when `ScreenFlashConfig.failSessionOnSpoofing` is `true`.
+- `depthSpoofDetected`: Present when `depthDetection` is configured. `true` if the majority of ARKit depth frames classified the face as flat. Blocking only when `DepthDetectionConfig.failSessionOnSpoofing` is `true`.
+
+The `onLivenessCompleted` metadata may also contain:
+- `biometricMatchScore` (`double`, 0.0–1.0): Cosine similarity between the live template and `referenceTemplate`. Present only when `referenceTemplate` is configured.
+- `biometricMatchPassed` (`bool`): `true` when `biometricMatchScore ≥ biometricMatchThreshold`.
+
+### 1. Screen Glare Detection
+
+This check analyzes the camera feed for bright, reflective spots. It acts as a non-blocking flag in the final result.
+
+**Configuration:**
+
+- `enableScreenGlareDetection`: Set to `false` to disable this check. (Default: `true`)
+- `glareBrightnessFactor`: Multiplier for the average brightness to set the dynamic glare threshold. (Default: `3.0`)
+- `minBrightPercentage` / `maxBrightPercentage`: The minimum and maximum percentage of bright pixels required to trigger the glare detection. (Defaults: `0.05` and `0.30`)
+
+### 2. Motion Correlation Check (Enhanced)
+
+This is a powerful defense that determines the final success of the verification. It ensures that head movements are correlated with device movements (even micro-movements), detecting if a static device is filming a screen.
+
+**Now with Gyroscope Support:**
+The check can now utilize the device's gyroscope for increased accuracy, significantly reducing false positives for users with steady hands.
+
+**Configuration:**
+
+- `enableMotionCorrelationCheck`: Set to `false` to disable this check. (Default: `true`)
+- `enableGyroscopeCheck`: Set to `true` to use the Gyroscope sensor. This improves accuracy by detecting rotational movements. (Default: `false`)
+- `significantHeadMovementStdDev`: The standard deviation threshold for head movement to be considered significant. (Default: `8.0`)
+- `minDeviceMovementThreshold`: The minimum amount of accelerometer motion required. (Default: `0.1`)
+- `minGyroscopeMovementThreshold`: The minimum amount of gyroscope rotation required. (Default: `0.05`)
+- `failOnMotionCorrelationFailedAtTheEnd`: When `true`, a failure in the motion correlation check will cause the overall liveness verification to be considered unsuccessful. (Default: `true`)
+
+**How it works:**
+The system only flags a potential spoofing attempt if:
+1. Significant head movement is detected (StdDev > 8.0).
+2. AND Accelerometer movement is minimal (StdDev < 0.1).
+3. AND (if enabled) Gyroscope movement is minimal (StdDev < 0.05).
+
+### 3. Face Contour Analysis (Mask Detection)
+
+This check verifies the integrity of facial contours and acts as a non-blocking flag in the final result.
+
+**Configuration:**
+
+- `enableContourAnalysisOnCentering`: When `true`, performs the contour check during the initial face centering step. (Default: `true`)
+- `contourChallengeTypes`: A list of `ChallengeType` where the contour check should also be performed (e.g., `ChallengeType.blink` or `ChallengeType.smile`).
+- `minRequiredSecondaryContours`: The minimum number of secondary contours (e.g., nose bridge, cheeks, upper lip bottom, lower lip top, eyebrows) that must be detected for the check to pass. This makes the detection tolerant to minor imperfections. (Default: `5`)
+
+**Example:**
+
+```dart
+LivenessConfig(
+  // ... other settings
+  enableContourAnalysisOnCentering: true,
+  contourChallengeTypes: [
+    ChallengeType.blink,
+    ChallengeType.smile,
+  ],
+  minRequiredSecondaryContours: 5, // Requires 5 out of 10 secondary contours to be present
+)
+```
+
+### 4. Continuous Identity Verification (Sandwich Strategy)
+
+To prevent "swap attacks" (where a real user starts the session but then swaps to a photo/video), it is highly recommended to perform a face check at the beginning and at the end of the session.
+
+This strategy "sandwiches" the liveness challenges between two `ChallengeType.normal` checks. The package can automatically insert these checks for random challenge sequences.
+
+**Configuration:**
+
+- `sandwichNormalChallenge`: When `true`, automatically adds a `ChallengeType.normal` at the start and end of the randomly generated challenge list. (Default: `false` for backward compatibility)
+
+**Manual Configuration Note:**
+If you are providing a custom list of `challengeTypes` instead of using random generation, it is strongly recommended that you manually add `ChallengeType.normal` as the first and last items in your list.
+
+**Example:**
+
+```dart
+LivenessConfig(
+  // ... other settings
+  enableContourAnalysisOnCentering: true,
+  contourChallengeTypes: [
+    ChallengeType.blink,
+    ChallengeType.smile,
+  ],
+  minRequiredSecondaryContours: 5, // Requires 5 out of 10 secondary contours to be present
+  // Automatically add normal check at start and end
+  sandwichNormalChallenge: true, 
+)
+```
+
+## Demo 
+![Example](https://github.com/demola234/smart_liveliness_detection/blob/main/screenshots/smart_liveliness_detector.gif?raw=true)
+
+## Demo Video
+Check out our [demo video](https://vimeo.com/1078400278?share=copy) to see the package in action!
+
+## Contributing
+
+Contributions are welcome! Feel free to submit a pull request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

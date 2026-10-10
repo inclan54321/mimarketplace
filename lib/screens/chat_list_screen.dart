@@ -564,7 +564,7 @@ class _ChatListScreenState extends State<ChatListScreen>
               'assets/images/fondo_montanas.jpg',
               fit: BoxFit.cover,
               opacity: const AlwaysStoppedAnimation(0.35),
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
           ),
           Positioned.fill(
@@ -684,6 +684,7 @@ class _ChatListScreenState extends State<ChatListScreen>
 
         // 🔥 DETECTAR SI HAY MENSAJES NUEVOS
         bool hayMensajesNuevos = false;
+        bool esArticuloVendido = false;
         try {
           final ultimaFechaStr = chat['ultima_fecha']?.toString();
           final miUltimoLeidoStr = chat['mi_ultimo_leido']?.toString();
@@ -692,10 +693,14 @@ class _ChatListScreenState extends State<ChatListScreen>
             final ultimaFecha = DateTime.parse(ultimaFechaStr);
             final miUltimoLeido = DateTime.parse(miUltimoLeidoStr);
 
-            // 🔥 Hay mensajes nuevos si el último mensaje es más reciente que mi última lectura
-            // Y el último mensaje NO es mío
             final ultimoMensajeEsMio = chat['ultimo_mensaje_usuario_id'] == user?.uid;
             hayMensajesNuevos = ultimaFecha.isAfter(miUltimoLeido) && !ultimoMensajeEsMio;
+
+            // 🔥 DETECTAR SI EL ÚLTIMO MENSAJE ES DE ARTÍCULO VENDIDO
+            final ultimoTexto = chat['ultimo_mensaje']?.toString() ?? '';
+            if (ultimoTexto.startsWith('||ARTICULO_VENDIDO||')) {
+              esArticuloVendido = true;
+            }
           }
         } catch (e) {
           print('Error al calcular mensajes nuevos: $e');
@@ -742,7 +747,7 @@ class _ChatListScreenState extends State<ChatListScreen>
               children: [
                 Container(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 // 🔥 COLOR CAMBIA SI HAY MENSAJES NUEVOS
                 color: hayMensajesNuevos
@@ -768,7 +773,7 @@ class _ChatListScreenState extends State<ChatListScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (hayMensajesNuevos)
+                  if (hayMensajesNuevos || esArticuloVendido)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8, left: 4),
                       child: Row(
@@ -777,20 +782,26 @@ class _ChatListScreenState extends State<ChatListScreen>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6),
+                              color: esArticuloVendido
+                                  ? Colors.red
+                                  : const Color(0xFF3B82F6),
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF3B82F6)
+                                  color: (esArticuloVendido
+                                          ? Colors.red
+                                          : const Color(0xFF3B82F6))
                                       .withValues(alpha: 0.7),
                                   blurRadius: 10,
                                   spreadRadius: 1,
                                 ),
                               ],
                             ),
-                            child: const Text(
-                              'NUEVO MENSAJE',
-                              style: TextStyle(
+                            child: Text(
+                              esArticuloVendido
+                                  ? 'ARTÍCULO VENDIDO'
+                                  : 'NUEVO MENSAJE',
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
@@ -806,8 +817,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                   Stack(
                     children: [
                       Container(
-                        width: 60,
-                        height: 60,
+                        width: 50,
+                        height: 50,
                         padding: const EdgeInsets.all(2),
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
@@ -838,8 +849,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                                                 .isNotEmpty
                                         ? 'https://mimarketplace-production.up.railway.app${chat['producto_imagen_miniatura']}'
                                         : 'https://mimarketplace-production.up.railway.app${chat['producto_imagen']}',
-                                    width: 56,
-                                    height: 56,
+                                    width: 46,
+                                    height: 46,
                                     fit: BoxFit.cover,
                                     placeholder: (context, url) => Container(
                                       color: Colors.grey.shade800,
@@ -927,7 +938,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                       ],
                     ),
                   ),
-                  Column(
+                  Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
@@ -965,7 +976,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(width: 6),
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () {
@@ -1273,13 +1284,13 @@ class _ChatListScreenState extends State<ChatListScreen>
                                             width: 56,
                                             height: 56,
                                             fit: BoxFit.cover,
-                                            placeholder: (_, __) => Container(
+                                            placeholder: (_, _) => Container(
                                               color: Colors.grey.shade800,
                                               child: const Icon(
                                                   Icons.person,
                                                   color: Colors.grey),
                                             ),
-                                            errorWidget: (_, __, ___) =>
+                                            errorWidget: (_, _, _) =>
                                                 Container(
                                               color: Colors.grey.shade800,
                                               child: const Icon(

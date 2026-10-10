@@ -26,8 +26,41 @@ class BotonGrabacion extends StatefulWidget {
   State<BotonGrabacion> createState() => _BotonGrabacionState();
 }
 
-class _BotonGrabacionState extends State<BotonGrabacion> {
+class _BotonGrabacionState extends State<BotonGrabacion>
+    with SingleTickerProviderStateMixin {
   Offset _startPosition = Offset.zero;
+  late AnimationController _giroController;
+
+  @override
+  void initState() {
+    super.initState();
+    _giroController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    // 🔥 SI YA ESTABA GRABANDO AL MONTAR, NO HACER NADA
+    // 🔥 SI CAMBIA DE GRABANDO A NO GRABANDO, DISPARAR EL GIRO
+    if (!widget.isRecording) {
+      _giroController.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant BotonGrabacion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // 🔥 CUANDO SE SUELTA (isRecording: true → false), DISPARAR GIRO
+    if (oldWidget.isRecording && !widget.isRecording) {
+      _giroController.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _giroController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,10 +95,14 @@ class _BotonGrabacionState extends State<BotonGrabacion> {
         ),
         child: widget.isRecording
             ? const SizedBox(width: 28, height: 28)
-            : Icon(
-                Icons.mic,
-                color: Colors.grey.shade600,
-                size: 28,
+            : RotationTransition(
+                turns: Tween<double>(begin: 0.0, end: 1.0)
+                    .animate(_giroController),
+                child: Icon(
+                  Icons.mic,
+                  color: Colors.grey.shade600,
+                  size: 28,
+                ),
               ),
       ),
     );

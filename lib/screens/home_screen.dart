@@ -1318,7 +1318,7 @@ Future<void> _cargarProductosDestacados() async {
                                                             'https://mimarketplace-production.up.railway.app${producto.imagenDestacada}',
                                                             fit: BoxFit.cover,
                                                             errorBuilder:
-                                                                (_, __, ___) =>
+                                                                (_, _, _) =>
                                                                     Container(
                                                               color: Colors
                                                                   .grey.shade200,
@@ -1336,7 +1336,7 @@ Future<void> _cargarProductosDestacados() async {
                                                                 'https://mimarketplace-production.up.railway.app${producto.imagenUrl}',
                                                                 fit: BoxFit.cover,
                                                                 errorBuilder:
-                                                                    (_, __, ___) =>
+                                                                    (_, _, _) =>
                                                                         Container(
                                                                   color: Colors
                                                                       .grey.shade200,
@@ -1530,7 +1530,7 @@ Future<void> _cargarProductosDestacados() async {
           children: [
             Icon(
               iconos[categoria] ?? Icons.category,
-              size: 24,
+              size: 34,
               color: Colors.white,
             ),
             Text(

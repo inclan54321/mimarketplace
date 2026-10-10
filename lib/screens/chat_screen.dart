@@ -84,7 +84,7 @@ class _ChatScreenState extends State<ChatScreen>
   final Map<String, String> _cacheFotosPerfil = {};
   int _calificacionSeleccionada = 0;
   ConversationStatus _conversationStatus = ConversationStatus.neutral;
-  Set<int> _mensajesTachados = {};
+  final Set<int> _mensajesTachados = {};
   String? _mensajeSeleccionadoId;
   bool _iaActiva = false;
   String? _analisisIA;
@@ -130,7 +130,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _isSwipedToCancel = false;      // Para detectar deslizamiento
   Timer? _recordingTimer;              // Timer para mostrar tiempo
   String _recordingTime = '00:00';     // Tiempo de grabación
-  Offset _startPosition = Offset.zero;  // 🔥 NUEVO: Posición donde se presionó
+  final Offset _startPosition = Offset.zero;  // 🔥 NUEVO: Posición donde se presionó
   bool _isDraggingOut = false;          // 🔥 NUEVO: Si el dedo está fuera del botón
   bool _mostrarMensajeCancelar = false; // 🔥 NUEVO: Mostrar texto verde de cancelar
 
@@ -151,7 +151,7 @@ class _ChatScreenState extends State<ChatScreen>
     AnimatedEmoji(AnimatedEmojis.angry, size: 40, repeat: true),
     AnimatedEmoji(AnimatedEmojis.sleep, size: 40, repeat: true),
   ];
-  int _indiceEmocion = 0;
+  final int _indiceEmocion = 0;
   late Timer _timerEmociones;
 
   // 🔥 EL EMOJI DEPENDE DEL ESTADO DE LA IA
@@ -375,8 +375,9 @@ void initState() {
   _cargarProductosDelVendedor(); // 🔥 NUEVO
   print('>>> DESPUÉS de llamar _obtenerFotoVendedorReal()');
   print('>>> _fotoVendedorReal: $_fotoVendedorReal');
-  _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-    if (_conversacionIdActual.isNotEmpty) {
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    // 🔥 NO recargar si hay un modal abierto (evita reiniciar el modal)
+    if (_conversacionIdActual.isNotEmpty && !_interfazEncuentroMostrada) {
       _cargarMensajes(_conversacionIdActual);
     }
   });
@@ -1109,13 +1110,12 @@ Future<void> _obtenerFotoVendedorReal() async {
 
         // 🔥 SI LA IA DETECTA QUE QUIEREN UN ENCUENTRO Y EL ESCUDO ESTÁ ACTIVO
         // (FUERA del setState, porque abre un modal)
+        // 🔥 SOLO ABRIR SI NO ESTÁ ABIERTO YA (evita loop)
         if (quiereEncuentro && _iaActiva && !_interfazEncuentroMostrada) {
+          _interfazEncuentroMostrada = true; // 🔥 MARCAR ANTES DE ABRIR
           final yaHayPropuesta = await _hayPropuestaEncuentro();
           if (!yaHayPropuesta && mounted) {
-            _interfazEncuentroMostrada = true;
             _mostrarInterfazEncuentro();
-          } else {
-            _interfazEncuentroMostrada = true;
           }
         }
       }
@@ -1125,6 +1125,10 @@ Future<void> _obtenerFotoVendedorReal() async {
   }
 
   void _mostrarOpcionesImagen() {
+    // 🔥 SOLO EL VENDEDOR PUEDE COMPARTIR SU PORTAFOLIO
+    final user = FirebaseAuth.instance.currentUser;
+    final esVendedor = user != null && user.uid == _vendedorId;
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -1149,14 +1153,16 @@ Future<void> _obtenerFotoVendedorReal() async {
                 _seleccionarImagen(ImageSource.camera);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.storefront, color: Colors.blue),
-              title: const Text('Compartir portafolio'),
-              onTap: () {
-                Navigator.pop(context);
-                _enviarPortafolio();
-              },
-            ),
+            // 🔥 SOLO SI SOS EL VENDEDOR
+            if (esVendedor)
+              ListTile(
+                leading: const Icon(Icons.storefront, color: Colors.blue),
+                title: const Text('Compartir portafolio'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _enviarPortafolio();
+                },
+              ),
           ],
         ),
       ),
@@ -1828,11 +1834,14 @@ Widget _buildAudioMessage({
 
     return Container(
       key: key,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.only(top: 0, left: 12, right: 12, bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        border: const Border(
+          top: BorderSide(color: Colors.grey, width: 1),
+          bottom: BorderSide(color: Colors.black, width: 1),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withValues(alpha: 0.15),
@@ -1933,14 +1942,14 @@ Widget _buildAudioMessage({
                                     width: 50,
                                     height: 50,
                                     fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(
+                                    placeholder: (_, _) => Container(
                                       width: 50,
                                       height: 50,
                                       color: Colors.grey.shade200,
                                       child: const Icon(Icons.image,
                                           size: 20, color: Colors.grey),
                                     ),
-                                    errorWidget: (_, __, ___) => Container(
+                                    errorWidget: (_, _, _) => Container(
                                       width: 50,
                                       height: 50,
                                       color: Colors.grey.shade200,
@@ -1957,14 +1966,14 @@ Widget _buildAudioMessage({
                                         width: 50,
                                         height: 50,
                                         fit: BoxFit.cover,
-                                        placeholder: (_, __) => Container(
+                                        placeholder: (_, _) => Container(
                                           width: 50,
                                           height: 50,
                                           color: Colors.grey.shade200,
                                           child: const Icon(Icons.image,
                                               size: 20, color: Colors.grey),
                                         ),
-                                        errorWidget: (_, __, ___) => Container(
+                                        errorWidget: (_, _, _) => Container(
                                           width: 50,
                                           height: 50,
                                           color: Colors.grey.shade200,
@@ -2243,7 +2252,7 @@ Widget _buildAudioMessage({
                     activeColor: Colors.red,
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                  )).toList(),
+                  )),
                   const SizedBox(height: 8),
                   const Text(
                     'Esta denuncia será revisada por nuestro equipo de moderación.',
@@ -2597,7 +2606,7 @@ ListTile(
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('📝 Seleccionar texto'),
-          content: Container(
+          content: SizedBox(
             width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -2860,13 +2869,22 @@ ListTile(
     }
   }
 
-  // 🔥 INTERFAZ DE AGENDAMIENTO DE ENCUENTRO
+  // 🔥 INTERFAZ DE AGENDAMIENTO DE ENCUENTRO (SOLO LUGARES SEGUROS)
   void _mostrarInterfazEncuentro() {
+    List<String> provincias = [];
+    List<String> cantones = [];
+    List<String> distritos = [];
+    List<dynamic> lugaresSeguros = [];
     String? provinciaSeleccionada;
     String? cantonSeleccionado;
     String? distritoSeleccionado;
-    final TextEditingController lugarController = TextEditingController();
     DateTime? fechaSeleccionada;
+    int? lugarSeleccionadoId;
+    String? lugarSeleccionadoNombre;
+    bool cargando = true;
+
+    // 🔥 BANDERA PARA NO CARGAR PROVINCIAS MÁS DE UNA VEZ
+    bool provinciasYaCargadas = false;
 
     showModalBottomSheet(
       context: context,
@@ -2874,256 +2892,394 @@ ListTile(
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Align(
-          alignment: Alignment.topCenter, // 🔥 ESTO SUBE EL MODAL
-          child: Container(
-            height: MediaQuery.of(context).size.height * 0.80, // 🔥 ALTURA FIJA
-            margin: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 20, // 🔥 MARGEN ARRIBA
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.event, color: Colors.blue, size: 28),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Proponer encuentro',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Completa los datos para proponer un encuentro seguro.',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 20),
+        builder: (context, setModalState) {
+          print('>>> MODAL BUILDER - cargando=$cargando');
+          Future<void> cargarProvincias() async {
+            try {
+              final r = await http.get(Uri.parse(
+                'https://mimarketplace-production.up.railway.app/api/lugares-seguros/provincias',
+              ));
+              print('>>> PROVINCIAS status: ${r.statusCode}');
+              print('>>> PROVINCIAS body: ${r.body}');
+              if (r.statusCode == 200) {
+                final List data = jsonDecode(r.body);
+                print('>>> PROVINCIAS ANTES de setModalState');
+                setModalState(() {
+                  provincias = data.map((e) => e.toString()).toList();
+                  cargando = false;
+                  print('>>> PROVINCIAS DENTRO de setModalState - cargando=$cargando');
+                });
+                print('>>> PROVINCIAS DESPUES de setModalState');
+              } else {
+                setModalState(() => cargando = false);
+              }
+            } catch (e) {
+              print('>>> PROVINCIAS error: $e');
+              setModalState(() => cargando = false);
+            }
+          }
 
-                  // 🔥 PROVINCIA
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: 'Provincia',
-                      border: OutlineInputBorder(),
-                    ),
-                    value: provinciaSeleccionada,
-                    items: costaRica.keys.map((p) {
-                      return DropdownMenuItem(value: p, child: Text(p));
-                    }).toList(),
-                    onChanged: (value) {
-                      setModalState(() {
-                        provinciaSeleccionada = value;
-                        cantonSeleccionado = null;
-                        distritoSeleccionado = null;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
+          Future<void> cargarCantones(String prov) async {
+            setModalState(() {
+              cantones = [];
+              distritos = [];
+              lugaresSeguros = [];
+              cantonSeleccionado = null;
+              distritoSeleccionado = null;
+              lugarSeleccionadoId = null;
+            });
+            try {
+              final r = await http.get(Uri.parse(
+                'https://mimarketplace-production.up.railway.app/api/lugares-seguros/cantones?provincia=${Uri.encodeComponent(prov)}',
+              ));
+              if (r.statusCode == 200) {
+                final List data = jsonDecode(r.body);
+                setModalState(() {
+                  cantones = data.map((e) => e.toString()).toList();
+                });
+              }
+            } catch (e) {}
+          }
 
-                  // 🔥 CANTÓN
-                  if (provinciaSeleccionada != null)
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: 'Cantón',
-                        border: OutlineInputBorder(),
-                      ),
-                      value: cantonSeleccionado,
-                      items: costaRica[provinciaSeleccionada]!.keys.map((c) {
-                        return DropdownMenuItem(value: c, child: Text(c));
-                      }).toList(),
-                      onChanged: (value) {
-                        setModalState(() {
-                          cantonSeleccionado = value;
-                          distritoSeleccionado = null;
-                        });
-                      },
-                    ),
-                  if (provinciaSeleccionada != null) const SizedBox(height: 12),
+          Future<void> cargarDistritos(String prov, String cant) async {
+            setModalState(() {
+              distritos = [];
+              lugaresSeguros = [];
+              distritoSeleccionado = null;
+              lugarSeleccionadoId = null;
+            });
+            try {
+              final r = await http.get(Uri.parse(
+                'https://mimarketplace-production.up.railway.app/api/lugares-seguros/distritos?provincia=${Uri.encodeComponent(prov)}&canton=${Uri.encodeComponent(cant)}',
+              ));
+              if (r.statusCode == 200) {
+                final List data = jsonDecode(r.body);
+                setModalState(() {
+                  distritos = data.map((e) => e.toString()).toList();
+                });
+              }
+            } catch (e) {}
+          }
 
-                  // 🔥 DISTRITO
-                  if (cantonSeleccionado != null)
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: 'Distrito',
-                        border: OutlineInputBorder(),
-                      ),
-                      value: distritoSeleccionado,
-                      items: costaRica[provinciaSeleccionada]![cantonSeleccionado]!.map((d) {
-                        return DropdownMenuItem(value: d, child: Text(d));
-                      }).toList(),
-                      onChanged: (value) {
-                        setModalState(() {
-                          distritoSeleccionado = value;
-                        });
-                      },
-                    ),
-                  if (cantonSeleccionado != null) const SizedBox(height: 12),
+          Future<void> cargarLugares(String prov, String cant, String dist) async {
+            setModalState(() {
+              lugaresSeguros = [];
+              lugarSeleccionadoId = null;
+            });
+            try {
+              final url = dist.isEmpty
+                  ? 'https://mimarketplace-production.up.railway.app/api/lugares-seguros'
+                    '?provincia=${Uri.encodeComponent(prov)}'
+                    '&canton=${Uri.encodeComponent(cant)}'
+                  : 'https://mimarketplace-production.up.railway.app/api/lugares-seguros'
+                    '?provincia=${Uri.encodeComponent(prov)}'
+                    '&canton=${Uri.encodeComponent(cant)}'
+                    '&distrito=${Uri.encodeComponent(dist)}';
+              final r = await http.get(Uri.parse(url));
+              if (r.statusCode == 200) {
+                final List data = jsonDecode(r.body);
+                setModalState(() {
+                  lugaresSeguros = data;
+                });
+              }
+            } catch (e) {}
+          }
 
-                  // 🔥 LUGAR EXACTO
-                  TextField(
-                    controller: lugarController,
-                    decoration: const InputDecoration(
-                      labelText: 'Lugar exacto (ej: Parque Central)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+          // 🔥 CARGAR PROVINCIAS AL INICIO (solo una vez)
+          if (!provinciasYaCargadas) {
+            provinciasYaCargadas = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              cargarProvincias();
+            });
+          }
 
-                  // 🔥 FECHA Y HORA
-                  InkWell(
-                    onTap: () async {
-                      final fecha = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now().add(const Duration(days: 1)),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 90)),
-                      );
-                      if (fecha != null) {
-                        final hora = await showTimePicker(
-                          context: context,
-                          initialTime: const TimeOfDay(hour: 10, minute: 0),
-                        );
-                        if (hora != null) {
-                          setModalState(() {
-                            fechaSeleccionada = DateTime(
-                              fecha.year, fecha.month, fecha.day,
-                              hora.hour, hora.minute,
-                            );
-                          });
-                        }
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
+          return Align(
+            alignment: Alignment.topCenter,
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              margin: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 20,
+              ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: cargando
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.calendar_today, color: Colors.blue),
-                          const SizedBox(width: 12),
-                          Text(
-                            fechaSeleccionada == null
-                                ? 'Seleccionar fecha y hora'
-                                : DateFormat('dd/MM/yyyy HH:mm').format(fechaSeleccionada!),
-                            style: const TextStyle(fontSize: 16),
+                          Row(
+                            children: [
+                              const Icon(Icons.event, color: Colors.blue, size: 28),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Proponer encuentro',
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Elegí un lugar seguro de la lista.',
+                            style: TextStyle(fontSize: 13, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // PROVINCIA
+                          DropdownButtonFormField<String>(
+                            decoration: const InputDecoration(
+                              labelText: 'Provincia',
+                              border: OutlineInputBorder(),
+                            ),
+                            initialValue: provinciaSeleccionada,
+                            items: provincias.map((p) {
+                              return DropdownMenuItem(value: p, child: Text(p));
+                            }).toList(),
+                            onChanged: (value) {
+                              setModalState(() => provinciaSeleccionada = value);
+                              if (value != null) cargarCantones(value);
+                            },
+                          ),
+                          const SizedBox(height: 12),
+
+                          // CANTÓN
+                          if (provinciaSeleccionada != null)
+                            DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(
+                                labelText: 'Cantón',
+                                border: OutlineInputBorder(),
+                              ),
+                              initialValue: cantonSeleccionado,
+                              items: cantones.map((c) {
+                                return DropdownMenuItem(value: c, child: Text(c));
+                              }).toList(),
+                              onChanged: (value) {
+                                setModalState(() {
+                                  cantonSeleccionado = value;
+                                  distritoSeleccionado = null;
+                                  lugaresSeguros = [];
+                                  lugarSeleccionadoId = null;
+                                });
+                                if (value != null) {
+                                  cargarDistritos(provinciaSeleccionada!, value)
+                                      .then((_) {
+                                    if (distritos.isEmpty) {
+                                      cargarLugares(provinciaSeleccionada!, value, '');
+                                    }
+                                  });
+                                }
+                              },
+                            ),
+                          if (provinciaSeleccionada != null) const SizedBox(height: 12),
+
+                          // DISTRITO (opcional, solo si hay)
+                          if (cantonSeleccionado != null && distritos.isNotEmpty) ...[
+                            DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(
+                                labelText: 'Distrito',
+                                border: OutlineInputBorder(),
+                              ),
+                              initialValue: distritoSeleccionado,
+                              items: distritos.map((d) {
+                                return DropdownMenuItem(value: d, child: Text(d));
+                              }).toList(),
+                              onChanged: (value) {
+                                setModalState(() => distritoSeleccionado = value);
+                                if (value != null) {
+                                  cargarLugares(
+                                    provinciaSeleccionada!,
+                                    cantonSeleccionado!,
+                                    value,
+                                  );
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // LISTA DE LUGARES SEGUROS
+                          if (lugaresSeguros.isNotEmpty) ...[
+                            const Text(
+                              'Lugares seguros:',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            ...lugaresSeguros.map<Widget>((lugar) {
+                              final seleccionado = lugarSeleccionadoId == lugar['id'];
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: seleccionado ? Colors.blue.shade50 : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: seleccionado ? Colors.blue : Colors.grey.shade300,
+                                    width: seleccionado ? 2 : 1,
+                                  ),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: ListTile(
+                                    leading: Icon(
+                                      Icons.place,
+                                      color: seleccionado ? Colors.blue : Colors.grey,
+                                    ),
+                                    title: Text(
+                                      lugar['nombre'] ?? '',
+                                      style: TextStyle(
+                                        fontWeight: seleccionado ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      '${lugar['canton'] ?? ''}, ${lugar['provincia'] ?? ''}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    onTap: () {
+                                      setModalState(() {
+                                        lugarSeleccionadoId = lugar['id'];
+                                      });
+                                    },
+                                  ),
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 12),
+                          ],
+
+                          // FECHA Y HORA
+                          InkWell(
+                            onTap: () async {
+                              final fecha = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now().add(const Duration(days: 1)),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now().add(const Duration(days: 90)),
+                              );
+                              if (fecha != null) {
+                                final hora = await showTimePicker(
+                                  context: context,
+                                  initialTime: const TimeOfDay(hour: 10, minute: 0),
+                                );
+                                if (hora != null) {
+                                  setModalState(() {
+                                    fechaSeleccionada = DateTime(
+                                      fecha.year, fecha.month, fecha.day,
+                                      hora.hour, hora.minute,
+                                    );
+                                  });
+                                }
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, color: Colors.blue),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    fechaSeleccionada == null
+                                        ? 'Seleccionar fecha y hora'
+                                        : DateFormat('dd/MM/yyyy HH:mm').format(fechaSeleccionada!),
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // BOTÓN
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                if (lugarSeleccionadoId == null || fechaSeleccionada == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('⚠️ Elegí un lugar y una fecha'),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) => const Center(
+                                    child: CircularProgressIndicator(color: Colors.white),
+                                  ),
+                                );
+
+                                try {
+                                  final user = FirebaseAuth.instance.currentUser;
+                                  final response = await http.post(
+                                    Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/proponer'),
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: jsonEncode({
+                                      'conversacion_id': int.parse(_conversacionIdActual),
+                                      'usuario_propone_id': user?.uid ?? '',
+                                      'usuario_recibe_id': widget.otroUsuarioId,
+                                      'lugar_id': lugarSeleccionadoId,
+                                      'fecha_encuentro': fechaSeleccionada!.toIso8601String(),
+                                    }),
+                                  );
+
+                                  if (mounted) Navigator.pop(context);
+
+                                  if (response.statusCode == 201) {
+                                    if (mounted) Navigator.pop(context);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('✅ Propuesta enviada: $lugarSeleccionadoNombre'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                    await _cargarMensajes(_conversacionIdActual);
+                                  } else {
+                                    throw Exception('Error ${response.statusCode}');
+                                  }
+                                } catch (e) {
+                                  if (mounted) Navigator.pop(context);
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                              child: const Text('Proponer encuentro'),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 🔥 BOTÓN DE PROPONER
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        // 🔥 VALIDAR CAMPOS
-                        if (provinciaSeleccionada == null ||
-                            cantonSeleccionado == null ||
-                            distritoSeleccionado == null ||
-                            lugarController.text.isEmpty ||
-                            fechaSeleccionada == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('⚠️ Completa todos los campos'),
-                              backgroundColor: Colors.orange,
-                            ),
-                          );
-                          return;
-                        }
-
-                        // 🔥 MOSTRAR INDICADOR DE CARGA
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => const Center(
-                            child: CircularProgressIndicator(color: Colors.white),
-                          ),
-                        );
-
-                        try {
-                          final user = FirebaseAuth.instance.currentUser;
-                          final response = await http.post(
-                            Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/proponer'),
-                            headers: {'Content-Type': 'application/json'},
-                            body: jsonEncode({
-                              'conversacion_id': int.parse(_conversacionIdActual),
-                              'usuario_propone_id': user?.uid ?? '',
-                              'usuario_recibe_id': widget.otroUsuarioId,
-                              'provincia': provinciaSeleccionada,
-                              'canton': cantonSeleccionado,
-                              'distrito': distritoSeleccionado,
-                              'lugar_nombre': lugarController.text,
-                              'fecha_encuentro': fechaSeleccionada!.toIso8601String(),
-                            }),
-                          );
-
-                          // 🔥 CERRAR INDICADOR DE CARGA
-                          if (mounted) Navigator.pop(context);
-
-                          if (response.statusCode == 201) {
-                            // 🔥 CERRAR MODAL
-                            if (mounted) Navigator.pop(context);
-
-                            // 🔥 MOSTRAR MENSAJE
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('✅ Propuesta enviada'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-
-                            // 🔥 RECARGAR MENSAJES
-                            await _cargarMensajes(_conversacionIdActual);
-                          } else {
-                            throw Exception('Error ${response.statusCode}');
-                          }
-                        } catch (e) {
-                          // 🔥 CERRAR INDICADOR DE CARGA SI QUEDÓ ABIERTO
-                          if (mounted) Navigator.pop(context);
-
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('Proponer encuentro'),
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -3719,7 +3875,7 @@ ListTile(
 
   @override
   Widget build(BuildContext context) {
-  print('>>> 🔥 BUILD: mostrarBotones=$_mostrarBotonesConfirmar | mostrarCerrar=$_mostrarBotonesCerrarTrato | quiereCerrar=$_quiereCerrarTrato | usuarioConfirmo=$_usuarioConfirmoCerrarTrato | decidioSeguir=$_usuarioDecidioSeguirConversando');
+  print('>>> 🔥 BUILD: ${DateTime.now().millisecondsSinceEpoch}');
   final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -3740,7 +3896,7 @@ ListTile(
           GestureDetector(
             onTap: () => _mostrarOpcionesVendedor(context),
             child: CircleAvatar(
-              radius: 20,
+              radius: 26,
               backgroundColor: Colors.grey.shade200,
               child: ClipOval(
                 child: (widget.fotoPerfil.isNotEmpty ||
@@ -3748,12 +3904,12 @@ ListTile(
                     ? CachedNetworkImage(
                         imageUrl:
                             'https://mimarketplace-production.up.railway.app${widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal}',
-                        width: 40,
-                        height: 40,
+                        width: 52,
+                        height: 52,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => const Icon(Icons.person,
+                        placeholder: (_, _) => const Icon(Icons.person,
                             size: 24, color: Colors.grey),
-                        errorWidget: (_, __, ___) => const Icon(Icons.person,
+                        errorWidget: (_, _, _) => const Icon(Icons.person,
                             size: 24, color: Colors.grey),
                       )
                     : const Icon(Icons.person,
@@ -3847,6 +4003,12 @@ ListTile(
 ),
       body: Column(
         children: [
+          // 🔥 LÍNEA DIVISORIA ARRIBA DEL HEADER DEL PRODUCTO
+          Container(
+            height: 1,
+            color: Colors.grey.shade300,
+          ),
+
           // 🔥 PANEL DE ANÁLISIS O HEADER DE PRODUCTOS
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
@@ -4017,6 +4179,51 @@ ListTile(
       mensaje['imagen']!.endsWith('.m4a');
 
  
+
+  // 🔥 ARTÍCULO VENDIDO
+  if ((mensaje['texto'] ?? '').startsWith('||ARTICULO_VENDIDO||')) {
+    final nombreProducto = (mensaje['texto'] ?? '')
+        .replaceAll('||ARTICULO_VENDIDO||', '')
+        .trim();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade300, width: 2),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sell, color: Colors.red, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'ARTÍCULO VENDIDO',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  nombreProducto,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // 🔥 PORTAFOLIO COMPARTIDO
   if (_esPortafolio(mensaje['texto'] ?? '')) {
@@ -4273,9 +4480,9 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                         width: 32,
                         height: 32,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) =>
+                        placeholder: (_, _) =>
                             const Icon(Icons.person, size: 16),
-                        errorWidget: (_, __, ___) =>
+                        errorWidget: (_, _, _) =>
                             const Icon(Icons.person, size: 16),
                       )
                     : const Icon(Icons.person, size: 16),
@@ -4333,7 +4540,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                             width: 200,
                             height: 200,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
+                            placeholder: (_, _) => Container(
                               width: 200,
                               height: 200,
                               color: Colors.grey.shade200,
@@ -4341,7 +4548,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             ),
-                            errorWidget: (_, __, ___) => Container(
+                            errorWidget: (_, _, _) => Container(
                               width: 200,
                               height: 200,
                               color: Colors.grey.shade200,
@@ -4383,8 +4590,14 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
 },
                       ),
           ),
+                ),
+
+          // 🔥 LÍNEA DIVISORIA ENTRE EL CHAT Y EL INPUT
+          Container(
+            height: 1,
+            color: Colors.grey.shade300,
           ),
-          
+
          // 🔥 BOTÓN DE CALIFICACIÓN ELIMINADO - AHORA SOLO APARECE EN EL LISTVIEW
          SafeArea(
   top: false,

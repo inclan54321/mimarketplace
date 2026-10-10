@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -589,17 +588,22 @@ Future<void> _precargarImagenPerfil() async {
   void _mostrarSelectorEstilo() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F2447),
+      backgroundColor: const Color(0xFF0D1117),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
+      isScrollControlled: true,
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // Handle
               Center(
                 child: Container(
@@ -658,7 +662,9 @@ Future<void> _precargarImagenPerfil() async {
                 Icons.local_fire_department,
                 const Color(0xFFEF4444),
               ),
+              const SizedBox(height: 20),
             ],
+          ),
           ),
         );
       },
@@ -771,7 +777,7 @@ Future<void> _precargarImagenPerfil() async {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F2447),
+      backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(
         title: const Text('Perfil'),
         backgroundColor: Colors.transparent,
@@ -792,63 +798,56 @@ Future<void> _precargarImagenPerfil() async {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(color: Colors.blue),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 35,
-                        backgroundColor: Colors.blue.shade100,
-                        backgroundImage: _fotoPerfilUrl != null && _fotoPerfilUrl!.isNotEmpty
-                            ? CachedNetworkImageProvider('https://mimarketplace-production.up.railway.app$_fotoPerfilUrl')
-                            : null,
-                        child: _fotoPerfilUrl == null || _fotoPerfilUrl!.isEmpty
-                            ? Text(
-                                user?.displayName?.isNotEmpty == true
-                                    ? user!.displayName![0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                ),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              user?.displayName ?? 'Usuario',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              user?.email ?? '',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
+              margin: EdgeInsets.zero,
+              padding: EdgeInsets.zero,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage(
+                    'assets/images/perfil/${_estiloActual.name}.png',
+                  ),
+                  fit: BoxFit.cover,
+                  onError: (exception, stackTrace) {},
+                ),
+                color: const Color(0xFF161B22),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.2),
+                      Colors.black.withValues(alpha: 0.75),
                     ],
                   ),
-                ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      user?.displayName ?? 'Usuario',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      user?.email ?? '',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
             ),
             ListTile(
@@ -936,9 +935,9 @@ Future<void> _precargarImagenPerfil() async {
             height: 300,
             child: ClipPath(
               clipper: _HeaderWaveClipper(),
-              child: CustomPaint(
-                painter: _getPainterSegunEstilo(),
-                size: Size.infinite,
+              child: Image.asset(
+                'assets/images/perfil/${_estiloActual.name}.png',
+                fit: BoxFit.cover,
               ),
             ),
           ),
@@ -953,23 +952,17 @@ Future<void> _precargarImagenPerfil() async {
                   child: Stack(
                     children: [
                   
-                  // Avatar con doble borde (glow cyan + blanco interior)
+                  // Avatar con borde limpio (1 solo glow sutil)
                   Container(
-                    width: 160,
-                    height: 160,
+                    width: 150,
+                    height: 150,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       boxShadow: [
-                        // Glow cyan exterior
                         BoxShadow(
-                          color: const Color(0xFF5EEAD4).withValues(alpha: 0.6),
-                          blurRadius: 30,
-                          spreadRadius: 5,
-                        ),
-                        BoxShadow(
-                          color: const Color(0xFF3B82F6).withValues(alpha: 0.5),
-                          blurRadius: 50,
-                          spreadRadius: 10,
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
+                          blurRadius: 20,
+                          spreadRadius: 2,
                         ),
                       ],
                     ),
@@ -1128,7 +1121,7 @@ Future<void> _precargarImagenPerfil() async {
 
             const SizedBox(height: 16),
             Divider(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: const Color(0xFF30363D),
               thickness: 1,
             ),
             const SizedBox(height: 12),
@@ -1192,35 +1185,15 @@ Future<void> _precargarImagenPerfil() async {
     required Widget child,
     required EdgeInsets margin,
   }) {
-    final color = _colorEstiloActual;
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF1E3A6B).withValues(alpha: 0.9),
-            const Color(0xFF0F2447).withValues(alpha: 0.95),
-          ],
-        ),
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFF161B22),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1.2,
+          color: const Color(0xFF30363D),
+          width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.15),
-            blurRadius: 12,
-            spreadRadius: 1,
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: child,
     );
@@ -1235,21 +1208,25 @@ Future<void> _precargarImagenPerfil() async {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF3B82F6)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          border: Border(
+            bottom: BorderSide(
+              color: isSelected
+                  ? const Color(0xFF3B82F6)
+                  : Colors.transparent,
+              width: 2,
+            ),
+          ),
         ),
         child: Text(
           title,
           style: TextStyle(
             fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             color: isSelected
                 ? Colors.white
-                : Colors.white.withValues(alpha: 0.6),
+                : const Color(0xFF8B949E),
           ),
         ),
       ),
@@ -1285,7 +1262,10 @@ Future<void> _precargarImagenPerfil() async {
         itemCount: _misProductos.length,
         itemBuilder: (context, index) {
           final producto = _misProductos[index];
-          return _buildCardEstilizada(
+          return GestureDetector(
+            // 🔥 DEJAR PRESIONADO PARA PREGUNTAR SI SE VENDIÓ
+            onLongPress: () => _preguntarSiSeVendio(producto),
+            child: _buildCardEstilizada(
             margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1408,10 +1388,83 @@ Future<void> _precargarImagenPerfil() async {
                 ],
               ),
             ),
+          ),
           );
         },
       ),
     );
+  }
+
+  // 🔥 PREGUNTAR SI EL PRODUCTO YA SE VENDIÓ
+  Future<void> _preguntarSiSeVendio(Producto producto) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Ya se vendió?'),
+        content: Text(
+          '¿El producto "${producto.nombre}" ya fue vendido?\n\n'
+          'Si confirmás, se marcará como vendido.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF087FE8),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar == true) {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) return;
+
+        final response = await http.post(
+          Uri.parse(
+              'https://mimarketplace-production.up.railway.app/api/productos/${producto.id}/vendido'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'vendedor_id': user.uid}),
+        );
+
+        if (!mounted) return;
+
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('"${producto.nombre}" marcado como vendido'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          // 🔥 RECARGAR MIS ARTÍCULOS
+          _cargarMisProductos();
+        } else {
+          final data = jsonDecode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['error'] ?? 'Error al marcar como vendido'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
    Widget _buildFavoritos() {
@@ -2210,7 +2263,7 @@ class _MountainsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
 
 // ===== Random con semilla para que las montañas no cambien en cada repintado =====

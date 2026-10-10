@@ -1,0 +1,465 @@
+import 'package:smart_liveliness_detection/src/config/depth_detection_config.dart';
+import 'package:smart_liveliness_detection/src/config/template_config.dart';
+import 'package:smart_liveliness_detection/src/models/biometric_template.dart';
+import 'package:smart_liveliness_detection/src/config/messages_config.dart';
+import 'package:smart_liveliness_detection/src/config/challenge_hint_config.dart';
+import 'package:smart_liveliness_detection/src/config/screen_flash_config.dart';
+import 'package:smart_liveliness_detection/src/config/voice_guidance_config.dart';
+import 'package:smart_liveliness_detection/src/utils/enums.dart';
+
+import '../utils/constants.dart';
+
+/// Configuration class for customizing the Face Liveness Detection package
+class LivenessConfig {
+  /// Duration after which the session expires and resets
+  final Duration maxSessionDuration;
+
+  /// Minimum relative size a face must be to be detected
+  final double minFaceSize;
+
+  /// Threshold value for eyes to be considered open (0.0-1.0)
+  final double eyeBlinkThresholdOpen;
+
+  /// Threshold value for eyes to be considered closed (0.0-1.0)
+  final double eyeBlinkThresholdClosed;
+
+  /// Threshold value for face to be considered neutral/not smiling (0.0-1.0)
+  final double smileThresholdNeutral;
+
+  /// Threshold value for face to be considered smiling (0.0-1.0)
+  final double smileThresholdSmiling;
+
+  /// Angle in degrees for head to be considered turned
+  final double headTurnThreshold;
+
+  /// Minimum threshold for adequate lighting (0.0-1.0)
+  final double minLightingThreshold;
+
+  /// Whether to enable screen glare detection (anti-spoofing).
+  final bool enableScreenGlareDetection;
+
+  /// Multiplier for average brightness to set the dynamic glare threshold.
+  /// Pixels brighter than (average * factor) are considered glare.
+  final double glareBrightnessFactor;
+
+  /// Minimum percentage of bright pixels to detect screen glare
+  final double minBrightPercentage;
+
+  /// Maximum percentage of bright pixels to detect screen glare
+  final double maxBrightPercentage;
+
+  /// Whether to enable motion correlation check (anti-spoofing).
+  final bool enableMotionCorrelationCheck;
+
+  /// Whether to enable contour analysis on face centering (anti-spoofing).
+  final bool enableContourAnalysisOnCentering;
+
+  /// List of challenges where contour analysis should also be applied.
+  /// Recommended for challenges where the face is expected to be frontal, like 'smile' or 'blink'.
+  final List<ChallengeType>? contourChallengeTypes;
+
+  /// The minimum number of secondary contours required for the contour analysis to pass.
+  final int minRequiredSecondaryContours;
+
+  /// Whether to automatically add a `ChallengeType.normal` at the beginning and end of random challenges.
+  /// This is highly recommended for security.
+  final bool sandwichNormalChallenge;
+
+  /// Whether the session should fail if motion correlation check fails at the end.
+  final bool failOnMotionCorrelationFailedAtTheEnd;
+
+  /// Camera zoom level for better face visibility
+  final double cameraZoomLevel;
+
+  /// Maximum number of motion sensor readings to store
+  final int maxMotionReadings;
+
+  /// Maximum number of head angle readings to store
+  final int maxHeadAngleReadings;
+
+  /// Standard deviation threshold for significant head movement.
+  final double significantHeadMovementStdDev;
+
+  /// Minimum device movement threshold for spoofing detection (Accelerometer)
+  final double minDeviceMovementThreshold;
+
+  /// Whether to enable gyroscope check for motion correlation (anti-spoofing).
+  final bool enableGyroscopeCheck;
+
+  /// Minimum device movement threshold for spoofing detection (Gyroscope)
+  final double minGyroscopeMovementThreshold;
+
+  /// Height ratio of the oval face guide relative to screen height
+  final double ovalHeightRatio;
+
+  /// Width ratio of the oval face guide relative to its height
+  final double ovalWidthRatio;
+
+  /// Stroke width of the oval face guide
+  final double strokeWidth;
+
+  /// The initial zoom factor of the oval, between 0.0 (smallest) and 1.0 (largest).
+  /// This determines the starting size of the oval guide.
+  final double initialZoomFactor;
+
+  /// Ratio for the outer guide markers
+  final double guideMarkerRatio;
+
+  /// Ratio for the inner guide markers
+  final double guideMarkerInnerRatio;
+
+  /// List of challenge types to use
+  /// If null, random challenges will be generated
+  final List<ChallengeType>? challengeTypes;
+
+  /// Number of challenges to present to the user
+  /// Only used if challengeTypes is null
+  final int numberOfRandomChallenges;
+
+  /// Always include blink challenge (as it's harder to spoof)
+  final bool alwaysIncludeBlink;
+
+  /// Custom messages for each challenge type
+  final Map<ChallengeType, String>? challengeInstructions;
+
+  /// Whether to enable relaxed face positioning requirements during head tilt down challenge.
+  /// This helps when the head tilt movement naturally changes the face size or position significantly.
+  final bool enableRelaxedFacePositioningOnTiltDown;
+
+  // NEW ERROR HANDLING AND PERFORMANCE PROPERTIES
+
+  /// Maximum number of consecutive processing errors before reinitializing detector
+  final int maxConsecutiveErrors;
+
+  /// Frame skip interval (process every Nth frame to prevent buffer overflow)
+  final int frameSkipInterval;
+
+  /// Maximum number of camera restart attempts
+  final int maxCameraRestartAttempts;
+
+  /// Delay between camera restart attempts
+  final Duration cameraRestartDelay;
+
+  /// Whether to enable aggressive error recovery
+  final bool enableAggressiveErrorRecovery;
+
+  /// Maximum image processing timeout
+  final Duration imageProcessingTimeout;
+
+  /// Whether to enable performance monitoring and logging
+  final bool enablePerformanceMonitoring;
+
+  /// Interval for performance monitoring reports
+  final Duration performanceMonitoringInterval;
+
+  /// Maximum allowed frame drop rate before reducing processing load
+  final double maxFrameDropRate;
+
+  /// Whether to enable automatic memory cleanup
+  final bool enableAutomaticMemoryCleanup;
+
+  /// Interval for automatic memory cleanup
+  final Duration memoryCleanupInterval;
+  /// A collection of customizable messages for the liveness UI.
+  final LivenessMessages messages;
+
+  /// Default configuration for challenge hints (GIF/Lottie animations)
+  final ChallengeHintConfig? defaultChallengeHintConfig;
+
+  /// Per-challenge hint configurations
+  /// If a challenge type is not in this map, defaultChallengeHintConfig will be used
+  final Map<ChallengeType, ChallengeHintConfig>? challengeHints;
+
+  /// Optional screen-flash anti-spoofing test configuration.
+  ///
+  /// When provided and [ScreenFlashConfig.enabled] is `true`, the package
+  /// flashes red/green/blue overlays after face centering and measures the
+  /// luminance response to detect printed photos or video replays.
+  final ScreenFlashConfig? screenFlash;
+
+  /// Whether to enable face quality scoring on each detected frame.
+  final bool enableFaceQualityScoring;
+
+  /// Minimum quality score (0–100) required before challenges begin.
+  /// Only enforced when [blockChallengesOnLowQuality] is `true`.
+  final double minFaceQualityScore;
+
+  /// When `true`, the session will not progress to challenges until the face
+  /// quality score is at least [minFaceQualityScore].
+  final bool blockChallengesOnLowQuality;
+
+  /// When `true`, a [BiometricTemplate] is generated from the face detected at
+  /// session completion and returned via `onBiometricTemplateGenerated`.
+  final bool generateBiometricTemplate;
+
+  /// Controls how the biometric template is produced.
+  /// Ignored when [generateBiometricTemplate] is `false`.
+  final TemplateConfig templateConfig;
+
+  /// Optional previously enrolled template to match against.
+  ///
+  /// When provided, the controller generates a fresh template at session
+  /// completion and compares it to this reference using cosine similarity.
+  /// The result is returned in `onLivenessCompleted` metadata under the
+  /// keys `biometricMatchScore` (0.0–1.0) and `biometricMatchPassed` (bool).
+  final BiometricTemplate? referenceTemplate;
+
+  /// Cosine-similarity threshold for [referenceTemplate] matching.
+  /// Scores at or above this value are considered a match. Default: `0.80`.
+  final double biometricMatchThreshold;
+
+  /// Optional 3-D depth detection configuration (iOS TrueDepth camera only).
+  ///
+  /// When provided and [DepthDetectionConfig.enabled] is `true`, the package
+  /// runs an ARKit face-tracking session in parallel with the camera stream
+  /// and records whether the face appears three-dimensional. The result is
+  /// included in the anti-spoofing metadata as `depthSpoofDetected`.
+  ///
+  /// When `null`, depth detection is completely disabled and no ARKit session
+  /// is started.
+  final DepthDetectionConfig? depthDetection;
+
+  /// Optional voice guidance configuration.
+  ///
+  /// When provided and [VoiceGuidanceConfig.enabled] is `true`, the package
+  /// will speak challenge instructions, positioning feedback, and the
+  /// completion message aloud via the device TTS engine.
+  ///
+  /// When `null`, voice guidance is completely disabled and no TTS engine
+  /// is initialised.
+  final VoiceGuidanceConfig? voiceGuidance;
+
+  const LivenessConfig({
+    this.maxSessionDuration = LivenessConstants.defaultMaxSessionDuration,
+    this.minFaceSize = LivenessConstants.defaultMinFaceSize,
+    this.eyeBlinkThresholdOpen = LivenessConstants.defaultEyeBlinkThresholdOpen,
+    this.eyeBlinkThresholdClosed = LivenessConstants.defaultEyeBlinkThresholdClosed,
+    this.smileThresholdNeutral = LivenessConstants.defaultSmileThresholdNeutral,
+    this.smileThresholdSmiling = LivenessConstants.defaultSmileThresholdSmiling,
+    this.headTurnThreshold = LivenessConstants.defaultHeadTurnThreshold,
+    this.minLightingThreshold = LivenessConstants.defaultMinLightingThreshold,
+    this.enableScreenGlareDetection = LivenessConstants.defaultEnableScreenGlareDetection,
+    this.glareBrightnessFactor = LivenessConstants.defaultGlareBrightnessFactor,
+    this.minBrightPercentage = LivenessConstants.defaultMinBrightPercentage,
+    this.maxBrightPercentage = LivenessConstants.defaultMaxBrightPercentage,
+    this.enableMotionCorrelationCheck = LivenessConstants.defaultEnableMotionCorrelationCheck,
+    this.enableContourAnalysisOnCentering = LivenessConstants.defaultEnableContourAnalysisOnCentering,
+    this.contourChallengeTypes,
+    this.minRequiredSecondaryContours = LivenessConstants.defaultMinRequiredSecondaryContours,
+    this.sandwichNormalChallenge = LivenessConstants.defaultSandwichNormalChallenge,
+    this.failOnMotionCorrelationFailedAtTheEnd = LivenessConstants.defaultFailOnMotionCorrelationFailedAtTheEnd,
+    this.cameraZoomLevel = LivenessConstants.defaultCameraZoomLevel,
+    this.maxMotionReadings = LivenessConstants.defaultMaxMotionReadings,
+    this.maxHeadAngleReadings = LivenessConstants.defaultMaxHeadAngleReadings,
+    this.significantHeadMovementStdDev = LivenessConstants.defaultSignificantHeadMovementStdDev,
+    this.minDeviceMovementThreshold = LivenessConstants.defaultMinDeviceMovementThreshold,
+    this.enableGyroscopeCheck = LivenessConstants.defaultEnableGyroscopeCheck,
+    this.minGyroscopeMovementThreshold = LivenessConstants.defaultMinGyroscopeMovementThreshold,
+    this.ovalHeightRatio = LivenessConstants.defaultOvalHeightRatio,
+    this.ovalWidthRatio = LivenessConstants.defaultOvalWidthRatio,
+    this.strokeWidth = LivenessConstants.defaultStrokeWidth,
+    this.initialZoomFactor = 1.0,
+    this.guideMarkerRatio = LivenessConstants.defaultGuideMarkerRatio,
+    this.guideMarkerInnerRatio = LivenessConstants.defaultGuideMarkerInnerRatio,
+    this.challengeTypes,
+    this.numberOfRandomChallenges = 3,
+    this.alwaysIncludeBlink = true,
+    this.challengeInstructions,
+    this.enableRelaxedFacePositioningOnTiltDown = true,
+    // New error handling and performance properties with sensible defaults
+    this.maxConsecutiveErrors = 5,
+    this.frameSkipInterval = 2,
+    this.maxCameraRestartAttempts = 3,
+    this.cameraRestartDelay = const Duration(milliseconds: 500),
+    this.enableAggressiveErrorRecovery = true,
+    this.imageProcessingTimeout = const Duration(milliseconds: 1000),
+    this.enablePerformanceMonitoring = false,
+    this.performanceMonitoringInterval = const Duration(seconds: 5),
+    this.maxFrameDropRate = 0.7,
+    this.enableAutomaticMemoryCleanup = true,
+    this.memoryCleanupInterval = const Duration(seconds: 30),
+    this.messages = const LivenessMessages(),
+    this.defaultChallengeHintConfig,
+    this.challengeHints,
+    this.voiceGuidance,
+    this.screenFlash,
+    this.depthDetection,
+    this.generateBiometricTemplate = false,
+    this.templateConfig = const TemplateConfig(),
+    this.referenceTemplate,
+    this.biometricMatchThreshold = 0.80,
+    this.enableFaceQualityScoring = false,
+    this.minFaceQualityScore = 60.0,
+    this.blockChallengesOnLowQuality = false,
+  });
+
+  /// Create a copy of this configuration with some values replaced
+  LivenessConfig copyWith({
+    Duration? maxSessionDuration,
+    double? minFaceSize,
+    double? eyeBlinkThresholdOpen,
+    double? eyeBlinkThresholdClosed,
+    double? smileThresholdNeutral,
+    double? smileThresholdSmiling,
+    double? headTurnThreshold,
+    double? minLightingThreshold,
+    bool? enableScreenGlareDetection,
+    double? glareBrightnessFactor,
+    double? minBrightPercentage,
+    double? maxBrightPercentage,
+    bool? enableMotionCorrelationCheck,
+    bool? enableContourAnalysisOnCentering,
+    List<ChallengeType>? contourChallengeTypes,
+    int? minRequiredSecondaryContours,
+    bool? sandwichNormalChallenge,
+    bool? failOnMotionCorrelationFailedAtTheEnd,
+    double? cameraZoomLevel,
+    int? maxMotionReadings,
+    int? maxHeadAngleReadings,
+    double? significantHeadMovementStdDev,
+    double? minDeviceMovementThreshold,
+    bool? enableGyroscopeCheck,
+    double? minGyroscopeMovementThreshold,
+    double? ovalHeightRatio,
+    double? ovalWidthRatio,
+    double? strokeWidth,
+    double? initialZoomFactor,
+    double? guideMarkerRatio,
+    double? guideMarkerInnerRatio,
+    List<ChallengeType>? challengeTypes,
+    int? numberOfRandomChallenges,
+    bool? alwaysIncludeBlink,
+    Map<ChallengeType, String>? challengeInstructions,
+    bool? enableRelaxedFacePositioningOnTiltDown,
+    // New parameters
+    int? maxConsecutiveErrors,
+    int? frameSkipInterval,
+    int? maxCameraRestartAttempts,
+    Duration? cameraRestartDelay,
+    bool? enableAggressiveErrorRecovery,
+    Duration? imageProcessingTimeout,
+    bool? enablePerformanceMonitoring,
+    Duration? performanceMonitoringInterval,
+    double? maxFrameDropRate,
+    bool? enableAutomaticMemoryCleanup,
+    Duration? memoryCleanupInterval,
+    LivenessMessages? messages,
+    ChallengeHintConfig? defaultChallengeHintConfig,
+    Map<ChallengeType, ChallengeHintConfig>? challengeHints,
+    VoiceGuidanceConfig? voiceGuidance,
+    ScreenFlashConfig? screenFlash,
+    DepthDetectionConfig? depthDetection,
+    bool? generateBiometricTemplate,
+    TemplateConfig? templateConfig,
+    BiometricTemplate? referenceTemplate,
+    double? biometricMatchThreshold,
+    bool? enableFaceQualityScoring,
+    double? minFaceQualityScore,
+    bool? blockChallengesOnLowQuality,
+  }) {
+    return LivenessConfig(
+      maxSessionDuration: maxSessionDuration ?? this.maxSessionDuration,
+      minFaceSize: minFaceSize ?? this.minFaceSize,
+      eyeBlinkThresholdOpen: eyeBlinkThresholdOpen ?? this.eyeBlinkThresholdOpen,
+      eyeBlinkThresholdClosed: eyeBlinkThresholdClosed ?? this.eyeBlinkThresholdClosed,
+      smileThresholdNeutral: smileThresholdNeutral ?? this.smileThresholdNeutral,
+      smileThresholdSmiling: smileThresholdSmiling ?? this.smileThresholdSmiling,
+      headTurnThreshold: headTurnThreshold ?? this.headTurnThreshold,
+      minLightingThreshold: minLightingThreshold ?? this.minLightingThreshold,
+      enableScreenGlareDetection: enableScreenGlareDetection ?? this.enableScreenGlareDetection,
+      glareBrightnessFactor: glareBrightnessFactor ?? this.glareBrightnessFactor,
+      minBrightPercentage: minBrightPercentage ?? this.minBrightPercentage,
+      maxBrightPercentage: maxBrightPercentage ?? this.maxBrightPercentage,
+      enableMotionCorrelationCheck: enableMotionCorrelationCheck ?? this.enableMotionCorrelationCheck,
+      enableContourAnalysisOnCentering: enableContourAnalysisOnCentering ?? this.enableContourAnalysisOnCentering,
+      contourChallengeTypes: contourChallengeTypes ?? this.contourChallengeTypes,
+      minRequiredSecondaryContours: minRequiredSecondaryContours ?? this.minRequiredSecondaryContours,
+      sandwichNormalChallenge: sandwichNormalChallenge ?? this.sandwichNormalChallenge,
+      failOnMotionCorrelationFailedAtTheEnd: failOnMotionCorrelationFailedAtTheEnd ?? this.failOnMotionCorrelationFailedAtTheEnd,
+      cameraZoomLevel: cameraZoomLevel ?? this.cameraZoomLevel,
+      maxMotionReadings: maxMotionReadings ?? this.maxMotionReadings,
+      maxHeadAngleReadings: maxHeadAngleReadings ?? this.maxHeadAngleReadings,
+      significantHeadMovementStdDev: significantHeadMovementStdDev ?? this.significantHeadMovementStdDev,
+      minDeviceMovementThreshold: minDeviceMovementThreshold ?? this.minDeviceMovementThreshold,
+      enableGyroscopeCheck: enableGyroscopeCheck ?? this.enableGyroscopeCheck,
+      minGyroscopeMovementThreshold: minGyroscopeMovementThreshold ?? this.minGyroscopeMovementThreshold,
+      ovalHeightRatio: ovalHeightRatio ?? this.ovalHeightRatio,
+      ovalWidthRatio: ovalWidthRatio ?? this.ovalWidthRatio,
+      strokeWidth: strokeWidth ?? this.strokeWidth,
+      initialZoomFactor: initialZoomFactor ?? this.initialZoomFactor,
+      guideMarkerRatio: guideMarkerRatio ?? this.guideMarkerRatio,
+      guideMarkerInnerRatio: guideMarkerInnerRatio ?? this.guideMarkerInnerRatio,
+      challengeTypes: challengeTypes ?? this.challengeTypes,
+      numberOfRandomChallenges: numberOfRandomChallenges ?? this.numberOfRandomChallenges,
+      alwaysIncludeBlink: alwaysIncludeBlink ?? this.alwaysIncludeBlink,
+      challengeInstructions: challengeInstructions ?? this.challengeInstructions,
+      enableRelaxedFacePositioningOnTiltDown: enableRelaxedFacePositioningOnTiltDown ?? this.enableRelaxedFacePositioningOnTiltDown,
+      // New parameters
+      maxConsecutiveErrors: maxConsecutiveErrors ?? this.maxConsecutiveErrors,
+      frameSkipInterval: frameSkipInterval ?? this.frameSkipInterval,
+      maxCameraRestartAttempts: maxCameraRestartAttempts ?? this.maxCameraRestartAttempts,
+      cameraRestartDelay: cameraRestartDelay ?? this.cameraRestartDelay,
+      enableAggressiveErrorRecovery: enableAggressiveErrorRecovery ?? this.enableAggressiveErrorRecovery,
+      imageProcessingTimeout: imageProcessingTimeout ?? this.imageProcessingTimeout,
+      enablePerformanceMonitoring: enablePerformanceMonitoring ?? this.enablePerformanceMonitoring,
+      performanceMonitoringInterval: performanceMonitoringInterval ?? this.performanceMonitoringInterval,
+      maxFrameDropRate: maxFrameDropRate ?? this.maxFrameDropRate,
+      enableAutomaticMemoryCleanup: enableAutomaticMemoryCleanup ?? this.enableAutomaticMemoryCleanup,
+      memoryCleanupInterval: memoryCleanupInterval ?? this.memoryCleanupInterval,
+      messages: messages ?? this.messages,
+      defaultChallengeHintConfig: defaultChallengeHintConfig ?? this.defaultChallengeHintConfig,
+      challengeHints: challengeHints ?? this.challengeHints,
+      voiceGuidance: voiceGuidance ?? this.voiceGuidance,
+      screenFlash: screenFlash ?? this.screenFlash,
+      depthDetection: depthDetection ?? this.depthDetection,
+      generateBiometricTemplate: generateBiometricTemplate ?? this.generateBiometricTemplate,
+      templateConfig: templateConfig ?? this.templateConfig,
+      referenceTemplate: referenceTemplate ?? this.referenceTemplate,
+      biometricMatchThreshold: biometricMatchThreshold ?? this.biometricMatchThreshold,
+      enableFaceQualityScoring: enableFaceQualityScoring ?? this.enableFaceQualityScoring,
+      minFaceQualityScore: minFaceQualityScore ?? this.minFaceQualityScore,
+      blockChallengesOnLowQuality: blockChallengesOnLowQuality ?? this.blockChallengesOnLowQuality,
+    );
+  }
+
+  /// Create a configuration optimized for stability (reduced crashes)
+  factory LivenessConfig.stable() {
+    return const LivenessConfig(
+      frameSkipInterval: 3,
+      maxConsecutiveErrors: 3,
+      enableAggressiveErrorRecovery: true,
+      imageProcessingTimeout: Duration(milliseconds: 800),
+      maxFrameDropRate: 0.8,
+      enableAutomaticMemoryCleanup: true,
+      memoryCleanupInterval: Duration(seconds: 20),
+    );
+  }
+
+  /// Create a configuration optimized for performance
+  factory LivenessConfig.performance() {
+    return const LivenessConfig(
+      frameSkipInterval: 1,
+      maxConsecutiveErrors: 8,
+      enableAggressiveErrorRecovery: false,
+      imageProcessingTimeout: Duration(milliseconds: 1200),
+      enablePerformanceMonitoring: true,
+      maxFrameDropRate: 0.5,
+      enableAutomaticMemoryCleanup: true,
+      memoryCleanupInterval: Duration(seconds: 45),
+    );
+  }
+
+  /// Create a configuration optimized for debugging
+  factory LivenessConfig.debug() {
+    return const LivenessConfig(
+      frameSkipInterval: 4,
+      maxConsecutiveErrors: 2,
+      enableAggressiveErrorRecovery: true,
+      enablePerformanceMonitoring: true,
+      performanceMonitoringInterval: Duration(seconds: 3),
+      maxFrameDropRate: 0.9,
+      enableAutomaticMemoryCleanup: true,
+      memoryCleanupInterval: Duration(seconds: 10),
+    );
+  }
+}

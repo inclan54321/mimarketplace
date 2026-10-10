@@ -1,12 +1,20 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:mimarketplace/screens/pantalla_verificacion_encuentro.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+
+  // 🔥 KEY GLOBAL PARA NAVEGAR DESDE NOTIFICACIONES
+  static final GlobalKey<NavigatorState> _navigatorKey =
+      GlobalKey<NavigatorState>();
+
+  static GlobalKey<NavigatorState> get navigatorKey => _navigatorKey;
 
   // 🔥 INICIALIZAR NOTIFICACIONES
   static Future<void> init() async {
@@ -67,7 +75,20 @@ class NotificationService {
   // 🔥 MANEJAR CUANDO EL USUARIO TOCA LA NOTIFICACIÓN
   static void _handleMessageOpened(RemoteMessage message) {
     print('>>> 👆 USUARIO TOCÓ NOTIFICACIÓN: ${message.data}');
-    
+
+    final tipo = message.data['tipo'];
+
+    // 🔥 Recordatorio de encuentro → abrir pantalla de verificación
+    if (tipo == 'recordatorio_1h' || tipo == 'recordatorio_10m') {
+      final encuentroIdStr = message.data['encuentro_id'];
+      final encuentroId = int.tryParse(encuentroIdStr ?? '');
+      if (encuentroId != null) {
+        _navegarAPantallaVerificacion(encuentroId);
+      }
+      return;
+    }
+
+    // Mensaje normal → abrir chat
     final conversacionId = message.data['conversacionId'];
     final otroUsuario = message.data['otroUsuario'] ?? 'Usuario';
     final otroUsuarioId = message.data['otroUsuarioId'] ?? '';
@@ -76,6 +97,25 @@ class NotificationService {
 
     // TODO: Navegar a ChatScreen con los datos
     // Implementar después
+  }
+
+  // 🔥 NAVEGAR A PANTALLA DE VERIFICACIÓN DE ENCUENTRO
+  static void _navegarAPantallaVerificacion(int encuentroId) {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    // Necesitamos un Navigator global. Ver Parte 2C.
+
+    final context = _navigatorKey.currentContext;
+    if (context == null) {
+      print('>>> ⚠️ No hay contexto para navegar');
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            PantallaVerificacionEncuentro(encuentroId: encuentroId),
+      ),
+    );
   }
 
   // 🔥 MOSTRAR NOTIFICACIÓN LOCAL

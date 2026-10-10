@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:animated_emoji/animated_emoji.dart';
 import 'conversation_status_indicator.dart';
 import 'rewarded_ad_prueba.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EscudoSeguridadWidget extends StatefulWidget {
   final ConversationStatus? emojiDesdeEstado; // 🔥 NUEVO
@@ -79,41 +80,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     // 🔥 NUEVO: Leer el estado inicial
     _videoVisto = widget.videoVistoInicial;
     print('>>> 🛡️ Escudo initState - videoVistoInicial: ${widget.videoVistoInicial}');
-    // 🔥 CICLO: 4s animado → 4s pausa → 4s animado → 4s pausa → 15s espera → repetir
-    _timerEmoji = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
 
-      if (_enEspera) {
-        // 🔥 ESTAMOS EN LOS 15 SEGUNDOS DE ESPERA
-        _contadorEspera++;
-        if (_contadorEspera >= 15) {
-          setState(() {
-            _enEspera = false;
-            _contadorEspera = 0;
-            _contadorCiclo = 0;
-            _emojiVisible = true;
-          });
-        }
-      } else {
-        // 🔥 ESTAMOS EN EL CICLO DE 4s + 4s
-        // Cada 4 segundos, alternar
-        if (timer.tick % 4 == 0) {
-          _contadorCiclo++;
-          setState(() {
-            _emojiVisible = !_emojiVisible;
-          });
-
-          // Después de 4 alternancias (16 segundos), pasar a espera
-          if (_contadorCiclo >= 4) {
-            setState(() {
-              _enEspera = true;
-              _contadorEspera = 0;
-              _emojiVisible = false; // Ocultar emoji durante la espera
-            });
-          }
-        }
-      }
-    });
 
     RewardedAdManager.loadRewardedAd();
 
@@ -149,181 +116,284 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
 
   @override
   void dispose() {
-    _timerEmoji?.cancel(); // 🔥 Ahora sí se usa
+    // _timerEmoji?.cancel(); // 🔥 Ya no se usa
     _ondasController.dispose();
     _destellosController.dispose();
     _vibracionController.dispose();
     super.dispose();
   }
 
-  // 🔥 MODAL DE ANUNCIO
+  // 🔥 MODAL DE ANUNCIO - ESTILO UBER CON 3 PASOS
   void _mostrarModalAnuncio() {
+    final PageController pageController = PageController();
+    int paginaActual = 0;
+    bool noMostrarMas = false;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(28, 20, 28, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.shield,
-                    size: 40,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  '🛡️ Escudo de Seguridad',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Protege tus conversaciones y encuentros en MiMarketplace.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 30),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  height: 620,
+                  color: Colors.white,
+                  child: Stack(
                     children: [
-                      _buildFuncionItem(
-                        Icons.block,
-                        'Bloquea números de teléfono',
-                        'Evita compartir datos de contacto.',
-                        Colors.red,
+                      // 🔥 CONTENIDO
+                      Column(
+                        children: [
+                          // 🔥 CONTENIDO PAGINADO
+                          Expanded(
+                            child: PageView(
+                              controller: pageController,
+                              onPageChanged: (index) {
+                                setDialogState(() {
+                                  paginaActual = index;
+                                });
+                              },
+                              children: [
+                                _buildPaso(
+                                  imagen: 'assets/images/escudo/paso1.jpg',
+                                  titulo: 'Bloqueo de enlaces y teléfonos',
+                                  descripcion:
+                                      'Detectamos y bloqueamos automáticamente números de teléfono y enlaces externos en los mensajes. Así evitamos que compartas datos de contacto fuera de la app y reduces el riesgo de fraudes o estafas.',
+                                ),
+                                _buildPaso(
+                                  imagen: 'assets/images/escudo/paso2.jpg',
+                                  titulo: 'Seguimiento GPS',
+                                  descripcion:
+                                      'El día del encuentro activamos el GPS para confirmar que ambos llegaron al lugar acordado. Si alguien llega tarde o no aparece, queda registrado y puede ser sancionado según las reglas de MiMarketplace.',
+                                ),
+                                _buildPaso(
+                                  imagen: 'assets/images/escudo/paso3.jpg',
+                                  titulo: 'Reconocimiento facial',
+                                  descripcion:
+                                      'Antes de abrir el chat del encuentro, verificamos tu identidad con reconocimiento facial. Así confirmamos que sos vos y evitamos que alguien más use tu cuenta.',
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // 🔥 INDICADOR DE PÁGINA
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: List.generate(3, (i) {
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 250),
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                  width: paginaActual == i ? 20 : 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: paginaActual == i
+                                        ? Colors.black
+                                        : Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+
+                          // 🔥 CHECKBOX "NO MOSTRAR MÁS"
+                          if (paginaActual == 2)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: Checkbox(
+                                      value: noMostrarMas,
+                                      onChanged: (value) {
+                                        setDialogState(() {
+                                          noMostrarMas = value ?? false;
+                                        });
+                                      },
+                                      activeColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  const Expanded(
+                                    child: Text(
+                                      'No mostrar más',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          // 🔥 BOTÓN PRINCIPAL
+                          Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                            child: SizedBox(
+                              width: double.infinity,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  if (paginaActual < 2) {
+                                    pageController.nextPage(
+                                      duration: const Duration(
+                                          milliseconds: 300),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  } else {
+                                    if (noMostrarMas) {
+                                      final prefs =
+                                          await SharedPreferences.getInstance();
+                                      await prefs.setBool(
+                                          'escudo_no_mostrar_mas', true);
+                                    }
+                                    if (dialogContext.mounted) {
+                                      Navigator.pop(dialogContext);
+                                    }
+                                    _verAnuncioYActivar();
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: Text(
+                                  paginaActual < 2
+                                      ? 'Siguiente'
+                                      : 'Ver video',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      _buildFuncionItem(
-                        Icons.link_off,
-                        'Bloquea enlaces externos',
-                        'Detecta intentos de salir de la app.',
-                        Colors.orange,
-                      ),
-                      const SizedBox(height: 6),
-                      _buildFuncionItem(
-                        Icons.location_on,
-                        'Sugiere lugares seguros',
-                        'Recomienda puntos públicos.',
-                        Colors.green,
-                      ),
-                      const SizedBox(height: 6),
-                      _buildFuncionItem(
-                        Icons.face,
-                        'Verificación facial',
-                        'Confirma tu identidad.',
-                        Colors.blue,
-                      ),
-                      const SizedBox(height: 6),
-                      _buildFuncionItem(
-                        Icons.gps_fixed,
-                        'Seguimiento GPS',
-                        'Trackea tu ubicación.',
-                        Colors.purple,
+
+                      // 🔥 BOTÓN X FLOTANDO ARRIBA A LA DERECHA
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(dialogContext),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.close,
+                              size: 18,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.amber.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.play_circle_filled,
-                          color: Colors.amber.shade800, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Para activarlo, mira un anuncio corto.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.amber.shade900,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        child: const Text(
-                          'Cancelar',
-                          style: TextStyle(fontSize: 15, color: Colors.grey),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(dialogContext);
-                          _verAnuncioYActivar();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.play_circle_filled, size: 18),
-                              SizedBox(width: 6),
-                              Text('Ver anuncio 🎬'),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
+    );
+  }
+
+  // 🔥 PÁGINA DEL PASO ESTILO UBER CON IMAGEN
+  Widget _buildPaso({
+    required String imagen,
+    required String titulo,
+    required String descripcion,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // 🔥 IMAGEN FULL WIDTH ARRIBA
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(16),
+          ),
+          child: Image.asset(
+            imagen,
+            width: double.infinity,
+            height: 200,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              width: double.infinity,
+              height: 200,
+              color: Colors.grey.shade200,
+              child: Icon(
+                Icons.image_not_supported,
+                size: 48,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        // 🔥 TÍTULO ESTILO UBER
+        Text(
+          titulo,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+            letterSpacing: -0.3,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 🔥 DESCRIPCIÓN ESTILO UBER
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            descripcion,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.5,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -456,29 +526,16 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     );
   }
 
-  // 🔥 DESTELLOS GIRANDO
+  // 🔥 ARO DISCONTINUO GIRANDO (3 ARCOS IGUALES)
   Widget _buildDestellos(Color color) {
     return AnimatedBuilder(
       animation: _destellosController,
       builder: (context, child) {
         return Transform.rotate(
           angle: _destellosController.value * 2 * math.pi,
-          child: Stack(
-            alignment: Alignment.center,
-            children: List.generate(6, (i) {
-              final angle = (i * math.pi * 2) / 6;
-              return Transform.translate(
-                offset: Offset(
-                  math.cos(angle) * 38,
-                  math.sin(angle) * 38,
-                ),
-                child: Icon(
-                  Icons.star,
-                  color: color.withValues(alpha: 0.7),
-                  size: 12,
-                ),
-              );
-            }),
+          child: CustomPaint(
+            size: const Size(64, 64),
+            painter: _AroDiscontinuoPainter(color: color),
           ),
         );
       },
@@ -588,89 +645,51 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                   if (widget.isActive && _indiceEmojiSegunEstado != 3)
                     _buildEfectoAura(colorCarita),
 
-                  // 🔥 CÍRCULO CENTRAL CON EL SMILEY
-                  widget.isActive
-                      ? Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: colorCarita.withValues(alpha: 0.2),
-                            border: Border.all(
-                              color: colorCarita,
-                              width: 2.5,
-                            ),
-                          ),
-                          child: Center(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 500),
-                              transitionBuilder: (child, animation) {
-                                return FadeTransition(
-                                  opacity: animation,
-                                  child: ScaleTransition(
-                                    scale: animation,
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                key: ValueKey('${_indiceEmojiSegunEstado}_$_emojiVisible'),
-                                child: _enEspera
-                                    ? Text(
-                                        _emojiEstatico(_indiceEmojiSegunEstado),
-                                        style: const TextStyle(fontSize: 42),
-                                      )
-                                    : _emojiVisible
-                                        ? _emojis[_indiceEmojiSegunEstado]
-                                        : Text(
-                                            _emojiEstatico(_indiceEmojiSegunEstado),
-                                            style: const TextStyle(fontSize: 42),
-                                          ),
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          // 🔥 ESCUDO APAGADO: círculo con borde punteado
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.grey.shade200.withValues(alpha: 0.2),
-                          ),
-                          child: CustomPaint(
-                            painter: _CirculoPunteadoPainter(),
-                            child: const Center(
-                              child: Text(
-                                '🫥', // 🔥 Cara punteada
-                                style: TextStyle(fontSize: 42),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                  // 🔥 BOTÓN "i"
+                  // 🔥 BOTÓN DE INFORMACIÓN CON ARO LUMINOSO
                   Positioned(
-                    bottom: 8,
-                    right: 8,
+                    top: 18,
                     child: GestureDetector(
-                      onTap: widget.onInfoTap,
-                      child: Container(
-                        width: 26,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF087FE8),
-                          border: Border.all(color: Colors.white, width: 2),
+                    onTap: widget.onInfoTap,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.3),
+                        border: Border.all(
+                          color: widget.isActive
+                              ? colorCarita
+                              : Colors.grey.shade600,
+                          width: 2,
                         ),
-                        child: const Icon(
-                          Icons.info_outline,
-                          color: Colors.white,
-                          size: 16,
-                        ),
+                        boxShadow: widget.isActive
+                            ? [
+                                BoxShadow(
+                                  color: colorCarita.withValues(alpha: 0.6),
+                                  blurRadius: 12,
+                                  spreadRadius: 1,
+                                ),
+                                BoxShadow(
+                                  color: colorCarita.withValues(alpha: 0.3),
+                                  blurRadius: 22,
+                                  spreadRadius: 4,
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: Icon(
+                        Icons.info_outline,
+                        color: widget.isActive
+                            ? colorCarita
+                            : Colors.grey.shade500,
+                        size: 20,
                       ),
                     ),
                   ),
+                  ),
+
+
 
                   // 🔥 BADGE ROJO
                   if (widget.isActive &&
@@ -694,69 +713,67 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
           ),
         const SizedBox(width: 6),
         GestureDetector(
-          onTap: () {
+          onTap: () async {
             if (!_videoVisto) {
-              _mostrarModalAnuncio();
+              final prefs = await SharedPreferences.getInstance();
+              final noMostrar = prefs.getBool('escudo_no_mostrar_mas') ?? false;
+              if (noMostrar) {
+                // 🔥 Ya marcó "no mostrar más", ir directo al anuncio
+                _verAnuncioYActivar();
+              } else {
+                _mostrarModalAnuncio();
+              }
             } else {
               widget.onToggle();
             }
           },
-          child: Transform.translate(
-            offset: const Offset(0, -8),
-            child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // 🔥 TORRE DE AJEDREZ (emoji grande)
-              Text(
-                '♜',
-                style: TextStyle(
-                  fontSize: 90,
-                  height: 1.0,
-                  color: Colors.black, // 🔥 negro
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      blurRadius: 6,
-                    ),
-                  ],
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F2447),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _videoVisto
+                    ? const Color(0xFF00E676)
+                    : Colors.grey.shade600,
+                width: 1.5,
+              ),
+              boxShadow: _videoVisto
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF00E676).withValues(alpha: 0.4),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.verified_user,
+                  color: _videoVisto
+                      ? const Color(0xFF00E676)
+                      : Colors.grey.shade400,
+                  size: 22,
                 ),
-              ),
-              // 🔥 TEXTO ENCIMA
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 22), // 🔥 más espacio = baja el contenido
-                  const Icon(
-                    Icons.verified_user,
-                    color: Colors.white,
-                    size: 14,
+                Text(
+                  _videoVisto ? 'ON' : 'PLUS',
+                  style: TextStyle(
+                    color: _videoVisto
+                        ? const Color(0xFF00E676)
+                        : Colors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
                   ),
-                  Text(
-                    _videoVisto ? 'ON' : 'PLUS',
-                    style: TextStyle(
-                      color: _videoVisto
-                          ? const Color(0xFF00E676) // 🔥 verde luminoso
-                          : Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3,
-                      shadows: _videoVisto
-                          ? [
-                              Shadow(
-                                color: const Color(0xFF00E676)
-                                    .withValues(alpha: 0.9),
-                                blurRadius: 8,
-                              ),
-                            ]
-                          : null,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
         ),
       ],
     );
@@ -800,4 +817,63 @@ class _CirculoPunteadoPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+// 🔥 PAINTER PARA EL ARO DISCONTINUO (3 ARCOS IGUALES GIRANDO)
+class _AroDiscontinuoPainter extends CustomPainter {
+  final Color color;
 
+  _AroDiscontinuoPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 2;
+
+    // 🔥 3 ARCOS IGUALES. Cada arco ocupa 1/3 de la circunferencia.
+    // 2π / 3 = 120 grados = 2.0944 radianes por arco.
+    const int cantidadArcos = 3;
+    final double arcoCompleto = 2 * math.pi / cantidadArcos;
+    // 🔥 El arco visible ocupa el 60% del espacio (40% es el "hueco").
+    final double longitudArco = arcoCompleto * 0.6;
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+
+    // 🔥 CAPA 1: Glow exterior
+    final glowPaint = Paint()
+      ..color = color.withValues(alpha: 0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+
+    for (int i = 0; i < cantidadArcos; i++) {
+      final double inicio = i * arcoCompleto;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        inicio,
+        longitudArco,
+        false,
+        glowPaint,
+      );
+    }
+
+    // 🔥 CAPA 2: Arco sólido encima
+    for (int i = 0; i < cantidadArcos; i++) {
+      final double inicio = i * arcoCompleto;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        inicio,
+        longitudArco,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AroDiscontinuoPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
