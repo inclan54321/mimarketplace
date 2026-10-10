@@ -134,6 +134,50 @@ cron.schedule('* * * * *', async () => {
 console.log('>>> ⏰ CRON de caducidad activado (cada 1 minuto)');
 
 // ============================================================
+// 🔥 CRON PARA BORRAR PRODUCTOS VENDIDOS (a los 3 días)
+// ============================================================
+cron.schedule('* * * * *', async () => {
+    try {
+        // 1. BUSCAR PRODUCTOS VENDIDOS HACE MÁS DE 3 DÍAS
+        const productos = await pool.query(
+            `SELECT id, nombre FROM productos_app 
+             WHERE vendido = TRUE 
+               AND fecha_vendido IS NOT NULL 
+               AND fecha_vendido < NOW() - INTERVAL '3 days'`
+        );
+
+        if (productos.rowCount === 0) return;
+
+        console.log(`>>> 🗑️ ${productos.rowCount} productos vendidos para borrar`);
+
+        for (const prod of productos.rows) {
+            // 2. DESVINCULAR DE CONVERSACIONES
+            await pool.query(
+                `UPDATE conversaciones_app SET producto_id = NULL WHERE producto_id = $1`,
+                [prod.id]
+            );
+
+            // 3. DESVINCULAR DE FAVORITOS
+            await pool.query(
+                `DELETE FROM productos_favoritos WHERE producto_id::text = $1::text`,
+                [prod.id]
+            );
+
+            // 4. BORRAR EL PRODUCTO
+            await pool.query(
+                `DELETE FROM productos_app WHERE id = $1`,
+                [prod.id]
+            );
+
+            console.log(`>>> 🗑️ Borrado: ${prod.nombre} (ID: ${prod.id})`);
+        }
+    } catch (error) {
+        console.error('Error al borrar productos vendidos:', error);
+    }
+});
+console.log('>>> ⏰ CRON de borrado de productos vendidos activado (cada 1 minuto)');
+
+// ============================================================
 // 🔥 CRON DE RECORDATORIOS DE ENCUENTRO (cada 1 minuto)
 // ============================================================
 cron.schedule('* * * * *', async () => {
@@ -580,7 +624,8 @@ app.get('/api/productos/buscar', async (req, res) => {
              LEFT JOIN usuarios u ON p.vendedor_id = u.uid
              WHERE (p.nombre ILIKE $1 OR p.descripcion ILIKE $1) 
              AND p.estado_moderacion = 'aprobado'
-             AND p.estado = 'activo'`,
+             AND p.estado = 'activo'
+             AND COALESCE(p.vendido, FALSE) = FALSE`,
             [`%${q}%`]
         );
         console.log('>>> ENCONTRADOS:', result.rows.length);
@@ -627,7 +672,8 @@ app.get('/api/productos/categoria/:categoria', async (req, res) => {
              LEFT JOIN usuarios u ON p.vendedor_id = u.uid
              WHERE p.categoria = $1 
                AND p.estado_moderacion = 'aprobado' 
-               AND p.estado = 'activo'`,
+               AND p.estado = 'activo'
+               AND COALESCE(p.vendido, FALSE) = FALSE`,
             [categoria]
         );
         res.json(result.rows);
@@ -639,7 +685,11 @@ app.get('/api/productos/categoria/:categoria', async (req, res) => {
 app.get('/api/productos', async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT * FROM productos_app WHERE estado_moderacion = $1 AND estado = $2 ORDER BY id DESC',
+            `SELECT * FROM productos_app 
+             WHERE estado_moderacion = $1 
+               AND estado = $2
+               AND COALESCE(vendido, FALSE) = FALSE
+             ORDER BY id DESC`,
             ['aprobado', 'activo']
         );
         res.json(result.rows);
@@ -656,7 +706,9 @@ app.get('/api/productos/vendedor/:vendedor_id', async (req, res) => {
             `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto
              FROM productos_app p
              LEFT JOIN usuarios u ON p.vendedor_id = u.uid
-             WHERE p.vendedor_id = $1 AND p.estado_moderacion = 'aprobado'`,
+             WHERE p.vendedor_id = $1 
+               AND p.estado_moderacion = 'aprobado'
+               AND COALESCE(p.vendido, FALSE) = FALSE`,
             [vendedor_id]
         );
         res.json(result.rows);
@@ -1258,7 +1310,8 @@ app.get('/api/favoritos/:usuario_id', async (req, res) => {
              JOIN productos_favoritos f ON p.id::text = f.producto_id
              LEFT JOIN usuarios u ON p.vendedor_id = u.uid
              WHERE f.usuario_id = $1
-               AND p.estado_moderacion = 'aprobado'`,
+               AND p.estado_moderacion = 'aprobado'
+               AND COALESCE(p.vendido, FALSE) = FALSE`,
             [usuario_id]
         );
         
