@@ -69,6 +69,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     _fotoVendedorLocal = widget.producto.vendedorFoto ?? '';
     _verificarFavorito();
     _cargarFotoVendedorSiFalta();
+    _registrarVista();
     
     // 🔥 SI YA TIENE PROVINCIA/CANTÓN, USAR ESO SIN LLAMAR A NOMINATIM
     if ((_producto.provincia ?? '').isNotEmpty && (_producto.canton ?? '').isNotEmpty) {
@@ -76,6 +77,22 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     } else {
       // 🔥 SOLO LLAMAR UNA VEZ AL INICIO
       _cargarUbicacionUnaVez();
+    }
+  }
+
+  Future<void> _registrarVista() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      final response = await http.post(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/productos/${_producto.id}/vista',
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'usuario_id': user?.uid}),
+      );
+      print('>>> VISTA REGISTRADA: ${response.statusCode}');
+    } catch (e) {
+      print('>>> Error al registrar vista: $e');
     }
   }
 

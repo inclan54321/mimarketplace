@@ -96,39 +96,68 @@ final TextEditingController _busquedaController = TextEditingController();
 Future<void> _cargarProductosDestacados() async {
   try {
     print('>>> 1. INICIANDO CARGA DE DESTACADOS');
+
+    // 🔥 1. CARGAR IMPULSADOS PRIMERO
+    final impulsadosResponse = await http.get(
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/impulsados'),
+    );
+
+    print('>>> IMPULSADOS STATUS: ${impulsadosResponse.statusCode}');
+    print('>>> IMPULSADOS BODY: ${impulsadosResponse.body}');
+
+    List<Producto> impulsados = [];
+    if (impulsadosResponse.statusCode == 200) {
+      final List dataImpulsados = jsonDecode(impulsadosResponse.body);
+      impulsados = dataImpulsados
+          .map((json) => Producto.fromJson(json))
+          .toList();
+      print('>>> IMPULSADOS: ${impulsados.length}');
+    }
+
+    // 🔥 2. CARGAR DESTACADOS NORMALES
     final response = await http.get(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/productos'),
     );
     print('>>> 2. STATUS CODE: ${response.statusCode}');
-    
+
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
       print('>>> 3. TOTAL PRODUCTOS: ${data.length}');
-      
+
       // FILTRAR SOLO PRODUCTOS CON IMAGEN DESTACADA
       final destacados = data.where((p) {
         final imgDestacada = p['imagen_destacada'] ?? '';
         return imgDestacada.isNotEmpty;
       }).toList();
       print('>>> 4. PRODUCTOS CON IMAGEN DESTACADA: ${destacados.length}');
-      
-      // Mostrar los nombres de los destacados
-      for (var p in destacados) {
-        print('>>> DESTACADO: ${p['nombre']} - imagen: ${p['imagen_destacada']}');
-      }
-      
+
       // FILTRAR BLOQUEADOS
       print('>>> 5. BLOQUEADOS ACTUALES: $_bloqueados');
       final filtrados = destacados.where((p) {
         final vendedorId = p['vendedor_id']?.toString() ?? '';
         final estaBloqueado = _bloqueados.contains(vendedorId);
-        print('>>> PRODUCTO: ${p['nombre']} - VENDEDOR: $vendedorId - BLOQUEADO: $estaBloqueado');
         return !estaBloqueado;
       }).toList();
-      print('>>> 6. DESTACADOS FINALES: ${filtrados.length}');
-      
+
+      // 🔥 3. CONVERTIR A Producto
+      final destacadosProductos =
+          filtrados.map((json) => Producto.fromJson(json)).toList();
+
+      // 🔥 4. QUITAR DE LA LISTA NORMAL LOS QUE YA ESTÁN EN IMPULSADOS
+      final idsImpulsados = impulsados.map((p) => p.id).toSet();
+      final destacadosSinDuplicados = destacadosProductos
+          .where((p) => !idsImpulsados.contains(p.id))
+          .toList();
+
+      // 🔥 5. COMBINAR: IMPULSADOS PRIMERO, LUEGO DESTACADOS
+      final listaFinal = [...impulsados, ...destacadosSinDuplicados];
+
+      print('>>> 6. LISTA FINAL: ${listaFinal.length}');
+      print('>>>    - Impulsados: ${impulsados.length}');
+      print('>>>    - Destacados: ${destacadosSinDuplicados.length}');
+
       setState(() {
-        _productosDestacados = filtrados.map((json) => Producto.fromJson(json)).toList();
+        _productosDestacados = listaFinal;
       });
     }
   } catch (e) {

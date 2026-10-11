@@ -3964,10 +3964,25 @@ app.get('/api/encuentro/propuesta/:id', async (req, res) => {
     }
 });
 
-// 🔥 ACEPTAR PROPUESTA
+// 🔥 ACEPTAR PROPUESTA (RECHAZA AUTOMÁTICAMENTE LAS OTRAS)
 app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 1. Obtener la propuesta que se va a aceptar
+        const propuestaResult = await pool.query(
+            `SELECT * FROM propuestas_encuentro WHERE id = $1`,
+            [id]
+        );
+
+        if (propuestaResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+
+        const propuesta = propuestaResult.rows[0];
+        const conversacionId = propuesta.conversacion_id;
+
+        // 2. Aceptar esta propuesta
         const result = await pool.query(
             `UPDATE propuestas_encuentro 
              SET estado = 'aceptada', fecha_actualizacion = NOW()
@@ -3975,22 +3990,50 @@ app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
             [id]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Propuesta no encontrada' });
-        }
+        // 3. Rechazar TODAS las otras propuestas pendientes de la misma conversación
+        const rechazadas = await pool.query(
+            `UPDATE propuestas_encuentro 
+             SET estado = 'rechazada', fecha_actualizacion = NOW()
+             WHERE conversacion_id = $1 
+               AND id != $2
+               AND estado = 'pendiente'
+             RETURNING id`,
+            [conversacionId, id]
+        );
 
+        console.log(`>>> ✅ Propuesta ${id} aceptada. ${rechazadas.rowCount} propuestas rechazadas automáticamente.`);
+
+        // 4. Insertar mensaje de aceptación
         await pool.query(
             `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
              VALUES ($1, $2, $3, $4, NOW())`,
             [
-                result.rows[0].conversacion_id,
+                conversacionId,
                 'SYSTEM',
                 `||ENCUENTRO_ACEPTADO||${id}`,
                 ''
             ]
         );
 
-        res.json({ success: true, propuesta: result.rows[0] });
+        // 5. Insertar mensaje de rechazo masivo (opcional, para que se vea en el chat)
+        for (const r of rechazadas.rows) {
+            await pool.query(
+                `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                 VALUES ($1, $2, $3, $4, NOW())`,
+                [
+                    conversacionId,
+                    'SYSTEM',
+                    `||ENCUENTRO_RECHAZADO||${r.id}`,
+                    ''
+                ]
+            );
+        }
+
+        res.json({ 
+            success: true, 
+            propuesta: result.rows[0],
+            rechazadas: rechazadas.rowCount,
+        });
     } catch (error) {
         console.error('Error al aceptar propuesta:', error);
         res.status(500).json({ error: error.message });

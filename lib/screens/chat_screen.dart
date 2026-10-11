@@ -2869,8 +2869,12 @@ ListTile(
     }
   }
 
-  // 🔥 INTERFAZ DE AGENDAMIENTO DE ENCUENTRO (SOLO LUGARES SEGUROS)
+  // 🔥 INTERFAZ DE AGENDAMIENTO DE ENCUENTRO (CON MÚLTIPLES PROPUESTAS)
   void _mostrarInterfazEncuentro() {
+    // 🔥 LISTA TEMPORAL DE PROPUESTAS (máximo 3)
+    List<Map<String, dynamic>> propuestasTemporales = [];
+    String paso = 'formulario'; // 'formulario' | 'resumen'
+
     List<String> provincias = [];
     List<String> cantones = [];
     List<String> distritos = [];
@@ -2882,8 +2886,6 @@ ListTile(
     int? lugarSeleccionadoId;
     String? lugarSeleccionadoNombre;
     bool cargando = true;
-
-    // 🔥 BANDERA PARA NO CARGAR PROVINCIAS MÁS DE UNA VEZ
     bool provinciasYaCargadas = false;
 
     showModalBottomSheet(
@@ -2893,28 +2895,21 @@ ListTile(
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
-          print('>>> MODAL BUILDER - cargando=$cargando');
           Future<void> cargarProvincias() async {
             try {
               final r = await http.get(Uri.parse(
                 'https://mimarketplace-production.up.railway.app/api/lugares-seguros/provincias',
               ));
-              print('>>> PROVINCIAS status: ${r.statusCode}');
-              print('>>> PROVINCIAS body: ${r.body}');
               if (r.statusCode == 200) {
                 final List data = jsonDecode(r.body);
-                print('>>> PROVINCIAS ANTES de setModalState');
                 setModalState(() {
                   provincias = data.map((e) => e.toString()).toList();
                   cargando = false;
-                  print('>>> PROVINCIAS DENTRO de setModalState - cargando=$cargando');
                 });
-                print('>>> PROVINCIAS DESPUES de setModalState');
               } else {
                 setModalState(() => cargando = false);
               }
             } catch (e) {
-              print('>>> PROVINCIAS error: $e');
               setModalState(() => cargando = false);
             }
           }
@@ -2985,12 +2980,24 @@ ListTile(
             } catch (e) {}
           }
 
-          // 🔥 CARGAR PROVINCIAS AL INICIO (solo una vez)
           if (!provinciasYaCargadas) {
             provinciasYaCargadas = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               cargarProvincias();
             });
+          }
+
+          // 🔥 RESET del formulario (para cuando agrega otra propuesta)
+          void resetFormulario() {
+            provinciaSeleccionada = null;
+            cantonSeleccionado = null;
+            distritoSeleccionado = null;
+            fechaSeleccionada = null;
+            lugarSeleccionadoId = null;
+            lugarSeleccionadoNombre = null;
+            cantones = [];
+            distritos = [];
+            lugaresSeguros = [];
           }
 
           return Align(
@@ -3007,280 +3014,488 @@ ListTile(
               padding: const EdgeInsets.all(20),
               child: cargando
                   ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.event, color: Colors.blue, size: 28),
-                              const SizedBox(width: 8),
-                              const Expanded(
-                                child: Text(
-                                  'Proponer encuentro',
-                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                ),
+                  : paso == 'resumen'
+                      ? _buildResumenPropuestas(
+                          propuestasTemporales: propuestasTemporales,
+                          onEliminar: (index) {
+                            setModalState(() {
+                              propuestasTemporales.removeAt(index);
+                              if (propuestasTemporales.isEmpty) {
+                                paso = 'formulario';
+                              }
+                            });
+                          },
+                          onAgregarOtra: () {
+                            setModalState(() {
+                              resetFormulario();
+                              paso = 'formulario';
+                            });
+                          },
+                          onEnviar: () async {
+                            // 🔥 ENVIAR TODAS LAS PROPUESTAS (POST POR CADA UNA)
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) => const Center(
+                                child: CircularProgressIndicator(color: Colors.white),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.close),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Elegí un lugar seguro de la lista.',
-                            style: TextStyle(fontSize: 13, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 20),
+                            );
 
-                          // PROVINCIA
-                          DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(
-                              labelText: 'Provincia',
-                              border: OutlineInputBorder(),
-                            ),
-                            initialValue: provinciaSeleccionada,
-                            items: provincias.map((p) {
-                              return DropdownMenuItem(value: p, child: Text(p));
-                            }).toList(),
-                            onChanged: (value) {
-                              setModalState(() => provinciaSeleccionada = value);
-                              if (value != null) cargarCantones(value);
-                            },
-                          ),
-                          const SizedBox(height: 12),
+                            try {
+                              final user = FirebaseAuth.instance.currentUser;
+                              int enviadas = 0;
 
-                          // CANTÓN
-                          if (provinciaSeleccionada != null)
-                            DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
-                                labelText: 'Cantón',
-                                border: OutlineInputBorder(),
-                              ),
-                              initialValue: cantonSeleccionado,
-                              items: cantones.map((c) {
-                                return DropdownMenuItem(value: c, child: Text(c));
-                              }).toList(),
-                              onChanged: (value) {
-                                setModalState(() {
-                                  cantonSeleccionado = value;
-                                  distritoSeleccionado = null;
-                                  lugaresSeguros = [];
-                                  lugarSeleccionadoId = null;
-                                });
-                                if (value != null) {
-                                  cargarDistritos(provinciaSeleccionada!, value)
-                                      .then((_) {
-                                    if (distritos.isEmpty) {
-                                      cargarLugares(provinciaSeleccionada!, value, '');
-                                    }
-                                  });
-                                }
-                              },
-                            ),
-                          if (provinciaSeleccionada != null) const SizedBox(height: 12),
-
-                          // DISTRITO (opcional, solo si hay)
-                          if (cantonSeleccionado != null && distritos.isNotEmpty) ...[
-                            DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
-                                labelText: 'Distrito',
-                                border: OutlineInputBorder(),
-                              ),
-                              initialValue: distritoSeleccionado,
-                              items: distritos.map((d) {
-                                return DropdownMenuItem(value: d, child: Text(d));
-                              }).toList(),
-                              onChanged: (value) {
-                                setModalState(() => distritoSeleccionado = value);
-                                if (value != null) {
-                                  cargarLugares(
-                                    provinciaSeleccionada!,
-                                    cantonSeleccionado!,
-                                    value,
-                                  );
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-
-                          // LISTA DE LUGARES SEGUROS
-                          if (lugaresSeguros.isNotEmpty) ...[
-                            const Text(
-                              'Lugares seguros:',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            ...lugaresSeguros.map<Widget>((lugar) {
-                              final seleccionado = lugarSeleccionadoId == lugar['id'];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                decoration: BoxDecoration(
-                                  color: seleccionado ? Colors.blue.shade50 : Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: seleccionado ? Colors.blue : Colors.grey.shade300,
-                                    width: seleccionado ? 2 : 1,
-                                  ),
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: ListTile(
-                                    leading: Icon(
-                                      Icons.place,
-                                      color: seleccionado ? Colors.blue : Colors.grey,
-                                    ),
-                                    title: Text(
-                                      lugar['nombre'] ?? '',
-                                      style: TextStyle(
-                                        fontWeight: seleccionado ? FontWeight.bold : FontWeight.normal,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      '${lugar['canton'] ?? ''}, ${lugar['provincia'] ?? ''}',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                    onTap: () {
-                                      setModalState(() {
-                                        lugarSeleccionadoId = lugar['id'];
-                                      });
-                                    },
-                                  ),
-                                ),
-                              );
-                            }),
-                            const SizedBox(height: 12),
-                          ],
-
-                          // FECHA Y HORA
-                          InkWell(
-                            onTap: () async {
-                              final fecha = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime.now().add(const Duration(days: 1)),
-                                firstDate: DateTime.now(),
-                                lastDate: DateTime.now().add(const Duration(days: 90)),
-                              );
-                              if (fecha != null) {
-                                final hora = await showTimePicker(
-                                  context: context,
-                                  initialTime: const TimeOfDay(hour: 10, minute: 0),
+                              for (final prop in propuestasTemporales) {
+                                final response = await http.post(
+                                  Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/proponer'),
+                                  headers: {'Content-Type': 'application/json'},
+                                  body: jsonEncode({
+                                    'conversacion_id': int.parse(_conversacionIdActual),
+                                    'usuario_propone_id': user?.uid ?? '',
+                                    'usuario_recibe_id': widget.otroUsuarioId,
+                                    'lugar_id': prop['lugar_id'],
+                                    'fecha_encuentro': prop['fecha_encuentro'],
+                                  }),
                                 );
-                                if (hora != null) {
-                                  setModalState(() {
-                                    fechaSeleccionada = DateTime(
-                                      fecha.year, fecha.month, fecha.day,
-                                      hora.hour, hora.minute,
-                                    );
-                                  });
+
+                                if (response.statusCode == 201) {
+                                  enviadas++;
                                 }
                               }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
+
+                              if (mounted) Navigator.pop(context); // cerrar loading
+                              if (mounted) Navigator.pop(context); // cerrar modal
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('✅ $enviadas propuesta${enviadas == 1 ? '' : 's'} enviada${enviadas == 1 ? '' : 's'}'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+
+                              await _cargarMensajes(_conversacionIdActual);
+                            } catch (e) {
+                              if (mounted) Navigator.pop(context);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        )
+                      : SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  const Icon(Icons.calendar_today, color: Colors.blue),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    fechaSeleccionada == null
-                                        ? 'Seleccionar fecha y hora'
-                                        : DateFormat('dd/MM/yyyy HH:mm').format(fechaSeleccionada!),
-                                    style: const TextStyle(fontSize: 16),
+                                  const Icon(Icons.event, color: Colors.blue, size: 28),
+                                  const SizedBox(width: 8),
+                                  const Expanded(
+                                    child: Text(
+                                      'Proponer encuentro',
+                                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => Navigator.pop(context),
                                   ),
                                 ],
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
+                              const SizedBox(height: 8),
+                              Text(
+                                propuestasTemporales.isEmpty
+                                    ? 'Elegí un lugar seguro de la lista.'
+                                    : 'Propuesta ${propuestasTemporales.length + 1} de 3',
+                                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                              ),
+                              const SizedBox(height: 20),
 
-                          // BOTÓN
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                if (lugarSeleccionadoId == null || fechaSeleccionada == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('⚠️ Elegí un lugar y una fecha'),
-                                      backgroundColor: Colors.orange,
-                                    ),
-                                  );
-                                  return;
-                                }
+                              // PROVINCIA
+                              DropdownButtonFormField<String>(
+                                decoration: const InputDecoration(
+                                  labelText: 'Provincia',
+                                  border: OutlineInputBorder(),
+                                ),
+                                initialValue: provinciaSeleccionada,
+                                items: provincias.map((p) {
+                                  return DropdownMenuItem(value: p, child: Text(p));
+                                }).toList(),
+                                onChanged: (value) {
+                                  setModalState(() => provinciaSeleccionada = value);
+                                  if (value != null) cargarCantones(value);
+                                },
+                              ),
+                              const SizedBox(height: 12),
 
-                                showDialog(
-                                  context: context,
-                                  barrierDismissible: false,
-                                  builder: (context) => const Center(
-                                    child: CircularProgressIndicator(color: Colors.white),
+                              // CANTÓN
+                              if (provinciaSeleccionada != null)
+                                DropdownButtonFormField<String>(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Cantón',
+                                    border: OutlineInputBorder(),
                                   ),
-                                );
+                                  initialValue: cantonSeleccionado,
+                                  items: cantones.map((c) {
+                                    return DropdownMenuItem(value: c, child: Text(c));
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setModalState(() {
+                                      cantonSeleccionado = value;
+                                      distritoSeleccionado = null;
+                                      lugaresSeguros = [];
+                                      lugarSeleccionadoId = null;
+                                    });
+                                    if (value != null) {
+                                      cargarDistritos(provinciaSeleccionada!, value)
+                                          .then((_) {
+                                        if (distritos.isEmpty) {
+                                          cargarLugares(provinciaSeleccionada!, value, '');
+                                        }
+                                      });
+                                    }
+                                  },
+                                ),
+                              if (provinciaSeleccionada != null) const SizedBox(height: 12),
 
-                                try {
-                                  final user = FirebaseAuth.instance.currentUser;
-                                  final response = await http.post(
-                                    Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/proponer'),
-                                    headers: {'Content-Type': 'application/json'},
-                                    body: jsonEncode({
-                                      'conversacion_id': int.parse(_conversacionIdActual),
-                                      'usuario_propone_id': user?.uid ?? '',
-                                      'usuario_recibe_id': widget.otroUsuarioId,
-                                      'lugar_id': lugarSeleccionadoId,
-                                      'fecha_encuentro': fechaSeleccionada!.toIso8601String(),
-                                    }),
-                                  );
-
-                                  if (mounted) Navigator.pop(context);
-
-                                  if (response.statusCode == 201) {
-                                    if (mounted) Navigator.pop(context);
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('✅ Propuesta enviada: $lugarSeleccionadoNombre'),
-                                          backgroundColor: Colors.green,
-                                        ),
+                              // DISTRITO
+                              if (cantonSeleccionado != null && distritos.isNotEmpty) ...[
+                                DropdownButtonFormField<String>(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Distrito',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  initialValue: distritoSeleccionado,
+                                  items: distritos.map((d) {
+                                    return DropdownMenuItem(value: d, child: Text(d));
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setModalState(() => distritoSeleccionado = value);
+                                    if (value != null) {
+                                      cargarLugares(
+                                        provinciaSeleccionada!,
+                                        cantonSeleccionado!,
+                                        value,
                                       );
                                     }
-                                    await _cargarMensajes(_conversacionIdActual);
-                                  } else {
-                                    throw Exception('Error ${response.statusCode}');
-                                  }
-                                } catch (e) {
-                                  if (mounted) Navigator.pop(context);
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Error: $e'),
-                                        backgroundColor: Colors.red,
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+
+                              // LISTA DE LUGARES
+                              if (lugaresSeguros.isNotEmpty) ...[
+                                const Text(
+                                  'Lugares seguros:',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                ...lugaresSeguros.map<Widget>((lugar) {
+                                  final seleccionado = lugarSeleccionadoId == lugar['id'];
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      color: seleccionado ? Colors.blue.shade50 : Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: seleccionado ? Colors.blue : Colors.grey.shade300,
+                                        width: seleccionado ? 2 : 1,
                                       ),
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: ListTile(
+                                        leading: Icon(
+                                          Icons.place,
+                                          color: seleccionado ? Colors.blue : Colors.grey,
+                                        ),
+                                        title: Text(
+                                          lugar['nombre'] ?? '',
+                                          style: TextStyle(
+                                            fontWeight: seleccionado ? FontWeight.bold : FontWeight.normal,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          '${lugar['canton'] ?? ''}, ${lugar['provincia'] ?? ''}',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                        onTap: () {
+                                          setModalState(() {
+                                            lugarSeleccionadoId = lugar['id'];
+                                            lugarSeleccionadoNombre = lugar['nombre'];
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                const SizedBox(height: 12),
+                              ],
+
+                              // FECHA Y HORA
+                              InkWell(
+                                onTap: () async {
+                                  final fecha = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now().add(const Duration(days: 1)),
+                                    firstDate: DateTime.now(),
+                                    lastDate: DateTime.now().add(const Duration(days: 90)),
+                                  );
+                                  if (fecha != null) {
+                                    final hora = await showTimePicker(
+                                      context: context,
+                                      initialTime: const TimeOfDay(hour: 10, minute: 0),
                                     );
+                                    if (hora != null) {
+                                      setModalState(() {
+                                        fechaSeleccionada = DateTime(
+                                          fecha.year, fecha.month, fecha.day,
+                                          hora.hour, hora.minute,
+                                        );
+                                      });
+                                    }
                                   }
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today, color: Colors.blue),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        fechaSeleccionada == null
+                                            ? 'Seleccionar fecha y hora'
+                                            : DateFormat('dd/MM/yyyy HH:mm').format(fechaSeleccionada!),
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                              child: const Text('Proponer encuentro'),
-                            ),
+                              const SizedBox(height: 20),
+
+                              // BOTÓN AGREGAR
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    if (lugarSeleccionadoId == null || fechaSeleccionada == null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('⚠️ Elegí un lugar y una fecha'),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    setModalState(() {
+                                      propuestasTemporales.add({
+                                        'lugar_id': lugarSeleccionadoId,
+                                        'lugar_nombre': lugarSeleccionadoNombre ?? '',
+                                        'distrito': distritoSeleccionado ?? '',
+                                        'canton': cantonSeleccionado ?? '',
+                                        'provincia': provinciaSeleccionada ?? '',
+                                        'fecha_encuentro': fechaSeleccionada!.toIso8601String(),
+                                      });
+                                      paso = 'resumen';
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                  ),
+                                  child: Text(
+                                    propuestasTemporales.isEmpty
+                                        ? 'Agregar propuesta'
+                                        : 'Agregar y ver resumen',
+                                  ),
+                                ),
+                              ),
+
+                              // 🔥 BOTÓN "VER RESUMEN" SI YA HAY PROPUESTAS
+                              if (propuestasTemporales.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: TextButton(
+                                    onPressed: () {
+                                      setModalState(() => paso = 'resumen');
+                                    },
+                                    child: Text(
+                                      'Ver resumen (${propuestasTemporales.length})',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
             ),
           );
         },
       ),
+    );
+  }
+
+  // 🔥 RESUMEN DE PROPUESTAS (pantalla de confirmación)
+  Widget _buildResumenPropuestas({
+    required List<Map<String, dynamic>> propuestasTemporales,
+    required void Function(int) onEliminar,
+    required VoidCallback onAgregarOtra,
+    required Future<void> Function() onEnviar,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.checklist, color: Colors.blue, size: 28),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Resumen de propuestas',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${propuestasTemporales.length} de 3 propuestas agregadas',
+          style: const TextStyle(fontSize: 13, color: Colors.grey),
+        ),
+        const SizedBox(height: 20),
+
+        // 🔥 LISTA DE PROPUESTAS
+        Expanded(
+          child: ListView.builder(
+            itemCount: propuestasTemporales.length,
+            itemBuilder: (context, index) {
+              final prop = propuestasTemporales[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            prop['lugar_nombre'] ?? 'Lugar',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${prop['distrito'] ?? ''}, ${prop['canton'] ?? ''}, ${prop['provincia'] ?? ''}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _formatearFechaPropuesta(prop['fecha_encuentro']),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => onEliminar(index),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // 🔥 BOTÓN AGREGAR OTRA (deshabilitado si ya hay 3)
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: propuestasTemporales.length >= 3 ? null : onAgregarOtra,
+            icon: const Icon(Icons.add),
+            label: Text(
+              propuestasTemporales.length >= 3
+                  ? 'Máximo 3 propuestas'
+                  : 'Agregar otra propuesta',
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              foregroundColor: Colors.blue,
+              side: const BorderSide(color: Colors.blue),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 🔥 BOTÓN ENVIAR
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: onEnviar,
+            icon: const Icon(Icons.send),
+            label: Text(
+              'Enviar ${propuestasTemporales.length} propuesta${propuestasTemporales.length == 1 ? '' : 's'}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -1705,10 +1705,6 @@ Future<void> _precargarImagenPerfil() async {
 
     final List<String> medallas = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
 
-    // 🔥 ALTURA FIJA de las barras (independiente del espacio del padre)
-    const double alturaMaxBarra = 160.0;
-    const double alturaMinBarra = 60.0;
-
     return Container(
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
@@ -1734,15 +1730,15 @@ Future<void> _precargarImagenPerfil() async {
           ),
         ],
       ),
+      // 🔥 ALTURA FIJA TOTAL DEL RECUADRO AZUL
+      height: 280,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(top5.length, (index) {
           final producto = top5[index];
           final vistas = producto.vistas ?? 0;
-          final porcentaje = maxVistas > 0 ? vistas / maxVistas : 0.0;
-          final alturaBarra = alturaMinBarra +
-              (porcentaje * (alturaMaxBarra - alturaMinBarra));
+          final porcentaje = maxVistas > 0 ? (vistas / maxVistas) : 0.0;
 
           final List<Color> gradienteBarra = coloresBarras[
               (coloresBarras.length - top5.length + index)
@@ -1760,79 +1756,105 @@ Future<void> _precargarImagenPerfil() async {
                   ),
                 );
               },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // 🏅 Medalla
-                  Text(
-                    medallas[index],
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 4),
-
-                  // 📊 Barra con altura FIJA en píxeles
-                  Container(
-                    width: 44,
-                    height: alturaBarra,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: gradienteBarra,
-                      ),
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(22),
-                        bottom: Radius.circular(4),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: gradienteBarra[0].withValues(alpha: 0.5),
-                          blurRadius: 12,
-                          spreadRadius: 1,
+              // 🔥 Column con 3 secciones: medalla, barra, nombre.
+              // La barra usa Expanded → ocupa todo el espacio disponible.
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Column(
+                  children: [
+                    // 🏅 Medalla (altura FIJA)
+                    SizedBox(
+                      height: 20,
+                      child: Center(
+                        child: Text(
+                          medallas[index],
+                          style: const TextStyle(fontSize: 16),
                         ),
-                      ],
+                      ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _formatearVistas(vistas),
+                    const SizedBox(height: 2),
+
+                    // 📊 La barra ocupa TODO el espacio restante.
+                    // Alineada al fondo, la altura = porcentaje * espacioDisponible.
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: FractionallySizedBox(
+                          // 🔥 15% mínimo, hasta 100% del espacio disponible
+                          heightFactor: porcentaje.clamp(0.15, 1.0),
+                          child: Container(
+                            width: 40,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: gradienteBarra,
+                              ),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(20),
+                                bottom: Radius.circular(4),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: gradienteBarra[0].withValues(alpha: 0.5),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _formatearVistas(vistas),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Text(
+                                      'vistas',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 8,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 2),
+
+                    // 📝 Nombre (altura FIJA)
+                    SizedBox(
+                      height: 14,
+                      child: Center(
+                        child: Text(
+                          producto.nombre,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'vistas',
-                          style: TextStyle(
-                            color: Colors.white70,
                             fontSize: 9,
+                            fontWeight: FontWeight.w600,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // 📝 Nombre del producto
-                  SizedBox(
-                    height: 26,
-                    child: Text(
-                      producto.nombre,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
