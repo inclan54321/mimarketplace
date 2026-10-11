@@ -607,6 +607,7 @@ void dispose() {
       // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
       await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
       // 🔥 CONSULTAR SI ALGUIEN QUIERE CERRAR EL TRATO
+      // 🔥 REGLA NUEVA: si el OTRO confirmó, a mí me aparece el recuadro para decidir
       try {
         final r = await http.get(
           Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
@@ -629,13 +630,15 @@ void dispose() {
                 // 🔥 Los dos confirmaron → trato cerrado
                 _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
+                _chatBloqueado = true;
               } else if (yoConfirme && !otroConfirme) {
                 // 🔥 Yo confirmé, el otro no → esperando
                 _esperandoConfirmacionCerrarTrato = true;
                 _mostrarBotonesCerrarTrato = false;
-              } else if (!yoConfirme && _quiereCerrarTrato) {
-                // 🔥 Nadie confirmó pero la IA dice que quieren cerrar → mostrar botones
+              } else if (!yoConfirme && otroConfirme) {
+                // 🔥 EL OTRO confirmó, yo todavía no → ME APARECE EL RECUADRO
                 _mostrarBotonesCerrarTrato = true;
+                _esperandoConfirmacionCerrarTrato = false;
               }
             });
           }
@@ -643,36 +646,26 @@ void dispose() {
       } catch (e) {
         print('Error al consultar cerrar-trato: $e');
       }
-      // 🔥 CONSULTAR EN DB SI AMBOS QUIEREN SEGUIR CONVERSANDO
+      // 🔥 CONSULTAR EN DB SI ALGUIEN YA DIJO "SEGUIR CONVERSANDO"
+      // 🔥 REGLA NUEVA: con UNO que diga "seguir", los botones desaparecen para ambos
       try {
         final r = await http.get(
           Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
         );
         if (r.statusCode == 200) {
           final data = jsonDecode(r.body);
-          final ambos = data['ambos_seguir'] == true;
           final List usuarios = data['usuarios'] ?? [];
-          final yoYaDecidi = usuarios.contains(user.uid);
-          print('>>> 🟢 SEGUIR CONVERSANDO (DB): ambos=$ambos, yoYaDecidi=$yoYaDecidi, usuarios=$usuarios');
-          
-          if (mounted) {
-            // 🔥 Si AMBOS quieren seguir → desbloquear todo
-            // PERO no pisar si la IA ya detectó cierre de trato
-            if (ambos && !_usuarioDecidioSeguirConversando && !_quiereCerrarTrato) {
-              setState(() {
-                _usuarioDecidioSeguirConversando = true;
-                _esperandoRespuestaOtro = false;
-                _mostrarBotonesConfirmar = false;
-              });
-            }
-            // 🔥 Si YO ya decidí pero el otro no → ocultar botones y esperar
-            else if (yoYaDecidi && !ambos && !_esperandoRespuestaOtro && !_quiereCerrarTrato) {
-              setState(() {
-                _usuarioDecidioSeguirConversando = true;
-                _esperandoRespuestaOtro = true;
-                _mostrarBotonesConfirmar = false;
-              });
-            }
+          final alguienDijoSeguir = usuarios.isNotEmpty;
+          print('>>> 🟢 SEGUIR CONVERSANDO (DB): usuarios=$usuarios, alguienDijoSeguir=$alguienDijoSeguir');
+
+          if (mounted && alguienDijoSeguir) {
+            setState(() {
+              _usuarioDecidioSeguirConversando = true;
+              _esperandoRespuestaOtro = false;
+              _mostrarBotonesConfirmar = false;
+              _mostrarBotonesCerrarTrato = false;
+              _quiereCerrarTrato = false;
+            });
           }
         }
       } catch (e) {
@@ -794,12 +787,19 @@ void dispose() {
     }
 
     if (mounted) {
-      final resultado = mostrar && 
-                        !_chatBloqueado && 
-                        !_esperandoRespuestaOtro &&
+      // 🔥 REGLA NUEVA: los botones de Confirmar/Seguir aparecen si:
+      // - Hay propuesta aceptada
+      // - Chat NO está bloqueado
+      // - Nadie dijo "seguir conversando"
+      // - Nadie dijo "cerrar trato" (porque si alguien dijo cerrar, se maneja aparte)
+      // - No está el recuadro de "cerrar trato" mostrándose
+      final resultado = mostrar &&
+                        !_chatBloqueado &&
                         !_usuarioDecidioSeguirConversando &&
-                        !_quiereCerrarTrato;
-      print('>>> 🔥 _verificarBotonConfirmar: resultado=$resultado (mostrar=$mostrar, bloqueado=$_chatBloqueado, esperando=$_esperandoRespuestaOtro, decidioSeguir=$_usuarioDecidioSeguirConversando, quiereCerrar=$_quiereCerrarTrato)');
+                        !_usuarioConfirmoCerrarTrato &&
+                        !_mostrarBotonesCerrarTrato &&
+                        !_esperandoConfirmacionCerrarTrato;
+      print('>>> 🔥 _verificarBotonConfirmar: resultado=$resultado (mostrar=$mostrar, bloqueado=$_chatBloqueado, decidioSeguir=$_usuarioDecidioSeguirConversando, confirmoCerrar=$_usuarioConfirmoCerrarTrato, mostrarCerrar=$_mostrarBotonesCerrarTrato, esperandoConfirmacion=$_esperandoConfirmacionCerrarTrato)');
       setState(() {
         _mostrarBotonesConfirmar = resultado;
       });
@@ -3517,7 +3517,7 @@ ListTile(
             color: estado == 'confirmada'
                 ? Colors.green
                 : estado == 'rechazada'
-                    ? Colors.red
+                    ? Colors.grey.shade400
                     : Colors.blue,
             width: 2,
           ),
@@ -3564,19 +3564,22 @@ ListTile(
                     color: estado == 'confirmada'
                         ? Colors.green.shade50
                         : estado == 'rechazada'
-                            ? Colors.red.shade50
+                            ? Colors.grey.shade200
                             : Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    estado.toUpperCase(),
+                    // 🔥 "rechazada" se muestra como "ANULADA"
+                    estado == 'rechazada'
+                        ? 'ANULADA'
+                        : estado.toUpperCase(),
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: estado == 'confirmada'
                           ? Colors.green
                           : estado == 'rechazada'
-                              ? Colors.red
+                              ? Colors.grey.shade700
                               : Colors.blue,
                     ),
                   ),
@@ -3610,13 +3613,19 @@ ListTile(
             ),
             const SizedBox(height: 12),
             Text(
-              yoPropuse
-                  ? 'Esperando respuesta...'
-                  : 'Toca para ver detalles y responder',
+              estado == 'rechazada'
+                  ? '🚫 Esta propuesta fue anulada'
+                  : estado == 'confirmada'
+                      ? '✅ Esta propuesta fue aceptada'
+                      : yoPropuse
+                          ? 'Esperando respuesta...'
+                          : 'Toca para ver detalles y responder',
               style: TextStyle(
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
-                color: Colors.grey.shade600,
+                color: estado == 'rechazada'
+                    ? Colors.grey.shade600
+                    : Colors.grey.shade600,
               ),
             ),
           ],
@@ -3668,7 +3677,7 @@ ListTile(
                 color: estado == 'confirmada'
                     ? Colors.green
                     : estado == 'rechazada'
-                        ? Colors.red
+                        ? Colors.grey.shade400
                         : Colors.blue,
                 width: 2,
               ),
@@ -3716,19 +3725,21 @@ ListTile(
                         color: estado == 'confirmada'
                             ? Colors.green.shade50
                             : estado == 'rechazada'
-                                ? Colors.red.shade50
+                                ? Colors.grey.shade200
                                 : Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        estado.toUpperCase(),
+                        estado == 'rechazada'
+                            ? 'ANULADA'
+                            : estado.toUpperCase(),
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: estado == 'confirmada'
                               ? Colors.green
                               : estado == 'rechazada'
-                                  ? Colors.red
+                                  ? Colors.grey.shade700
                                   : Colors.blue,
                         ),
                       ),
@@ -3762,9 +3773,13 @@ ListTile(
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  yoPropuse
-                      ? 'Esperando respuesta...'
-                      : 'Toca para ver detalles y responder',
+                  estado == 'rechazada'
+                      ? '🚫 Esta propuesta fue anulada'
+                      : estado == 'confirmada'
+                          ? '✅ Esta propuesta fue aceptada'
+                          : yoPropuse
+                              ? 'Esperando respuesta...'
+                              : 'Toca para ver detalles y responder',
                   style: TextStyle(
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
@@ -4010,6 +4025,7 @@ ListTile(
           setState(() {
             _chatBloqueado = true;
             _mostrarBotonesConfirmar = false;
+            _usuarioConfirmoCerrarTrato = true;
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -4481,29 +4497,11 @@ ListTile(
     );
   }
 
-  // 🔥 RECHAZO DE ENCUENTRO
+  // 🔥 RECHAZO / ANULACIÓN DE ENCUENTRO
+  // 🚫 No se muestra como mensaje separado. La tarjeta de la propuesta
+  // se encarga de mostrar el estado "ANULADA".
   if (_esEncuentroRechazado(mensaje['texto'] ?? '')) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade200),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.cancel, color: Colors.red),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '❌ El encuentro ha sido rechazado',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
   // 🔥 MENSAJE DE "TRATO CERRADO"
   if ((mensaje['texto'] ?? '').startsWith('||TRATO_CERRADO||')) {
@@ -4832,7 +4830,54 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => _confirmarEncuentro(),
+                  onPressed: () async {
+                    final user = FirebaseAuth.instance.currentUser;
+                    if (user == null) return;
+
+                    // 🔥 NO llamar a /encuentro/confirmar (eso bloquea el chat).
+                    // 🔥 Llamar a /cerrar-trato (mutuo, el otro decide).
+                    try {
+                      final r = await http.post(
+                        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({'usuario_id': user.uid}),
+                      );
+
+                      if (r.statusCode == 200) {
+                        final data = jsonDecode(r.body);
+                        final ambos = data['ambos_confirmaron'] == true;
+
+                        if (mounted) {
+                          setState(() {
+                            _mostrarBotonesConfirmar = false;
+                            _usuarioConfirmoCerrarTrato = true;
+
+                            if (ambos) {
+                              // 🔥 Los 2 confirmaron → trato cerrado
+                              _chatBloqueado = true;
+                              _esperandoConfirmacionCerrarTrato = false;
+                            } else {
+                              // 🔥 Solo yo confirmé → esperando al otro
+                              _esperandoConfirmacionCerrarTrato = true;
+                            }
+                          });
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(ambos
+                                  ? '✅ Trato cerrado. ¡Nos vemos!'
+                                  : '⏳ Confirmaste cerrar el trato. Esperando que el otro responda...'),
+                              backgroundColor: ambos ? Colors.green : Colors.blue,
+                            ),
+                          );
+                        }
+
+                        await _cargarMensajes(_conversacionIdActual);
+                      }
+                    } catch (e) {
+                      print('Error al confirmar cierre de trato: $e');
+                    }
+                  },
                   icon: const Icon(Icons.check_circle, size: 18),
                   label: const Text('Confirmar encuentro'),
                   style: ElevatedButton.styleFrom(
@@ -4846,18 +4891,21 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () async {
+                    // 🔥 UNO SOLO BASTA: ocultar botones para ambos inmediatamente
                     setState(() {
                       _mostrarBotonesConfirmar = false;
-                      _esperandoRespuestaOtro = true;
+                      _esperandoRespuestaOtro = false;
                       _usuarioDecidioSeguirConversando = true;
+                      _mostrarBotonesCerrarTrato = false;
+                      _quiereCerrarTrato = false;
                     });
 
                     final user = FirebaseAuth.instance.currentUser;
                     if (user == null) return;
-                    
+
                     try {
-                      // 🔥 PASO 1: ENVIAR MENSAJE AL CHAT
-                      print('>>> 🟠 PASO 1: enviando mensaje ||SEGUIR_CONVERSANDO||');
+                      // 🔥 PASO 1: ENVIAR MENSAJE AL CHAT (el backend lo va a interpretar
+                      // como "alguien quiere seguir", y va a ocultar los botones para los 2)
                       await http.post(
                         Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
                         headers: {'Content-Type': 'application/json'},
@@ -4867,25 +4915,14 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                           'texto': '||SEGUIR_CONVERSANDO||${user.uid}',
                         }),
                       );
-                      
-                      // 🔥 PASO 2: CONSULTAR ENDPOINT
-                      print('>>> 🟠 PASO 2: consultando endpoint');
-                      final r = await http.post(
+
+                      // 🔥 PASO 2: CONSULTAR ENDPOINT (por si el backend necesita marcar algo)
+                      await http.post(
                         Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
                         headers: {'Content-Type': 'application/json'},
                         body: jsonEncode({'usuario_id': user.uid}),
                       );
-                      print('>>> 🟠 RESPUESTA: status=${r.statusCode}, body=${r.body}');
-                      
-                      if (r.statusCode == 200) {
-                        final data = jsonDecode(r.body);
-                        if (data['ambos_seguir'] == true && mounted) {
-                          setState(() {
-                            _esperandoRespuestaOtro = false;
-                          });
-                        }
-                      }
-                      
+
                       // 🔥 PASO 3: RECARGAR MENSAJES
                       await _cargarMensajes(_conversacionIdActual);
                     } catch (e) {

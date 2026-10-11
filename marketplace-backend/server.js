@@ -4073,7 +4073,7 @@ app.put('/api/encuentro/propuesta/:id/rechazar', async (req, res) => {
     }
 });
 
-// 🔥 CONFIRMAR ENCUENTRO (BLOQUEA CHAT Y CREA ENCUENTRO AGENDADO)
+// 🔥 CONFIRMAR ENCUENTRO (SOLO CREA EL ENCUENTRO AGENDADO, NO BLOQUEA EL CHAT)
 app.post('/api/encuentro/confirmar', async (req, res) => {
     try {
         const { conversacion_id, usuario_confirma_id } = req.body;
@@ -4082,13 +4082,8 @@ app.post('/api/encuentro/confirmar', async (req, res) => {
             return res.status(400).json({ error: 'Faltan datos' });
         }
 
-        // 1. Bloquear el chat
-        await pool.query(
-            `UPDATE conversaciones_app 
-             SET chat_bloqueado = TRUE 
-             WHERE id = $1`,
-            [conversacion_id]
-        );
+        // 🔥 EL CHAT YA NO SE BLOQUEA ACÁ.
+        // Se bloquea solo cuando AMBOS confirman cerrar trato (/api/conversaciones/:id/cerrar-trato).
 
         // 2. Obtener los datos del último encuentro aceptado
         const propuestaResult = await pool.query(
@@ -4319,6 +4314,15 @@ app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
                     [id]
                 );
                 console.log(`>>> ✅ Trato CERRADO en conv ${id}`);
+
+                // 🔥 AHORA SÍ: BLOQUEAR EL CHAT (solo cuando ambos confirmaron)
+                await pool.query(
+                    `UPDATE conversaciones_app 
+                     SET chat_bloqueado = TRUE 
+                     WHERE id = $1`,
+                    [id]
+                );
+                console.log(`>>> 🔒 Chat bloqueado en conv ${id} (ambos confirmaron trato)`);
             }
 
             // 🔥 BUSCAR LA PROPUESTA ACEPTADA Y CREAR ENCUENTRO AGENDADO
