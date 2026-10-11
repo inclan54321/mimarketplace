@@ -4033,10 +4033,13 @@ app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
 
             await pool.query(
                 `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
-                 VALUES ($1, 0, $2, 'encuentro', NOW())`,
+                 VALUES ($1, 0, $2, 'encuentro', NOW()),
+                        ($3, 0, $4, 'encuentro', NOW())`,
                 [
                     propuesta.usuario_propone_id,
-                    `✅ ${nombreQuien} aceptó tu propuesta de encuentro.\n📍 ${ubicacion}\n🕐 ${fechaTxt}\n\nEntra al chat para confirmar el trato o seguir conversando.`
+                    `✅ ${nombreQuien} aceptó tu propuesta de encuentro.\n📍 ${ubicacion}\n🕐 ${fechaTxt}\n\nEntra al chat para confirmar el trato o seguir conversando.`,
+                    propuesta.usuario_recibe_id,
+                    `✅ Aceptaste la propuesta de encuentro.\n📍 ${ubicacion}\n🕐 ${fechaTxt}\n\nEntra al chat para confirmar el trato o seguir conversando.`
                 ]
             );
             console.log(`>>> 📥 Alerta de propuesta aceptada para ${propuesta.usuario_propone_id}`);
@@ -4311,6 +4314,58 @@ app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
                  VALUES ($1, $2, $3, '', NOW())`,
                 [id, usuario_id, `||CERRAR_TRATO||${usuario_id}`]
             );
+
+            // 🔥 AVISAR AL OTRO USUARIO (alerta + push) si todavía no confirmó
+            try {
+                const convN = await pool.query(
+                    'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+                    [id]
+                );
+                const cN = convN.rows[0];
+                if (cN) {
+                    const otroId = cN.usuario1_id === usuario_id ? cN.usuario2_id : cN.usuario1_id;
+
+                    const otroYaConfirmo = await pool.query(
+                        `SELECT id FROM mensajes_app 
+                         WHERE conversacion_id = $1 AND texto = $2 LIMIT 1`,
+                        [id, `||CERRAR_TRATO||${otroId}`]
+                    );
+
+                    if (otroYaConfirmo.rows.length === 0) {
+                        const quien = await pool.query('SELECT nombre FROM usuarios WHERE uid = $1', [usuario_id]);
+                        const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
+                        const textoAviso = `🤝 ${nombreQuien} quiere cerrar el trato.\n\nEntra al chat para confirmar o seguir conversando.`;
+
+                        await pool.query(
+                            `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+                             VALUES ($1, 0, $2, 'encuentro', NOW())`,
+                            [otroId, textoAviso]
+                        );
+
+                        const tk = await pool.query('SELECT fcm_token FROM usuarios WHERE uid = $1', [otroId]);
+                        const token = tk.rows[0]?.fcm_token;
+                        if (token) {
+                            try {
+                                const { getMessaging } = require('firebase-admin/messaging');
+                                await getMessaging().send({
+                                    token,
+                                    notification: {
+                                        title: '🤝 Quieren cerrar el trato',
+                                        body: `${nombreQuien} confirmó. Entra al chat para decidir.`,
+                                    },
+                                    data: { tipo: 'cerrar_trato', conversacionId: id.toString() },
+                                });
+                                console.log(`>>> 📨 Push cerrar-trato enviada a ${otroId}`);
+                            } catch (e) {
+                                console.error('>>> ❌ Error push cerrar-trato:', e.message);
+                            }
+                        }
+                        console.log(`>>> 📥 Alerta "quiere cerrar trato" creada para ${otroId}`);
+                    }
+                }
+            } catch (e) {
+                console.error('>>> ❌ Error al avisar cierre de trato:', e.message);
+            }
         }
 
         // 🔥 CONTAR CUÁNTOS CONFIRMARON
@@ -4352,6 +4407,39 @@ app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
                     [id]
                 );
                 console.log(`>>> 🔒 Chat bloqueado en conv ${id} (ambos confirmaron trato)`);
+
+                // 🔥 ALERTA PARA LOS DOS: trato cerrado
+                try {
+                    const propAlerta = await pool.query(
+                        `SELECT * FROM propuestas_encuentro 
+                         WHERE conversacion_id = $1 AND estado = 'aceptada'
+                         ORDER BY id DESC LIMIT 1`,
+                        [id]
+                    );
+                    const convAlerta = await pool.query(
+                        'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+                        [id]
+                    );
+                    const p = propAlerta.rows[0];
+                    const c = convAlerta.rows[0];
+
+                    if (p && c) {
+                        const fechaTxt = new Date(p.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
+                        const ubicacion = [p.lugar_nombre, p.distrito, p.canton, p.provincia]
+                            .filter(x => x && x !== '')
+                            .join(', ');
+                        const mensajeAlerta = `🤝 Trato cerrado. Encuentro confirmado.\n📍 ${ubicacion}\n🕐 ${fechaTxt}\n\n⚠️ No llegues tarde.\n🔒 Se pedirá reconocimiento facial.\n📍 Se activará el GPS el día del encuentro.\n💬 El chat queda bloqueado hasta que se vean.`;
+
+                        await pool.query(
+                            `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+                             VALUES ($1, 0, $3, 'encuentro', NOW()), ($2, 0, $3, 'encuentro', NOW())`,
+                            [c.usuario1_id, c.usuario2_id, mensajeAlerta]
+                        );
+                        console.log(`>>> 📥 Alertas de trato cerrado insertadas para conv ${id}`);
+                    }
+                } catch (e) {
+                    console.error('>>> ❌ Error al crear alerta de trato cerrado:', e.message);
+                }
             }
 
             // 🔥 BUSCAR LA PROPUESTA ACEPTADA Y CREAR ENCUENTRO AGENDADO
@@ -4398,23 +4486,7 @@ app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
                     );
                     console.log(`>>> 📅 Encuentro agendado creado: ${insertResult.rows[0].id}`);
 
-                    // 🔥 ALERTA PARA LOS DOS: trato cerrado
-                    try {
-                        const fechaTxt = new Date(propuesta.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
-                        const ubicacion = [propuesta.lugar_nombre, propuesta.distrito, propuesta.canton, propuesta.provincia]
-                            .filter(x => x && x !== '')
-                            .join(', ');
-                        const mensajeAlerta = `🤝 Trato cerrado. Encuentro confirmado.\n📍 ${ubicacion}\n🕐 ${fechaTxt}\n\n⚠️ No llegues tarde.\n🔒 Se pedirá reconocimiento facial.\n📍 Se activará el GPS el día del encuentro.\n💬 El chat queda bloqueado hasta que se vean.`;
 
-                        await pool.query(
-                            `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
-                             VALUES ($1, 0, $3, 'encuentro', NOW()), ($2, 0, $3, 'encuentro', NOW())`,
-                            [conv.usuario1_id, conv.usuario2_id, mensajeAlerta]
-                        );
-                        console.log(`>>> 📥 Alertas de trato cerrado insertadas para conv ${id}`);
-                    } catch (e) {
-                        console.error('>>> ❌ Error al crear alerta de trato cerrado:', e.message);
-                    }
                 } else {
                     console.log(`>>> 📅 Encuentro ya agendado: ${yaAgendado.rows[0].id}`);
                 }

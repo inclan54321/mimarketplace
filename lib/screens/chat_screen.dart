@@ -112,6 +112,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _usuarioConfirmoCerrarTrato = false; // 🔥 NUEVO
   bool _otroUsuarioConfirmoCerrarTrato = false; // 🔥 NUEVO
   bool _esperandoConfirmacionCerrarTrato = false; // 🔥 NUEVO
+  bool _estadoCargado = false; // 🔥 El input no se muestra hasta conocer el estado de bloqueo
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -264,6 +265,59 @@ class _ChatScreenState extends State<ChatScreen>
     }
   }
 
+  // 🔥 GUARDAR ESTADO DE BLOQUEO (para restaurarlo al instante al volver a entrar)
+  Future<void> _guardarEstadoBloqueo() async {
+    try {
+      if (_conversacionIdActual.isEmpty) return;
+      final prefs = await SharedPreferences.getInstance();
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final k = 'estado_bloqueo_${uid}_$_conversacionIdActual';
+      await prefs.setString(k, jsonEncode({
+        'chatBloqueado': _chatBloqueado,
+        'mostrarBotonesConfirmar': _mostrarBotonesConfirmar,
+        'esperandoConfirmacion': _esperandoConfirmacionCerrarTrato,
+        'usuarioConfirmo': _usuarioConfirmoCerrarTrato,
+        'otroConfirmo': _otroUsuarioConfirmoCerrarTrato,
+        'decidioSeguir': _usuarioDecidioSeguirConversando,
+        'propuestaPendiente': _propuestaEncuentroPendiente,
+      }));
+    } catch (e) {
+      print('Error al guardar estado de bloqueo: $e');
+    }
+  }
+
+  // 🔥 RESTAURAR ESTADO DE BLOQUEO (instantáneo, antes de consultar al servidor)
+  Future<void> _restaurarEstadoBloqueo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final raw = prefs.getString('estado_bloqueo_${uid}_${widget.conversacionId}');
+      if (raw == null || !mounted) return;
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      setState(() {
+        _chatBloqueado = m['chatBloqueado'] == true;
+        _mostrarBotonesConfirmar = m['mostrarBotonesConfirmar'] == true;
+        _esperandoConfirmacionCerrarTrato = m['esperandoConfirmacion'] == true;
+        _usuarioConfirmoCerrarTrato = m['usuarioConfirmo'] == true;
+        _otroUsuarioConfirmoCerrarTrato = m['otroConfirmo'] == true;
+        _usuarioDecidioSeguirConversando = m['decidioSeguir'] == true;
+        _propuestaEncuentroPendiente = m['propuestaPendiente'] == true;
+
+        // 🔥 Solo confiar en el estado guardado si BLOQUEA el input.
+        // Si dice "input libre", puede estar desactualizado: esperar al servidor.
+        final guardadoBloquea = _chatBloqueado ||
+            _mostrarBotonesConfirmar ||
+            _esperandoConfirmacionCerrarTrato ||
+            _propuestaEncuentroPendiente;
+        if (guardadoBloquea) {
+          _estadoCargado = true;
+        }
+      });
+    } catch (e) {
+      print('Error al restaurar estado de bloqueo: $e');
+    }
+  }
+
   // 🔥 FUNCIÓN DE PRUEBA - SOLO PRINTS
   void _prueba() {
   print('>>> 🔥 ====== _prueba() EJECUTADA ======');
@@ -369,6 +423,7 @@ void initState() {
   // 🔥 EL EMOJI YA NO CAMBIA SOLO - DEPENDE DEL ESTADO DE LA IA
   // (se eliminó el Timer que cambiaba el emoji cada 3 segundos)
   _conversacionIdActual = widget.conversacionId;
+  _restaurarEstadoBloqueo(); // 🔥 estado de bloqueo inmediato desde caché local
   _obtenerOCrearConversacion();
   _marcarComoLeida(); // 🔥 NUEVO
   _obtenerFotoVendedorReal();
@@ -477,7 +532,8 @@ void dispose() {
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final key = 'chat_cache_$conversacionId';
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final key = 'chat_cache_${uid}_$conversacionId';
       final jsonString = jsonEncode(mensajes);
       await prefs.setString(key, jsonString);
       print('>>> 💾 Caché guardada: ${mensajes.length} mensajes');
@@ -491,7 +547,8 @@ void dispose() {
   ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final key = 'chat_cache_$conversacionId';
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final key = 'chat_cache_${uid}_$conversacionId';
       final jsonString = prefs.getString(key);
       if (jsonString == null || jsonString.isEmpty) return [];
 
@@ -515,7 +572,8 @@ void dispose() {
   Future<void> _limpiarCache(String conversacionId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('chat_cache_$conversacionId');
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      await prefs.remove('chat_cache_${uid}_$conversacionId');
     } catch (e) {
       print('Error al limpiar caché: $e');
     }
@@ -706,12 +764,26 @@ void dispose() {
         print('Error al consultar seguir-conversando: $e');
       }
 
+      // 🔥 Ya se conoce el estado real: mostrar input y guardarlo para la próxima vez
+      if (mounted && !_estadoCargado) {
+        setState(() => _estadoCargado = true);
+      }
+      _guardarEstadoBloqueo();
+
     } else {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _estadoCargado = true;
+      });
     }
   } catch (e) {
     print('Error al cargar mensajes: $e');
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _estadoCargado = true;
+      });
+    }
   }
 }
   bool _esSolicitudCalificacion(String texto) {
@@ -5034,10 +5106,11 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         ),
 
       // 🔥 INPUT (solo si NO hay botones de cerrar trato ni espera)
-      if ((!_mostrarBotonesConfirmar &&
-           !_esperandoRespuestaOtro &&
-           !_mostrarBotonesCerrarTrato &&
-           !_esperandoConfirmacionCerrarTrato) || _chatBloqueado)
+      if (_estadoCargado &&
+          ((!_mostrarBotonesConfirmar &&
+            !_esperandoRespuestaOtro &&
+            !_mostrarBotonesCerrarTrato &&
+            !_esperandoConfirmacionCerrarTrato) || _chatBloqueado))
       Row(
     children: [
            // 🔥 BOTÓN DE GRABACIÓN CON PRESIÓN LARGA Y DESLIZAR PARA CANCELAR
