@@ -12,12 +12,19 @@ class AlertasScreen extends StatefulWidget {
 }
 
 class _AlertasScreenState extends State<AlertasScreen> {
+  // 🔥 Caché en memoria: sobrevive mientras la app esté abierta
+  static List<Map<String, dynamic>>? _alertasCache;
+
   List<Map<String, dynamic>> _alertas = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    if (_alertasCache != null) {
+      _alertas = List.from(_alertasCache!);
+      _isLoading = false; // se muestra ya, y se refresca por detrás
+    }
     _cargarAlertas();
   }
 
@@ -36,6 +43,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
           _alertas = data.map((item) => Map<String, dynamic>.from(item)).toList();
           _isLoading = false;
         });
+        _alertasCache = List.from(_alertas);
 
         // 🔥 Marcar todas como leídas en el backend
         await http.put(
@@ -182,6 +190,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
         setState(() {
           _alertas.clear();
         });
+        _alertasCache = [];
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Todas las alertas han sido eliminadas'),

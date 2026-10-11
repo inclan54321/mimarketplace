@@ -1243,25 +1243,7 @@ app.get('/api/conversaciones/:usuario_id', async (req, res) => {
                )`,
             [usuario_id]
         );
-         // 2. FILTRAR CONVERSACIONES CON BLOQUEADOS
-        const conversaciones = result.rows;
-        const conversacionesFiltradas = [];
-
-        for (const conv of conversaciones) {
-            const otroUsuarioId = conv.usuario1_id === usuario_id ? conv.usuario2_id : conv.usuario1_id;
-            
-            // Verificar si el otro usuario está bloqueado
-            const bloqueoResult = await pool.query(
-                'SELECT * FROM bloqueos WHERE usuario_bloquea = $1 AND usuario_bloqueado = $2',
-                [usuario_id, otroUsuarioId]
-            );
-
-            // Si no está bloqueado, incluir la conversación
-            if (bloqueoResult.rows.length === 0) {
-                conversacionesFiltradas.push(conv);
-            }
-        }
-        console.log('Conversaciones encontradas:', result.rows);
+        console.log('Conversaciones encontradas:', result.rows.length);
         res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener conversaciones:', error);
