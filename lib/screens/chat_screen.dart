@@ -182,16 +182,25 @@ class _ChatScreenState extends State<ChatScreen>
       print('>>> 💾 Escudo local guardado: $activo');
 
       // 2. GUARDAR EN BACKEND (persistente)
-      final response = await http.post(
-        Uri.parse(
-            'https://mimarketplace-production.up.railway.app/api/escudo/activar'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
-          'usuario_id': user.uid,
-          'activo': activo,
-        }),
-      );
+      // 🔥 El escudo solo se activa. Nunca se desactiva.
+      if (activo == true) {
+        final response = await http.post(
+          Uri.parse(
+              'https://mimarketplace-production.up.railway.app/api/escudo/activar'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
+            'usuario_id': user.uid,
+            'activo': true,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          print('>>> 💾 Escudo backend activado para AMBOS');
+        } else {
+          print('>>> ⚠️ Error al activar en backend: ${response.statusCode}');
+        }
+      }
 
       if (response.statusCode == 200) {
         print('>>> 💾 Escudo backend guardado: $activo');
@@ -279,7 +288,6 @@ class _ChatScreenState extends State<ChatScreen>
         'esperandoRespuestaOtro': _esperandoRespuestaOtro,
         'usuarioConfirmo': _usuarioConfirmoCerrarTrato,
         'otroConfirmo': _otroUsuarioConfirmoCerrarTrato,
-        'decidioSeguir': _usuarioDecidioSeguirConversando,
         'propuestaPendiente': _propuestaEncuentroPendiente,
         'quiereCerrarTrato': _quiereCerrarTrato,
         'mostrarBotonesCerrarTrato': _mostrarBotonesCerrarTrato,
@@ -302,9 +310,14 @@ class _ChatScreenState extends State<ChatScreen>
         _mostrarBotonesConfirmar = m['mostrarBotonesConfirmar'] == true;
         _esperandoConfirmacionCerrarTrato = m['esperandoConfirmacion'] == true;
         _esperandoRespuestaOtro = m['esperandoRespuestaOtro'] == true;
-        _usuarioConfirmoCerrarTrato = m['usuarioConfirmo'] == true;
-        _otroUsuarioConfirmoCerrarTrato = m['otroConfirmo'] == true;
-        _usuarioDecidioSeguirConversando = m['decidioSeguir'] == true;
+        // 🔥 NO restaurar las confirmaciones del caché.
+        // 🔥 Siempre vienen de la BD en _cargarMensajes.
+        // 🔥 Así el cartel azul solo aparece para el que confirmó de verdad.
+        _usuarioConfirmoCerrarTrato = false;
+        _otroUsuarioConfirmoCerrarTrato = false;
+        // 🔥 NO restaurar "decidioSeguir" del caché: ese estado se consulta a la BD.
+        // Si se restaura, queda pegado para siempre y apaga el modal de cerrar trato.
+        _usuarioDecidioSeguirConversando = false;
         _propuestaEncuentroPendiente = m['propuestaPendiente'] == true;
         _quiereCerrarTrato = m['quiereCerrarTrato'] == true;
         _mostrarBotonesCerrarTrato = m['mostrarBotonesCerrarTrato'] == true;
@@ -726,25 +739,8 @@ void dispose() {
         return;
       }
 
-      // 🔥 DETECTAR SI ALGUIEN DIJO "SEGUIR CONVERSANDO" LEYENDO LOS MENSAJES
-      // 🔥 REGLA: con UNO que diga seguir, se ocultan los botones para ambos
-      final alguienDijoSeguirEnMensajes = mensajesConFotos.any(
-        (m) => (m['texto'] ?? '').startsWith('||SEGUIR_CONVERSANDO||'),
-      );
-
-      if (mounted && alguienDijoSeguirEnMensajes) {
-        setState(() {
-          _usuarioDecidioSeguirConversando = true;
-          _esperandoRespuestaOtro = false;
-          _mostrarBotonesConfirmar = false;
-          _mostrarBotonesCerrarTrato = false;
-          _quiereCerrarTrato = false;
-          _usuarioConfirmoCerrarTrato = false;
-          _otroUsuarioConfirmoCerrarTrato = false;
-          _esperandoConfirmacionCerrarTrato = false;
-        });
-        print('>>> 🟢 ALGUIEN DIJO SEGUIR (desde mensajes): ocultando todos los botones');
-      }
+      // 🔥 El bloque "seguir-conversando desde mensajes" se eliminó.
+      // 🔥 El backend ya borra los ||SEGUIR_CONVERSANDO|| cuando DeepSeek detecta cierre.
 
       // 🔥 CONSULTAR EL ANÁLISIS SIEMPRE (no solo cuando hay cambios)
       await _analizarMensajeConIA('', user.uid);
@@ -779,11 +775,11 @@ void dispose() {
                 _esperandoConfirmacionCerrarTrato = false;
                 _chatBloqueado = true;
               } else if (_usuarioDecidioSeguirConversando) {
+                // 🔥 Alguien dijo "seguir": apagar todo el estado de cerrar trato.
                 _usuarioConfirmoCerrarTrato = false;
                 _otroUsuarioConfirmoCerrarTrato = false;
                 _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
-                print('>>> 🟥 MODAL APAGADO por "decidioSeguir": _usuarioDecidioSeguirConversando=$_usuarioDecidioSeguirConversando');
               } else if (yoConfirme && !otroConfirme) {
                 _usuarioConfirmoCerrarTrato = true;
                 _otroUsuarioConfirmoCerrarTrato = false;
@@ -792,8 +788,9 @@ void dispose() {
               } else {
                 _usuarioConfirmoCerrarTrato = yoConfirme;
                 _otroUsuarioConfirmoCerrarTrato = otroConfirme;
-                _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
+                // 🔥 NO tocar _mostrarBotonesCerrarTrato acá.
+                // 🔥 La IA lo activa y nadie más debería apagarlo excepto el usuario.
               }
             });
           }
@@ -818,13 +815,15 @@ void dispose() {
               _usuarioDecidioSeguirConversando = true;
               _esperandoRespuestaOtro = false;
               _mostrarBotonesConfirmar = false;
+              // 🔥 Si alguien dijo "seguir", apagar TODO el estado de cerrar trato.
+              // 🔥 El input se desbloquea y el cartel azul desaparece.
               _mostrarBotonesCerrarTrato = false;
-              _quiereCerrarTrato = false;
               _usuarioConfirmoCerrarTrato = false;
               _otroUsuarioConfirmoCerrarTrato = false;
               _esperandoConfirmacionCerrarTrato = false;
+              _quiereCerrarTrato = false;
             });
-            print('>>> 🟥 MODAL APAGADO por "seguir-conversando (DB)": _mostrarBotonesCerrarTrato=$_mostrarBotonesCerrarTrato');
+            print('>>> 🟡 "Seguir conversando": reset total de cerrar trato');
           }
         }
       } catch (e) {
@@ -4369,15 +4368,22 @@ ListTile(
             videoVistoInicial: _iaActiva,
             emojiDesdeEstado: _conversationStatus, // 🔥 NUEVO
             onToggle: () {
+              // 🔥 El escudo NO se puede apagar una vez activado.
+              // Si ya está activo, no hacer nada.
+              if (_iaActiva) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🛡️ El Escudo ya está activo y no se puede desactivar'),
+                    backgroundColor: Colors.blue,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                return;
+              }
               setState(() {
-                _iaActiva = !_iaActiva;
-                if (!_iaActiva) {
-                  _analisisIA = null;
-                  _panelAnalisisAbierto = false; // 🔥 CERRAR EL PANEL
-                }
+                _iaActiva = true;
               });
-              // 🔥 GUARDAR ESTADO
-              _guardarEstadoEscudo(_iaActiva);
+              _guardarEstadoEscudo(true);
             },
             onAdCompleted: () {
               setState(() {
@@ -4440,6 +4446,7 @@ ListTile(
                 : _buildProductoHeader(key: const ValueKey('header')),
           ),
           // 🔥 BOTONES DE CERRAR TRATO (ARRIBA DEL LISTVIEW)
+          // 🔥 Solo se muestra si NO confirmé. Si ya confirmé, se muestra el cartel azul abajo.
           if (_mostrarBotonesCerrarTrato && !_usuarioConfirmoCerrarTrato)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -4459,6 +4466,7 @@ ListTile(
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
+                  // 🔥 El cartel de "confirmaste" va afuera del modal, en la zona del input.
                   Row(
                     children: [
                       Expanded(
@@ -5132,8 +5140,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         );
         }),
 
-      // 🔥 MENSAJE DE ESPERA - CONFIRMÉ CERRAR TRATO
-      // 🔥 Solo mostrar si YO confirmé, el otro NO confirmó, y nadie decidió seguir
+      // 🔥 CARTEL: YO CONFIRMÉ CERRAR TRATO, ESPERANDO AL OTRO
       if (_usuarioConfirmoCerrarTrato &&
           !_otroUsuarioConfirmoCerrarTrato &&
           !_usuarioDecidioSeguirConversando &&
@@ -5159,6 +5166,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             ],
           ),
         ),
+      // 🔥 MENSAJE DE ESPERA - CONFIRMÉ CERRAR TRATO
       if (_esperandoRespuestaOtro && !_mostrarBotonesConfirmar)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -5183,9 +5191,10 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         ),
 
       // 🔥 INPUT (solo si NO hay botones de cerrar trato ni espera)
+      // 🔥 El input se muestra si NO hay modal de decisión pendiente
       if ((!_mostrarBotonesConfirmar &&
            !_esperandoRespuestaOtro &&
-           !_mostrarBotonesCerrarTrato &&
+           (!_mostrarBotonesCerrarTrato || _usuarioConfirmoCerrarTrato) &&
            !_esperandoConfirmacionCerrarTrato) || _chatBloqueado)
       Row(
     children: [

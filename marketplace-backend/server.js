@@ -3821,7 +3821,7 @@ app.post('/api/soporte/enviar', async (req, res) => {
 // 🛡️ ESCUDO DE SEGURIDAD
 // ============================================================
 
-// ACTIVAR/DESACTIVAR ESCUDO
+// ACTIVAR ESCUDO (mutuo y permanente)
 app.post('/api/escudo/activar', async (req, res) => {
     try {
         const { conversacion_id, usuario_id, activo } = req.body;
@@ -3829,22 +3829,48 @@ app.post('/api/escudo/activar', async (req, res) => {
             return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
         }
 
-        const result = await pool.query(
-            `INSERT INTO escudos_conversacion 
-             (conversacion_id, usuario_id, activo, video_visto, fecha_activacion, fecha_expiracion)
-             VALUES ($1, $2, $3, $3, NOW(), NOW() + INTERVAL '30 days')
-             ON CONFLICT (conversacion_id, usuario_id) 
-             DO UPDATE SET 
-                activo = $3,
-                video_visto = $3,
-                fecha_activacion = CASE WHEN $3 = true THEN NOW() ELSE escudos_conversacion.fecha_activacion END,
-                fecha_expiracion = CASE WHEN $3 = true THEN NOW() + INTERVAL '30 days' ELSE escudos_conversacion.fecha_expiracion END
-             RETURNING *`,
-            [conversacion_id, usuario_id, activo === true]
+        // 🔥 El escudo solo se puede ACTIVAR, no desactivar.
+        if (activo !== true) {
+            return res.status(400).json({ 
+                error: 'El Escudo de Seguridad no se puede desactivar una vez activado.',
+                codigo: 'ESCUDO_NO_DESACTIVABLE'
+            });
+        }
+
+        // 🔥 Obtener los dos usuarios de la conversación
+        const convResult = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [conversacion_id]
         );
 
-        console.log(`>>> 🛡️ Escudo ${activo ? 'activado' : 'desactivado'} en conversación ${conversacion_id} por ${usuario_id}`);
-        res.json({ success: true, escudo: result.rows[0] });
+        if (convResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        const conv = convResult.rows[0];
+        const usuarios = [conv.usuario1_id, conv.usuario2_id];
+
+        // 🔥 Activar el escudo para LOS DOS usuarios
+        const results = [];
+        for (const uid of usuarios) {
+            const r = await pool.query(
+                `INSERT INTO escudos_conversacion 
+                 (conversacion_id, usuario_id, activo, video_visto, fecha_activacion, fecha_expiracion)
+                 VALUES ($1, $2, true, true, NOW(), NOW() + INTERVAL '30 days')
+                 ON CONFLICT (conversacion_id, usuario_id) 
+                 DO UPDATE SET 
+                    activo = true,
+                    video_visto = true,
+                    fecha_activacion = NOW(),
+                    fecha_expiracion = NOW() + INTERVAL '30 days'
+                 RETURNING *`,
+                [conversacion_id, uid]
+            );
+            results.push(r.rows[0]);
+        }
+
+        console.log(`>>> 🛡️ Escudo activado en conversación ${conversacion_id} para AMBOS usuarios`);
+        res.json({ success: true, escudos: results });
     } catch (error) {
         console.error('Error al activar escudo:', error);
         res.status(500).json({ error: error.message });
@@ -3855,26 +3881,46 @@ app.post('/api/escudo/activar', async (req, res) => {
 app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
     try {
         const { conversacion_id, usuario_id } = req.params;
+
+        // 🔥 Obtener los dos usuarios de la conversación
+        const convResult = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [conversacion_id]
+        );
+
+        if (convResult.rows.length === 0) {
+            return res.json({ escudo_activo: false, video_visto: false });
+        }
+
+        const conv = convResult.rows[0];
+        const usuarios = [conv.usuario1_id, conv.usuario2_id];
+
+        // 🔥 El escudo está activo si ALGUNO de los dos lo activó
+        // (porque al activarlo se activa para los dos)
         const result = await pool.query(
             `SELECT * FROM escudos_conversacion 
-             WHERE conversacion_id = $1 AND usuario_id = $2`,
-            [conversacion_id, usuario_id]
+             WHERE conversacion_id = $1 AND usuario_id = ANY($2)
+               AND activo = true`,
+            [conversacion_id, usuarios]
         );
 
         if (result.rows.length === 0) {
             return res.json({ escudo_activo: false, video_visto: false });
         }
 
-        const escudo = result.rows[0];
-        // Verificar si está expirado
-        const expirado = escudo.fecha_expiracion && new Date(escudo.fecha_expiracion) < new Date();
-        
+        // 🔥 Verificar si está expirado (ninguno de los dos)
+        const activos = result.rows.filter(e => 
+            !e.fecha_expiracion || new Date(e.fecha_expiracion) >= new Date()
+        );
+
+        const escudoActivo = activos.length > 0;
+
         res.json({
-            escudo_activo: escudo.activo && !expirado,
-            video_visto: escudo.video_visto,
-            fecha_activacion: escudo.fecha_activacion,
-            fecha_expiracion: escudo.fecha_expiracion,
-            expirado: expirado,
+            escudo_activo: escudoActivo,
+            video_visto: escudoActivo,
+            fecha_activacion: activos[0]?.fecha_activacion || null,
+            fecha_expiracion: activos[0]?.fecha_expiracion || null,
+            expirado: !escudoActivo,
         });
     } catch (error) {
         console.error('Error al obtener estado del escudo:', error);
