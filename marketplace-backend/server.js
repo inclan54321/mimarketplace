@@ -3274,6 +3274,19 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
 
                 console.log('>>> 🤝 ¿Acuerdo cerrado?:', acuerdoCerrado);
 
+                // 🔥 Si la IA detecta cierre, el "seguir conversando" ya no aplica.
+                if (quiereCerrarTrato) {
+                    const borrados = await pool.query(
+                        `DELETE FROM mensajes_app 
+                         WHERE conversacion_id = $1 
+                           AND texto LIKE '||SEGUIR_CONVERSANDO||%'`,
+                        [conversacionId]
+                    );
+                    if (borrados.rowCount > 0) {
+                        console.log(`>>> 🧹 "Seguir conversando" borrado por IA: ${borrados.rowCount} registros`);
+                    }
+                }
+
                 console.log('>>> ✅ Análisis guardado en conversación', conversacionId);
                 console.log('>>> 🤝 ¿Quiere encuentro?:', quiereEncuentro);
             } catch (e) {

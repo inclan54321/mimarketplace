@@ -783,6 +783,7 @@ void dispose() {
                 _otroUsuarioConfirmoCerrarTrato = false;
                 _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
+                print('>>> 🟥 MODAL APAGADO por "decidioSeguir": _usuarioDecidioSeguirConversando=$_usuarioDecidioSeguirConversando');
               } else if (yoConfirme && !otroConfirme) {
                 _usuarioConfirmoCerrarTrato = true;
                 _otroUsuarioConfirmoCerrarTrato = false;
@@ -823,6 +824,7 @@ void dispose() {
               _otroUsuarioConfirmoCerrarTrato = false;
               _esperandoConfirmacionCerrarTrato = false;
             });
+            print('>>> 🟥 MODAL APAGADO por "seguir-conversando (DB)": _mostrarBotonesCerrarTrato=$_mostrarBotonesCerrarTrato');
           }
         }
       } catch (e) {
@@ -1280,6 +1282,9 @@ Future<void> _obtenerFotoVendedorReal() async {
           // 🔥 SI LA IA DETECTA QUE QUIEREN CERRAR EL TRATO
           if (quiereCerrarTrato && !_usuarioConfirmoCerrarTrato) {
             _mostrarBotonesCerrarTrato = true;
+            print('>>> 🟩 MODAL ACTIVADO por IA: quiereCerrarTrato=$quiereCerrarTrato, usuarioConfirmo=$_usuarioConfirmoCerrarTrato');
+          } else {
+            print('>>> ⬜ IA no activó modal: quiereCerrarTrato=$quiereCerrarTrato, usuarioConfirmo=$_usuarioConfirmoCerrarTrato');
           }
         });
 
