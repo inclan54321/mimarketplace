@@ -3199,17 +3199,21 @@ SOBRE "acuerdo_cerrado":
 - false: si todavía están negociando, preguntando, o no hay un acuerdo claro de ambas partes.
 
 SOBRE "quiere_cerrar_trato":
-Pon "quiere_cerrar_trato": true SOLO si se cumplen LAS DOS condiciones:
-1. Un usuario escribió un mensaje indicando que quiere cerrar la conversación (despedida, "hasta pronto", "nos vemos", "en eso quedamos", "me retiro", etc.)
-2. El OTRO usuario respondió confirmando el cierre ("sí", "así quedamos", "perfecto", "de acuerdo", "listo", etc.)
+Pon "quiere_cerrar_trato": true si AL MENOS UNO de estos casos se cumple:
+1. AMBOS usuarios expresaron que quieren cerrar la conversación (despedida, "hasta pronto", "nos vemos", "en eso quedamos", "me retiro", "listo", "quedamos así", "perfecto", "de acuerdo", etc.)
+2. UN usuario propuso cerrar Y el OTRO respondió con una confirmación clara ("sí", "dale", "ok", "listo", "así quedamos", "en eso quedamos", "perfecto", "de acuerdo", etc.)
 
-Si SOLO UN usuario expresó el cierre y el otro todavía no respondió, pon "quiere_cerrar_trato": false.
+Si solo UN usuario expresó el cierre y el otro todavía no respondió nada, pon "quiere_cerrar_trato": false.
 
 Ejemplos:
-- "[A]: listo, nos vemos" → false (solo uno expresó)
+- "[A]: listo, nos vemos" → false (solo uno expresó, el otro no respondió nada)
 - "[A]: listo, nos vemos / [B]: sí, nos vemos" → true (los dos expresaron)
+- "[A]: en eso quedamos / [B]: en eso quedamos" → true (los dos expresaron)
+- "[A]: bueno en eso quedamos entonces / [B]: en eso quedamos" → true
 - "[A]: en eso quedamos, hasta entonces" → false (solo uno)
 - "[A]: en eso quedamos, hasta entonces / [B]: sí, así quedamos" → true (los dos)
+
+Sé generoso con este campo. Si la conversación suena a que ya se pusieron de acuerdo en cerrar, pon true. Es mejor activar el modal que el usuario ignore, que no activarlo y que el usuario tenga que hacerlo a mano.
 
 NO cuentes mensajes repetidos del MISMO usuario. Tienen que ser DOS usuarios DISTINTOS.
 

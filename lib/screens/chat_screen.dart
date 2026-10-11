@@ -276,10 +276,13 @@ class _ChatScreenState extends State<ChatScreen>
         'chatBloqueado': _chatBloqueado,
         'mostrarBotonesConfirmar': _mostrarBotonesConfirmar,
         'esperandoConfirmacion': _esperandoConfirmacionCerrarTrato,
+        'esperandoRespuestaOtro': _esperandoRespuestaOtro,
         'usuarioConfirmo': _usuarioConfirmoCerrarTrato,
         'otroConfirmo': _otroUsuarioConfirmoCerrarTrato,
         'decidioSeguir': _usuarioDecidioSeguirConversando,
         'propuestaPendiente': _propuestaEncuentroPendiente,
+        'quiereCerrarTrato': _quiereCerrarTrato,
+        'mostrarBotonesCerrarTrato': _mostrarBotonesCerrarTrato,
       }));
     } catch (e) {
       print('Error al guardar estado de bloqueo: $e');
@@ -298,20 +301,16 @@ class _ChatScreenState extends State<ChatScreen>
         _chatBloqueado = m['chatBloqueado'] == true;
         _mostrarBotonesConfirmar = m['mostrarBotonesConfirmar'] == true;
         _esperandoConfirmacionCerrarTrato = m['esperandoConfirmacion'] == true;
+        _esperandoRespuestaOtro = m['esperandoRespuestaOtro'] == true;
         _usuarioConfirmoCerrarTrato = m['usuarioConfirmo'] == true;
         _otroUsuarioConfirmoCerrarTrato = m['otroConfirmo'] == true;
         _usuarioDecidioSeguirConversando = m['decidioSeguir'] == true;
         _propuestaEncuentroPendiente = m['propuestaPendiente'] == true;
+        _quiereCerrarTrato = m['quiereCerrarTrato'] == true;
+        _mostrarBotonesCerrarTrato = m['mostrarBotonesCerrarTrato'] == true;
 
-        // 🔥 Solo confiar en el estado guardado si BLOQUEA el input.
-        // Si dice "input libre", puede estar desactualizado: esperar al servidor.
-        final guardadoBloquea = _chatBloqueado ||
-            _mostrarBotonesConfirmar ||
-            _esperandoConfirmacionCerrarTrato ||
-            _propuestaEncuentroPendiente;
-        if (guardadoBloquea) {
-          _estadoCargado = true;
-        }
+        // 🔥 Ya tenemos el estado: el input se muestra/oculta al instante
+        _estadoCargado = true;
       });
     } catch (e) {
       print('Error al restaurar estado de bloqueo: $e');
@@ -424,13 +423,14 @@ void initState() {
   // (se eliminó el Timer que cambiaba el emoji cada 3 segundos)
   _conversacionIdActual = widget.conversacionId;
   _restaurarEstadoBloqueo(); // 🔥 estado de bloqueo inmediato desde caché local
+  _cargarPropuestasDesdeCache(); // 🔥 propuestas cerradas inmediatas desde caché local
   _obtenerOCrearConversacion();
   _marcarComoLeida(); // 🔥 NUEVO
   _obtenerFotoVendedorReal();
   _cargarProductosDelVendedor(); // 🔥 NUEVO
   print('>>> DESPUÉS de llamar _obtenerFotoVendedorReal()');
   print('>>> _fotoVendedorReal: $_fotoVendedorReal');
-    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
     // 🔥 NO recargar si hay un modal abierto (evita reiniciar el modal)
     if (_conversacionIdActual.isNotEmpty && !_interfazEncuentroMostrada) {
       _cargarMensajes(_conversacionIdActual);
@@ -579,6 +579,63 @@ void dispose() {
     }
   }
 
+  // 🔥 GUARDAR PROPUESTAS EN CACHÉ LOCAL (solo las CERRADAS)
+  Future<void> _guardarPropuestasEnCache() async {
+    try {
+      if (_cachePropuestas.isEmpty) return;
+
+      // 🔥 Solo guardar las que NO están pendientes
+      final cerradas = <String, Map<String, dynamic>>{};
+      _cachePropuestas.forEach((key, prop) {
+        final estado = prop['estado'] ?? 'pendiente';
+        if (estado != 'pendiente') {
+          cerradas[key] = prop;
+        }
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final cacheKey = 'propuestas_cache_${uid}_$_conversacionIdActual';
+
+      if (cerradas.isEmpty) {
+        await prefs.remove(cacheKey);
+        return;
+      }
+
+      await prefs.setString(cacheKey, jsonEncode(cerradas));
+      print('>>> 💾 Propuestas CERRADAS cacheadas: ${cerradas.length}');
+    } catch (e) {
+      print('Error al guardar propuestas en caché: $e');
+    }
+  }
+
+  // 🔥 CARGAR PROPUESTAS DESDE CACHÉ LOCAL (solo las CERRADAS)
+  Future<void> _cargarPropuestasDesdeCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final cacheKey = 'propuestas_cache_${uid}_$_conversacionIdActual';
+      final raw = prefs.getString(cacheKey);
+      if (raw == null || raw.isEmpty) return;
+
+      final Map<String, dynamic> data = jsonDecode(raw);
+      _cachePropuestas.clear();
+      data.forEach((key, value) {
+        final prop = Map<String, dynamic>.from(value);
+        // 🔥 Solo cachear las cerradas
+        final estado = prop['estado'] ?? 'pendiente';
+        if (estado != 'pendiente') {
+          _cachePropuestas[key] = prop;
+        }
+      });
+      print('>>> 💾 Propuestas CERRADAS cargadas desde caché: ${_cachePropuestas.length}');
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      print('Error al cargar propuestas desde caché: $e');
+    }
+  }
+
   Future<void> _cargarMensajes(String conversacionId) async {
   if (conversacionId.isEmpty) {
     setState(() => _isLoading = false);
@@ -620,6 +677,14 @@ void dispose() {
 
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
+
+      // 🔥 Pedir TODAS las fotos en paralelo (una por usuario único)
+      final idsUnicos = data
+          .map((i) => (i['usuario_id'] ?? '').toString())
+          .where((id) => id.isNotEmpty && id != 'SYSTEM')
+          .toSet();
+      await Future.wait(idsUnicos.map(_getFotoPerfil));
+
       List<Map<String, String>> mensajesConFotos = [];
       for (var item in data) {
         final usuarioId = item['usuario_id'] ?? '';
@@ -653,6 +718,12 @@ void dispose() {
         if (_isLoading) {
           setState(() => _isLoading = false);
         }
+      }
+
+      // 🔥 SI NO HAY CAMBIOS, no hace falta consultar nada más.
+      // 🔥 Esto ahorra 5 requests cada 3 segundos cuando el chat está quieto.
+      if (!hayCambios && _estadoCargado) {
+        return;
       }
 
       // 🔥 DETECTAR SI ALGUIEN DIJO "SEGUIR CONVERSANDO" LEYENDO LOS MENSAJES
@@ -702,27 +773,22 @@ void dispose() {
           if (mounted) {
             setState(() {
               if (ambos) {
-                // 🔥 Los dos confirmaron → trato cerrado
                 _usuarioConfirmoCerrarTrato = yoConfirme;
                 _otroUsuarioConfirmoCerrarTrato = otroConfirme;
                 _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
                 _chatBloqueado = true;
               } else if (_usuarioDecidioSeguirConversando) {
-                // 🔥 Alguien dijo "seguir": no activar ninguna espera
-                // (evita que el input se esconda y reaparezca en cada ciclo)
                 _usuarioConfirmoCerrarTrato = false;
                 _otroUsuarioConfirmoCerrarTrato = false;
                 _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
               } else if (yoConfirme && !otroConfirme) {
-                // 🔥 Yo confirmé, el otro no → esperando
                 _usuarioConfirmoCerrarTrato = true;
                 _otroUsuarioConfirmoCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = true;
                 _mostrarBotonesCerrarTrato = false;
               } else {
-                // 🔥 El otro confirmó (o nadie): los botones Confirmar/Seguir deciden
                 _usuarioConfirmoCerrarTrato = yoConfirme;
                 _otroUsuarioConfirmoCerrarTrato = otroConfirme;
                 _mostrarBotonesCerrarTrato = false;
@@ -753,7 +819,6 @@ void dispose() {
               _mostrarBotonesConfirmar = false;
               _mostrarBotonesCerrarTrato = false;
               _quiereCerrarTrato = false;
-              // 🔥 RESETEAR TAMBIÉN ESTOS, para que no quede el mensaje de espera
               _usuarioConfirmoCerrarTrato = false;
               _otroUsuarioConfirmoCerrarTrato = false;
               _esperandoConfirmacionCerrarTrato = false;
@@ -854,6 +919,8 @@ void dispose() {
     if (mounted) {
       setState(() => _propuestaEncuentroPendiente = false);
     }
+    // 🔥 Persistir el caché de propuestas
+    _guardarPropuestasEnCache();
   }
 
   // 🔥 VERIFICAR SI HAY QUE MOSTRAR BOTONES DE CONFIRMAR
@@ -910,6 +977,8 @@ void dispose() {
         _mostrarBotonesConfirmar = resultado;
       });
     }
+    // 🔥 Persistir el caché de propuestas
+    _guardarPropuestasEnCache();
   }
 
   // 🔥 DETECTAR SI ES UN MENSAJE DE PROPUESTA DE ENCUENTRO
@@ -4176,6 +4245,7 @@ ListTile(
 
           // 🔥 LIMPIAR CACHÉ DE ESA PROPUESTA PARA FORZAR REFRESCO
           _cachePropuestas.remove(propuestaId);
+          await _guardarPropuestasEnCache();
 
           await _cargarMensajes(_conversacionIdActual);
           _verificarPropuestaPendiente();
@@ -4975,6 +5045,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                               _esperandoConfirmacionCerrarTrato = true;
                             }
                           });
+                          _guardarEstadoBloqueo();
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -5013,6 +5084,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                       _mostrarBotonesCerrarTrato = false;
                       _quiereCerrarTrato = false;
                     });
+                    _guardarEstadoBloqueo();
 
                     final user = FirebaseAuth.instance.currentUser;
                     if (user == null) return;
@@ -5106,11 +5178,10 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         ),
 
       // 🔥 INPUT (solo si NO hay botones de cerrar trato ni espera)
-      if (_estadoCargado &&
-          ((!_mostrarBotonesConfirmar &&
-            !_esperandoRespuestaOtro &&
-            !_mostrarBotonesCerrarTrato &&
-            !_esperandoConfirmacionCerrarTrato) || _chatBloqueado))
+      if ((!_mostrarBotonesConfirmar &&
+           !_esperandoRespuestaOtro &&
+           !_mostrarBotonesCerrarTrato &&
+           !_esperandoConfirmacionCerrarTrato) || _chatBloqueado)
       Row(
     children: [
            // 🔥 BOTÓN DE GRABACIÓN CON PRESIÓN LARGA Y DESLIZAR PARA CANCELAR
