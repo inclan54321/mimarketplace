@@ -15,6 +15,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'editar_perfil_screen.dart';
 import 'privacidad_screen.dart';
 import 'soporte_screen.dart';
+import 'impulsar_screen.dart';
 
 // ============================================================
 // 🎨 ESTILOS VISUALES DEL PERFIL
@@ -866,6 +867,20 @@ Future<void> _precargarImagenPerfil() async {
                   _cargarFotoPerfil();
                   _cargarMisProductos();
                 }
+              },
+            ),
+            // 🔥 NUEVO: IMPULSAR PUBLICACIONES
+            ListTile(
+              leading: const Icon(Icons.rocket_launch, color: Color(0xFFFFB300)),
+              title: const Text('Impulsar'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ImpulsarScreen(),
+                  ),
+                );
               },
             ),
             ListTile(

@@ -4893,6 +4893,76 @@ app.get('/api/encuentro/:id/datos', async (req, res) => {
     }
 });
 
+// ============================================================
+// 🔥 IMPULSAR PRODUCTOS
+// ============================================================
+
+// POST /api/productos/:id/impulsar
+app.post('/api/productos/:id/impulsar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { usuario_id } = req.body;
+
+    console.log('>>> IMPULSAR: producto', id, 'usuario', usuario_id);
+
+    if (!usuario_id) {
+      return res.status(400).json({ error: 'Falta usuario_id' });
+    }
+
+    const producto = await pool.query(
+      'SELECT * FROM productos_app WHERE id = $1 AND vendedor_id = $2',
+      [id, usuario_id]
+    );
+
+    if (producto.rows.length === 0) {
+      return res.status(403).json({ error: 'No tenés permiso sobre este producto' });
+    }
+
+    await pool.query(
+      'UPDATE productos_impulsados SET activo = FALSE WHERE producto_id = $1',
+      [id]
+    );
+
+    const result = await pool.query(
+      `INSERT INTO productos_impulsados (producto_id, usuario_id)
+       VALUES ($1, $2) RETURNING *`,
+      [id, usuario_id]
+    );
+
+    console.log('>>> IMPULSO CREADO:', result.rows[0]);
+
+    res.json({ success: true, impulso: result.rows[0] });
+
+  } catch (error) {
+    console.error('>>> ERROR AL IMPULSAR:', error);
+    res.status(500).json({ error: 'Error al impulsar producto' });
+  }
+});
+
+// GET /api/productos/impulsados
+app.get('/api/productos/impulsados', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        p.*,
+        i.fecha_impulso
+      FROM productos_impulsados i
+      INNER JOIN productos_app p ON p.id = i.producto_id
+      WHERE i.activo = TRUE
+      ORDER BY i.fecha_impulso DESC
+      LIMIT 20
+    `);
+
+    console.log('>>> IMPULSADOS DEVUELTOS:', result.rows.length);
+
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error('>>> ERROR AL OBTENER IMPULSADOS:', error);
+    res.status(500).json({ error: 'Error al obtener impulsados' });
+  }
+});
+
 app.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
 });

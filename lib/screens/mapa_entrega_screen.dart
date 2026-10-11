@@ -1,6 +1,7 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'imagenes_producto_screen.dart';
 class MapaEntregaScreen extends StatefulWidget {
   final String categoria;
@@ -17,15 +18,10 @@ class MapaEntregaScreen extends StatefulWidget {
 }
 
 class _MapaEntregaScreenState extends State<MapaEntregaScreen> {
-  late LatLng selectedPosition;
-  late MapController mapController;
-
-  @override
-  void initState() {
-    super.initState();
-    selectedPosition = LatLng(9.9281, -84.0907);
-    mapController = MapController();
-  }
+  MapLibreMapController? _controller;
+  LatLng selectedPosition = const LatLng(9.9281, -84.0907);
+  Symbol? _pinActual;
+  bool _imagenCargada = false;
 
   @override
   Widget build(BuildContext context) {
@@ -65,37 +61,36 @@ class _MapaEntregaScreenState extends State<MapaEntregaScreen> {
       ),
     ),
     Expanded(
-      child: FlutterMap(
-        mapController: mapController,
-        options: MapOptions(
-          initialCenter: selectedPosition,
-          initialZoom: 14,
-          onTap: (_, LatLng position) {
-            setState(() {
-              selectedPosition = position;
-            });
-          },
+      child: MapLibreMap(
+        styleString: 'https://tiles.openfreemap.org/styles/liberty',
+        initialCameraPosition: CameraPosition(
+          target: selectedPosition,
+          zoom: 14,
         ),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.example.mimarketplace',
-          ),
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: selectedPosition,
-                width: 40,
-                height: 40,
-                child: const Icon(
-                  Icons.location_pin,
-                  color: Colors.red,
-                  size: 40,
-                ),
-              ),
-            ],
-          ),
-        ],
+        onMapCreated: (controller) {
+          _controller = controller;
+        },
+        onStyleLoadedCallback: () async {
+          try {
+            final Uint8List bytes = await _crearIconoDesdeFlutter(
+              Icons.push_pin,
+              Colors.red,
+            );
+            await _controller?.addImage('chinche', bytes);
+            _imagenCargada = true;
+            debugPrint('>>> Ícono registrado en el mapa');
+          } catch (e) {
+            debugPrint('Error al crear ícono: $e');
+          }
+
+          await _dibujarPin(selectedPosition);
+        },
+        onMapClick: (point, coordinates) async {
+          debugPrint('>>> TAP: ${coordinates.latitude}, ${coordinates.longitude}');
+          if (_imagenCargada) {
+            await _moverPin(coordinates);
+          }
+        },
       ),
     ),
     // ===== UBICACIÓN SELECCIONADA =====
@@ -128,5 +123,77 @@ class _MapaEntregaScreenState extends State<MapaEntregaScreen> {
   ],
 ),
     );
+  }
+
+  // 🔥 CONVERTIR UN IconData DE FLUTTER EN PNG
+  Future<Uint8List> _crearIconoDesdeFlutter(
+    IconData icono,
+    Color color, {
+    double size = 128,
+  }) async {
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    final Canvas canvas = Canvas(recorder);
+    final TextPainter painter = TextPainter(textDirection: TextDirection.ltr);
+
+    painter.text = TextSpan(
+      text: String.fromCharCode(icono.codePoint),
+      style: TextStyle(
+        fontSize: size,
+        fontFamily: icono.fontFamily,
+        package: icono.fontPackage,
+        color: color,
+        shadows: const [
+          Shadow(
+            color: Colors.black26,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+    );
+
+    painter.layout();
+    painter.paint(
+      canvas,
+      Offset((size - painter.width) / 2, (size - painter.height) / 2),
+    );
+
+    final ui.Image image = await recorder.endRecording().toImage(
+          size.toInt(),
+          size.toInt(),
+        );
+    final ByteData? byteData =
+        await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  Future<void> _dibujarPin(LatLng posicion) async {
+    try {
+      _pinActual = await _controller!.addSymbol(
+        SymbolOptions(
+          geometry: posicion,
+          iconImage: 'chinche',
+          iconSize: 0.35,
+          iconAnchor: 'bottom',
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error al dibujar pin: $e');
+    }
+  }
+
+  Future<void> _moverPin(LatLng nuevaPosicion) async {
+    try {
+      setState(() {
+        selectedPosition = nuevaPosicion;
+      });
+
+      if (_pinActual != null) {
+        await _controller!.removeSymbol(_pinActual!);
+      }
+      await _dibujarPin(nuevaPosicion);
+    } catch (e) {
+      debugPrint('Error al mover pin: $e');
+    }
   }
 }

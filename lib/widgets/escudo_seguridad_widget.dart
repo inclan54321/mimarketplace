@@ -132,6 +132,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     showDialog(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.85),
       builder: (BuildContext dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
