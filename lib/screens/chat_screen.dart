@@ -4942,7 +4942,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         }),
 
       // 🔥 MENSAJE DE ESPERA - CONFIRMÉ CERRAR TRATO
-      if (_esperandoConfirmacionCerrarTrato)
+      if (_usuarioConfirmoCerrarTrato && !_chatBloqueado)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           padding: const EdgeInsets.all(12),
@@ -4957,7 +4957,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '⏳ Confirmaste cerrar el trato. Esperando que el otro usuario confirme...',
+                  '⏳ Confirmaste cerrar el trato. Esperando la respuesta del otro usuario...',
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 ),
               ),

@@ -3143,6 +3143,7 @@ async function analizarConversacionEnSegundoPlano(conversacionId, usuarioId) {
         console.trace('>>> 🚨 STACK TRACE:');
 
         // 🔥 1. OBTENER LOS ÚLTIMOS 20 MENSAJES
+        // 🔥 FILTRAR: mensajes del sistema, mensajes internos (|| ... ||) y los nuestros
         const mensajesResult = await pool.query(
             `SELECT m.usuario_id, m.texto, m.fecha, u.nombre AS remitente
              FROM mensajes_app m
@@ -3151,6 +3152,7 @@ async function analizarConversacionEnSegundoPlano(conversacionId, usuarioId) {
                AND m.usuario_id != 'SYSTEM'
                AND m.texto IS NOT NULL
                AND m.texto != ''
+               AND m.texto NOT LIKE '||%'
              ORDER BY m.fecha DESC
              LIMIT 20`,
             [conversacionId]
@@ -3312,6 +3314,7 @@ app.post('/api/analizar-chat', async (req, res) => {
         }
 
         // 🔥 1. OBTENER LOS ÚLTIMOS 20 MENSAJES
+        // 🔥 FILTRAR: mensajes del sistema, mensajes internos (|| ... ||)
         const mensajesResult = await pool.query(
             `SELECT m.usuario_id, m.texto, m.fecha, u.nombre AS remitente
              FROM mensajes_app m
@@ -3320,6 +3323,7 @@ app.post('/api/analizar-chat', async (req, res) => {
                AND m.usuario_id != 'SYSTEM'
                AND m.texto IS NOT NULL
                AND m.texto != ''
+               AND m.texto NOT LIKE '||%'
              ORDER BY m.fecha DESC
              LIMIT 20`,
             [conversacion_id]
