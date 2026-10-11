@@ -116,6 +116,22 @@ class _AlertasScreenState extends State<AlertasScreen> {
     );
   }
 
+  // 🔥 Quita emojis de forma segura (unicode: true evita romper pares sustitutos)
+  String _limpiarMensaje(String mensaje) {
+    final limpio = mensaje
+        .replaceAll(
+          RegExp(
+            r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]',
+            unicode: true,
+          ),
+          '',
+        )
+        .replaceAll(RegExp(r'[ \t]+\n'), '\n')
+        .trim();
+
+    return limpio.isEmpty ? mensaje.trim() : limpio;
+  }
+
   Future<void> _limpiarAlertas() async {
     if (_alertas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -248,6 +264,14 @@ class _AlertasScreenState extends State<AlertasScreen> {
                       rayaColor = Colors.red;
                       icono = Icons.timer_off;
                       iconoColor = Colors.red;
+                    } else if (tipo == 'encuentro') {
+                      rayaColor = Colors.blue;
+                      icono = Icons.event_available;
+                      iconoColor = Colors.blue;
+                    } else if (tipo == 'recordatorio_encuentro') {
+                      rayaColor = Colors.orange;
+                      icono = Icons.alarm;
+                      iconoColor = Colors.orange;
                     }
 
                     return Container(
@@ -267,7 +291,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
                         children: [
                           Container(
                             width: 6,
-                            height: tipo == 'caducado' ? 100 : 70,
+                            height: tipo == 'caducado'
+                                ? 100
+                                : (tipo == 'encuentro' ? 110 : 70),
                             decoration: BoxDecoration(
                               color: rayaColor,
                               borderRadius: const BorderRadius.only(
@@ -293,13 +319,13 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          mensaje.replaceAll(RegExp(r'[✅❌📝🔔⏰]'), '').trim(),
+                                          _limpiarMensaje(mensaje),
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: esLeida ? Colors.grey : Colors.black87,
                                             fontWeight: esLeida ? FontWeight.normal : FontWeight.w500,
                                           ),
-                                          maxLines: 2,
+                                          maxLines: (tipo == 'encuentro' || tipo == 'recordatorio_encuentro') ? 10 : 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                         const SizedBox(height: 4),

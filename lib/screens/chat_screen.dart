@@ -597,6 +597,26 @@ void dispose() {
         }
       }
 
+      // 🔥 DETECTAR SI ALGUIEN DIJO "SEGUIR CONVERSANDO" LEYENDO LOS MENSAJES
+      // 🔥 REGLA: con UNO que diga seguir, se ocultan los botones para ambos
+      final alguienDijoSeguirEnMensajes = mensajesConFotos.any(
+        (m) => (m['texto'] ?? '').startsWith('||SEGUIR_CONVERSANDO||'),
+      );
+
+      if (mounted && alguienDijoSeguirEnMensajes) {
+        setState(() {
+          _usuarioDecidioSeguirConversando = true;
+          _esperandoRespuestaOtro = false;
+          _mostrarBotonesConfirmar = false;
+          _mostrarBotonesCerrarTrato = false;
+          _quiereCerrarTrato = false;
+          _usuarioConfirmoCerrarTrato = false;
+          _otroUsuarioConfirmoCerrarTrato = false;
+          _esperandoConfirmacionCerrarTrato = false;
+        });
+        print('>>> 🟢 ALGUIEN DIJO SEGUIR (desde mensajes): ocultando todos los botones');
+      }
+
       // 🔥 CONSULTAR EL ANÁLISIS SIEMPRE (no solo cuando hay cambios)
       await _analizarMensajeConIA('', user.uid);
       
@@ -623,21 +643,31 @@ void dispose() {
 
           if (mounted) {
             setState(() {
-              _usuarioConfirmoCerrarTrato = yoConfirme;
-              _otroUsuarioConfirmoCerrarTrato = otroConfirme;
-
               if (ambos) {
                 // 🔥 Los dos confirmaron → trato cerrado
+                _usuarioConfirmoCerrarTrato = yoConfirme;
+                _otroUsuarioConfirmoCerrarTrato = otroConfirme;
                 _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
                 _chatBloqueado = true;
+              } else if (_usuarioDecidioSeguirConversando) {
+                // 🔥 Alguien dijo "seguir": no activar ninguna espera
+                // (evita que el input se esconda y reaparezca en cada ciclo)
+                _usuarioConfirmoCerrarTrato = false;
+                _otroUsuarioConfirmoCerrarTrato = false;
+                _mostrarBotonesCerrarTrato = false;
+                _esperandoConfirmacionCerrarTrato = false;
               } else if (yoConfirme && !otroConfirme) {
                 // 🔥 Yo confirmé, el otro no → esperando
+                _usuarioConfirmoCerrarTrato = true;
+                _otroUsuarioConfirmoCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = true;
                 _mostrarBotonesCerrarTrato = false;
-              } else if (!yoConfirme && otroConfirme) {
-                // 🔥 EL OTRO confirmó, yo todavía no → ME APARECE EL RECUADRO
-                _mostrarBotonesCerrarTrato = true;
+              } else {
+                // 🔥 El otro confirmó (o nadie): los botones Confirmar/Seguir deciden
+                _usuarioConfirmoCerrarTrato = yoConfirme;
+                _otroUsuarioConfirmoCerrarTrato = otroConfirme;
+                _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
               }
             });
@@ -665,6 +695,10 @@ void dispose() {
               _mostrarBotonesConfirmar = false;
               _mostrarBotonesCerrarTrato = false;
               _quiereCerrarTrato = false;
+              // 🔥 RESETEAR TAMBIÉN ESTOS, para que no quede el mensaje de espera
+              _usuarioConfirmoCerrarTrato = false;
+              _otroUsuarioConfirmoCerrarTrato = false;
+              _esperandoConfirmacionCerrarTrato = false;
             });
           }
         }
@@ -4558,12 +4592,19 @@ ListTile(
     );
   }
 
-  // 🔥 MENSAJE DE "SEGUIR CONVERSANDO" PROPUESTO
+  // 🔥 MENSAJE "SEGUIR CONVERSANDO": solo lo ve el OTRO usuario
   if ((mensaje['texto'] ?? '').startsWith('||SEGUIR_CONVERSANDO||')) {
-    final proponenteId = (mensaje['texto'] ?? '').replaceAll('||SEGUIR_CONVERSANDO||', '').trim();
-    final user = FirebaseAuth.instance.currentUser;
+    final proponenteId = (mensaje['texto'] ?? '')
+        .replaceAll('||SEGUIR_CONVERSANDO||', '')
+        .trim();
     final yoPropuse = user?.uid == proponenteId;
-    
+
+    // Quien dio "Seguir conversando" no ve nada
+    if (yoPropuse) {
+      return const SizedBox.shrink();
+    }
+
+    // El otro usuario sí ve el aviso
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(12),
@@ -4572,16 +4613,17 @@ ListTile(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.orange.shade200),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const Icon(Icons.hourglass_top, color: Colors.orange),
-          const SizedBox(width: 8),
+          Icon(Icons.chat_bubble_outline, color: Colors.orange),
+          SizedBox(width: 8),
           Expanded(
             child: Text(
-              yoPropuse
-                  ? '⏳ Esperando la respuesta del usuario...'
-                  : '💬 El usuario quiere seguir conversando',
-              style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+              '💬 El usuario quiere seguir conversando',
+              style: TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -4942,7 +4984,11 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         }),
 
       // 🔥 MENSAJE DE ESPERA - CONFIRMÉ CERRAR TRATO
-      if (_usuarioConfirmoCerrarTrato && !_chatBloqueado)
+      // 🔥 Solo mostrar si YO confirmé, el otro NO confirmó, y nadie decidió seguir
+      if (_usuarioConfirmoCerrarTrato &&
+          !_otroUsuarioConfirmoCerrarTrato &&
+          !_usuarioDecidioSeguirConversando &&
+          !_chatBloqueado)
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           padding: const EdgeInsets.all(12),

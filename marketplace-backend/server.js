@@ -4019,6 +4019,31 @@ app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
             ]
         );
 
+        // 🔥 ALERTA PARA QUIEN PROPUSO: su propuesta fue aceptada
+        try {
+            const quien = await pool.query(
+                'SELECT nombre FROM usuarios WHERE uid = $1',
+                [propuesta.usuario_recibe_id]
+            );
+            const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
+            const fechaTxt = new Date(propuesta.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
+            const ubicacion = [propuesta.lugar_nombre, propuesta.distrito, propuesta.canton, propuesta.provincia]
+                .filter(x => x && x !== '')
+                .join(', ');
+
+            await pool.query(
+                `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+                 VALUES ($1, 0, $2, 'encuentro', NOW())`,
+                [
+                    propuesta.usuario_propone_id,
+                    `✅ ${nombreQuien} aceptó tu propuesta de encuentro.\n📍 ${ubicacion}\n🕐 ${fechaTxt}\n\nEntra al chat para confirmar el trato o seguir conversando.`
+                ]
+            );
+            console.log(`>>> 📥 Alerta de propuesta aceptada para ${propuesta.usuario_propone_id}`);
+        } catch (e) {
+            console.error('>>> ❌ Error al crear alerta de aceptación:', e.message);
+        }
+
         // 5. Insertar mensaje de rechazo masivo (opcional, para que se vea en el chat)
         for (const r of rechazadas.rows) {
             await pool.query(
@@ -4372,6 +4397,24 @@ app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
                         ]
                     );
                     console.log(`>>> 📅 Encuentro agendado creado: ${insertResult.rows[0].id}`);
+
+                    // 🔥 ALERTA PARA LOS DOS: trato cerrado
+                    try {
+                        const fechaTxt = new Date(propuesta.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
+                        const ubicacion = [propuesta.lugar_nombre, propuesta.distrito, propuesta.canton, propuesta.provincia]
+                            .filter(x => x && x !== '')
+                            .join(', ');
+                        const mensajeAlerta = `🤝 Trato cerrado. Encuentro confirmado.\n📍 ${ubicacion}\n🕐 ${fechaTxt}\n\n⚠️ No llegues tarde.\n🔒 Se pedirá reconocimiento facial.\n📍 Se activará el GPS el día del encuentro.\n💬 El chat queda bloqueado hasta que se vean.`;
+
+                        await pool.query(
+                            `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+                             VALUES ($1, 0, $3, 'encuentro', NOW()), ($2, 0, $3, 'encuentro', NOW())`,
+                            [conv.usuario1_id, conv.usuario2_id, mensajeAlerta]
+                        );
+                        console.log(`>>> 📥 Alertas de trato cerrado insertadas para conv ${id}`);
+                    } catch (e) {
+                        console.error('>>> ❌ Error al crear alerta de trato cerrado:', e.message);
+                    }
                 } else {
                     console.log(`>>> 📅 Encuentro ya agendado: ${yaAgendado.rows[0].id}`);
                 }
