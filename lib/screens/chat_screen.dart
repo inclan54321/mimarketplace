@@ -823,6 +823,33 @@ void dispose() {
     await _cargarEstadoEscudo();
   }
 
+  // 🔥 CONSULTAR SI EL CHAT ESTÁ BLOQUEADO EN LA BD
+  // 🔥 Si el rechazo del escudo cerró el chat, el backend lo marca en conversaciones_app.
+  try {
+    final rBloqueo = await http.get(
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/estado-bloqueo'),
+    );
+    if (rBloqueo.statusCode == 200) {
+      final dataBloqueo = jsonDecode(rBloqueo.body);
+      final chatBloqueadoBD = dataBloqueo['chat_bloqueado'] == true;
+      final cerradoPorEscudoBD = dataBloqueo['cerrado_por_escudo'] == true;
+
+      print('>>> 🔒 Estado de bloqueo BD: chat_bloqueado=$chatBloqueadoBD, cerrado_por_escudo=$cerradoPorEscudoBD');
+
+      if (mounted && chatBloqueadoBD && !_chatBloqueado) {
+        setState(() {
+          _chatBloqueado = true;
+          if (cerradoPorEscudoBD) {
+            _escudoOtroRechazo = true;
+            _escudoResuelto = true;
+          }
+        });
+      }
+    }
+  } catch (e) {
+    print('Error al consultar estado de bloqueo: $e');
+  }
+
   // 🔥 MOSTRAR MODAL DEL ESCUDO SI EL OTRO LO ACTIVÓ Y YO NO HE RESPONDIDO
   // 🔥 Y SOLO si todavía no lo vi (para no mostrarlo cada vez que entra al chat)
   if (!_escudoYoAcepte &&

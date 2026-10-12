@@ -1612,6 +1612,28 @@ app.put('/api/conversaciones/:id/fijar', async (req, res) => {
     }
 });
 
+// 🔥 OBTENER ESTADO DE BLOQUEO DE LA CONVERSACIÓN
+app.get('/api/conversaciones/:id/estado-bloqueo', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query(
+            `SELECT chat_bloqueado, cerrado_por_escudo 
+             FROM conversaciones_app WHERE id = $1`,
+            [id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        res.json({
+            chat_bloqueado: result.rows[0].chat_bloqueado === true,
+            cerrado_por_escudo: result.rows[0].cerrado_por_escudo === true,
+        });
+    } catch (error) {
+        console.error('Error al obtener estado de bloqueo:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // 🔥 OCULTAR CONVERSACIÓN COMPLETA PARA UN USUARIO
 app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
     console.log('>>> 🔥🔥🔥 ENDPOINT /ocultar LLAMADO - ID:', req.params.id, 'usuario:', req.body.usuario_id);
