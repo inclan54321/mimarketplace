@@ -3988,7 +3988,7 @@ app.post('/api/escudo/aceptar', async (req, res) => {
 
         await pool.query(
             `UPDATE escudos_conversacion 
-             SET acepto = true, rechazo = false, fecha_respuesta = NOW()
+             SET acepto = true, rechazo = false, modal_visto = true, fecha_respuesta = NOW()
              WHERE conversacion_id = $1 AND usuario_id = $2`,
             [conversacion_id, usuario_id]
         );
@@ -4016,10 +4016,10 @@ app.post('/api/escudo/rechazar', async (req, res) => {
             return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
         }
 
-        // 1. Marcar rechazo
+        // 1. Marcar rechazo Y modal visto (para no volver a mostrarlo)
         await pool.query(
             `UPDATE escudos_conversacion 
-             SET acepto = false, rechazo = true, fecha_respuesta = NOW()
+             SET acepto = false, rechazo = true, modal_visto = true, fecha_respuesta = NOW()
              WHERE conversacion_id = $1 AND usuario_id = $2`,
             [conversacion_id, usuario_id]
         );

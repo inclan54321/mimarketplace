@@ -5,6 +5,7 @@ import 'package:animated_emoji/animated_emoji.dart';
 import 'conversation_status_indicator.dart';
 import 'rewarded_ad_prueba.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'modal_escudo_uber.dart'; // 🔥 NUEVO
 
 class EscudoSeguridadWidget extends StatefulWidget {
   final ConversationStatus? emojiDesdeEstado; // 🔥 NUEVO
@@ -722,7 +723,11 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                 // 🔥 Ya marcó "no mostrar más", ir directo al anuncio
                 _verAnuncioYActivar();
               } else {
-                _mostrarModalAnuncio();
+                // 🔥 Usar el modal compartido
+                ModalEscudoUber.mostrar(
+                  context,
+                  onVerVideo: () => _verAnuncioYActivar(),
+                );
               }
             } else {
               widget.onToggle();
