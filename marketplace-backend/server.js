@@ -3958,6 +3958,7 @@ app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
         const yo_acepte = miRegistro?.acepto === true;
         const otro_acepte = otroRegistro?.acepto === true;
         const otro_rechazo = otroRegistro?.rechazo === true;
+        const yo_vi_modal = miRegistro?.modal_visto === true;
         const escudo_confirmado = yo_acepte && otro_acepte;
 
         res.json({
@@ -3970,6 +3971,7 @@ app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
             yo_acepte: yo_acepte,
             otro_acepte: otro_acepte,
             otro_rechazo: otro_rechazo,
+            yo_vi_modal: yo_vi_modal, // 🔥 NUEVO
             escudo_confirmado: escudo_confirmado,
         });
     } catch (error) {
@@ -4004,6 +4006,29 @@ app.post('/api/escudo/aceptar', async (req, res) => {
         res.json({ success: true, escudo_confirmado: ambosAceptaron });
     } catch (error) {
         console.error('Error al aceptar escudo:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 MARCAR MODAL COMO VISTO (para no volver a mostrarlo)
+app.post('/api/escudo/modal-visto', async (req, res) => {
+    try {
+        const { conversacion_id, usuario_id } = req.body;
+        if (!conversacion_id || !usuario_id) {
+            return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
+        }
+
+        await pool.query(
+            `UPDATE escudos_conversacion 
+             SET modal_visto = true
+             WHERE conversacion_id = $1 AND usuario_id = $2`,
+            [conversacion_id, usuario_id]
+        );
+
+        console.log(`>>> 🛡️ Modal escudo marcado como visto por ${usuario_id} en conv ${conversacion_id}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error al marcar modal visto:', error);
         res.status(500).json({ error: error.message });
     }
 });
