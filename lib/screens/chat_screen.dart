@@ -201,12 +201,6 @@ class _ChatScreenState extends State<ChatScreen>
           print('>>> ⚠️ Error al activar en backend: ${response.statusCode}');
         }
       }
-
-      if (response.statusCode == 200) {
-        print('>>> 💾 Escudo backend guardado: $activo');
-      } else {
-        print('>>> ⚠️ Error al guardar en backend: ${response.statusCode}');
-      }
     } catch (e) {
       print('Error al guardar escudo: $e');
     }
@@ -308,8 +302,10 @@ class _ChatScreenState extends State<ChatScreen>
       setState(() {
         _chatBloqueado = m['chatBloqueado'] == true;
         _mostrarBotonesConfirmar = m['mostrarBotonesConfirmar'] == true;
-        _esperandoConfirmacionCerrarTrato = m['esperandoConfirmacion'] == true;
-        _esperandoRespuestaOtro = m['esperandoRespuestaOtro'] == true;
+        // 🔥 NO restaurar "esperandoConfirmacion" ni "esperandoRespuestaOtro" del caché.
+        // 🔥 Esos estados los determina la BD en _cargarMensajes.
+        _esperandoConfirmacionCerrarTrato = false;
+        _esperandoRespuestaOtro = false;
         // 🔥 NO restaurar las confirmaciones del caché.
         // 🔥 Siempre vienen de la BD en _cargarMensajes.
         // 🔥 Así el cartel azul solo aparece para el que confirmó de verdad.
@@ -736,6 +732,8 @@ void dispose() {
       // 🔥 SI NO HAY CAMBIOS, no hace falta consultar nada más.
       // 🔥 Esto ahorra 5 requests cada 3 segundos cuando el chat está quieto.
       if (!hayCambios && _estadoCargado) {
+        // 🔥 El análisis de la IA llega después del mensaje: seguir consultándolo
+        await _analizarMensajeConIA('', user.uid);
         return;
       }
 
@@ -747,7 +745,6 @@ void dispose() {
       
       // 🔥 SIEMPRE VERIFICAR PROPUESTA PENDIENTE
       await _verificarPropuestaPendiente();
-      await _verificarBotonConfirmar(user.uid);
 
       // 🔥 2. GUARDAR EN CACHÉ DESPUÉS DE CARGAR DEL SERVIDOR
       await _guardarMensajesEnCache(conversacionId, mensajesConFotos);
@@ -774,12 +771,6 @@ void dispose() {
                 _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
                 _chatBloqueado = true;
-              } else if (_usuarioDecidioSeguirConversando) {
-                // 🔥 Alguien dijo "seguir": apagar todo el estado de cerrar trato.
-                _usuarioConfirmoCerrarTrato = false;
-                _otroUsuarioConfirmoCerrarTrato = false;
-                _mostrarBotonesCerrarTrato = false;
-                _esperandoConfirmacionCerrarTrato = false;
               } else if (yoConfirme && !otroConfirme) {
                 _usuarioConfirmoCerrarTrato = true;
                 _otroUsuarioConfirmoCerrarTrato = false;
@@ -788,9 +779,10 @@ void dispose() {
               } else {
                 _usuarioConfirmoCerrarTrato = yoConfirme;
                 _otroUsuarioConfirmoCerrarTrato = otroConfirme;
-                _esperandoConfirmacionCerrarTrato = false;
-                // 🔥 NO tocar _mostrarBotonesCerrarTrato acá.
-                // 🔥 La IA lo activa y nadie más debería apagarlo excepto el usuario.
+                // 🔥 Si yo confirmé y el otro no, mantener el cartel azul y el input oculto.
+                if (!yoConfirme) {
+                  _esperandoConfirmacionCerrarTrato = false;
+                }
               }
             });
           }
@@ -798,8 +790,7 @@ void dispose() {
       } catch (e) {
         print('Error al consultar cerrar-trato: $e');
       }
-      // 🔥 CONSULTAR EN DB SI ALGUIEN YA DIJO "SEGUIR CONVERSANDO"
-      // 🔥 REGLA NUEVA: con UNO que diga "seguir", los botones desaparecen para ambos
+      // 🔥 CONSULTAR SI ALGUIEN DIJO "SEGUIR CONVERSANDO"
       try {
         final r = await http.get(
           Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
@@ -810,25 +801,30 @@ void dispose() {
           final alguienDijoSeguir = usuarios.isNotEmpty;
           print('>>> 🟢 SEGUIR CONVERSANDO (DB): usuarios=$usuarios, alguienDijoSeguir=$alguienDijoSeguir');
 
+          if (mounted && !alguienDijoSeguir && _usuarioDecidioSeguirConversando) {
+            setState(() => _usuarioDecidioSeguirConversando = false);
+          }
+
           if (mounted && alguienDijoSeguir) {
             setState(() {
               _usuarioDecidioSeguirConversando = true;
               _esperandoRespuestaOtro = false;
               _mostrarBotonesConfirmar = false;
-              // 🔥 Si alguien dijo "seguir", apagar TODO el estado de cerrar trato.
-              // 🔥 El input se desbloquea y el cartel azul desaparece.
               _mostrarBotonesCerrarTrato = false;
               _usuarioConfirmoCerrarTrato = false;
               _otroUsuarioConfirmoCerrarTrato = false;
               _esperandoConfirmacionCerrarTrato = false;
               _quiereCerrarTrato = false;
             });
-            print('>>> 🟡 "Seguir conversando": reset total de cerrar trato');
           }
         }
       } catch (e) {
         print('Error al consultar seguir-conversando: $e');
       }
+
+      // 🔥 AHORA SÍ: verificar los botones de confirmar, DESPUÉS de actualizar
+      // 🔥 todos los estados (cerrar-trato y seguir-conversando).
+      await _verificarBotonConfirmar(user.uid);
 
       // 🔥 Ya se conoce el estado real: mostrar input y guardarlo para la próxima vez
       if (mounted && !_estadoCargado) {
@@ -969,7 +965,7 @@ void dispose() {
       // - No está el recuadro de "cerrar trato" mostrándose
       final resultado = mostrar &&
                         !_chatBloqueado &&
-                        !_usuarioDecidioSeguirConversando &&
+                        !_usuarioDecidioSeguirConversando &&  // ← ESTA LÍNEA VUELVE
                         !_usuarioConfirmoCerrarTrato &&
                         !_mostrarBotonesCerrarTrato &&
                         !_esperandoConfirmacionCerrarTrato;
@@ -1279,11 +1275,18 @@ Future<void> _obtenerFotoVendedorReal() async {
           }
 
           // 🔥 SI LA IA DETECTA QUE QUIEREN CERRAR EL TRATO
-          if (quiereCerrarTrato && !_usuarioConfirmoCerrarTrato) {
+          // 🔥 PERO solo si NO hay que proponer encuentro primero.
+          // 🔥 Si hay que proponer encuentro, el modal de cerrar trato se activa DESPUÉS.
+          if (quiereCerrarTrato &&
+              !_usuarioConfirmoCerrarTrato &&
+              !_usuarioDecidioSeguirConversando &&
+              !_chatBloqueado &&
+              !quiereEncuentro) {
             _mostrarBotonesCerrarTrato = true;
-            print('>>> 🟩 MODAL ACTIVADO por IA: quiereCerrarTrato=$quiereCerrarTrato, usuarioConfirmo=$_usuarioConfirmoCerrarTrato');
+            print('>>> 🟩 MODAL CERRAR TRATO activado por IA');
           } else {
-            print('>>> ⬜ IA no activó modal: quiereCerrarTrato=$quiereCerrarTrato, usuarioConfirmo=$_usuarioConfirmoCerrarTrato');
+            if (!quiereCerrarTrato) _mostrarBotonesCerrarTrato = false;
+            print('>>> ⬜ IA no activó modal cerrar trato: quiereCerrarTrato=$quiereCerrarTrato, quiereEncuentro=$quiereEncuentro');
           }
         });
 
@@ -1296,6 +1299,20 @@ Future<void> _obtenerFotoVendedorReal() async {
           if (!yaHayPropuesta && mounted) {
             _mostrarInterfazEncuentro();
           }
+        }
+
+        // 🔥 Si había que proponer encuentro Y ADEMÁS cerrar trato,
+        // 🔥 activar el modal de cerrar trato AHORA (después del encuentro).
+        if (quiereCerrarTrato &&
+            quiereEncuentro &&
+            !_usuarioConfirmoCerrarTrato &&
+            !_usuarioDecidioSeguirConversando &&
+            !_chatBloqueado &&
+            mounted) {
+          setState(() {
+            _mostrarBotonesCerrarTrato = true;
+          });
+          print('>>> 🟩 MODAL CERRAR TRATO activado DESPUÉS de proponer encuentro');
         }
       }
     } catch (e) {
@@ -4369,7 +4386,6 @@ ListTile(
             emojiDesdeEstado: _conversationStatus, // 🔥 NUEVO
             onToggle: () {
               // 🔥 El escudo NO se puede apagar una vez activado.
-              // Si ya está activo, no hacer nada.
               if (_iaActiva) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -4747,8 +4763,16 @@ ListTile(
     );
   }
 
-  // 🔥 MENSAJE "SEGUIR CONVERSANDO": solo lo ve el OTRO usuario
+  // 🔥 MENSAJE "SEGUIR CONVERSANDO": solo lo ve el OTRO usuario.
+  // 🔥 Se dibuja UNA SOLA VEZ (el último), no por cada mensaje.
   if ((mensaje['texto'] ?? '').startsWith('||SEGUIR_CONVERSANDO||')) {
+    final ultimoSeguirIndex = _mensajes.lastIndexWhere(
+      (m) => (m['texto'] ?? '').startsWith('||SEGUIR_CONVERSANDO||'),
+    );
+    if (index != _mensajes.length - 1 - ultimoSeguirIndex) {
+      return const SizedBox.shrink();
+    }
+
     final proponenteId = (mensaje['texto'] ?? '')
         .replaceAll('||SEGUIR_CONVERSANDO||', '')
         .trim();
@@ -5031,9 +5055,18 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                     final user = FirebaseAuth.instance.currentUser;
                     if (user == null) return;
 
-                    // 🔥 NO llamar a /encuentro/confirmar (eso bloquea el chat).
-                    // 🔥 Llamar a /cerrar-trato (mutuo, el otro decide).
                     try {
+                      // 🔥 1. Agendar el encuentro
+                      await http.post(
+                        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/confirmar'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode({
+                          'conversacion_id': _conversacionIdActual,
+                          'usuario_confirma_id': user.uid,
+                        }),
+                      );
+
+                      // 🔥 2. Cerrar trato (inserta ||CERRAR_TRATO|| en la BD)
                       final r = await http.post(
                         Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
                         headers: {'Content-Type': 'application/json'},
@@ -5048,13 +5081,10 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                           setState(() {
                             _mostrarBotonesConfirmar = false;
                             _usuarioConfirmoCerrarTrato = true;
-
                             if (ambos) {
-                              // 🔥 Los 2 confirmaron → trato cerrado
-                              _chatBloqueado = true;
                               _esperandoConfirmacionCerrarTrato = false;
+                              _chatBloqueado = true;
                             } else {
-                              // 🔥 Solo yo confirmé → esperando al otro
                               _esperandoConfirmacionCerrarTrato = true;
                             }
                           });
@@ -5064,16 +5094,15 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                             SnackBar(
                               content: Text(ambos
                                   ? '✅ Trato cerrado. ¡Nos vemos!'
-                                  : '⏳ Confirmaste cerrar el trato. Esperando que el otro responda...'),
+                                  : '⏳ Confirmaste cerrar el trato. Esperando al otro...'),
                               backgroundColor: ambos ? Colors.green : Colors.blue,
                             ),
                           );
                         }
-
                         await _cargarMensajes(_conversacionIdActual);
                       }
                     } catch (e) {
-                      print('Error al confirmar cierre de trato: $e');
+                      print('Error al confirmar encuentro: $e');
                     }
                   },
                   icon: const Icon(Icons.check_circle, size: 18),

@@ -3258,7 +3258,25 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
 
                 // 🔥 4. GUARDAR EN LA BD (incluye quiere_encuentro y acuerdo_cerrado)
                 const acuerdoCerrado = resultado.acuerdo_cerrado === true;
-                const quiereCerrarTrato = resultado.quiere_cerrar_trato === true;
+                // 🔥 Respaldo por palabras: dos usuarios distintos se despidieron
+                const normalizar = t => (t || '').toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const reDespedida = /(nos vemos|hasta luego|hasta pronto|hasta entonces|hasta manana|chao|chau|adios|bye|cuidese|cuidate|nos hablamos|me retiro|quedamos asi|en eso quedamos|pura vida|buenas noches|que le vaya bien|que te vaya bien|gracias por todo)/;
+                const usuariosDespidieron = new Set(
+                    mensajes.slice(-4)
+                        .filter(m => reDespedida.test(normalizar(m.texto)))
+                        .map(m => m.usuario_id)
+                );
+                const porRegex = usuariosDespidieron.size >= 2;
+
+                // 🔥 Pegajoso: si ya estaba activo, no se apaga hasta cancelar o seguir
+                const previo = await pool.query(
+                    'SELECT quiere_cerrar_trato FROM conversaciones_app WHERE id = $1',
+                    [conversacionId]
+                );
+                const yaEstabaActivo = previo.rows[0]?.quiere_cerrar_trato === true;
+                const quiereCerrarTrato =
+                    yaEstabaActivo || resultado.quiere_cerrar_trato === true || porRegex;
 
                 await pool.query(
                     `UPDATE conversaciones_app 
@@ -3275,7 +3293,7 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
                 console.log('>>> 🤝 ¿Acuerdo cerrado?:', acuerdoCerrado);
 
                 // 🔥 Si la IA detecta cierre, el "seguir conversando" ya no aplica.
-                if (quiereCerrarTrato) {
+                if (quiereCerrarTrato && !yaEstabaActivo) {
                     const borrados = await pool.query(
                         `DELETE FROM mensajes_app 
                          WHERE conversacion_id = $1 
@@ -4250,6 +4268,12 @@ app.post('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
         if (!usuario_id) {
             return res.status(400).json({ error: 'usuario_id requerido' });
         }
+
+        // 🔥 Quien decide seguir apaga el cierre pendiente
+        await pool.query(
+            'UPDATE conversaciones_app SET quiere_cerrar_trato = false WHERE id = $1',
+            [id]
+        );
 
         // Insertar en seguimiento_conversacion (por si acaso)
         await pool.query(
