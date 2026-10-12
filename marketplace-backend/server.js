@@ -4269,11 +4269,21 @@ app.post('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
             return res.status(400).json({ error: 'usuario_id requerido' });
         }
 
-        // 🔥 Quien decide seguir apaga el cierre pendiente
+        // 🔥 Quien decide seguir apaga el cierre de trato pendiente.
+        // 🔥 1. Resetear la bandera quiere_cerrar_trato.
         await pool.query(
             'UPDATE conversaciones_app SET quiere_cerrar_trato = false WHERE id = $1',
             [id]
         );
+
+        // 🔥 2. Borrar los ||CERRAR_TRATO|| para que el otro no siga viendo el cartel azul.
+        await pool.query(
+            `DELETE FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||CERRAR_TRATO||%'`,
+            [id]
+        );
+        console.log(`>>> 🧹 "Cerrar trato" borrado por "seguir conversando"`);
 
         // Insertar en seguimiento_conversacion (por si acaso)
         await pool.query(
