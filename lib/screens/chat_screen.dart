@@ -114,6 +114,13 @@ class _ChatScreenState extends State<ChatScreen>
   bool _esperandoConfirmacionCerrarTrato = false; // 🔥 NUEVO
   bool _estadoCargado = false; // 🔥 El input no se muestra hasta conocer el estado de bloqueo
 
+  // 🔥 ESCUDO MUTUO (aceptar/rechazar por el otro usuario)
+  String? _escudoActivadoPor;
+  bool _escudoYoAcepte = false;
+  bool _escudoOtroRechazo = false;
+  bool _escudoConfirmado = false;
+  bool _mostrarModalEscudo = false; // 🔥 Para no abrir el modal dos veces
+
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
   bool _isRecording = false;
@@ -206,6 +213,230 @@ class _ChatScreenState extends State<ChatScreen>
     }
   }
 
+  // 🔥 MODAL DEL ESCUDO ACTIVADO POR EL OTRO USUARIO
+  Future<void> _mostrarModalEscudoActivado() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    String nombreQuienActivo = 'El otro usuario';
+    try {
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/$_escudoActivadoPor'),
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        nombreQuienActivo = data['nombre'] ?? 'El otro usuario';
+      }
+    } catch (e) {
+      print('Error al obtener nombre de quien activó: $e');
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0F2447),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.verified_user, color: Color(0xFF00E676), size: 48),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$nombreQuienActivo activó el Escudo de Seguridad',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '¿Qué es el Escudo de Seguridad?',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildFuncionEscudo(Icons.phone_disabled, 'Bloqueo de teléfonos',
+                        'Los números de teléfono y enlaces externos se bloquean automáticamente.'),
+                    const SizedBox(height: 10),
+                    _buildFuncionEscudo(Icons.location_on, 'Seguimiento GPS',
+                        'El día del encuentro se activa el GPS para confirmar que ambos llegaron.'),
+                    const SizedBox(height: 10),
+                    _buildFuncionEscudo(Icons.face, 'Reconocimiento facial',
+                        'Antes del encuentro se verifica tu identidad para evitar fraudes.'),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Si no aceptás el Escudo, el chat se cerrará para ambos.',
+                              style: TextStyle(fontSize: 12, color: Colors.orange),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          Navigator.pop(dialogContext);
+                          await _rechazarEscudo();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('No aceptar'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(dialogContext);
+                          await _aceptarEscudo();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00E676),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Aceptar'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFuncionEscudo(IconData icono, String titulo, String descripcion) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00E676).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icono, color: const Color(0xFF00E676), size: 18),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(titulo, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+              Text(descripcion, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _aceptarEscudo() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final r = await http.post(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/escudo/aceptar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
+          'usuario_id': user.uid,
+        }),
+      );
+      if (r.statusCode == 200) {
+        setState(() {
+          _escudoYoAcepte = true;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🛡️ Escudo aceptado'),
+              backgroundColor: Color(0xFF00E676),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error al aceptar escudo: $e');
+    }
+  }
+
+  Future<void> _rechazarEscudo() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final r = await http.post(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/escudo/rechazar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
+          'usuario_id': user.uid,
+        }),
+      );
+      if (r.statusCode == 200) {
+        setState(() {
+          _escudoOtroRechazo = true;
+          _chatBloqueado = true;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🚫 Escudo rechazado. El chat quedó cerrado.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error al rechazar escudo: $e');
+    }
+  }
+
   Future<void> _marcarComoLeida() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -250,18 +481,24 @@ class _ChatScreenState extends State<ChatScreen>
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final activoBackend = data['escudo_activo'] == true;
+        final activadoPor = data['activado_por']?.toString();
+        final yoAcepte = data['yo_acepte'] == true;
+        final otroRechazo = data['otro_rechazo'] == true;
+        final escudoConfirmado = data['escudo_confirmado'] == true;
 
         if (activoBackend != activoLocal) {
           await prefs.setBool(key, activoBackend);
-          if (mounted) {
-            setState(() {
-              _iaActiva = activoBackend;
-            });
-          }
-          print('>>> 🔄 Sincronizado con backend: $activoBackend');
-        } else {
-          print('>>> ✅ Local y backend coinciden: $activoBackend');
         }
+        if (mounted) {
+          setState(() {
+            _iaActiva = activoBackend;
+            _escudoActivadoPor = activadoPor;
+            _escudoYoAcepte = yoAcepte;
+            _escudoOtroRechazo = otroRechazo;
+            _escudoConfirmado = escudoConfirmado;
+          });
+        }
+        print('>>> 🛡️ Escudo backend: activo=$activoBackend, activadoPor=$activadoPor, yoAcepte=$yoAcepte, otroRechazo=$otroRechazo, confirmado=$escudoConfirmado');
       }
     } catch (e) {
       print('Error al cargar escudo: $e');
@@ -666,6 +903,20 @@ void dispose() {
     _cargarEstadoEscudo();
   }
 
+  // 🔥 MOSTRAR MODAL DEL ESCUDO SI EL OTRO LO ACTIVÓ Y YO NO HE RESPONDIDO
+  if (!_escudoYoAcepte &&
+      !_escudoOtroRechazo &&
+      _escudoActivadoPor != null &&
+      _escudoActivadoPor != user.uid &&
+      !_mostrarModalEscudo &&
+      mounted &&
+      !_chatBloqueado) {
+    _mostrarModalEscudo = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _mostrarModalEscudoActivado();
+    });
+  }
+
   // 🔥 1. MOSTRAR CACHÉ INMEDIATAMENTE (si es la primera vez)
   if (_mensajes.isEmpty) {
     final cacheados = await _cargarMensajesDesdeCache(conversacionId);
@@ -740,9 +991,6 @@ void dispose() {
       // 🔥 El bloque "seguir-conversando desde mensajes" se eliminó.
       // 🔥 El backend ya borra los ||SEGUIR_CONVERSANDO|| cuando DeepSeek detecta cierre.
 
-      // 🔥 CONSULTAR EL ANÁLISIS SIEMPRE (no solo cuando hay cambios)
-      await _analizarMensajeConIA('', user.uid);
-      
       // 🔥 SIEMPRE VERIFICAR PROPUESTA PENDIENTE
       await _verificarPropuestaPendiente();
 
@@ -779,6 +1027,14 @@ void dispose() {
               } else {
                 _usuarioConfirmoCerrarTrato = yoConfirme;
                 _otroUsuarioConfirmoCerrarTrato = otroConfirme;
+
+                // 🔥 Si CUALQUIERA de los dos confirmó cerrar trato,
+                // 🔥 los botones verdes de propuesta de encuentro ya no aplican.
+                // 🔥 Así los dos usuarios ven el mismo flujo (modal azul o espera).
+                if (yoConfirme || otroConfirme) {
+                  _mostrarBotonesConfirmar = false;
+                }
+
                 // 🔥 Si yo confirmé y el otro no, mantener el cartel azul y el input oculto.
                 if (!yoConfirme) {
                   _esperandoConfirmacionCerrarTrato = false;
@@ -822,8 +1078,11 @@ void dispose() {
         print('Error al consultar seguir-conversando: $e');
       }
 
-      // 🔥 AHORA SÍ: verificar los botones de confirmar, DESPUÉS de actualizar
+      // 🔥 CONSULTAR EL ANÁLISIS AL FINAL, cuando ya se actualizaron
       // 🔥 todos los estados (cerrar-trato y seguir-conversando).
+      await _analizarMensajeConIA('', user.uid);
+
+      // 🔥 AHORA SÍ: verificar los botones de confirmar.
       await _verificarBotonConfirmar(user.uid);
 
       // 🔥 Ya se conoce el estado real: mostrar input y guardarlo para la próxima vez
@@ -1283,6 +1542,7 @@ Future<void> _obtenerFotoVendedorReal() async {
               !_chatBloqueado &&
               !quiereEncuentro) {
             _mostrarBotonesCerrarTrato = true;
+            _mostrarBotonesConfirmar = false; // 🔥 instantáneo: apagar botones verdes
             print('>>> 🟩 MODAL CERRAR TRATO activado por IA');
           } else {
             if (!quiereCerrarTrato) _mostrarBotonesCerrarTrato = false;
@@ -1311,6 +1571,7 @@ Future<void> _obtenerFotoVendedorReal() async {
             mounted) {
           setState(() {
             _mostrarBotonesCerrarTrato = true;
+            _mostrarBotonesConfirmar = false; // 🔥 instantáneo: apagar botones verdes
           });
           print('>>> 🟩 MODAL CERRAR TRATO activado DESPUÉS de proponer encuentro');
         }
@@ -4286,6 +4547,8 @@ ListTile(
     }
   }
 
+  // 🔥 Devuelve true SOLO si hay una propuesta de encuentro ACEPTADA.
+  // 🔥 Si solo hay pendiente o rechazada, devuelve false.
   Future<bool> _hayPropuestaEncuentro() async {
     try {
       final r = await http.get(
@@ -4293,7 +4556,10 @@ ListTile(
       );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
-        return data['encuentro'] != null;
+        final encuentro = data['encuentro'];
+        if (encuentro == null) return false;
+        final estado = encuentro['estado'] ?? '';
+        return estado == 'aceptada' || estado == 'confirmada';
       }
       return false;
     } catch (e) {
@@ -4490,9 +4756,25 @@ ListTile(
                           onPressed: () async {
                             final hayPropuesta = await _hayPropuestaEncuentro();
                             if (!hayPropuesta) {
+                              // 🔥 Todavía no hay una propuesta de encuentro aceptada.
+                              // 🔥 En vez de cerrar el trato, pedirle al usuario que proponga un encuentro.
                               setState(() {
                                 _mostrarBotonesCerrarTrato = false;
                               });
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      '📍 Primero proponé un lugar y una fecha para el encuentro.\n'
+                                      'Cuando el otro acepte, vas a poder cerrar el trato.',
+                                    ),
+                                    backgroundColor: Colors.blue,
+                                    duration: Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+
                               _mostrarInterfazEncuentro();
                               return;
                             }
@@ -5042,9 +5324,10 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
     mainAxisSize: MainAxisSize.min,
     children: [
       // 🔥 BOTONES DE CONFIRMAR / SEGUIR CONVERSANDO
-      if (_mostrarBotonesConfirmar && !_chatBloqueado)
+      // 🔥 NO se muestran si el modal azul de "¿Ya está todo listo?" está visible.
+      if (_mostrarBotonesConfirmar && !_chatBloqueado && !_mostrarBotonesCerrarTrato)
         Builder(builder: (context) {
-          print('>>> 🔴🔴🔴 DIBUJANDO BOTONES: mostrar=$_mostrarBotonesConfirmar, decidioSeguir=$_usuarioDecidioSeguirConversando, esperando=$_esperandoRespuestaOtro');
+          print('>>> 🔴🔴🔴 DIBUJANDO BOTONES: mostrar=$_mostrarBotonesConfirmar, decidioSeguir=$_usuarioDecidioSeguirConversando, esperando=$_esperandoRespuestaOtro, mostrarCerrar=$_mostrarBotonesCerrarTrato');
           return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
@@ -5233,17 +5516,23 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           // 🔥 BOTÓN DE GRABACIÓN - DESLIZAR FUERA = CANCELAR CON SNACKBAR
       // 🔥 CHAT BLOQUEADO POR ENCUENTRO CONFIRMADO
       if (_chatBloqueado && !_isRecording)
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock, color: Colors.red, size: 18),
-              SizedBox(width: 8),
+              Icon(
+                _escudoOtroRechazo ? Icons.gpp_bad : Icons.lock,
+                color: Colors.red,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Chat bloqueado. Se verán en persona. No llegues tarde.',
-                  style: TextStyle(color: Colors.red, fontSize: 13),
+                  _escudoOtroRechazo
+                      ? 'Chat cerrado. Uno de los participantes no aceptó el Escudo de Seguridad.'
+                      : 'Chat bloqueado. Se verán en persona. No llegues tarde.',
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
                 ),
               ),
             ],

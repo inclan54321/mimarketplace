@@ -3868,27 +3868,36 @@ app.post('/api/escudo/activar', async (req, res) => {
         const conv = convResult.rows[0];
         const usuarios = [conv.usuario1_id, conv.usuario2_id];
 
-        // 🔥 Activar el escudo para LOS DOS usuarios
+        // 🔥 Activar el escudo para LOS DOS usuarios.
+        // 🔥 Quien lo activa queda con acepto = true automáticamente.
+        // 🔥 El otro queda con acepto = false y debe aceptar o rechazar.
         const results = [];
         for (const uid of usuarios) {
+            const soyYo = uid === usuario_id;
             const r = await pool.query(
                 `INSERT INTO escudos_conversacion 
-                 (conversacion_id, usuario_id, activo, video_visto, fecha_activacion, fecha_expiracion)
-                 VALUES ($1, $2, true, true, NOW(), NOW() + INTERVAL '30 days')
+                 (conversacion_id, usuario_id, activo, video_visto, 
+                  usuario_activo, acepto, rechazo, fecha_respuesta,
+                  fecha_activacion, fecha_expiracion)
+                 VALUES ($1, $2, true, true, $3, $4, false, $5, NOW(), NOW() + INTERVAL '30 days')
                  ON CONFLICT (conversacion_id, usuario_id) 
                  DO UPDATE SET 
                     activo = true,
                     video_visto = true,
+                    usuario_activo = $3,
+                    acepto = CASE WHEN escudos_conversacion.acepto = true THEN true ELSE $4 END,
+                    rechazo = false,
+                    fecha_respuesta = COALESCE(escudos_conversacion.fecha_respuesta, $5),
                     fecha_activacion = NOW(),
                     fecha_expiracion = NOW() + INTERVAL '30 days'
                  RETURNING *`,
-                [conversacion_id, uid]
+                [conversacion_id, uid, usuario_id, soyYo, soyYo ? new Date() : null]
             );
             results.push(r.rows[0]);
         }
 
-        console.log(`>>> 🛡️ Escudo activado en conversación ${conversacion_id} para AMBOS usuarios`);
-        res.json({ success: true, escudos: results });
+        console.log(`>>> 🛡️ Escudo activado en conversación ${conversacion_id} por ${usuario_id}`);
+        res.json({ success: true, escudos: results, activado_por: usuario_id });
     } catch (error) {
         console.error('Error al activar escudo:', error);
         res.status(500).json({ error: error.message });
@@ -3913,25 +3922,43 @@ app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
         const conv = convResult.rows[0];
         const usuarios = [conv.usuario1_id, conv.usuario2_id];
 
-        // 🔥 El escudo está activo si ALGUNO de los dos lo activó
-        // (porque al activarlo se activa para los dos)
+        // 🔥 Obtener el registro de cada usuario
         const result = await pool.query(
             `SELECT * FROM escudos_conversacion 
-             WHERE conversacion_id = $1 AND usuario_id = ANY($2)
-               AND activo = true`,
+             WHERE conversacion_id = $1 AND usuario_id = ANY($2)`,
             [conversacion_id, usuarios]
         );
 
         if (result.rows.length === 0) {
-            return res.json({ escudo_activo: false, video_visto: false });
+            return res.json({ 
+                escudo_activo: false, 
+                video_visto: false,
+                yo_acepte: false,
+                otro_acepte: false,
+                otro_rechazo: false,
+                escudo_confirmado: false,
+                activado_por: null,
+            });
         }
 
-        // 🔥 Verificar si está expirado (ninguno de los dos)
+        // 🔥 Verificar si está expirado
         const activos = result.rows.filter(e => 
-            !e.fecha_expiracion || new Date(e.fecha_expiracion) >= new Date()
+            e.activo === true && (!e.fecha_expiracion || new Date(e.fecha_expiracion) >= new Date())
         );
 
         const escudoActivo = activos.length > 0;
+
+        // 🔥 Separar el registro del usuario que pregunta y del otro
+        const miRegistro = result.rows.find(r => r.usuario_id === usuario_id);
+        const otroRegistro = result.rows.find(r => r.usuario_id !== usuario_id);
+
+        // 🔥 Quién activó
+        const activado_por = miRegistro?.usuario_activo || otroRegistro?.usuario_activo || null;
+
+        const yo_acepte = miRegistro?.acepto === true;
+        const otro_acepte = otroRegistro?.acepto === true;
+        const otro_rechazo = otroRegistro?.rechazo === true;
+        const escudo_confirmado = yo_acepte && otro_acepte;
 
         res.json({
             escudo_activo: escudoActivo,
@@ -3939,9 +3966,124 @@ app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
             fecha_activacion: activos[0]?.fecha_activacion || null,
             fecha_expiracion: activos[0]?.fecha_expiracion || null,
             expirado: !escudoActivo,
+            activado_por: activado_por,
+            yo_acepte: yo_acepte,
+            otro_acepte: otro_acepte,
+            otro_rechazo: otro_rechazo,
+            escudo_confirmado: escudo_confirmado,
         });
     } catch (error) {
         console.error('Error al obtener estado del escudo:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 ACEPTAR EL ESCUDO (el otro usuario acepta la activación)
+app.post('/api/escudo/aceptar', async (req, res) => {
+    try {
+        const { conversacion_id, usuario_id } = req.body;
+        if (!conversacion_id || !usuario_id) {
+            return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
+        }
+
+        await pool.query(
+            `UPDATE escudos_conversacion 
+             SET acepto = true, rechazo = false, fecha_respuesta = NOW()
+             WHERE conversacion_id = $1 AND usuario_id = $2`,
+            [conversacion_id, usuario_id]
+        );
+
+        const r = await pool.query(
+            `SELECT acepto FROM escudos_conversacion 
+             WHERE conversacion_id = $1`,
+            [conversacion_id]
+        );
+        const ambosAceptaron = r.rows.length >= 2 && r.rows.every(x => x.acepto === true);
+
+        console.log(`>>> 🛡️ Escudo aceptado por ${usuario_id} en conv ${conversacion_id}. Ambos: ${ambosAceptaron}`);
+        res.json({ success: true, escudo_confirmado: ambosAceptaron });
+    } catch (error) {
+        console.error('Error al aceptar escudo:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 RECHAZAR EL ESCUDO (cierra el chat para ambos)
+app.post('/api/escudo/rechazar', async (req, res) => {
+    try {
+        const { conversacion_id, usuario_id } = req.body;
+        if (!conversacion_id || !usuario_id) {
+            return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
+        }
+
+        // 1. Marcar rechazo
+        await pool.query(
+            `UPDATE escudos_conversacion 
+             SET acepto = false, rechazo = true, fecha_respuesta = NOW()
+             WHERE conversacion_id = $1 AND usuario_id = $2`,
+            [conversacion_id, usuario_id]
+        );
+
+        // 2. Cerrar el chat para ambos
+        await pool.query(
+            `UPDATE conversaciones_app 
+             SET chat_bloqueado = true, cerrado_por_escudo = true
+             WHERE id = $1`,
+            [conversacion_id]
+        );
+
+        // 3. Insertar mensaje de sistema
+        await pool.query(
+            `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+             VALUES ($1, 'SYSTEM', $2, '', NOW())`,
+            [conversacion_id, `||ESCUDO_RECHAZADO||${usuario_id}`]
+        );
+
+        // 4. Avisar al otro (alerta + push)
+        try {
+            const convN = await pool.query(
+                'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+                [conversacion_id]
+            );
+            const cN = convN.rows[0];
+            if (cN) {
+                const otroId = cN.usuario1_id === usuario_id ? cN.usuario2_id : cN.usuario1_id;
+                const quien = await pool.query('SELECT nombre FROM usuarios WHERE uid = $1', [usuario_id]);
+                const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
+                const textoAviso = `🛡️ ${nombreQuien} no aceptó el Escudo de Seguridad. El chat quedó cerrado.`;
+
+                await pool.query(
+                    `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+                     VALUES ($1, 0, $2, 'escudo_rechazado', NOW())`,
+                    [otroId, textoAviso]
+                );
+
+                const tk = await pool.query('SELECT fcm_token FROM usuarios WHERE uid = $1', [otroId]);
+                const token = tk.rows[0]?.fcm_token;
+                if (token) {
+                    try {
+                        const { getMessaging } = require('firebase-admin/messaging');
+                        await getMessaging().send({
+                            token,
+                            notification: {
+                                title: '🛡️ Escudo rechazado',
+                                body: `${nombreQuien} no aceptó el Escudo. El chat quedó cerrado.`,
+                            },
+                            data: { tipo: 'escudo_rechazado', conversacionId: conversacion_id.toString() },
+                        });
+                    } catch (e) {
+                        console.error('>>> ❌ Error push escudo rechazado:', e.message);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('>>> ❌ Error al avisar rechazo de escudo:', e.message);
+        }
+
+        console.log(`>>> 🛡️ Escudo rechazado por ${usuario_id}. Chat ${conversacion_id} cerrado.`);
+        res.json({ success: true, chat_cerrado: true });
+    } catch (error) {
+        console.error('Error al rechazar escudo:', error);
         res.status(500).json({ error: error.message });
     }
 });
