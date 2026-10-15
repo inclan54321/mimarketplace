@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'eliminar_publicidad_screen.dart';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -879,6 +880,20 @@ Future<void> _precargarImagenPerfil() async {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const ImpulsarScreen(),
+                  ),
+                );
+              },
+            ),
+            // 🔥 NUEVO: ELIMINAR PUBLICIDAD
+            ListTile(
+              leading: const Icon(Icons.block, color: Color(0xFFEF5350)),
+              title: const Text('Eliminar publicidad'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const EliminarPublicidadScreen(),
                   ),
                 );
               },

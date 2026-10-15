@@ -7,11 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:camera/camera.dart';
 import 'package:smart_liveliness_detection/smart_liveliness_detection.dart';
-import 'package:face_detection_tflite/face_detection_tflite.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart' hide FaceDetector;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart' as mlkit;
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'chat_screen.dart';
 

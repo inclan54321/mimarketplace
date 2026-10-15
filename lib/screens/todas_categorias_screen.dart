@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/producto_service.dart';
 import 'productos_screen.dart';
 
-class TodasCategoriasScreen extends StatelessWidget {
+class TodasCategoriasScreen extends StatefulWidget {
   final List<String> bloqueados;
   const TodasCategoriasScreen({super.key, required this.bloqueados});
 
@@ -49,7 +49,26 @@ class TodasCategoriasScreen extends StatelessWidget {
   ];
 
   @override
+  State<TodasCategoriasScreen> createState() => _TodasCategoriasScreenState();
+}
+
+class _TodasCategoriasScreenState extends State<TodasCategoriasScreen> {
+  final TextEditingController _busquedaController = TextEditingController();
+  String _filtro = '';
+
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // 🔥 Filtrar categorías según lo que el usuario escribió
+    final List<String> categoriasFiltradas = TodasCategoriasScreen.categorias
+        .where((c) => c.toLowerCase().contains(_filtro.toLowerCase()))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Todas las Categorías'),
@@ -57,36 +76,123 @@ class TodasCategoriasScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.95,
+      body: Column(
+        children: [
+          // 🔥 BUSCADOR
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.search, color: Colors.grey.shade600, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _busquedaController,
+                      onChanged: (value) {
+                        setState(() {
+                          _filtro = value.trim();
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar categoría...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      style:
+                          const TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                  ),
+                  if (_filtro.isNotEmpty)
+                    IconButton(
+                      icon: Icon(Icons.clear,
+                          color: Colors.grey.shade600, size: 20),
+                      onPressed: () {
+                        _busquedaController.clear();
+                        FocusScope.of(context).unfocus();
+                        setState(() {
+                          _filtro = '';
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ),
           ),
-          itemCount: categorias.length,
-          itemBuilder: (context, index) {
-            return _buildCategoryCard(context, categorias[index], index);
-          },
-        ),
+
+          // 🔥 RESULTADOS
+          Expanded(
+            child: categoriasFiltradas.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.search_off,
+                              size: 64, color: Colors.grey.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No se encontraron categorías',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 0.95,
+                      ),
+                      itemCount: categoriasFiltradas.length,
+                      itemBuilder: (context, index) {
+                        return _buildCategoryCard(
+                          context,
+                          categoriasFiltradas[index],
+                          index,
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCategoryCard(
       BuildContext context, String categoria, int index) {
-    final colorBase = coloresAtardecer[index % coloresAtardecer.length];
+    final colorBase = TodasCategoriasScreen.coloresAtardecer[
+        index % TodasCategoriasScreen.coloresAtardecer.length];
 
     return GestureDetector(
       onTap: () async {
         try {
           final productos = await ProductoService().getProductosByCategoria(
             categoria,
-            bloqueados: bloqueados,
+            bloqueados: widget.bloqueados,
           );
           if (!context.mounted) return;
           Navigator.push(
@@ -138,7 +244,7 @@ class TodasCategoriasScreen extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.2),
               ),
               child: Icon(
-                iconos[categoria] ?? Icons.category,
+                TodasCategoriasScreen.iconos[categoria] ?? Icons.category,
                 size: 32,
                 color: Colors.white,
               ),

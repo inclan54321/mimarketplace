@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/boton_grabacion.dart';
+import '../services/chat_websocket_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -74,6 +75,7 @@ class _ChatScreenState extends State<ChatScreen>
   final List<Map<String, String>> _mensajes = [];
   bool _isLoading = true;
   bool _enviandoImagen = false;
+  final bool _mostrarPanelEmojis = false; // 🔥 NUEVO: panel de emojis
   String _conversacionIdActual = '';
   Timer? _timer;
   String _fotoVendedorReal = '';
@@ -152,6 +154,9 @@ class _ChatScreenState extends State<ChatScreen>
   // 🔥 NUEVO: ANIMACIÓN DEL CÍRCULO OSCILANTE
   late AnimationController _oscilacionController;
   late Animation<double> _oscilacionAnim;
+
+  // 🔥 WEBSOCKET
+  ChatWebSocketService? _wsService;
     
 
   final List<AnimatedEmoji> _emociones = const [
@@ -481,6 +486,33 @@ class _ChatScreenState extends State<ChatScreen>
     }
   }
 
+  // 🔥 CONECTAR WEBSOCKET
+  void _conectarWebSocket() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _conversacionIdActual.isEmpty) return;
+
+    _wsService?.desconectar();
+    _wsService = ChatWebSocketService(
+      conversacionId: _conversacionIdActual,
+      usuarioId: user.uid,
+      onNuevoMensaje: (data) {
+        print('>>> 📩 WS nuevo mensaje');
+        if (mounted) _cargarMensajes(_conversacionIdActual);
+      },
+      onEstadoCambio: (data) {
+        print('>>> 🔄 WS cambio de estado: ${data['estado']}');
+        if (mounted) _cargarMensajes(_conversacionIdActual);
+      },
+      onConectado: () {
+        print('>>> ✅ WS conectado');
+      },
+      onDesconectado: () {
+        print('>>> ❌ WS desconectado');
+      },
+    );
+    _wsService!.conectar();
+  }
+
   // 🔥 FUNCIÓN DE PRUEBA - SOLO PRINTS
   void _prueba() {
   print('>>> 🔥 ====== _prueba() EJECUTADA ======');
@@ -586,6 +618,20 @@ void initState() {
   // 🔥 EL EMOJI YA NO CAMBIA SOLO - DEPENDE DEL ESTADO DE LA IA
   // (se eliminó el Timer que cambiaba el emoji cada 3 segundos)
   _conversacionIdActual = widget.conversacionId;
+
+  // 🔥 INICIAR WEBSOCKET
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _conectarWebSocket();
+  });
+  // 🔥 Precargar la plantilla de la tarjeta de encuentro
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) {
+      precacheImage(
+        const AssetImage('assets/images/escudo/plantilla_encuentro.png'),
+        context,
+      );
+    }
+  });
   _restaurarEstadoBloqueo(); // 🔥 estado de bloqueo inmediato desde caché local
   _cargarPropuestasDesdeCache(); // 🔥 propuestas cerradas inmediatas desde caché local
   _obtenerOCrearConversacion();
@@ -613,6 +659,7 @@ void initState() {
 
 @override
 void dispose() {
+  _wsService?.desconectar(); // 🔥 CERRAR WEBSOCKET
   _ocultarCirculoGrabacion(); // 🔥 ELIMINAR OVERLAY
   _oscilacionController.dispose(); // 🔥 LIBERAR ANIMACIÓN
   // _timerEmociones.cancel(); // 🔥 Ya no se usa
@@ -1504,9 +1551,9 @@ Future<void> _obtenerFotoVendedorReal() async {
         // (FUERA del setState, porque abre un modal)
         // 🔥 SOLO ABRIR SI NO ESTÁ ABIERTO YA (evita loop)
         if (quiereEncuentro && _iaActiva && !_interfazEncuentroMostrada) {
-          _interfazEncuentroMostrada = true; // 🔥 MARCAR ANTES DE ABRIR
-          final yaHayPropuesta = await _hayPropuestaEncuentro();
+          final yaHayPropuesta = await _hayPropuestaEncuentroPendienteOAceptada();
           if (!yaHayPropuesta && mounted) {
+            _interfazEncuentroMostrada = true; // 🔥 MARCAR DESPUÉS DE CONFIRMAR
             _mostrarInterfazEncuentro();
           }
         }
@@ -2241,21 +2288,19 @@ Widget _buildAudioMessage({
 
     return Container(
       key: key,
-      margin: const EdgeInsets.only(top: 0, left: 12, right: 12, bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.only(top: 0, left: 12, right: 12, bottom: 4),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: const Border(
-          top: BorderSide(color: Colors.grey, width: 1),
-          bottom: BorderSide(color: Colors.black, width: 1),
-        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.15),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2263,15 +2308,15 @@ Widget _buildAudioMessage({
           // 🔥 TÍTULO SI HAY VARIOS PRODUCTOS
           if (mostrarCarrusel) ...[
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: 2), // 👈 era 8
               child: Row(
                 children: [
-                  const Icon(Icons.shopping_bag, size: 16, color: Colors.blue),
+                  const Icon(Icons.shopping_bag, size: 14, color: Colors.blue), // 👈 era 16
                   const SizedBox(width: 4),
                   Text(
                     '${_productosDelVendedor.length} productos consultados',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11, // 👈 era 12
                       fontWeight: FontWeight.bold,
                       color: Colors.blue.shade700,
                     ),
@@ -2284,7 +2329,7 @@ Widget _buildAudioMessage({
           // 🔥 CARRUSEL HORIZONTAL O HEADER CLÁSICO
           if (mostrarCarrusel)
             SizedBox(
-              height: 90,
+              height: 82, // 👈 era 90
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: _productosDelVendedor.length,
@@ -2494,18 +2539,17 @@ Widget _buildAudioMessage({
                     );
                   },
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
                       'Ver producto',
                       style: TextStyle(
-                        color: Colors.blue,
+                        color: Color(0xFF3B82F6),
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -3912,22 +3956,32 @@ ListTile(
     final user = FirebaseAuth.instance.currentUser;
     final yoPropuse = propuesta['usuario_propone_id'] == user?.uid;
 
+    // 🔥 DEBUG: Ver qué estado llega
+    print('>>> 🟣 TARJETA PROPUESTA:');
+    print('>>> 🟣 ID: ${propuesta['id']}');
+    print('>>> 🟣 estado RAW: "${propuesta['estado']}"');
+    print('>>> 🟣 estado procesado: "$estado"');
+    print('>>> 🟣 es rechazada? ${estado == 'rechazada'}');
+    print('>>> 🟣 es confirmada? ${estado == 'confirmada'}');
+    print('>>> 🟣 es aceptada? ${estado == 'aceptada'}');
+    print('>>> 🟣 es pendiente? ${estado == 'pendiente'}');
+    print('>>> 🟣 PROPUESTA COMPLETA: $propuesta');
+
     return GestureDetector(
       onTap: () => _mostrarDetallePropuesta(propuesta),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(16),
+        // 🔥 IMAGEN DE FONDO
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: estado == 'confirmada'
-                ? Colors.green
-                : estado == 'rechazada'
-                    ? Colors.grey.shade400
-                    : Colors.blue,
-            width: 2,
+          image: DecorationImage(
+            image: const AssetImage('assets/images/escudo/plantilla_encuentro.png'),
+            fit: BoxFit.contain,
+            colorFilter: ColorFilter.mode(
+              Colors.white.withValues(alpha: 0.0), // 👈 0.0 = normal, 0.5 = muy claro
+              BlendMode.lighten,
+            ),
           ),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withValues(alpha: 0.2),
@@ -3936,103 +3990,53 @@ ListTile(
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // 🔥 ALTURA reducida
+        constraints: const BoxConstraints(minHeight: 140),
+        // 🔥 POSICIÓN del texto ajustada
+        padding: const EdgeInsets.fromLTRB(55, 45, 20, 15),
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Row(
+            // 🔥 CONTENIDO (LUGAR + FECHA)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.event,
-                  color: estado == 'confirmada'
-                      ? Colors.green
-                      : estado == 'rechazada'
-                          ? Colors.red
-                          : Colors.blue,
-                  size: 24,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
+                Padding(
+                  padding: const EdgeInsets.only(top: 12), // 👈 BAJA "universidad..."
                   child: Text(
-                    'Propuesta de encuentro',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: estado == 'confirmada'
+                    '${propuesta['lugar_nombre'] ?? ''}, ${propuesta['provincia'] ?? ''}',
+                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Transform.translate(
+                  offset: const Offset(0, -16), // 👈 SUBE más la fecha
+                  child: Text(
+                    _formatearFechaPropuesta(propuesta['fecha_encuentro']),
+                    style: const TextStyle(fontSize: 13, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            // 🔥 ESTADO EN ESQUINA SUPERIOR DERECHA
+            Positioned(
+              top: -25, // 👈 BAJA más la etiqueta
+              right: 10,
+              child: Text(
+                estado == 'rechazada'
+                    ? 'ANULADA'
+                    : (estado == 'aceptada' || estado == 'confirmada')
+                        ? 'ACEPTADA'
+                        : 'PENDIENTE',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: estado == 'rechazada'
+                      ? Colors.red
+                      : (estado == 'aceptada' || estado == 'confirmada')
                           ? Colors.green
-                          : estado == 'rechazada'
-                              ? Colors.red
-                              : Colors.blue,
-                    ),
-                  ),
+                          : Colors.orange,
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: estado == 'confirmada'
-                        ? Colors.green.shade50
-                        : estado == 'rechazada'
-                            ? Colors.grey.shade200
-                            : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    // 🔥 "rechazada" se muestra como "ANULADA"
-                    estado == 'rechazada'
-                        ? 'ANULADA'
-                        : estado.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: estado == 'confirmada'
-                          ? Colors.green
-                          : estado == 'rechazada'
-                              ? Colors.grey.shade700
-                              : Colors.blue,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '${propuesta['lugar_nombre'] ?? ''}\n'
-                    '${propuesta['distrito'] ?? ''}, ${propuesta['canton'] ?? ''}, ${propuesta['provincia'] ?? ''}',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(
-                  _formatearFechaPropuesta(propuesta['fecha_encuentro']),
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              estado == 'rechazada'
-                  ? '🚫 Esta propuesta fue anulada'
-                  : estado == 'confirmada'
-                      ? '✅ Esta propuesta fue aceptada'
-                      : yoPropuse
-                          ? 'Esperando respuesta...'
-                          : 'Toca para ver detalles y responder',
-              style: TextStyle(
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-                color: estado == 'rechazada'
-                    ? Colors.grey.shade600
-                    : Colors.grey.shade600,
               ),
             ),
           ],
@@ -4040,9 +4044,32 @@ ListTile(
       ),
     );
   }
-
-  // 🔥 TARJETA DE PROPUESTA DE ENCUENTRO
+  // 🔥 TARJETA DE PROPUESTA: mismo diseño (imagen del asset) desde el primer frame
   Widget _buildTarjetaPropuesta(String propuestaId) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _obtenerPropuesta(propuestaId),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return _buildTarjetaPropuestaDirecta(snapshot.data!);
+        }
+
+        // 🔥 Cargando: misma plantilla, sin datos todavía (sin saltos de diseño)
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            image: const DecorationImage(
+              image: AssetImage('assets/images/escudo/plantilla_encuentro.png'),
+              fit: BoxFit.fill,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          constraints: const BoxConstraints(minHeight: 180),
+        );
+      },
+    );
+  }
+  // 🔥 (DISEÑO VIEJO, YA NO SE USA)
+  Widget _buildTarjetaPropuestaVieja(String propuestaId) {
     return FutureBuilder<Map<String, dynamic>?>(
       future: _obtenerPropuesta(propuestaId),
       builder: (context, snapshot) {
@@ -4517,140 +4544,247 @@ ListTile(
     }
   }
 
+  // 🔥 Devuelve true si hay CUALQUIER propuesta de encuentro en el chat
+  // 🔥 (pendiente, aceptada o confirmada). Sirve para NO abrir el formulario
+  // 🔥 de proponer encuentro cuando ya hay una propuesta esperando respuesta.
+  Future<bool> _hayPropuestaEncuentroPendienteOAceptada() async {
+    try {
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/conversacion/$_conversacionIdActual'),
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        final encuentro = data['encuentro'];
+        if (encuentro == null) return false;
+        final estado = encuentro['estado'] ?? '';
+        return estado == 'pendiente' ||
+               estado == 'aceptada' ||
+               estado == 'confirmada';
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // 🔘 Botón circular estilo "cristal" del app bar
+  Widget _botonCircularApp({required Widget child, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white, Color(0xFFCFE6FF)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Center(child: child),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+    final fotoUrl = widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal;
+
+    return PreferredSize(
+      preferredSize: Size.fromHeight(top + 92),
+      child: ClipPath(
+        clipper: _OlaAppBarClipper(),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0A5BE0), Color(0xFF1E9BF0), Color(0xFF0A5BE0)],
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12, top + 6, 12, 20),
+            child: Row(
+              children: [
+                // ⬅️ Atrás
+                _botonCircularApp(
+                  onTap: () => Navigator.pop(context),
+                  child: const Icon(Icons.arrow_back,
+                      color: Color(0xFF0A5BE0), size: 24),
+                ),
+                const SizedBox(width: 10),
+
+                // 👤 Avatar con borde y punto verde
+                GestureDetector(
+                  onTap: () => _mostrarOpcionesVendedor(context),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [Colors.white, Color(0xFF7CC4FF)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.25),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: fotoUrl.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl:
+                                      'https://mimarketplace-production.up.railway.app$fotoUrl',
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, _) => const Icon(Icons.person,
+                                      color: Colors.grey),
+                                  errorWidget: (_, _, _) => const Icon(
+                                      Icons.person,
+                                      color: Colors.grey),
+                                )
+                              : Container(
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.person,
+                                      color: Colors.grey),
+                                ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF22C55E),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+
+                // 📝 Nombre + producto con check
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _mostrarOpcionesVendedor(context),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          widget.otroUsuario,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            shadows: [
+                              Shadow(color: Colors.black26, blurRadius: 4)
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                widget.nombreProducto,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.verified,
+                                color: Color(0xFF9AD0FF), size: 18),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 🛡️ Escudo
+                EscudoSeguridadWidget(
+                  estado: _conversationStatus,
+                  isActive: _iaActiva,
+                  videoVistoInicial: _iaActiva,
+                  emojiDesdeEstado: _conversationStatus,
+                  onToggle: () {
+                    if (_iaActiva) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              '🛡️ El Escudo ya está activo y no se puede desactivar'),
+                          backgroundColor: Colors.blue,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+                    setState(() => _iaActiva = true);
+                    _guardarEstadoEscudo(true);
+                  },
+                  onAdCompleted: () {
+                    setState(() {
+                      _analisisIA = '🛡️ Escudo activado. Analizando mensajes...';
+                      _iaActiva = true;
+                      _panelAnalisisAbierto = false;
+                    });
+                    _guardarEstadoEscudo(true);
+                  },
+                  onInfoTap: () {
+                    if (!_iaActiva) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              '🛡️ Activa el Escudo para ver el análisis de la conversación'),
+                          backgroundColor: Colors.orange,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                      return;
+                    }
+                    setState(() => _panelAnalisisAbierto = !_panelAnalisisAbierto);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
   print('>>> 🔥 BUILD: ${DateTime.now().millisecondsSinceEpoch}');
   final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
- appBar: AppBar(
-  backgroundColor: const Color(0xFF087FE8),
-  foregroundColor: Colors.white,
-  elevation: 0,
-  toolbarHeight: 70, // 🔥 AppBar más alto (default es 56)
-  // 🔥 Dejamos el leading por defecto (la flecha de atrás)
-  // 🔥 Usamos flexibleSpace para meter todo el contenido
-  flexibleSpace: SafeArea(
-    child: Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Row(
-        children: [
-          const SizedBox(width: 52), // 🔥 Espacio para la flecha de atrás
-          // 🔥 FOTO DE PERFIL
-          GestureDetector(
-            onTap: () => _mostrarOpcionesVendedor(context),
-            child: CircleAvatar(
-              radius: 26,
-              backgroundColor: Colors.grey.shade200,
-              child: ClipOval(
-                child: (widget.fotoPerfil.isNotEmpty ||
-                        _fotoVendedorReal.isNotEmpty)
-                    ? CachedNetworkImage(
-                        imageUrl:
-                            'https://mimarketplace-production.up.railway.app${widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal}',
-                        width: 52,
-                        height: 52,
-                        fit: BoxFit.cover,
-                        placeholder: (_, _) => const Icon(Icons.person,
-                            size: 24, color: Colors.grey),
-                        errorWidget: (_, _, _) => const Icon(Icons.person,
-                            size: 24, color: Colors.grey),
-                      )
-                    : const Icon(Icons.person,
-                        size: 24, color: Colors.grey),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // 🔥 NOMBRE + PRODUCTO
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _mostrarOpcionesVendedor(context),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    widget.otroUsuario,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    widget.nombreProducto,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                      color: Colors.white70,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // 🛡️ ESCUDO DE SEGURIDAD
-          EscudoSeguridadWidget(
-            estado: _conversationStatus,
-            isActive: _iaActiva,
-            videoVistoInicial: _iaActiva,
-            emojiDesdeEstado: _conversationStatus, // 🔥 NUEVO
-            onToggle: () {
-              // 🔥 El escudo NO se puede apagar una vez activado.
-              if (_iaActiva) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('🛡️ El Escudo ya está activo y no se puede desactivar'),
-                    backgroundColor: Colors.blue,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                return;
-              }
-              setState(() {
-                _iaActiva = true;
-              });
-              _guardarEstadoEscudo(true);
-            },
-            onAdCompleted: () {
-              setState(() {
-                _analisisIA = '🛡️ Escudo activado. Analizando mensajes...';
-                _iaActiva = true;
-                _panelAnalisisAbierto = false; // 🔥 Por si acaso
-              });
-              // 🔥 GUARDAR ESTADO
-              _guardarEstadoEscudo(true);
-            },
-            onInfoTap: () {
-              // 🔥 SOLO ABRIR EL PANEL SI EL ESCUDO ESTÁ ACTIVO
-              if (!_iaActiva) {
-                // Mostrar mensaje al usuario
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('🛡️ Activa el Escudo para ver el análisis de la conversación'),
-                    backgroundColor: Colors.orange,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                return;
-              }
-              setState(() {
-                _panelAnalisisAbierto = !_panelAnalisisAbierto;
-              });
-            },
-          ),
-        ],
-      ),
-    ),
-  ),
-  // 🔥 Title vacío para que no ocupe espacio
-  title: const SizedBox.shrink(),
-),
+ appBar: _buildAppBar(context),
       body: Column(
         children: [
           // 🔥 LÍNEA DIVISORIA ARRIBA DEL HEADER DEL PRODUCTO
@@ -4912,24 +5046,33 @@ ListTile(
   // 🔥 ACEPTACIÓN DE ENCUENTRO
   if (_esEncuentroAceptado(mensaje['texto'] ?? '')) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.shade200),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.green),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '✅ El encuentro ha sido aceptado',
-              style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+        child: Image.asset(
+          'assets/images/escudo/encuentro_aceptado.png',
+          width: double.infinity,
+          fit: BoxFit.fitWidth,
+          errorBuilder: (context, error, stackTrace) => Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDCFCE7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Color(0xFF166534), size: 20),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'El encuentro ha sido aceptado',
+                    style: TextStyle(color: Color(0xFF166534), fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -5017,27 +5160,33 @@ ListTile(
 
     // El otro usuario sí ve el aviso
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade200),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.chat_bubble_outline, color: Colors.orange),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '💬 El usuario quiere seguir conversando',
-              style: TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
-              ),
+        child: Image.asset(
+          'assets/images/escudo/seguir_conversando.png',
+          width: double.infinity,
+          fit: BoxFit.fitWidth,
+          errorBuilder: (context, error, stackTrace) => Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.chat_bubble_outline, color: Color(0xFF92400E), size: 20),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'El usuario quiere seguir conversando',
+                    style: TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -5159,14 +5308,23 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: esMio ? Colors.blue : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(16),
+                color: esMio ? const Color(0xFF3B82F6) : Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: esMio ? const Radius.circular(16) : const Radius.circular(4),
+                  bottomRight: esMio ? const Radius.circular(4) : const Radius.circular(16),
+                ),
                 border: _mensajeSeleccionadoId == mensajeId
-                    ? Border.all(
-                        color: Colors.orange.shade700,
-                        width: 3,
-                      )
+                    ? Border.all(color: Colors.orange.shade700, width: 3)
                     : null,
+                boxShadow: esMio ? [] : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -5268,8 +5426,21 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
          SafeArea(
   top: false,
   bottom: true,
-  child: Padding(
-  padding: const EdgeInsets.fromLTRB(16, 20, 8, 8),
+  child: Container(
+  margin: const EdgeInsets.only(left: 12, right: 12, bottom: 12, top: 8),
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(34),
+    boxShadow: [
+      BoxShadow(
+        color: const Color(0xFF0A5BE0).withValues(alpha: 0.18),
+        blurRadius: 18,
+        offset: const Offset(0, 4),
+      ),
+    ],
+    border: Border.all(color: const Color(0xFFE3EEFF)),
+  ),
   child: Column(
     mainAxisSize: MainAxisSize.min,
     children: [
@@ -5526,36 +5697,85 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         ),
         // 🔥 OCULTAR BOTÓN DE IMAGEN SI ESTÁ GRABANDO
         if (!_isRecording) ...[
-          IconButton(
-            icon: const Icon(Icons.image, color: Colors.grey),
-            onPressed: _enviandoImagen ? null : _mostrarOpcionesImagen,
-            tooltip: 'Adjuntar imagen',
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              maxLines: null,
-              minLines: 1,
-              decoration: const InputDecoration(
-                hintText: 'Escribe un mensaje...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(24)),
-                ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          // 🖼️ Botón imagen (círculo gris claro)
+          GestureDetector(
+            onTap: _enviandoImagen ? null : _mostrarOpcionesImagen,
+            child: Container(
+              width: 44,
+              height: 44,
+              margin: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFF1F5FB),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              onSubmitted: (_) {},
+              child: const Icon(Icons.image, color: Color(0xFF4B5563), size: 24),
             ),
           ),
-          IconButton(
-            icon: _enviandoImagen
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.send, color: Colors.blue),
-            onPressed: _enviandoImagen ? null : _enviarMensaje,
+          // ✏️ Campo de texto en píldora (altura fija y baja)
+          Expanded(
+            child: Container(
+              height: 40,                          // 🔥 fuerza la altura del recuadro
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F9FC),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: const Color(0xFFE3EAF5)),
+              ),
+              child: Center(
+                child: TextField(
+                  controller: _controller,
+                  maxLines: 1,                     // 🔥 una sola línea
+                  minLines: 1,
+                  textAlignVertical: TextAlignVertical.center,
+                  style: const TextStyle(fontSize: 15),
+                  decoration: const InputDecoration(
+                    hintText: 'Escribe un mensaje...',
+                    hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
+                    border: InputBorder.none,
+                    isCollapsed: true,             // 🔥 quita TODO el padding interno extra
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  onSubmitted: (_) {},
+                ),
+              ),
+            ),
+          ),
+          // ➤ Botón enviar (círculo azul con degradado)
+          GestureDetector(
+            onTap: _enviandoImagen ? null : _enviarMensaje,
+            child: Container(
+              width: 48,
+              height: 48,
+              margin: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF3B9BFF), Color(0xFF0A5BE0)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0A5BE0).withValues(alpha: 0.4),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: _enviandoImagen
+                  ? const Padding(
+                      padding: EdgeInsets.all(13),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.send, color: Colors.white, size: 24),
+            ),
           ),
         ] else ...[
           // 🔥 MIENTRAS GRABAS: círculo oscilante + texto + tiempo
@@ -5648,4 +5868,23 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
       ),
     );
   }
+}
+
+// 🌊 Recorte con ola para la parte baja del app bar
+class _OlaAppBarClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 14);
+    path.quadraticBezierTo(
+        size.width * 0.25, size.height - 44, size.width * 0.5, size.height - 20);
+    path.quadraticBezierTo(
+        size.width * 0.78, size.height + 2, size.width, size.height - 26);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

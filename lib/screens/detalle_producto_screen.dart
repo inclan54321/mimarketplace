@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/producto.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
 import 'chat_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
@@ -37,6 +38,12 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   // 🔥 NUEVO: GUARDAR UBICACIÓN EN CACHÉ LOCAL
   String? _ubicacionCache;
   bool _cargandoUbicacion = false;
+
+  // 🔥 AUTO-SCROLL DE LA DESCRIPCIÓN
+  final ScrollController _descripcionController = ScrollController();
+  Timer? _autoScrollTimer;
+  bool _scrollTerminado = false;
+  bool _usuarioIntervino = false; // 🔥 El usuario tocó y paró la animación
 
   Future<void> _cargarFotoVendedorSiFalta() async {
     if (_fotoVendedorLocal.isNotEmpty) return;
@@ -78,6 +85,53 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
       // 🔥 SOLO LLAMAR UNA VEZ AL INICIO
       _cargarUbicacionUnaVez();
     }
+
+    // 🔥 Iniciar el auto-scroll después de que se dibuje la descripción
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _iniciarAutoScroll();
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    _descripcionController.dispose();
+    super.dispose();
+  }
+
+  // 🔥 AUTO-SCROLL DE LA DESCRIPCIÓN (UNA SOLA VEZ)
+  void _iniciarAutoScroll() {
+    if (!mounted) return;
+    if (!_descripcionController.hasClients) {
+      // Reintentar en el próximo frame si todavía no tiene clientes
+      WidgetsBinding.instance.addPostFrameCallback((_) => _iniciarAutoScroll());
+      return;
+    }
+
+    final maxScroll = _descripcionController.position.maxScrollExtent;
+    if (maxScroll <= 0) {
+      // No hay nada que scrollear
+      return;
+    }
+
+    // 🔥 Bajar en 6 segundos hasta el final
+    _descripcionController.animateTo(
+      maxScroll,
+      duration: const Duration(seconds: 6),
+      curve: Curves.easeInOut,
+    ).then((_) {
+      if (mounted) {
+        setState(() => _scrollTerminado = true);
+      }
+    });
+  }
+
+  // 🔥 VOLVER AL INICIO SIN ANIMACIÓN
+  void _volverAlInicio() {
+    if (!mounted) return;
+    if (!_descripcionController.hasClients) return;
+    _descripcionController.jumpTo(0);
+    setState(() => _scrollTerminado = false);
   }
 
   Future<void> _registrarVista() async {
@@ -855,7 +909,7 @@ Future<void> _enviarDenuncia(String motivo) async {
       ),
       if (imagenes.length > 1)
         Positioned(
-          bottom: 200, // Ajustado para elevar el contador y no solaparse con los textos
+          bottom: 230, // 🔥 Un poco más arriba (antes 200)
           left: 0,
           right: 0,
           child: Center(
@@ -921,9 +975,12 @@ Future<void> _enviarDenuncia(String motivo) async {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.9),
-                    Colors.transparent,
+                    Colors.black.withValues(alpha: 1.0),   // 🔥 negro puro abajo
+                    Colors.black.withValues(alpha: 0.85),  // 🔥 casi negro
+                    Colors.black.withValues(alpha: 0.4),   // 🔥 sombra media
+                    Colors.transparent,                     // 🔥 se desvanece
                   ],
+                  stops: const [0.0, 0.4, 0.75, 1.0],
                 ),
               ),
               child: Column(
@@ -931,32 +988,74 @@ Future<void> _enviarDenuncia(String motivo) async {
                 children: [
                   Text(
                     _producto.nombre,
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '₡${_producto.precio.toStringAsFixed(2)}',
                     style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 8),
-                  if (_producto.descripcion.isNotEmpty)
-                    Text(
-                      _producto.descripcion,
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.category, color: Colors.white70, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        _producto.categoria,
-                        style: const TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                    ],
+                  const SizedBox(height: 6),
+                  Text(
+                    '₡${_producto.precio.toStringAsFixed(2)}',
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 8),
+                  // 🔥 DESCRIPCIÓN CON AUTO-SCROLL Y FONDO SOMBREADO
+                  if (_producto.descripcion.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.25), // 🔥 fondo negro claro
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: SizedBox(
+                        height: 60, // 3 renglones aprox (20px por renglón)
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Listener(
+                                onPointerDown: (event) {
+                                  // 🔥 El usuario tocó: parar la animación y habilitar scroll manual
+                                  if (!_usuarioIntervino) {
+                                    _descripcionController.jumpTo(
+                                      _descripcionController.offset,
+                                    );
+                                    setState(() {
+                                      _usuarioIntervino = true;
+                                    });
+                                  }
+                                },
+                                child: SingleChildScrollView(
+                                  controller: _descripcionController,
+                                  physics: _usuarioIntervino
+                                      ? const ClampingScrollPhysics()
+                                      : const NeverScrollableScrollPhysics(),
+                                  child: Text(
+                                    _producto.descripcion,
+                                    style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // 🔥 BOTÓN PARA VOLVER AL INICIO
+                            if (_scrollTerminado)
+                              GestureDetector(
+                                onTap: _volverAlInicio,
+                                child: Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Icon(
+                                    Icons.keyboard_arrow_up,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   // 🔥 SI YA TIENE PROVINCIA Y CANTÓN, MOSTRAR SIN LLAMAR AL BACKEND
                   if ((_producto.provincia ?? '').isNotEmpty &&

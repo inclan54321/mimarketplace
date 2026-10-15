@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'imagenes_producto_screen.dart';
 class MapaEntregaScreen extends StatefulWidget {
   final String categoria;
@@ -22,6 +23,55 @@ class _MapaEntregaScreenState extends State<MapaEntregaScreen> {
   LatLng selectedPosition = const LatLng(9.9281, -84.0907);
   Symbol? _pinActual;
   bool _imagenCargada = false;
+  bool _ubicacionCargada = false; // 🔥 Esperar antes de dibujar el mapa
+
+  // 🔥 CLAVE DE LA ÚLTIMA UBICACIÓN (una por categoría/subcategoría)
+  String get _claveUbicacion =>
+      'ultima_ubicacion_${widget.categoria}_${widget.subcategoria}';
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarUltimaUbicacion();
+  }
+
+  // 🔥 CARGAR ÚLTIMA UBICACIÓN GUARDADA
+  Future<void> _cargarUltimaUbicacion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lat = prefs.getDouble('${_claveUbicacion}_lat');
+      final lng = prefs.getDouble('${_claveUbicacion}_lng');
+      if (lat != null && lng != null && mounted) {
+        setState(() {
+          selectedPosition = LatLng(lat, lng);
+          _ubicacionCargada = true;
+        });
+        print('>>> 📍 Última ubicación cargada: $lat, $lng');
+      } else {
+        if (mounted) {
+          setState(() => _ubicacionCargada = true);
+        }
+        print('>>> 📍 No hay ubicación guardada, usando default');
+      }
+    } catch (e) {
+      print('Error al cargar última ubicación: $e');
+      if (mounted) {
+        setState(() => _ubicacionCargada = true);
+      }
+    }
+  }
+
+  // 🔥 GUARDAR ÚLTIMA UBICACIÓN
+  Future<void> _guardarUltimaUbicacion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('${_claveUbicacion}_lat', selectedPosition.latitude);
+      await prefs.setDouble('${_claveUbicacion}_lng', selectedPosition.longitude);
+      print('>>> 💾 Ubicación guardada: ${selectedPosition.latitude}, ${selectedPosition.longitude}');
+    } catch (e) {
+      print('Error al guardar última ubicación: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,18 +82,22 @@ class _MapaEntregaScreenState extends State<MapaEntregaScreen> {
         foregroundColor: Colors.white,
         actions: [
           TextButton(
-           onPressed: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ImagenesProductoScreen(
-        categoria: widget.categoria,
-        subcategoria: widget.subcategoria,
-        direccion: 'Lat: ${selectedPosition.latitude}, Lng: ${selectedPosition.longitude}',
-      ),
-    ),
-  );
-},
+            onPressed: () async {
+              // 🔥 Guardar la última ubicación antes de avanzar
+              await _guardarUltimaUbicacion();
+              if (!mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ImagenesProductoScreen(
+                    categoria: widget.categoria,
+                    subcategoria: widget.subcategoria,
+                    direccion:
+                        'Lat: ${selectedPosition.latitude}, Lng: ${selectedPosition.longitude}',
+                  ),
+                ),
+              );
+            },
             child: const Text(
               'Siguiente',
               style: TextStyle(color: Colors.white, fontSize: 16),
@@ -61,37 +115,45 @@ class _MapaEntregaScreenState extends State<MapaEntregaScreen> {
       ),
     ),
     Expanded(
-      child: MapLibreMap(
-        styleString: 'https://tiles.openfreemap.org/styles/liberty',
-        initialCameraPosition: CameraPosition(
-          target: selectedPosition,
-          zoom: 14,
-        ),
-        onMapCreated: (controller) {
-          _controller = controller;
-        },
-        onStyleLoadedCallback: () async {
-          try {
-            final Uint8List bytes = await _crearIconoDesdeFlutter(
-              Icons.push_pin,
-              Colors.red,
-            );
-            await _controller?.addImage('chinche', bytes);
-            _imagenCargada = true;
-            debugPrint('>>> Ícono registrado en el mapa');
-          } catch (e) {
-            debugPrint('Error al crear ícono: $e');
-          }
+      child: !_ubicacionCargada
+          ? const Center(child: CircularProgressIndicator())
+          : MapLibreMap(
+              styleString: 'https://tiles.openfreemap.org/styles/liberty',
+              initialCameraPosition: CameraPosition(
+                target: selectedPosition,
+                zoom: 14,
+              ),
+              onMapCreated: (controller) {
+                _controller = controller;
+              },
+              onStyleLoadedCallback: () async {
+                try {
+                  final Uint8List bytes = await _crearIconoDesdeFlutter(
+                    Icons.push_pin,
+                    Colors.red,
+                  );
+                  await _controller?.addImage('chinche', bytes);
+                  _imagenCargada = true;
+                  debugPrint('>>> Ícono registrado en el mapa');
+                } catch (e) {
+                  debugPrint('Error al crear ícono: $e');
+                }
 
-          await _dibujarPin(selectedPosition);
-        },
-        onMapClick: (point, coordinates) async {
-          debugPrint('>>> TAP: ${coordinates.latitude}, ${coordinates.longitude}');
-          if (_imagenCargada) {
-            await _moverPin(coordinates);
-          }
-        },
-      ),
+                // 🔥 Mover cámara a la ubicación guardada (por si el initialCameraPosition no la tomó)
+                await _controller?.animateCamera(
+                  CameraUpdate.newLatLngZoom(selectedPosition, 14),
+                );
+
+                // 🔥 Dibujar el pin en la posición guardada
+                await _dibujarPin(selectedPosition);
+              },
+              onMapClick: (point, coordinates) async {
+                debugPrint('>>> TAP: ${coordinates.latitude}, ${coordinates.longitude}');
+                if (_imagenCargada) {
+                  await _moverPin(coordinates);
+                }
+              },
+            ),
     ),
     // ===== UBICACIÓN SELECCIONADA =====
     Container(
@@ -173,7 +235,7 @@ class _MapaEntregaScreenState extends State<MapaEntregaScreen> {
         SymbolOptions(
           geometry: posicion,
           iconImage: 'chinche',
-          iconSize: 0.35,
+          iconSize: 0.6, // 🔥 Más grande
           iconAnchor: 'bottom',
         ),
       );
@@ -192,6 +254,9 @@ class _MapaEntregaScreenState extends State<MapaEntregaScreen> {
         await _controller!.removeSymbol(_pinActual!);
       }
       await _dibujarPin(nuevaPosicion);
+
+      // 🔥 Guardar automáticamente cada vez que mueve el pin
+      await _guardarUltimaUbicacion();
     } catch (e) {
       debugPrint('Error al mover pin: $e');
     }

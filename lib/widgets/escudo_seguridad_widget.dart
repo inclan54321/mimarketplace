@@ -44,10 +44,10 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
 
   // int _indiceEmoji = 0; // 🔥 Ya no se usa
   Timer? _timerEmoji;
-  bool _emojiVisible = true;
-  int _contadorCiclo = 0;      // 🔥 Cuenta cuántos "toggles" van
-  bool _enEspera = false;      // 🔥 Si está en los 15 segundos de espera
-  int _contadorEspera = 0;     // 🔥 Cuenta los 15 segundos
+  final bool _emojiVisible = true;
+  final int _contadorCiclo = 0;      // 🔥 Cuenta cuántos "toggles" van
+  final bool _enEspera = false;      // 🔥 Si está en los 15 segundos de espera
+  final int _contadorEspera = 0;     // 🔥 Cuenta los 15 segundos
 
   // 🔥 EMOJI ESTÁTICO (para cuando no está animado)
   // Lo generamos con el mismo emoji pero sin animación
@@ -156,14 +156,16 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                         children: [
                           // 🔥 CONTENIDO PAGINADO
                           Expanded(
-                            child: PageView(
-                              controller: pageController,
-                              onPageChanged: (index) {
-                                setDialogState(() {
-                                  paginaActual = index;
-                                });
-                              },
-                              children: [
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 40),
+                              child: PageView(
+                                controller: pageController,
+                                onPageChanged: (index) {
+                                  setDialogState(() {
+                                    paginaActual = index;
+                                  });
+                                },
+                                children: [
                                 _buildPaso(
                                   imagen: 'assets/images/escudo/paso1.jpg',
                                   titulo: 'Bloqueo de enlaces y teléfonos',
@@ -182,7 +184,8 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                                   descripcion:
                                       'Antes de abrir el chat del encuentro, verificamos tu identidad con reconocimiento facial. Así confirmamos que sos vos y evitamos que alguien más use tu cuenta.',
                                 ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
 
@@ -343,13 +346,12 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     required String descripcion,
   }) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // 🔥 IMAGEN FULL WIDTH ARRIBA
         ClipRRect(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(16),
-          ),
+          borderRadius: BorderRadius.circular(16),
           child: Image.asset(
             imagen,
             width: double.infinity,
@@ -649,7 +651,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
 
                   // 🔥 BOTÓN DE INFORMACIÓN CON ARO LUMINOSO
                   Positioned(
-                    top: 18,
+                    top: 27,
                     child: GestureDetector(
                     onTap: widget.onInfoTap,
                     child: AnimatedContainer(

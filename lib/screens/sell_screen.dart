@@ -1,10 +1,50 @@
-import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'mapa_entrega_screen.dart';
 
-class SellScreen extends StatelessWidget {
+class SellScreen extends StatefulWidget {
   const SellScreen({super.key});
+
+  @override
+  State<SellScreen> createState() => _SellScreenState();
+}
+
+class _SellScreenState extends State<SellScreen> {
+  final TextEditingController _busquedaController = TextEditingController();
+  String _filtro = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔥 Precargar las imágenes después del primer frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _precargarImagenes();
+    });
+  }
+
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
+  }
+
+  // 🔥 PRECARGAR IMÁGENES DE CATEGORÍAS
+  Future<void> _precargarImagenes() async {
+    for (final data in categoriasConSubcategorias.values) {
+      final imagen = data['imagen'] as String?;
+      if (imagen == null || imagen.isEmpty) continue;
+      try {
+        await precacheImage(
+          AssetImage('assets/images/categorias/$imagen'),
+          context,
+        );
+      } catch (e) {
+        print('Error precargando $imagen: $e');
+      }
+    }
+    print('>>> ✅ Imágenes de categorías precargadas');
+  }
 
   final Map<String, Map<String, dynamic>> categoriasConSubcategorias = const {
     'Electrónicos': {
@@ -99,7 +139,10 @@ class SellScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> categorias = categoriasConSubcategorias.keys.toList();
+    // 🔥 Filtrar categorías según lo que el usuario escribió
+    final List<String> categorias = categoriasConSubcategorias.keys
+        .where((c) => c.toLowerCase().contains(_filtro.toLowerCase()))
+        .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A1929),
@@ -132,10 +175,10 @@ class SellScreen extends StatelessWidget {
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // 🌄 Capa 1: Formas geométricas difusas
+          // 🌄 Capa 1: Formas geométricas difusas (sin blur para evitar lag)
           Positioned.fill(
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+            child: Opacity(
+              opacity: 0.6,
               child: const CustomPaint(
                 painter: _GeometricBackgroundPainter(),
                 size: Size.infinite,
@@ -221,8 +264,14 @@ class SellScreen extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
+                          controller: _busquedaController,
+                          onChanged: (value) {
+                            setState(() {
+                              _filtro = value.trim();
+                            });
+                          },
                           decoration: InputDecoration(
-                            hintText: 'Escribe el nombre de tu producto...',
+                            hintText: 'Buscar categoría...',
                             hintStyle: TextStyle(
                               color: Colors.white.withValues(alpha: 0.5),
                               fontSize: 14,
@@ -234,17 +283,30 @@ class SellScreen extends StatelessWidget {
                           style: const TextStyle(fontSize: 14, color: Colors.white),
                         ),
                       ),
-                      const Icon(Icons.auto_awesome, color: Color(0xFF60A5FA), size: 20),
                     ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
                 // ===== CARDS DE CATEGORÍAS =====
-                for (int i = 0; i < categorias.length; i++) ...[
-                  _buildImageFullWidth(context, categorias[i]),
-                  if (i < categorias.length - 1) const SizedBox(height: 14),
-                ],
+                if (categorias.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(
+                      child: Text(
+                        'No se encontraron categorías',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  for (int i = 0; i < categorias.length; i++) ...[
+                    _buildImageFullWidth(context, categorias[i]),
+                    if (i < categorias.length - 1) const SizedBox(height: 14),
+                  ],
 
                 const SizedBox(height: 24),
 
@@ -290,7 +352,15 @@ class SellScreen extends StatelessWidget {
     final colorFin = data['colorFin'] as Color;
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        // 🔥 Cerrar el teclado de forma dura
+        FocusManager.instance.primaryFocus?.unfocus();
+        SystemChannels.textInput.invokeMethod('TextInput.hide');
+
+        // 🔥 Esperar un frame para que el teclado se cierre antes de navegar
+        await Future.delayed(const Duration(milliseconds: 150));
+        if (!context.mounted) return;
+
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -323,13 +393,12 @@ class SellScreen extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // 🖼️ Imagen de fondo (agrandada y centrada)
-              Transform.scale(
-                scale: 1.4,
-                child: Image.asset(
-                  'assets/images/categorias/${data['imagen']}',
-                  fit: BoxFit.cover,
-                ),
+              // 🖼️ Imagen de fondo
+              Image.asset(
+                'assets/images/categorias/${data['imagen']}',
+                fit: BoxFit.cover,
+                cacheWidth: 800, // 🔥 Decodifica a 800px de ancho (menos RAM, menos lag)
+                filterQuality: FilterQuality.low, // 🔥 Dibujo más rápido
               ),
 
               // 🌑 Overlay oscuro para que el texto se lea

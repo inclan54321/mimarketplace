@@ -139,9 +139,13 @@ class ProductosScreen extends StatelessWidget {
                                     fontSize: 16,
                                   ),
                                 ),
-                                if (producto.provincia != null && producto.provincia!.isNotEmpty)
+                                if ((producto.provincia != null && producto.provincia!.isNotEmpty) ||
+                                    (producto.canton != null && producto.canton!.isNotEmpty))
                                   Text(
-                                    producto.provincia!,
+                                    [
+                                      producto.provincia ?? '',
+                                      producto.canton ?? '',
+                                    ].where((s) => s.isNotEmpty).join(', '),
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: coloresProvincias[producto.provincia] ?? Colors.grey,

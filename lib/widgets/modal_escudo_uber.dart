@@ -74,7 +74,7 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
-          height: 620,
+          height: 760,
           color: Colors.white,
           child: Stack(
             children: [

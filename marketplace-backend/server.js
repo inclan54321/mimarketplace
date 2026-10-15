@@ -31,6 +31,79 @@ try {
 const app = express();
 const port = 3000;
 
+// 🔥 WEBSOCKET
+const http = require('http');
+const WebSocket = require('ws');
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server, path: '/ws/chat' });
+
+// 🔥 SALAS: conversacion_id → Set<ws>
+const salas = new Map();
+
+// 🔥 ENVIAR A TODOS LOS DE UNA SALA
+function broadcast(conversacionId, payload) {
+    const sala = salas.get(String(conversacionId));
+    if (!sala) return;
+    const data = JSON.stringify(payload);
+    for (const ws of sala) {
+        if (ws.readyState === WebSocket.OPEN) {
+            try { ws.send(data); } catch (e) { /* ignore */ }
+        }
+    }
+}
+global.broadcast = broadcast; // para usarlo desde otras funciones
+
+// 🔥 MANEJO DE CONEXIONES
+wss.on('connection', (ws, req) => {
+    try {
+        const params = new URLSearchParams(req.url.split('?')[1] || '');
+        const conversacionId = params.get('conversacion_id');
+        const usuarioId = params.get('usuario_id');
+
+        if (!conversacionId || !usuarioId) {
+            ws.close(1008, 'Faltan parámetros');
+            return;
+        }
+
+        ws.conversacionId = String(conversacionId);
+        ws.usuarioId = usuarioId;
+
+        if (!salas.has(ws.conversacionId)) {
+            salas.set(ws.conversacionId, new Set());
+        }
+        salas.get(ws.conversacionId).add(ws);
+
+        console.log(`>>> 🔌 WS conectado: conv=${conversacionId}, user=${usuarioId} (total en sala: ${salas.get(ws.conversacionId).size})`);
+
+        ws.send(JSON.stringify({ tipo: 'conectado' }));
+
+        ws.on('message', (raw) => {
+            try {
+                const data = JSON.parse(raw.toString());
+                if (data.tipo === 'ping') {
+                    ws.send(JSON.stringify({ tipo: 'pong' }));
+                }
+            } catch (e) { /* ignore */ }
+        });
+
+        ws.on('close', () => {
+            const sala = salas.get(ws.conversacionId);
+            if (sala) {
+                sala.delete(ws);
+                if (sala.size === 0) salas.delete(ws.conversacionId);
+            }
+            console.log(`>>> 🔌 WS desconectado: conv=${ws.conversacionId}, user=${ws.usuarioId}`);
+        });
+
+        ws.on('error', (e) => {
+            console.log(`>>> ❌ WS error: ${e.message}`);
+        });
+    } catch (e) {
+        console.log(`>>> ❌ WS connection error: ${e.message}`);
+        try { ws.close(); } catch (_) {}
+    }
+});
+
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
@@ -1079,6 +1152,12 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
             [conversacion_id, usuario_id, texto, imagen_url]
         );
 
+        // 🔥 EMITIR POR WEBSOCKET A TODOS LOS DE LA SALA
+        global.broadcast(conversacion_id, {
+            tipo: 'nuevo_mensaje',
+            mensaje: result.rows[0],
+        });
+
         // 🔥 NO borrar la fila: mantener fecha_ocultado para seguir filtrando mensajes viejos
         // El chat reaparece en la lista por el cambio en GET /api/conversaciones
         console.log(`>>> 🔄 Mensaje guardado, conversación ${conversacion_id} mantiene fecha_ocultado`);
@@ -1188,6 +1267,12 @@ app.post('/api/mensajes/audio', uploadAudio.single('audio'), async (req, res) =>
              VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
             [conversacion_id, usuario_id, texto || '🎤 Mensaje de voz', audio_url]
         );
+
+        // 🔥 EMITIR POR WEBSOCKET
+        global.broadcast(conversacion_id, {
+            tipo: 'nuevo_mensaje',
+            mensaje: result.rows[0],
+        });
 
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -3919,6 +4004,13 @@ app.post('/api/escudo/activar', async (req, res) => {
         }
 
         console.log(`>>> 🛡️ Escudo activado en conversación ${conversacion_id} por ${usuario_id}`);
+
+        // 🔥 EMITIR POR WEBSOCKET
+        global.broadcast(conversacion_id, {
+            tipo: 'estado_cambio',
+            estado: 'escudo_activado',
+        });
+
         res.json({ success: true, escudos: results, activado_por: usuario_id });
     } catch (error) {
         console.error('Error al activar escudo:', error);
@@ -4128,6 +4220,13 @@ app.post('/api/escudo/rechazar', async (req, res) => {
         }
 
         console.log(`>>> 🛡️ Escudo rechazado por ${usuario_id}. Chat ${conversacion_id} cerrado.`);
+
+        // 🔥 EMITIR POR WEBSOCKET
+        global.broadcast(conversacion_id, {
+            tipo: 'estado_cambio',
+            estado: 'escudo_rechazado',
+        });
+
         res.json({ success: true, chat_cerrado: true });
     } catch (error) {
         console.error('Error al rechazar escudo:', error);
@@ -4191,6 +4290,12 @@ app.post('/api/encuentro/proponer', async (req, res) => {
                 ''
             ]
         );
+
+        // 🔥 EMITIR POR WEBSOCKET
+        global.broadcast(conversacion_id, {
+            tipo: 'estado_cambio',
+            estado: 'propuesta_encuentro',
+        });
 
         console.log(`>>> 📅 Propuesta de encuentro creada: ${result.rows[0].id}`);
         res.status(201).json({ success: true, propuesta: result.rows[0] });
@@ -4270,6 +4375,12 @@ app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
                 ''
             ]
         );
+
+        // 🔥 EMITIR POR WEBSOCKET
+        global.broadcast(conversacionId, {
+            tipo: 'estado_cambio',
+            estado: 'encuentro_aceptado',
+        });
 
         // 🔥 ALERTA PARA QUIEN PROPUSO: su propuesta fue aceptada
         try {
@@ -4494,6 +4605,12 @@ app.post('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
         const total = result.rows.length;
         const ambosSeguir = total >= 2;
 
+        // 🔥 EMITIR POR WEBSOCKET
+        global.broadcast(id, {
+            tipo: 'estado_cambio',
+            estado: 'seguir_conversando',
+        });
+
         console.log(`>>> 🟢 Seguir conversando: conv=${id}, user=${usuario_id}, total=${total}, ambos=${ambosSeguir}`);
 
         // 🔥 SI AMBOS QUIEREN SEGUIR, INSERTAR MENSAJE EN EL CHAT
@@ -4582,6 +4699,12 @@ app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
                  VALUES ($1, $2, $3, '', NOW())`,
                 [id, usuario_id, `||CERRAR_TRATO||${usuario_id}`]
             );
+
+            // 🔥 EMITIR POR WEBSOCKET
+            global.broadcast(id, {
+                tipo: 'estado_cambio',
+                estado: 'cerrar_trato',
+            });
 
             // 🔥 AVISAR AL OTRO USUARIO (alerta + push) si todavía no confirmó
             try {
@@ -5400,6 +5523,7 @@ app.get('/api/encuentro/:id/datos', async (req, res) => {
     }
 });
 
-app.listen(3000, '0.0.0.0', () => {
+server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
+    console.log('>>> 🔌 WebSocket disponible en ws://0.0.0.0:3000/ws/chat');
 });
