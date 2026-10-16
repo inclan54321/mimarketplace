@@ -34,23 +34,164 @@ const port = 3000;
 // 🔥 WEBSOCKET
 const http = require('http');
 const WebSocket = require('ws');
+const Redis = require('ioredis');
+
+// 🔥 REDIS PUB/SUB
+let redisPub = null;
+let redisSub = null;
+let redisDisponible = false;
+
+if (process.env.REDIS_URL) {
+    try {
+        redisPub = new Redis(process.env.REDIS_URL, {
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+        });
+        redisSub = new Redis(process.env.REDIS_URL, {
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+        });
+
+        redisPub.on('connect', () => {
+            console.log('>>> 🔴 Redis Pub conectado');
+            redisDisponible = true;
+        });
+        redisPub.on('error', (e) => {
+            console.log('>>> ❌ Redis Pub error:', e.message);
+            redisDisponible = false;
+        });
+        redisSub.on('connect', () => {
+            console.log('>>> 🔴 Redis Sub conectado');
+        });
+        redisSub.on('error', (e) => {
+            console.log('>>> ❌ Redis Sub error:', e.message);
+        });
+
+        // 🔥 ESCUCHAR EVENTOS DE OTRAS RÉPLICAS
+        redisSub.on('message', (channel, message) => {
+            try {
+                const payload = JSON.parse(message);
+                const conversacionId = channel.replace('conv:', '');
+                // Solo entregar a clientes locales (sin re-publicar)
+                entregarLocalmente(conversacionId, payload);
+            } catch (e) {
+                console.log('>>> ❌ Error parseando mensaje de Redis:', e.message);
+            }
+        });
+
+        // 🔥 SUSCRIBIRSE AL CANAL GLOBAL
+        redisSub.subscribe('ws:eventos', (err) => {
+            if (err) console.log('>>> ❌ Error suscribiendo a Redis:', err.message);
+            else console.log('>>> 🔴 Suscrito a canal ws:eventos');
+        });
+    } catch (e) {
+        console.log('>>> ⚠️ Redis no disponible, modo 1 réplica:', e.message);
+    }
+} else {
+    console.log('>>> ⚠️ REDIS_URL no configurada, modo 1 réplica');
+}
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server, path: '/ws/chat' });
+const wss = new WebSocket.Server({
+    server,
+    path: '/ws/chat',
+    maxPayload: 64 * 1024,  // 🔥 64 KB máximo por mensaje
+});
 
 // 🔥 SALAS: conversacion_id → Set<ws>
 const salas = new Map();
 
-// 🔥 ENVIAR A TODOS LOS DE UNA SALA
+// 🔥 BATCHING: acumular eventos y enviarlos cada 150ms
+const pendientes = new Map(); // conversacion_id → { eventos: [], timer: Timeout }
+const BATCH_INTERVALO_MS = 150;
+
 function broadcast(conversacionId, payload) {
-    const sala = salas.get(String(conversacionId));
-    if (!sala) return;
-    const data = JSON.stringify(payload);
+    const id = String(conversacionId);
+
+    // 🔥 SI REDIS ESTÁ DISPONIBLE, PUBLICAR AHÍ
+    if (redisDisponible && redisPub) {
+        try {
+            redisPub.publish('ws:eventos', JSON.stringify({
+                conversacion_id: id,
+                payload: payload,
+            }));
+        } catch (e) {
+            console.log('>>> ❌ Error publicando en Redis:', e.message);
+            // Fallback: entregar localmente
+            entregarLocalmente(id, payload);
+        }
+        return;
+    }
+
+    // 🔥 SIN REDIS: comportamiento actual (1 réplica)
+    if (!pendientes.has(id)) {
+        pendientes.set(id, {
+            eventos: [],
+            timer: setTimeout(() => flushBatch(id), BATCH_INTERVALO_MS),
+        });
+    }
+
+    pendientes.get(id).eventos.push(payload);
+}
+
+// 🔥 ENTREGAR A CLIENTES LOCALES (usado por Redis y por fallback)
+function entregarLocalmente(conversacionId, payload) {
+    const id = String(conversacionId);
+
+    // Si hay batching activo, acumular
+    if (!pendientes.has(id)) {
+        pendientes.set(id, {
+            eventos: [],
+            timer: setTimeout(() => flushBatch(id), BATCH_INTERVALO_MS),
+        });
+    }
+    pendientes.get(id).eventos.push(payload);
+}
+
+function flushBatch(conversacionId) {
+    const batch = pendientes.get(conversacionId);
+    if (!batch) return;
+    pendientes.delete(conversacionId);
+
+    const sala = salas.get(conversacionId);
+    if (!sala || sala.size === 0) return;
+
+    // Si hay 1 solo evento, enviarlo directo (más simple para el cliente)
+    if (batch.eventos.length === 1) {
+        const data = JSON.stringify(batch.eventos[0]);
+        for (const ws of sala) {
+            if (ws.readyState === WebSocket.OPEN) {
+                try { ws.send(data); } catch (e) { /* ignore */ }
+            }
+        }
+        return;
+    }
+
+    // Si hay varios, enviarlos como array
+    const data = JSON.stringify({
+        tipo: 'batch',
+        eventos: batch.eventos,
+    });
     for (const ws of sala) {
         if (ws.readyState === WebSocket.OPEN) {
             try { ws.send(data); } catch (e) { /* ignore */ }
         }
     }
+
+    console.log(`>>> 📦 Batch enviado: ${batch.eventos.length} eventos a conv ${conversacionId}`);
 }
+
+// 🔥 Limpiar timers al cerrar el proceso
+process.on('SIGTERM', () => {
+    for (const [id, batch] of pendientes.entries()) {
+        clearTimeout(batch.timer);
+    }
+    pendientes.clear();
+
+    // 🔥 Cerrar conexiones Redis
+    if (redisPub) redisPub.quit();
+    if (redisSub) redisSub.quit();
+});
+
 global.broadcast = broadcast; // para usarlo desde otras funciones
 
 // 🔥 MANEJO DE CONEXIONES
