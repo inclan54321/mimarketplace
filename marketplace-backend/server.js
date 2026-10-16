@@ -270,7 +270,10 @@ setInterval(() => {
         ws.isAlive = false;
         try {
             ws.ping();
-        } catch (e) { /* ignore */ }
+            console.log(`>>> 📡 Ping enviado a conv=${ws.conversacionId}, user=${ws.usuarioId}`);
+        } catch (e) {
+            console.log(`>>> ❌ Error al ping: ${e.message}`);
+        }
     });
 }, HEARTBEAT_INTERVALO_MS);
 
