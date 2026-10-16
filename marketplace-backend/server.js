@@ -90,6 +90,37 @@ if (process.env.REDIS_URL) {
 } else {
     console.log('>>> ⚠️ REDIS_URL no configurada, modo 1 réplica');
 }
+// 🔥 USUARIOS EN LÍNEA (usuario_id → timestamp de última actividad)
+const usuariosEnLinea = new Map();
+const USUARIO_TIMEOUT_MS = 60 * 1000;
+
+setInterval(() => {
+    const ahora = Date.now();
+    for (const [uid, ts] of usuariosEnLinea.entries()) {
+        if (ahora - ts > USUARIO_TIMEOUT_MS) {
+            usuariosEnLinea.delete(uid);
+            console.log(`>>> 🟢 Usuario ${uid} OFFLINE por inactividad`);
+        }
+    }
+}, 30000);
+
+// 🔥 NOTIFICAR A LAS SALAS QUE UN USUARIO CAMBIÓ DE ESTADO
+function broadcastPresencia(usuarioId, enLinea) {
+    for (const [convId, sala] of salas.entries()) {
+        for (const ws of sala) {
+            if (ws.usuarioId !== usuarioId && ws.readyState === WebSocket.OPEN) {
+                try {
+                    ws.send(JSON.stringify({
+                        tipo: 'presencia',
+                        usuario_id: usuarioId,
+                        en_linea: enLinea,
+                    }));
+                } catch (e) { /* ignore */ }
+            }
+        }
+    }
+}
+
 const server = http.createServer(app);
 const wss = new WebSocket.Server({
     server,
@@ -210,6 +241,11 @@ wss.on('connection', (ws, req) => {
         ws.usuarioId = usuarioId;
         ws.isAlive = true;  // 🔥 HEARTBEAT
 
+        // 🔥 MARCAR USUARIO COMO EN LÍNEA
+        usuariosEnLinea.set(usuarioId, Date.now());
+        console.log(`>>> 🟢 Usuario ${usuarioId} EN LÍNEA (total: ${usuariosEnLinea.size})`);
+        broadcastPresencia(usuarioId, true);
+
         if (!salas.has(ws.conversacionId)) {
             salas.set(ws.conversacionId, new Set());
         }
@@ -222,6 +258,9 @@ wss.on('connection', (ws, req) => {
         ws.on('message', (raw) => {
             try {
                 const data = JSON.parse(raw.toString());
+
+                // 🔥 ACTUALIZAR ÚLTIMA ACTIVIDAD
+                usuariosEnLinea.set(ws.usuarioId, Date.now());
 
                 // 🔥 HEARTBEAT: si responde pong, marcar viva
                 if (data.tipo === 'pong') {
@@ -243,10 +282,21 @@ wss.on('connection', (ws, req) => {
                 if (sala.size === 0) salas.delete(ws.conversacionId);
             }
             console.log(`>>> 🔌 WS desconectado: conv=${ws.conversacionId}, user=${ws.usuarioId}`);
+
+            // 🔥 VERIFICAR SI EL USUARIO TIENE OTRAS CONEXIONES ABIERTAS
+            const tieneOtras = Array.from(wss.clients).some(
+                c => c.usuarioId === ws.usuarioId && c.readyState === WebSocket.OPEN
+            );
+            if (!tieneOtras) {
+                usuariosEnLinea.delete(ws.usuarioId);
+                console.log(`>>> 🔴 Usuario ${ws.usuarioId} OFFLINE (total: ${usuariosEnLinea.size})`);
+                broadcastPresencia(ws.usuarioId, false);
+            }
         });
 
         ws.on('pong', () => {
             ws.isAlive = true;
+            usuariosEnLinea.set(ws.usuarioId, Date.now()); // 🔥 NUEVO
         });
 
         ws.on('error', (e) => {
@@ -3831,6 +3881,18 @@ app.post('/api/usuarios/fcm-token', async (req, res) => {
 // ============================================================
 // 🔥 OBTENER DATOS DE UN USUARIO
 // ============================================================
+// 🔥 CONSULTAR SI UN USUARIO ESTÁ EN LÍNEA
+app.get('/api/usuarios/:uid/en-linea', async (req, res) => {
+    try {
+        const { uid } = req.params;
+        const enLinea = usuariosEnLinea.has(uid) &&
+            (Date.now() - usuariosEnLinea.get(uid) < USUARIO_TIMEOUT_MS);
+        res.json({ en_linea: enLinea });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/api/usuarios/:uid', async (req, res) => {
     try {
         const { uid } = req.params;
