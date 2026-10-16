@@ -208,6 +208,7 @@ wss.on('connection', (ws, req) => {
 
         ws.conversacionId = String(conversacionId);
         ws.usuarioId = usuarioId;
+        ws.isAlive = true;  // 🔥 HEARTBEAT
 
         if (!salas.has(ws.conversacionId)) {
             salas.set(ws.conversacionId, new Set());
@@ -221,6 +222,14 @@ wss.on('connection', (ws, req) => {
         ws.on('message', (raw) => {
             try {
                 const data = JSON.parse(raw.toString());
+
+                // 🔥 HEARTBEAT: si responde pong, marcar viva
+                if (data.tipo === 'pong') {
+                    ws.isAlive = true;
+                    return;
+                }
+
+                // Cliente pregunta ping → responder pong
                 if (data.tipo === 'ping') {
                     ws.send(JSON.stringify({ tipo: 'pong' }));
                 }
@@ -236,6 +245,10 @@ wss.on('connection', (ws, req) => {
             console.log(`>>> 🔌 WS desconectado: conv=${ws.conversacionId}, user=${ws.usuarioId}`);
         });
 
+        ws.on('pong', () => {
+            ws.isAlive = true;
+        });
+
         ws.on('error', (e) => {
             console.log(`>>> ❌ WS error: ${e.message}`);
         });
@@ -244,6 +257,21 @@ wss.on('connection', (ws, req) => {
         try { ws.close(); } catch (_) {}
     }
 });
+
+// 🔥 HEARTBEAT: cada 30s verifica que todas las conexiones estén vivas
+const HEARTBEAT_INTERVALO_MS = 30000;
+setInterval(() => {
+    wss.clients.forEach((ws) => {
+        if (ws.isAlive === false) {
+            console.log(`>>> 💀 WS zombi detectado, cerrando: conv=${ws.conversacionId}, user=${ws.usuarioId}`);
+            return ws.terminate();
+        }
+        ws.isAlive = false;
+        try {
+            ws.ping();
+        } catch (e) { /* ignore */ }
+    });
+}, HEARTBEAT_INTERVALO_MS);
 
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
