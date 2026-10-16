@@ -259,7 +259,7 @@ wss.on('connection', (ws, req) => {
 });
 
 // 🔥 HEARTBEAT: cada 30s verifica que todas las conexiones estén vivas
-const HEARTBEAT_INTERVALO_MS = 30000;
+const HEARTBEAT_INTERVALO_MS = 15000; // 15s (proxy cierra a ~65s)
 setInterval(() => {
     console.log(`>>> 💓 Heartbeat tick: ${wss.clients.size} conexiones activas`);
     wss.clients.forEach((ws) => {
