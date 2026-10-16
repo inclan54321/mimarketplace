@@ -261,6 +261,7 @@ wss.on('connection', (ws, req) => {
 // 🔥 HEARTBEAT: cada 30s verifica que todas las conexiones estén vivas
 const HEARTBEAT_INTERVALO_MS = 30000;
 setInterval(() => {
+    console.log(`>>> 💓 Heartbeat tick: ${wss.clients.size} conexiones activas`);
     wss.clients.forEach((ws) => {
         if (ws.isAlive === false) {
             console.log(`>>> 💀 WS zombi detectado, cerrando: conv=${ws.conversacionId}, user=${ws.usuarioId}`);
