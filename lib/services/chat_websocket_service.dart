@@ -52,17 +52,22 @@ class ChatWebSocketService {
           try {
             final data = jsonDecode(raw) as Map<String, dynamic>;
             final tipo = data['tipo'] as String?;
-            switch (tipo) {
-              case 'nuevo_mensaje':
-                onNuevoMensaje?.call(data);
-                break;
-              case 'estado_cambio':
-                onEstadoCambio?.call(data);
-                break;
-              case 'conectado':
-                onConectado?.call();
-                break;
+
+            // 🔥 BATCH: varios eventos en un solo mensaje
+            if (tipo == 'batch') {
+              final eventos = data['eventos'] as List?;
+              if (eventos != null) {
+                for (final evento in eventos) {
+                  if (evento is Map<String, dynamic>) {
+                    _procesarEvento(evento);
+                  }
+                }
+              }
+              return;
             }
+
+            // Evento individual
+            _procesarEvento(data);
           } catch (e) {
             print('>>> WS parse error: $e');
           }
@@ -86,6 +91,21 @@ class ChatWebSocketService {
     } catch (e) {
       print('>>> WS connect error: $e');
       _programarReconexion();
+    }
+  }
+
+  void _procesarEvento(Map<String, dynamic> data) {
+    final tipo = data['tipo'] as String?;
+    switch (tipo) {
+      case 'nuevo_mensaje':
+        onNuevoMensaje?.call(data);
+        break;
+      case 'estado_cambio':
+        onEstadoCambio?.call(data);
+        break;
+      case 'conectado':
+        onConectado?.call();
+        break;
     }
   }
 

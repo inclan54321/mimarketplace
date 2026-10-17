@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../widgets/boton_grabacion.dart';
 import '../services/chat_websocket_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -19,14 +18,12 @@ import 'image_viewer_screen.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:audioplayers/audioplayers.dart';
-import '../widgets/ia_chat_button.dart';
 import '../widgets/escudo_seguridad_widget.dart'; // 🔥 NUEVO
 import '../widgets/modal_escudo_uber.dart'; // 🔥 NUEVO
 import '../services/chat_service.dart';        // 🔥 NUEVO
-import 'calificar_screen.dart';     
 import '../widgets/calificacion_widget.dart';    
 import 'package:shared_preferences/shared_preferences.dart';       // 🔥 NUEVO
-import '../data/costa_rica.dart';                                   // 🔥 NUEVO
+// 🔥 NUEVO
 import 'package:intl/intl.dart';                                    // 🔥 NUEVO
 
 
@@ -80,6 +77,11 @@ class _ChatScreenState extends State<ChatScreen>
   Timer? _timer;
   String _fotoVendedorReal = '';
 
+  // 🔥 NUEVO: Si el otro usuario está en línea
+  bool _otroUsuarioEnLinea = false;
+  Timer? _presenciaTimer;
+  String? _ultimaConexion;
+
   // 🔥 NUEVO: LISTA DE PRODUCTOS DEL VENDEDOR (para el header)
   List<Map<String, dynamic>> _productosDelVendedor = [];
 
@@ -100,6 +102,9 @@ class _ChatScreenState extends State<ChatScreen>
 
   // 🔥 NUEVO: Si el panel de análisis del chat está abierto
   bool _panelAnalisisAbierto = false;
+
+    // 🔥 NUEVO: Header de productos expandido/colapsado
+  bool _headerExpandido = false;
 
   // 🔥 CACHÉ DE PROPUESTAS DE ENCUENTRO
   final Map<String, Map<String, dynamic>> _cachePropuestas = {};
@@ -602,8 +607,7 @@ void initState() {
     ),
   );
 
-  // 🔥 Repetir infinitamente (reverse: true hace que vaya y vuelva)
-  _oscilacionController.repeat(reverse: true);
+  // 🔥 Ya no gira todo el tiempo: se inicia solo al grabar
   
   // 🔥 CONFIGURAR REPRODUCTOR DE AUDIO
   _audioPlayer.onPlayerComplete.listen((event) {
@@ -638,14 +642,21 @@ void initState() {
   _marcarComoLeida(); // 🔥 NUEVO
   _obtenerFotoVendedorReal();
   _cargarProductosDelVendedor(); // 🔥 NUEVO
+
+  // 🔥 NUEVO: Consultar presencia del otro usuario
+  _consultarPresencia();
+  _presenciaTimer = Timer.periodic(
+    const Duration(seconds: 30),
+    (_) => _consultarPresencia(),
+  );
   print('>>> DESPUÉS de llamar _obtenerFotoVendedorReal()');
   print('>>> _fotoVendedorReal: $_fotoVendedorReal');
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-    // 🔥 NO recargar si hay un modal abierto (evita reiniciar el modal)
-    if (_conversacionIdActual.isNotEmpty && !_interfazEncuentroMostrada) {
-      _cargarMensajes(_conversacionIdActual);
-    }
-  });
+    // 🔥 POLLING DESACTIVADO: ahora usa WebSocket
+    // _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    //   if (_conversacionIdActual.isNotEmpty && !_interfazEncuentroMostrada) {
+    //     _cargarMensajes(_conversacionIdActual);
+    //   }
+    // });
 
   // 🔥 VERIFICAR CALIFICACIÓN PENDIENTE - DESPUÉS DEL PRIMER BUILD
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -669,6 +680,7 @@ void dispose() {
   _audioPlayer.dispose();
   _uiSoundPlayer.dispose();  // 🔥 LIBERAR REPRODUCTOR DE UI
   _recordingTimer?.cancel();  // 🔥 NUEVO
+  _presenciaTimer?.cancel();  // 🔥 NUEVO
   super.dispose();
 }
 
@@ -1378,6 +1390,77 @@ void dispose() {
     }
   }
 
+  // 🔥 CONSULTAR SI EL OTRO USUARIO ESTÁ EN LÍNEA
+  Future<void> _consultarPresencia() async {
+    if (widget.otroUsuarioId.isEmpty) return;
+    try {
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${widget.otroUsuarioId}/en-linea'),
+      );
+      if (r.statusCode == 200 && mounted) {
+        final data = jsonDecode(r.body);
+        final enLinea = data['en_linea'] == true;
+        if (enLinea != _otroUsuarioEnLinea) {
+          setState(() => _otroUsuarioEnLinea = enLinea);
+        }
+
+        // 🔥 SI ESTÁ OFFLINE, CONSULTAR ÚLTIMA CONEXIÓN
+        if (!enLinea) {
+          await _consultarUltimaConexion();
+        }
+      }
+    } catch (e) {
+      print('Error al consultar presencia: $e');
+    }
+  }
+
+  // 🔥 CONSULTAR ÚLTIMA CONEXIÓN DEL OTRO USUARIO
+  Future<void> _consultarUltimaConexion() async {
+    try {
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${widget.otroUsuarioId}/ultima-conexion'),
+      );
+      if (r.statusCode == 200 && mounted) {
+        final data = jsonDecode(r.body);
+        final fecha = data['ultima_conexion']?.toString();
+        if (fecha != null && fecha.isNotEmpty) {
+          setState(() => _ultimaConexion = fecha);
+        }
+      }
+    } catch (e) {
+      print('Error al consultar última conexión: $e');
+    }
+  }
+
+  // 🔥 FORMATEAR TEXTO DE ÚLTIMA CONEXIÓN
+  String _formatearUltimaConexion() {
+    if (_otroUsuarioEnLinea) return 'en línea';
+    if (_ultimaConexion == null) return 'última vez desconocida';
+
+    try {
+      final fecha = DateTime.parse(_ultimaConexion!).toLocal();
+      final ahora = DateTime.now();
+      final diferencia = ahora.difference(fecha);
+
+      final hora = DateFormat('h:mm a').format(fecha);
+
+      if (diferencia.inMinutes < 1) {
+        return 'última vez hace un momento';
+      } else if (diferencia.inMinutes < 60) {
+        return 'última vez hace ${diferencia.inMinutes} min';
+      } else if (diferencia.inHours < 24 && ahora.day == fecha.day) {
+        return 'última vez hoy a las $hora';
+      } else if (diferencia.inDays < 2) {
+        return 'última vez ayer a las $hora';
+      } else {
+        final dia = DateFormat('dd/MM/yyyy').format(fecha);
+        return 'última vez el $dia a las $hora';
+      }
+    } catch (e) {
+      return 'última vez desconocida';
+    }
+  }
+
 Future<void> _obtenerFotoVendedorReal() async {
   try {
     print('>>> 1. ENTRE A _obtenerFotoVendedorReal()');
@@ -1466,6 +1549,20 @@ Future<void> _obtenerFotoVendedorReal() async {
       return; // 🔥 No enviar
     }
 
+    // 🔥 Mostrar el mensaje al instante (optimista) y limpiar el campo
+    final tmpId = 'tmp_${DateTime.now().millisecondsSinceEpoch}';
+    _controller.clear();
+    setState(() {
+      _mensajes.add({
+        'id': tmpId,
+        'texto': mensaje,
+        'usuario_id': user?.uid ?? '',
+        'hora': DateFormat('HH:mm').format(DateTime.now()),
+        'foto_perfil': '',
+        'imagen': '',
+      });
+    });
+
     try {
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
@@ -1478,11 +1575,19 @@ Future<void> _obtenerFotoVendedorReal() async {
       );
 
       if (response.statusCode == 201) {
-        _controller.clear();
-        // 🔥 _cargarMensajes ya dispara el análisis si hay cambios
-        await _cargarMensajes(_conversacionIdActual);
+        // 🔥 Sin await: no bloquea la UI mientras se sincroniza
+        _cargarMensajes(_conversacionIdActual);
+      } else if (mounted) {
+        // 🔥 Falló: quitar el mensaje temporal y devolver el texto
+        setState(() => _mensajes.removeWhere((m) => m['id'] == tmpId));
+        _controller.text = mensaje;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (mounted) {
+        setState(() => _mensajes.removeWhere((m) => m['id'] == tmpId));
+        _controller.text = mensaje;
+      }
+    }
   }
 
   // 🔥 CONSULTAR EL ANÁLISIS GUARDADO EN EL BACKEND
@@ -1636,7 +1741,7 @@ Future<void> _obtenerFotoVendedorReal() async {
         body: jsonEncode({
           'conversacion_id': int.parse(_conversacionIdActual),
           'usuario_id': user.uid,
-          'texto': '||PORTAFOLIO||${widget.otroUsuarioId}',
+          'texto': '||PORTAFOLIO||${user.uid}',
         }),
       );
 
@@ -1673,6 +1778,14 @@ Future<void> _obtenerFotoVendedorReal() async {
 
   // 🔥 TARJETA DE PORTAFOLIO
   Widget _buildTarjetaPortafolio(String vendedorId) {
+    // 🔥 SI EL QUE COMPARTIÓ SOY YO, EL NOMBRE ES MI NOMBRE.
+    // 🔥 SI ES EL OTRO, ES EL NOMBRE DEL OTRO.
+    final user = FirebaseAuth.instance.currentUser;
+    final esMio = vendedorId == user?.uid;
+    final nombreMostrar = esMio
+        ? 'Tu portafolio'
+        : widget.otroUsuario;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(14),
@@ -1703,21 +1816,23 @@ Future<void> _obtenerFotoVendedorReal() async {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Portafolio compartido',
-                  style: TextStyle(
+                  esMio
+                      ? 'Compartiste tu portafolio'
+                      : 'Portafolio de $nombreMostrar',
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF087FE8),
                   ),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Toca para ver los productos del vendedor',
+                const SizedBox(height: 2),
+                const Text(
+                  'Toca para ver los productos',
                   style: TextStyle(fontSize: 11, color: Colors.grey),
                 ),
               ],
@@ -1725,12 +1840,15 @@ Future<void> _obtenerFotoVendedorReal() async {
           ),
           ElevatedButton(
             onPressed: () {
+              if (!mounted) return;
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => PortafolioVendedorScreen(
                     vendedorId: vendedorId,
-                    vendedorNombre: widget.otroUsuario,
+                    vendedorNombre: esMio
+                        ? (user?.displayName ?? 'Tú')
+                        : widget.otroUsuario,
                     vendedorFoto: _fotoVendedorReal,
                   ),
                 ),
@@ -1950,6 +2068,7 @@ Future<void> _startRecording() async {
 
     // 🔥 MOSTRAR CÍRCULO EN EL CENTRO DEL BOTÓN
     _mostrarCirculoGrabacion();
+    _oscilacionController.repeat(reverse: true);
 
     // 🔥 Iniciar timer para mostrar el tiempo
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -2146,6 +2265,7 @@ void _mostrarCirculoGrabacion() {
 void _ocultarCirculoGrabacion() {
   _overlayEntry?.remove();
   _overlayEntry = null;
+  _oscilacionController.stop();
 }
 
 
@@ -2281,6 +2401,53 @@ Widget _buildAudioMessage({
     ),
   );
 }
+  // 🔥 BOTÓN PARA EXPANDIR/COLAPSAR EL HEADER DE PRODUCTOS
+  Widget _buildBotonExpandirHeader() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _headerExpandido = !_headerExpandido;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(top: 8, left: 12, right: 12, bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE3EEFF)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _headerExpandido
+                  ? Icons.keyboard_arrow_up
+                  : Icons.keyboard_arrow_down,
+              color: const Color(0xFF0A5BE0),
+              size: 20,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _headerExpandido ? 'Ocultar productos' : 'Ver productos',
+              style: const TextStyle(
+                color: Color(0xFF0A5BE0),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   // ============ 🔥 HEADER CON CARRUSEL DE PRODUCTOS ============
   Widget _buildProductoHeader({Key? key}) {
     // 🔥 Si hay varios productos, mostrar carrusel. Si no, el header clásico.
@@ -3956,16 +4123,7 @@ ListTile(
     final user = FirebaseAuth.instance.currentUser;
     final yoPropuse = propuesta['usuario_propone_id'] == user?.uid;
 
-    // 🔥 DEBUG: Ver qué estado llega
-    print('>>> 🟣 TARJETA PROPUESTA:');
-    print('>>> 🟣 ID: ${propuesta['id']}');
-    print('>>> 🟣 estado RAW: "${propuesta['estado']}"');
-    print('>>> 🟣 estado procesado: "$estado"');
-    print('>>> 🟣 es rechazada? ${estado == 'rechazada'}');
-    print('>>> 🟣 es confirmada? ${estado == 'confirmada'}');
-    print('>>> 🟣 es aceptada? ${estado == 'aceptada'}');
-    print('>>> 🟣 es pendiente? ${estado == 'pendiente'}');
-    print('>>> 🟣 PROPUESTA COMPLETA: $propuesta');
+
 
     return GestureDetector(
       onTap: () => _mostrarDetallePropuesta(propuesta),
@@ -4595,7 +4753,7 @@ ListTile(
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
+    final top = MediaQuery.viewPaddingOf(context).top;
     final fotoUrl = widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal;
 
     return PreferredSize(
@@ -4667,13 +4825,25 @@ ListTile(
                       Positioned(
                         right: 0,
                         bottom: 0,
-                        child: Container(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
                           width: 16,
                           height: 16,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF22C55E),
+                            color: _otroUsuarioEnLinea
+                                ? const Color(0xFF22C55E)
+                                : const Color(0xFF9CA3AF),
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: _otroUsuarioEnLinea
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF22C55E).withValues(alpha: 0.6),
+                                      blurRadius: 6,
+                                      spreadRadius: 1,
+                                    ),
+                                  ]
+                                : null,
                           ),
                         ),
                       ),
@@ -4720,6 +4890,18 @@ ListTile(
                             const Icon(Icons.verified,
                                 color: Color(0xFF9AD0FF), size: 18),
                           ],
+                        ),
+                        // 🔥 ÚLTIMA CONEXIÓN / EN LÍNEA
+                        Text(
+                          _formatearUltimaConexion(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: _otroUsuarioEnLinea
+                                ? const Color(0xFF4ADE80)
+                                : Colors.white70,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -4780,7 +4962,7 @@ ListTile(
 
   @override
   Widget build(BuildContext context) {
-  print('>>> 🔥 BUILD: ${DateTime.now().millisecondsSinceEpoch}');
+
   final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -4793,23 +4975,18 @@ ListTile(
             color: Colors.grey.shade300,
           ),
 
+          // 🔥 BOTÓN DE EXPANDIR HEADER (siempre visible)
+          _buildBotonExpandirHeader(),
+
           // 🔥 PANEL DE ANÁLISIS O HEADER DE PRODUCTOS
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 400),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: (child, animation) {
-              return SizeTransition(
-                sizeFactor: animation,
-                child: FadeTransition(
-                  opacity: animation,
-                  child: child,
-                ),
-              );
-            },
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
             child: _panelAnalisisAbierto
                 ? _buildPanelAnalisis(key: const ValueKey('panel'))
-                : _buildProductoHeader(key: const ValueKey('header')),
+                : _headerExpandido
+                    ? _buildProductoHeader(key: const ValueKey('header'))
+                    : const SizedBox.shrink(key: ValueKey('vacio')),
           ),
           // 🔥 BOTONES DE CERRAR TRATO (ARRIBA DEL LISTVIEW)
           // 🔥 Solo se muestra si NO confirmé. Si ya confirmé, se muestra el cartel azul abajo.
@@ -5046,13 +5223,14 @@ ListTile(
   // 🔥 ACEPTACIÓN DE ENCUENTRO
   if (_esEncuentroAceptado(mensaje['texto'] ?? '')) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.asset(
           'assets/images/escudo/encuentro_aceptado.png',
           width: double.infinity,
-          fit: BoxFit.fitWidth,
+          height: 60,
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) => Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -5160,13 +5338,14 @@ ListTile(
 
     // El otro usuario sí ve el aviso
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.asset(
           'assets/images/escudo/seguir_conversando.png',
           width: double.infinity,
-          fit: BoxFit.fitWidth,
+          height: 50,
+          fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -5448,7 +5627,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
       // 🔥 NO se muestran si el modal azul de "¿Ya está todo listo?" está visible.
       if (_mostrarBotonesConfirmar && !_chatBloqueado && !_mostrarBotonesCerrarTrato)
         Builder(builder: (context) {
-          print('>>> 🔴🔴🔴 DIBUJANDO BOTONES: mostrar=$_mostrarBotonesConfirmar, decidioSeguir=$_usuarioDecidioSeguirConversando, esperando=$_esperandoRespuestaOtro, mostrarCerrar=$_mostrarBotonesCerrarTrato');
+
           return Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
@@ -5630,6 +5809,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
            (!_mostrarBotonesCerrarTrato || _usuarioConfirmoCerrarTrato) &&
            !_esperandoConfirmacionCerrarTrato) || _chatBloqueado)
       Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
            // 🔥 BOTÓN DE GRABACIÓN CON PRESIÓN LARGA Y DESLIZAR PARA CANCELAR
            // 🔥 BOTÓN DE GRABACIÓN CON ANIMACIÓN (CRECE AL GRABAR)
@@ -5718,31 +5898,33 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
               child: const Icon(Icons.image, color: Color(0xFF4B5563), size: 24),
             ),
           ),
-          // ✏️ Campo de texto en píldora (altura fija y baja)
+          // ✏️ Campo de texto que arranca en 1 línea y crece hasta 5 (como WhatsApp)
           Expanded(
             child: Container(
-              height: 40,                          // 🔥 fuerza la altura del recuadro
+              constraints: const BoxConstraints(
+                minHeight: 40,
+                maxHeight: 120,
+              ),
               decoration: BoxDecoration(
                 color: const Color(0xFFF7F9FC),
                 borderRadius: BorderRadius.circular(26),
                 border: Border.all(color: const Color(0xFFE3EAF5)),
               ),
-              child: Center(
-                child: TextField(
-                  controller: _controller,
-                  maxLines: 1,                     // 🔥 una sola línea
-                  minLines: 1,
-                  textAlignVertical: TextAlignVertical.center,
-                  style: const TextStyle(fontSize: 15),
-                  decoration: const InputDecoration(
-                    hintText: 'Escribe un mensaje...',
-                    hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
-                    border: InputBorder.none,
-                    isCollapsed: true,             // 🔥 quita TODO el padding interno extra
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  onSubmitted: (_) {},
+              child: TextField(
+                controller: _controller,
+                minLines: 1,
+                maxLines: 5,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                style: const TextStyle(fontSize: 15, height: 1.2),
+                decoration: const InputDecoration(
+                  hintText: 'Escribe un mensaje...',
+                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
+                onSubmitted: (_) {},
               ),
             ),
           ),

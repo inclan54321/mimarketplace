@@ -446,7 +446,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                           vendedorId: _producto.vendedorId ?? '',
                           vendedorNombre:
                               _producto.vendedorNombre ?? 'Mi Portafolio',
-                          vendedorFoto: _producto.vendedorFoto,
+                          vendedorFoto: _fotoVendedorLocal,
                         ),
                       ),
                     );
@@ -576,7 +576,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                             vendedorId: _producto.vendedorId ?? '',
                             vendedorNombre:
                                 _producto.vendedorNombre ?? 'Vendedor',
-                            vendedorFoto: _producto.vendedorFoto,
+                            vendedorFoto: _fotoVendedorLocal,
                           ),
                         ),
                       );
@@ -940,6 +940,8 @@ Future<void> _enviarDenuncia(String motivo) async {
     print('>>> imagenDestacada: ${_producto.imagenDestacada}');
     print('>>> imagenesReales: ${_producto.imagenesReales}');
     print('>>> vendedorFoto en Detalle: ${_producto.vendedorFoto}');
+    print('>>> _fotoVendedorLocal: $_fotoVendedorLocal');
+    print('>>> vendedorId en Detalle: ${_producto.vendedorId}');
 
     final baseUrl = 'https://mimarketplace-production.up.railway.app';
 

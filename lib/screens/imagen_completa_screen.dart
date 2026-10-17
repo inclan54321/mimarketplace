@@ -16,6 +16,14 @@ class ImagenCompletaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('>>> IMAGEN COMPLETA - build');
+    print('>>> producto?.id: ${producto?.id}');
+    print('>>> producto?.vendedorId: ${producto?.vendedorId}');
+    print('>>> producto?.vendedorNombre: ${producto?.vendedorNombre}');
+    print('>>> producto?.vendedorFoto: ${producto?.vendedorFoto}');
+    print('>>> imagenUrl: $imagenUrl');
+    print('>>> nombreProducto: $nombreProducto');
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(

@@ -246,6 +246,12 @@ wss.on('connection', (ws, req) => {
         console.log(`>>> 🟢 Usuario ${usuarioId} EN LÍNEA (total: ${usuariosEnLinea.size})`);
         broadcastPresencia(usuarioId, true);
 
+        // 🔥 GUARDAR ÚLTIMA CONEXIÓN EN BD
+        pool.query(
+            'UPDATE usuarios SET ultima_conexion = NOW() WHERE uid = $1',
+            [usuarioId]
+        ).catch(e => console.log('>>> Error guardando ultima_conexion:', e.message));
+
         if (!salas.has(ws.conversacionId)) {
             salas.set(ws.conversacionId, new Set());
         }
@@ -291,6 +297,12 @@ wss.on('connection', (ws, req) => {
                 usuariosEnLinea.delete(ws.usuarioId);
                 console.log(`>>> 🔴 Usuario ${ws.usuarioId} OFFLINE (total: ${usuariosEnLinea.size})`);
                 broadcastPresencia(ws.usuarioId, false);
+
+                // 🔥 GUARDAR ÚLTIMA CONEXIÓN EN BD
+                pool.query(
+                    'UPDATE usuarios SET ultima_conexion = NOW() WHERE uid = $1',
+                    [ws.usuarioId]
+                ).catch(e => console.log('>>> Error guardando ultima_conexion:', e.message));
             }
         });
 
@@ -3892,7 +3904,24 @@ app.get('/api/usuarios/:uid/en-linea', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
+// 🔥 CONSULTAR ÚLTIMA CONEXIÓN DE UN USUARIO
+app.get('/api/usuarios/:uid/ultima-conexion', async (req, res) => {
+    try {
+        const { uid } = req.params;
+        const result = await pool.query(
+            'SELECT ultima_conexion FROM usuarios WHERE uid = $1',
+            [uid]
+        );
+        if (result.rows.length === 0) {
+            return res.json({ ultima_conexion: null });
+        }
+        res.json({
+            ultima_conexion: result.rows[0].ultima_conexion,
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 app.get('/api/usuarios/:uid', async (req, res) => {
     try {
         const { uid } = req.params;

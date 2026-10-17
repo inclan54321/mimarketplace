@@ -651,7 +651,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
 
                   // 🔥 BOTÓN DE INFORMACIÓN CON ARO LUMINOSO
                   Positioned(
-                    top: 27,
+                    top: 30,
                     child: GestureDetector(
                     onTap: widget.onInfoTap,
                     child: AnimatedContainer(
