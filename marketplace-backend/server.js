@@ -4076,10 +4076,22 @@ app.get('/api/productos/caducados/:usuario_id', async (req, res) => {
 // ============================================================
 // 🔥 RENOVAR PRODUCTO CADUCADO (CON ANUNCIO)
 // ============================================================
-app.post('/api/productos/renovar/:id', async (req, res) => {
+app.post('/api/productos/renovar/:id', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { usuario_id } = req.body;
+
+        console.log('>>> 🔄 Renovar producto. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 🔄 Usuario del body:', usuario_id);
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en renovar producto');
+            return res.status(403).json({
+                error: 'No autorizado para renovar este producto',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         const checkQuery = 'SELECT * FROM productos_app WHERE id = $1 AND vendedor_id = $2';
         const checkResult = await pool.query(checkQuery, [id, usuario_id]);

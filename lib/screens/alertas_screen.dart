@@ -81,9 +81,13 @@ class _AlertasScreenState extends State<AlertasScreen> {
     RewardedAdManager.showRewardedAd(
       onRewarded: () async {
         try {
+          final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
           final response = await http.post(
             Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/renovar/$productoId'),
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (idToken != null) 'Authorization': 'Bearer $idToken',
+            },
             body: jsonEncode({'usuario_id': user.uid}),
           );
 
