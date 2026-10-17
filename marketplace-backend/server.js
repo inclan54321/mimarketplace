@@ -1109,13 +1109,36 @@ app.get('/api/productos/vendedor/:vendedor_id', async (req, res) => {
     }
 });
 
-app.post('/api/productos', upload.fields([
+app.post('/api/productos', verificarTokenFirebase, upload.fields([
   { name: 'imagen_destacada', maxCount: 1 },
   { name: 'imagen_normal', maxCount: 1 },
   { name: 'imagenes_reales[]', maxCount: 5 }
 ]), async (req, res) => {
     try {
         const { nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion } = req.body;
+        
+        console.log('>>> 📦 Crear producto. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 📦 Vendedor del body:', vendedor_id);
+
+        // 🔥 Verificar que el vendedor_id del body coincida con el del token
+        if (vendedor_id !== req.usuarioAutenticado) {
+            if (req.files) {
+                const todosLosArchivos = [];
+                if (req.files['imagen_destacada']) todosLosArchivos.push(...req.files['imagen_destacada']);
+                if (req.files['imagen_normal']) todosLosArchivos.push(...req.files['imagen_normal']);
+                if (req.files['imagenes_reales[]']) todosLosArchivos.push(...req.files['imagenes_reales[]']);
+                for (const f of todosLosArchivos) {
+                    try { fs.unlinkSync(f.path); } catch (_) {}
+                }
+            }
+            console.log('>>> ❌ UID no coincide, rechazando publicación');
+            return res.status(403).json({
+                error: 'No autorizado para publicar a nombre de este usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        console.log('>>> ✅ UID coincide, procediendo a publicar');
         
         // Obtener URLs de las imágenes
         const imagen_destacada_url = req.files['imagen_destacada'] ? `/uploads/${req.files['imagen_destacada'][0].filename}` : '';

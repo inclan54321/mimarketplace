@@ -212,6 +212,13 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
             'https://mimarketplace-production.up.railway.app/api/productos'),
       );
 
+      // 🔥 Mandar el token de Firebase
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken != null) {
+        request.headers['Authorization'] = 'Bearer $idToken';
+      }
+      print('>>> 📦 Publicar producto. Token: ${idToken != null ? "SÍ" : "NO"}');
+
       request.fields['nombre'] = _nombreController.text;
       request.fields['precio'] = _precioController.text;
       request.fields['descripcion'] = _descripcionController.text;
@@ -241,6 +248,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
       final response = await request.send();
       Navigator.pop(context);
+      print('>>> 📦 Respuesta publicar: ${response.statusCode}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseBody = await response.stream.bytesToString();
@@ -256,7 +264,9 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         );
         Navigator.popUntil(context, (route) => route.isFirst);
       } else {
-        throw Exception('Error al publicar');
+        final errBody = await response.stream.bytesToString();
+        print('>>> ❌ Error body: $errBody');
+        throw Exception('Error al publicar (${response.statusCode})');
       }
     } catch (e) {
       Navigator.pop(context);
