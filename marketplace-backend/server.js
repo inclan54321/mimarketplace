@@ -5173,13 +5173,25 @@ app.post('/api/encuentro/confirmar', async (req, res) => {
 // ============================================================
 
 // POST - Marcar que un usuario quiere seguir conversando
-app.post('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
+app.post('/api/conversaciones/:id/seguir-conversando', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { usuario_id } = req.body;
 
         if (!usuario_id) {
             return res.status(400).json({ error: 'usuario_id requerido' });
+        }
+
+        console.log('>>> 🔄 Seguir conversando. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 🔄 Usuario del body:', usuario_id);
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en seguir-conversando');
+            return res.status(403).json({
+                error: 'No autorizado para seguir conversando con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // 🔥 Quien decide seguir apaga el cierre de trato pendiente.

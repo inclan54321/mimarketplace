@@ -5989,9 +5989,13 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                       );
 
                       // 🔥 PASO 2: CONSULTAR ENDPOINT (por si el backend necesita marcar algo)
+                      final idTokenSeguir = await FirebaseAuth.instance.currentUser?.getIdToken();
                       await http.post(
                         Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                          'Content-Type': 'application/json',
+                          if (idTokenSeguir != null) 'Authorization': 'Bearer $idTokenSeguir',
+                        },
                         body: jsonEncode({'usuario_id': user.uid}),
                       );
 
