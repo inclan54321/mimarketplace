@@ -145,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://mimarketplace-production.up.railway.app/api/perfil/foto'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/registro/foto'),
       );
       request.fields['uid'] = uid;
       request.files.add(

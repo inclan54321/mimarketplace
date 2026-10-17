@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import '../widgets/boton_grabacion.dart';
 import '../services/chat_websocket_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -110,6 +111,7 @@ class _ChatScreenState extends State<ChatScreen>
   final Map<String, Map<String, dynamic>> _cachePropuestas = {};
   bool _escudoCargado = false; // 🔥 NUEVO
   bool _interfazEncuentroMostrada = false; // 🔥 NUEVO: para no mostrar dos veces
+  bool _ultimoQuiereEncuentroProcesado = false; // 🔥 Para no disparar con análisis viejo
   bool _propuestaEncuentroPendiente = false; // 🔥 NUEVO
   bool _chatBloqueado = false; // 🔥 NUEVO
   bool _mostrarBotonesConfirmar = false; // 🔥 NUEVO
@@ -502,7 +504,17 @@ class _ChatScreenState extends State<ChatScreen>
       usuarioId: user.uid,
       onNuevoMensaje: (data) {
         print('>>> 📩 WS nuevo mensaje');
-        if (mounted) _cargarMensajes(_conversacionIdActual);
+        if (mounted) {
+          _cargarMensajes(_conversacionIdActual, esMensajeNuevo: true);
+
+          // 🔥 Reintentar el análisis a los 5s (DeepSeek tarda)
+          Timer(const Duration(seconds: 5), () {
+            if (mounted) {
+              final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+              _analizarMensajeConIA('', uid, esMensajeNuevo: true);
+            }
+          });
+        }
       },
       onEstadoCambio: (data) {
         print('>>> 🔄 WS cambio de estado: ${data['estado']}');
@@ -859,7 +871,10 @@ void dispose() {
     }
   }
 
-  Future<void> _cargarMensajes(String conversacionId) async {
+  Future<void> _cargarMensajes(
+    String conversacionId, {
+    bool esMensajeNuevo = false,
+  }) async {
   if (conversacionId.isEmpty) {
     setState(() => _isLoading = false);
     return;
@@ -993,7 +1008,7 @@ void dispose() {
       // 🔥 Esto ahorra 5 requests cada 3 segundos cuando el chat está quieto.
       if (!hayCambios && _estadoCargado) {
         // 🔥 El análisis de la IA llega después del mensaje: seguir consultándolo
-        await _analizarMensajeConIA('', user.uid);
+        await _analizarMensajeConIA('', user.uid, esMensajeNuevo: esMensajeNuevo);
         return;
       }
 
@@ -1089,7 +1104,7 @@ void dispose() {
 
       // 🔥 CONSULTAR EL ANÁLISIS AL FINAL, cuando ya se actualizaron
       // 🔥 todos los estados (cerrar-trato y seguir-conversando).
-      await _analizarMensajeConIA('', user.uid);
+      await _analizarMensajeConIA('', user.uid, esMensajeNuevo: esMensajeNuevo);
 
       // 🔥 AHORA SÍ: verificar los botones de confirmar.
       await _verificarBotonConfirmar(user.uid);
@@ -1580,6 +1595,13 @@ Future<void> _obtenerFotoVendedorReal() async {
       if (response.statusCode == 201) {
         // 🔥 Sin await: no bloquea la UI mientras se sincroniza
         _cargarMensajes(_conversacionIdActual);
+
+        // 🔥 Reintentar el análisis a los 5s (DeepSeek tarda en analizar)
+        Timer(const Duration(seconds: 5), () {
+          if (mounted) {
+            _analizarMensajeConIA('', user?.uid ?? '', esMensajeNuevo: true);
+          }
+        });
       } else if (mounted) {
         // 🔥 Falló: quitar el mensaje temporal y devolver el texto
         setState(() => _mensajes.removeWhere((m) => m['id'] == tmpId));
@@ -1594,7 +1616,11 @@ Future<void> _obtenerFotoVendedorReal() async {
   }
 
   // 🔥 CONSULTAR EL ANÁLISIS GUARDADO EN EL BACKEND
-  Future<void> _analizarMensajeConIA(String mensaje, String usuarioId) async {
+  Future<void> _analizarMensajeConIA(
+    String mensaje,
+    String usuarioId, {
+    bool esMensajeNuevo = false,
+  }) async {
     if (_conversacionIdActual.isEmpty) return;
 
     try {
@@ -1657,13 +1683,34 @@ Future<void> _obtenerFotoVendedorReal() async {
 
         // 🔥 SI LA IA DETECTA QUE QUIEREN UN ENCUENTRO Y EL ESCUDO ESTÁ ACTIVO
         // (FUERA del setState, porque abre un modal)
-        // 🔥 SOLO ABRIR SI NO ESTÁ ABIERTO YA (evita loop)
-        if (quiereEncuentro && _iaActiva && !_interfazEncuentroMostrada) {
+        // 🔥 SOLO ABRIR SI:
+        //   - El mensaje es NUEVO (no al abrir el chat)
+        //   - No está abierto ya
+        //   - No había ya una propuesta pendiente/aceptada
+        //   - El valor de quiere_encuentro CAMBIÓ de false a true
+        if (quiereEncuentro &&
+            esMensajeNuevo &&
+            _iaActiva &&
+            !_interfazEncuentroMostrada &&
+            !_ultimoQuiereEncuentroProcesado) {
+          // 🔥 Marcar la bandera ANTES del await para bloquear dobles disparos
+          // (Timer de 5s + WebSocket que llegan casi juntos).
+          _interfazEncuentroMostrada = true;
           final yaHayPropuesta = await _hayPropuestaEncuentroPendienteOAceptada();
           if (!yaHayPropuesta && mounted) {
-            _interfazEncuentroMostrada = true; // 🔥 MARCAR DESPUÉS DE CONFIRMAR
             _mostrarInterfazEncuentro();
+          } else {
+            // 🔥 Si no se abrió (ya hay propuesta o el widget se desmontó),
+            // liberar la bandera para permitir futuros disparos.
+            _interfazEncuentroMostrada = false;
           }
+        }
+        // 🔥 SOLO actualizar el último valor procesado si es un mensaje NUEVO.
+        // 🔥 Si es la carga inicial del chat (esMensajeNuevo: false), NO actualizar,
+        // 🔥 para que un análisis viejo con quiere_encuentro=true no bloquee
+        // 🔥 el formulario cuando llegue un mensaje nuevo real.
+        if (esMensajeNuevo) {
+          _ultimoQuiereEncuentroProcesado = quiereEncuentro;
         }
 
         // 🔥 Si había que proponer encuentro Y ADEMÁS cerrar trato,
@@ -3870,39 +3917,126 @@ ListTile(
                                     firstDate: DateTime.now(),
                                     lastDate: DateTime.now().add(const Duration(days: 90)),
                                   );
-                                  if (fecha != null) {
-                                    // 🔥 Pedir hora en un loop hasta que sea válida o cancele
-                                    while (true) {
-                                      final hora = await showTimePicker(
-                                        context: context,
-                                        initialTime: const TimeOfDay(hour: 10, minute: 0),
+                                  if (fecha == null) return;
+
+                                  // 🔥 SELECTOR CUSTOM: solo horas de 7:00 a 18:00 cada 30 min
+                                  final horaElegida = await showModalBottomSheet<TimeOfDay>(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.white,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                                    ),
+                                    builder: (ctx) {
+                                      // 🔥 Generar las opciones: 7:00, 7:30, ..., 18:00
+                                      final opciones = <TimeOfDay>[];
+                                      for (int h = 7; h <= 18; h++) {
+                                        opciones.add(TimeOfDay(hour: h, minute: 0));
+                                        if (h < 18) {
+                                          opciones.add(TimeOfDay(hour: h, minute: 30));
+                                        }
+                                      }
+                                      // Índice inicial: 10:00 AM (posición 6 dentro de la lista)
+                                      int indiceInicial = opciones.indexWhere(
+                                        (o) => o.hour == 10 && o.minute == 0,
                                       );
-                                      if (hora == null) break; // canceló
-                                      // 🔥 Validar rango 7:00 a 18:00
-                                      final minutosDelDia = hora.hour * 60 + hora.minute;
-                                      final minPermitido = 7 * 60;    // 7:00 AM
-                                      final maxPermitido = 18 * 60;   // 6:00 PM
-                                      if (minutosDelDia < minPermitido || minutosDelDia > maxPermitido) {
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('⚠️ Elegí una hora entre 7:00 AM y 6:00 PM'),
-                                              backgroundColor: Colors.orange,
-                                              duration: Duration(seconds: 2),
+                                      if (indiceInicial < 0) indiceInicial = 0;
+                                      int indiceActual = indiceInicial;
+
+                                      return StatefulBuilder(
+                                        builder: (ctx, setSheetState) {
+                                          return SafeArea(
+                                            top: false,
+                                            bottom: true,
+                                            child: Container(
+                                            height: 360,
+                                            padding: EdgeInsets.only(
+                                              top: 12,
+                                              bottom: MediaQuery.of(ctx).viewPadding.bottom + 8,
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                Container(
+                                                  width: 40,
+                                                  height: 4,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey.shade300,
+                                                    borderRadius: BorderRadius.circular(2),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                const Text(
+                                                  'Elegí una hora (7:00 AM – 6:00 PM)',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Expanded(
+                                                  child: CupertinoPicker(
+                                                    scrollController: FixedExtentScrollController(
+                                                      initialItem: indiceInicial,
+                                                    ),
+                                                    itemExtent: 44,
+                                                    onSelectedItemChanged: (index) {
+                                                      indiceActual = index;
+                                                    },
+                                                    children: opciones.map((o) {
+                                                      final hora12 = o.hourOfPeriod == 0 ? 12 : o.hourOfPeriod;
+                                                      final ampm = o.period == DayPeriod.am ? 'AM' : 'PM';
+                                                      return Center(
+                                                        child: Text(
+                                                          '${hora12.toString().padLeft(2, '0')}:${o.minute.toString().padLeft(2, '0')} $ampm',
+                                                          style: const TextStyle(fontSize: 20),
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                  ),
+                                                ),
+                                                Padding(
+                                                  padding: const EdgeInsets.all(16),
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: OutlinedButton(
+                                                          onPressed: () => Navigator.pop(ctx),
+                                                          child: const Text('Cancelar'),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Expanded(
+                                                        child: ElevatedButton(
+                                                          onPressed: () {
+                                                            Navigator.pop(ctx, opciones[indiceActual]);
+                                                          },
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor: Colors.blue,
+                                                            foregroundColor: Colors.white,
+                                                          ),
+                                                          child: const Text('Aceptar'),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                             ),
                                           );
-                                        }
-                                        continue; // volver a pedir la hora
-                                      }
-                                      setModalState(() {
-                                        fechaSeleccionada = DateTime(
-                                          fecha.year, fecha.month, fecha.day,
-                                          hora.hour, hora.minute,
-                                        );
-                                      });
-                                      break;
-                                    }
-                                  }
+                                        },
+                                      );
+                                    },
+                                  );
+
+                                  if (horaElegida == null) return;
+
+                                  setModalState(() {
+                                    fechaSeleccionada = DateTime(
+                                      fecha.year, fecha.month, fecha.day,
+                                      horaElegida.hour, horaElegida.minute,
+                                    );
+                                  });
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.all(16),

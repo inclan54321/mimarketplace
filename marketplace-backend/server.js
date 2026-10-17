@@ -1697,6 +1697,87 @@ app.get('/api/favoritos/:usuario_id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// ===== VERIFICAR SI LA FOTO DE PERFIL ES UN ROSTRO HUMANO CLARO =====
+async function verificarFotoPerfilConDeepSeek(imagenPath) {
+    try {
+        const fullPath = path.join(__dirname, imagenPath.replace(/^\//, ''));
+        if (!fs.existsSync(fullPath)) {
+            console.log('>>> ⚠️ Foto no encontrada:', fullPath);
+            return { esRostro: false, motivo: 'Archivo no encontrado' };
+        }
+
+        const imageBuffer = fs.readFileSync(fullPath);
+
+        let processedBuffer = imageBuffer;
+        const ext = path.extname(fullPath).toLowerCase();
+        if (ext === '.avif') {
+            processedBuffer = await sharp(imageBuffer).jpeg({ quality: 75 }).toBuffer();
+        }
+
+        const resizedBuffer = await sharp(processedBuffer)
+            .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+        const imageBase64 = resizedBuffer.toString('base64');
+
+        const prompt = `Analiza esta imagen de perfil de un marketplace.
+
+Determina si cumple con estos requisitos:
+1. Debe ser el ROSTRO de un SER HUMANO real.
+2. El rostro debe verse con CLARIDAD (buena iluminación, enfocado, reconocible).
+3. NO debe ser: un paisaje, un animal, un logo, un dibujo/anime, un objeto, una foto grupal donde no se distingue un rostro principal, ni una foto borrosa/oscura.
+
+RESPONDE ÚNICAMENTE CON ESTE JSON (sin texto adicional):
+{"esRostro": true/false, "motivo": "explicación breve si es false"}`;
+
+        const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+        const response = await axios.post(
+            'https://api.deepseek.com/v1/chat/completions',
+            {
+                model: 'deepseek-v4-flash-vision-exp',
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: prompt },
+                            {
+                                type: 'image_url',
+                                image_url: { url: `data:image/jpeg;base64,${imageBase64}` }
+                            }
+                        ]
+                    }
+                ],
+                temperature: 0,
+                max_tokens: 150,
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 30000
+            }
+        );
+
+        const text = response.data.choices[0].message.content;
+        console.log('>>> 🤖 DeepSeek (foto perfil):', text);
+
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const resultado = JSON.parse(jsonMatch[0]);
+            return {
+                esRostro: resultado.esRostro === true,
+                motivo: resultado.motivo || ''
+            };
+        }
+        return { esRostro: false, motivo: 'No se pudo analizar la imagen' };
+    } catch (error) {
+        console.error('>>> ❌ Error verificando foto perfil:', error.message);
+        // En error, aprobar para no bloquear el registro
+        return { esRostro: true, motivo: '' };
+    }
+}
+
 // RUTA PARA SUBIR FOTO DE PERFIL
 app.post('/api/perfil/foto', upload.single('foto'), async (req, res) => {
     console.log('Body:', req.body);
@@ -1726,6 +1807,89 @@ app.post('/api/perfil/foto', upload.single('foto'), async (req, res) => {
         res.json({ fotoUrl, usuario: result.rows[0] });
     } catch (error) {
         console.error('Error al subir foto:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 🔥 RATE LIMIT SEMANAL POR IP — SOLO PARA REGISTRO
+// 3 fotos por semana por IP. La ventana se reinicia 7 días después de la primera.
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;  // 7 días
+const RATE_LIMIT_MAX_REQUESTS = 3;                     // 3 fotos por semana
+
+function rateLimitRegistro(req, res, next) {
+    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+        || req.socket.remoteAddress
+        || 'desconocida';
+    const ahora = Date.now();
+    let entrada = rateLimitMap.get(ip);
+
+    if (!entrada || ahora > entrada.reset) {
+        entrada = { count: 0, reset: ahora + RATE_LIMIT_WINDOW_MS };
+        rateLimitMap.set(ip, entrada);
+    }
+
+    entrada.count++;
+
+    if (entrada.count > RATE_LIMIT_MAX_REQUESTS) {
+        const diasRestantes = Math.ceil((entrada.reset - ahora) / (24 * 60 * 60 * 1000));
+        console.log(`>>> 🚫 Rate limit semanal excedido para IP ${ip} (${entrada.count} intentos, quedan ${diasRestantes} días)`);
+        return res.status(429).json({
+            error: `Llegaste al límite de ${RATE_LIMIT_MAX_REQUESTS} fotos por semana. Probá de nuevo en ${diasRestantes} día${diasRestantes === 1 ? '' : 's'}.`,
+            codigo: 'RATE_LIMIT_SEMANAL',
+            dias_restantes: diasRestantes
+        });
+    }
+    next();
+}
+
+setInterval(() => {
+    const ahora = Date.now();
+    for (const [ip, entrada] of rateLimitMap.entries()) {
+        if (ahora > entrada.reset) rateLimitMap.delete(ip);
+    }
+}, 24 * 60 * 60 * 1000);
+
+// 🔥 RUTA DE SUBIDA DE FOTO SOLO PARA REGISTRO (con rate limit semanal + verificación IA)
+app.post('/api/registro/foto', rateLimitRegistro, upload.single('foto'), async (req, res) => {
+    console.log('>>> 📸 /api/registro/foto — Body:', req.body);
+    console.log('>>> 📸 File:', req.file);
+
+    try {
+        const { uid } = req.body;
+        const fotoUrl = req.file ? `/uploads/${req.file.filename}` : '';
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subió foto' });
+        }
+
+        const userCheck = await pool.query('SELECT * FROM usuarios WHERE uid = $1', [uid]);
+        if (userCheck.rows.length === 0) {
+            try { fs.unlinkSync(req.file.path); } catch (_) {}
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        // Verificar con DeepSeek
+        const verificacion = await verificarFotoPerfilConDeepSeek(fotoUrl);
+        console.log('>>> 🔍 Verificación foto registro:', verificacion);
+
+        if (!verificacion.esRostro) {
+            try { fs.unlinkSync(req.file.path); } catch (_) {}
+            return res.status(400).json({
+                error: 'La foto no es válida',
+                motivo: verificacion.motivo || 'Debe ser una foto clara de tu rostro',
+                codigo: 'FOTO_NO_VALIDA'
+            });
+        }
+
+        const result = await pool.query(
+            'UPDATE usuarios SET foto_perfil = $1 WHERE uid = $2 RETURNING *',
+            [fotoUrl, uid]
+        );
+
+        res.json({ fotoUrl, usuario: result.rows[0] });
+    } catch (error) {
+        console.error('Error al subir foto de registro:', error);
         res.status(500).json({ error: error.message });
     }
 });
