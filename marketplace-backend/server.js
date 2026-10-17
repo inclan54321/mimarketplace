@@ -16,6 +16,7 @@ const fs = require('fs');
 // ============================================================
 const admin = require('firebase-admin');
 const { cert } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 
 try {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -1837,7 +1838,7 @@ async function verificarTokenFirebase(req, res, next) {
         if (!token) {
             return res.status(401).json({ error: 'Token requerido' });
         }
-        const decoded = await admin.auth().verifyIdToken(token);
+        const decoded = await getAuth().verifyIdToken(token);
         req.usuarioAutenticado = decoded.uid;
         next();
     } catch (e) {
