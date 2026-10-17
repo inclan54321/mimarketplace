@@ -540,13 +540,22 @@ Future<void> _cargarMasVistos() async {
       }
 
       print('>>> ID DEL PRODUCTO A ELIMINAR: ${producto.id}');
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      print('>>> 🗑️ Eliminar producto. Token: ${idToken != null ? "SÍ" : "NO"}');
       final response = await http.delete(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/${producto.id}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'vendedor_id': user.uid,
         }),
       );
+      print('>>> 🗑️ Respuesta: ${response.statusCode}');
+      if (response.statusCode != 200) {
+        print('>>> ❌ Error body: ${response.body}');
+      }
 
       if (response.statusCode == 200) {
         // ✅ INVALIDAR CACHÉ AL ELIMINAR

@@ -2652,13 +2652,27 @@ app.post('/api/calificaciones/from-chat', async (req, res) => {
 });
 
 // ===== ELIMINAR PRODUCTO =====
-app.delete('/api/productos/:id', async (req, res) => {
+app.delete('/api/productos/:id', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { vendedor_id } = req.body;
         
         console.log('>>> ELIMINAR PRODUCTO ID:', id);
         console.log('>>> VENDEDOR_ID:', vendedor_id);
+
+        console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
+        console.log('>>> 🔐 Vendedor del body:', vendedor_id);
+
+        // 🔥 Verificar que el vendedor_id del body coincida con el del token
+        if (vendedor_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide, rechazando');
+            return res.status(403).json({
+                error: 'No autorizado para eliminar este producto',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        console.log('>>> ✅ Token válido y UID coincide, procediendo a eliminar');
 
         const checkResult = await pool.query(
             'SELECT * FROM productos_app WHERE id = $1 AND vendedor_id = $2',
