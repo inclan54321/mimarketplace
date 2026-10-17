@@ -5293,9 +5293,13 @@ ListTile(
                             if (user == null) return;
 
                             try {
+                              final idTokenCerrar2 = await FirebaseAuth.instance.currentUser?.getIdToken();
                               final r = await http.post(
                                 Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
-                                headers: {'Content-Type': 'application/json'},
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  if (idTokenCerrar2 != null) 'Authorization': 'Bearer $idTokenCerrar2',
+                                },
                                 body: jsonEncode({'usuario_id': user.uid}),
                               );
 
@@ -5899,9 +5903,13 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                       );
 
                       // 🔥 2. Cerrar trato (inserta ||CERRAR_TRATO|| en la BD)
+                      final idTokenCerrar1 = await FirebaseAuth.instance.currentUser?.getIdToken();
                       final r = await http.post(
                         Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                          'Content-Type': 'application/json',
+                          if (idTokenCerrar1 != null) 'Authorization': 'Bearer $idTokenCerrar1',
+                        },
                         body: jsonEncode({'usuario_id': user.uid}),
                       );
 

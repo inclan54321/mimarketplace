@@ -5288,13 +5288,25 @@ app.get('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
 // ============================================================
 
 // POST - Marcar que un usuario confirma cerrar el trato
-app.post('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
+app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { usuario_id } = req.body;
 
         if (!usuario_id) {
             return res.status(400).json({ error: 'usuario_id requerido' });
+        }
+
+        console.log('>>> 🤝 Cerrar trato. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 🤝 Usuario del body:', usuario_id);
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en cerrar-trato');
+            return res.status(403).json({
+                error: 'No autorizado para cerrar trato con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // 🔥 VERIFICAR QUE NO EXISTA YA (para no duplicar)
