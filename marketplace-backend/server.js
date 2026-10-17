@@ -920,7 +920,7 @@ async function _verificarYPedirCalificacion(conversacionId) {
 app.get('/', (req, res) => {
     res.send('API funcionando correctamente');
 });
-app.get('/api/productos/buscar', async (req, res) => {
+app.get('/api/productos/buscar', rateLimitBuscar, async (req, res) => {
     console.log('>>> BUSCANDO:', req.query.q);
     try {
         const { q } = req.query;
@@ -1028,7 +1028,7 @@ app.post('/api/productos/:id/impulsar', verificarTokenFirebase, async (req, res)
   }
 });
 
-app.get('/api/productos/:id', async (req, res) => {
+app.get('/api/productos/:id', rateLimitProducto, async (req, res) => {
     try {
         const { id } = req.params;
         console.log('>>> ID RECIBIDO EN GET /api/productos/:id:', id);
@@ -1055,7 +1055,7 @@ app.get('/api/productos/:id', async (req, res) => {
     }
 });
 
-app.get('/api/productos/categoria/:categoria', async (req, res) => {
+app.get('/api/productos/categoria/:categoria', rateLimitCategoria, async (req, res) => {
     try {
         const { categoria } = req.params;
         const result = await pool.query(
@@ -1074,7 +1074,7 @@ app.get('/api/productos/categoria/:categoria', async (req, res) => {
     }
 });
 
-app.get('/api/productos', async (req, res) => {
+app.get('/api/productos', rateLimitProductos, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM productos_app 
@@ -1091,7 +1091,7 @@ app.get('/api/productos', async (req, res) => {
 });
 
 
-app.get('/api/productos/vendedor/:vendedor_id', async (req, res) => {
+app.get('/api/productos/vendedor/:vendedor_id', rateLimitVendedor, async (req, res) => {
     try {
         const { vendedor_id } = req.params;
         const result = await pool.query(
@@ -1923,6 +1923,56 @@ setInterval(() => {
         if (ahora > entrada.reset) rateLimitMap.delete(ip);
     }
 }, 24 * 60 * 60 * 1000);
+
+// ============================================================
+// 🔥 RATE LIMIT PARA RUTAS DE LECTURA (anti-scraping)
+// ============================================================
+// Map: `${ip}|${nombre}` → { count, reset }
+const rateLimitLecturaMap = new Map();
+
+function crearRateLimitLectura(nombre, maxRequests, ventanaMs = 60 * 1000) {
+    return function rateLimitLectura(req, res, next) {
+        const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+            || req.socket.remoteAddress
+            || 'desconocida';
+        const key = `${ip}|${nombre}`;
+        const ahora = Date.now();
+        let entrada = rateLimitLecturaMap.get(key);
+
+        if (!entrada || ahora > entrada.reset) {
+            entrada = { count: 0, reset: ahora + ventanaMs };
+            rateLimitLecturaMap.set(key, entrada);
+        }
+
+        entrada.count++;
+
+        if (entrada.count > maxRequests) {
+            const segRestantes = Math.ceil((entrada.reset - ahora) / 1000);
+            console.log(`>>> 🚫 Rate limit lectura '${nombre}' excedido para IP ${ip} (${entrada.count} en la ventana, esperar ${segRestantes}s)`);
+            return res.status(429).json({
+                error: 'Demasiadas solicitudes. Esperá un momento.',
+                codigo: 'RATE_LIMIT_LECTURA',
+                segundos_restantes: segRestantes
+            });
+        }
+        next();
+    };
+}
+
+// Instancias con distintos límites
+const rateLimitProductos = crearRateLimitLectura('productos', 60);
+const rateLimitProducto = crearRateLimitLectura('producto', 60);
+const rateLimitVendedor = crearRateLimitLectura('vendedor', 30);
+const rateLimitBuscar = crearRateLimitLectura('buscar', 20);
+const rateLimitCategoria = crearRateLimitLectura('categoria', 60);
+
+// Limpiar el mapa cada 10 minutos
+setInterval(() => {
+    const ahora = Date.now();
+    for (const [key, entrada] of rateLimitLecturaMap.entries()) {
+        if (ahora > entrada.reset) rateLimitLecturaMap.delete(key);
+    }
+}, 10 * 60 * 1000);
 
 // 🔥 RUTA DE SUBIDA DE FOTO SOLO PARA REGISTRO (con rate limit semanal + token + verificación IA)
 app.post('/api/registro/foto',
