@@ -1842,7 +1842,12 @@ async function verificarTokenFirebase(req, res, next) {
         next();
     } catch (e) {
         console.log('>>> ❌ Token inválido:', e.message);
-        return res.status(401).json({ error: 'Token inválido o expirado' });
+        console.log('>>> ❌ Token inválido (code):', e.code);
+        console.log('>>> ❌ Token inválido (stack):', e.stack);
+        return res.status(401).json({
+            error: 'Token inválido o expirado',
+            detalle: e.message,
+        });
     }
 }
 
