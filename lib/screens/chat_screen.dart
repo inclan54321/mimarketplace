@@ -1291,9 +1291,13 @@ void dispose() {
     if (user == null) return;
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones/from-chat'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'conversacion_id': _conversacionIdActual,
           'calificador_id': user.uid,
@@ -3520,9 +3524,13 @@ ListTile(
     print('>>> comentario: $comentario');
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'calificado_id': widget.otroUsuarioId,
           'calificador_id': user.uid,

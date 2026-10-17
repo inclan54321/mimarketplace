@@ -55,9 +55,14 @@ class _CalificacionWidgetState extends State<CalificacionWidget> {
         return;
       }
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      print('>>> ⭐ Calificar. Token: ${idToken != null ? "SÍ" : "NO"}');
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/calificaciones'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'calificado_id': widget.vendedorId,
           'calificador_id': user.uid,

@@ -2595,12 +2595,24 @@ app.get('/api/calificaciones/resumen/:usuario_id', async (req, res) => {
 
 
 // ===== CALIFICAR DESDE EL CHAT =====
-app.post('/api/calificaciones/from-chat', async (req, res) => {
+app.post('/api/calificaciones/from-chat', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id, calificador_id, calificado_id, puntuacion, comentario } = req.body;
 
         if (!conversacion_id || !calificador_id || !calificado_id || !puntuacion) {
             return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        console.log('>>> 🔐 Calificar desde chat. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 🔐 Calificador del body:', calificador_id);
+
+        // 🔥 Verificar que el calificador_id del body coincida con el del token
+        if (calificador_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide, rechazando calificación');
+            return res.status(403).json({
+                error: 'No autorizado para calificar con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // 1. VERIFICAR QUE LA CONVERSACIÓN EXISTA
@@ -4246,16 +4258,26 @@ app.put('/api/usuarios/:uid', async (req, res) => {
 // ============================================================
 // 🔥 GUARDAR CALIFICACIÓN CON COMENTARIO
 // ============================================================
-app.post('/api/calificaciones', async (req, res) => {
+app.post('/api/calificaciones', verificarTokenFirebase, async (req, res) => {
     try {
         const { calificado_id, calificador_id, producto_id, puntuacion, comentario } = req.body;
         
         console.log('>>> 🔥 ====== GUARDANDO CALIFICACIÓN ======');
         console.log('>>> calificado_id (vendedor):', calificado_id);
         console.log('>>> calificador_id (comprador):', calificador_id);
+        console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
         console.log('>>> producto_id:', producto_id);
         console.log('>>> puntuacion:', puntuacion);
         console.log('>>> comentario:', comentario);
+
+        // 🔥 Verificar que el calificador_id del body coincida con el del token
+        if (calificador_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide, rechazando calificación');
+            return res.status(403).json({
+                error: 'No autorizado para calificar con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         // 🔥 BUSCAR LA CONVERSACIÓN MÁS RECIENTE
         const convResult = await pool.query(
