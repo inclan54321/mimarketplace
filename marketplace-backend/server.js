@@ -3202,14 +3202,26 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO (sin texto adicional):
     }
 }
 // ===== EDITAR PRODUCTO (CON IMAGEN) =====
-app.put('/api/productos/:id', upload.single('imagen'), async (req, res) => {
+app.put('/api/productos/:id', verificarTokenFirebase, upload.single('imagen'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre, descripcion, precio, categoria, subcategoria, direccion } = req.body;
+        const { nombre, descripcion, precio, categoria, subcategoria, direccion, vendedor_id } = req.body;
         
         console.log('>>> EDITANDO PRODUCTO ID:', id);
         console.log('>>> NOMBRE:', nombre);
         console.log('>>> IMAGEN RECIBIDA:', req.file ? 'SÍ' : 'NO');
+        console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
+        console.log('>>> 🔐 Vendedor del body:', vendedor_id);
+        
+        // 🔥 Verificar que el vendedor_id del body coincida con el del token
+        if (vendedor_id !== req.usuarioAutenticado) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            console.log('>>> ❌ UID no coincide, rechazando');
+            return res.status(403).json({
+                error: 'No autorizado para editar este producto',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
         
         // 1. OBTENER EL PRODUCTO ACTUAL
         const productoActual = await pool.query(
@@ -3218,8 +3230,21 @@ app.put('/api/productos/:id', upload.single('imagen'), async (req, res) => {
         );
         
         if (productoActual.rows.length === 0) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
             return res.status(404).json({ error: 'Producto no encontrado' });
         }
+
+        // 🔥 Verificar que el producto pertenezca al usuario autenticado
+        if (productoActual.rows[0].vendedor_id !== req.usuarioAutenticado) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            console.log('>>> ❌ Intento de editar producto ajeno. Dueño:', productoActual.rows[0].vendedor_id, '| Atacante:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para editar este producto',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        console.log('>>> ✅ Producto pertenece al usuario, procediendo a editar');
         
         // 2. CONSTRUIR QUERY DINÁMICA
         let query = 'UPDATE productos_app SET ';

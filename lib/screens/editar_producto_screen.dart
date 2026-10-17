@@ -68,6 +68,13 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
         Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/${widget.producto.id}'),
       );
 
+      // 🔥 Mandar el token de Firebase
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken != null) {
+        request.headers['Authorization'] = 'Bearer $idToken';
+      }
+      print('>>> ✏️ Editar producto. Token: ${idToken != null ? "SÍ" : "NO"}');
+
       request.fields['nombre'] = _nombreController.text;
       request.fields['precio'] = _precioController.text;
       request.fields['descripcion'] = _descripcionController.text;
@@ -85,6 +92,7 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
 
       print('>>> Enviando actualización...');
       final response = await request.send();
+      print('>>> ✏️ Respuesta: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final responseBody = await response.stream.bytesToString();
@@ -99,7 +107,9 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
         );
         Navigator.pop(context, true);
       } else {
-        throw Exception('Error al actualizar producto');
+        final errBody = await response.stream.bytesToString();
+        print('>>> ❌ Error body: $errBody');
+        throw Exception('Error al actualizar producto (${response.statusCode})');
       }
     } catch (e) {
       print('>>> ❌ ERROR AL ACTUALIZAR: $e');
