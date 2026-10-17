@@ -17,6 +17,7 @@ import 'editar_perfil_screen.dart';
 import 'privacidad_screen.dart';
 import 'soporte_screen.dart';
 import 'impulsar_screen.dart';
+import '../widgets/rewarded_ad_prueba.dart'; // 🔥 NUEVO: para el video antes de cambiar foto
 
 // ============================================================
 // 🎨 ESTILOS VISUALES DEL PERFIL
@@ -55,6 +56,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 🎨 Estilo visual actual
   EstiloPerfil _estiloActual = EstiloPerfil.atardecer;
 
+  // 🔥 NUEVO: si ya vio el video para cambiar foto
+  bool _videoFotoVisto = false;
+
   static void agregarFavorito(Producto producto) {
     favoritos.add(producto);
   }
@@ -66,6 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
  @override
 void initState() {
   super.initState();
+  _leerEstadoVideoFoto(); // 🔥 NUEVO
   _cargarEstiloGuardado();
   _cargarFotoPerfil();
   _cargarMisProductos();
@@ -157,6 +162,134 @@ Future<void> _cargarMasVistos() async {
   }
 }
 
+  // 🔥 NUEVO: por ahora no persistimos, siempre arranca en false
+  Future<void> _leerEstadoVideoFoto() async {
+    if (mounted) {
+      setState(() => _videoFotoVisto = false);
+    }
+  }
+
+  // 🔥 NUEVO: aviso antes de cambiar la foto
+  void _mostrarAvisoCambioFoto() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.photo_camera, color: Colors.blue),
+            SizedBox(width: 8),
+            Expanded(child: Text('Antes de cambiar tu foto')),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Requisitos de la foto de perfil:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 18),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Solo puede aparecer tu cara.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 18),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'La foto debe verse de manera clara (buena luz, sin filtros).',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Para poder cambiarla, primero tenés que ver un video corto.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.orange,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _verVideoParaCambiarFoto();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('Ver video'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 NUEVO: ver el video y habilitar el cambio
+  void _verVideoParaCambiarFoto() {
+    if (!RewardedAdManager.isAdLoaded) {
+      RewardedAdManager.loadRewardedAd();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⏳ Cargando video... esperá un momento'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    RewardedAdManager.showRewardedAd(
+      onRewarded: () async {
+        // 🔥 Reclamó la recompensa: habilitar SOLO esta vez
+        // 🔥 NO abrir el selector acá. Mostrar mensaje y esperar que toque la cámara.
+        if (mounted) {
+          setState(() => _videoFotoVisto = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Ya podés cambiar tu foto. Tocá la cámara de nuevo.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      },
+      onDismissed: () {
+        // 🔥 Si NO reclamó la recompensa, avisar
+        if (!_videoFotoVisto) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '❌ Debés ver el video completo y reclamar la recompensa para poder cambiar tu foto',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
+  }
+
   Future<void> _seleccionarFotoPerfil() async {
     print('>>> Seleccionando foto de perfil');
     final picker = ImagePicker();
@@ -168,6 +301,8 @@ Future<void> _cargarMasVistos() async {
 );
     if (imagen == null) {
       print('>>> No se seleccionó imagen');
+      // 🔥 Canceló el selector: resetear para que la próxima vez vuelva a pedir video
+      if (mounted) setState(() => _videoFotoVisto = false);
       return;
     }
 
@@ -198,6 +333,8 @@ Future<void> _cargarMasVistos() async {
         setState(() {
           _fotoPerfilUrl = json['fotoUrl'];
           _isLoading = false;
+          // 🔥 Resetear: la próxima vez tiene que ver el video de nuevo
+          _videoFotoVisto = false;
         });
       } else {
         throw Exception('Error al subir foto: ${response.statusCode}');
@@ -1040,7 +1177,15 @@ Future<void> _precargarImagenPerfil() async {
                     bottom: 10,
                     right: 10,
                     child: GestureDetector(
-                      onTap: _seleccionarFotoPerfil,
+                      onTap: () {
+                        if (_videoFotoVisto) {
+                          // 🔥 Ya vio el video → puede cambiar directo
+                          _seleccionarFotoPerfil();
+                        } else {
+                          // 🔥 Nunca vio → mostrar aviso primero
+                          _mostrarAvisoCambioFoto();
+                        }
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(

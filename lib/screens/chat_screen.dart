@@ -1432,35 +1432,38 @@ void dispose() {
     }
   }
 
-  // 🔥 FORMATEAR TEXTO DE ÚLTIMA CONEXIÓN
+  // 🔥 FORMATEAR TEXTO DE ÚLTIMA CONEXIÓN (corto: sin "hace X min")
   String _formatearUltimaConexion() {
     if (_otroUsuarioEnLinea) return 'en línea';
-    if (_ultimaConexion == null) return 'última vez desconocida';
+    if (_ultimaConexion == null) return 'última vez';
 
     try {
       final fecha = DateTime.parse(_ultimaConexion!).toLocal();
       final ahora = DateTime.now();
       final diferencia = ahora.difference(fecha);
 
-      final hora = DateFormat('h:mm a').format(fecha);
-
-      if (diferencia.inMinutes < 1) {
-        return 'última vez hace un momento';
-      } else if (diferencia.inMinutes < 60) {
-        return 'última vez hace ${diferencia.inMinutes} min';
-      } else if (diferencia.inHours < 24 && ahora.day == fecha.day) {
-        return 'última vez hoy a las $hora';
+      if (diferencia.inHours < 24 && ahora.day == fecha.day) {
+        return 'última vez hoy';
       } else if (diferencia.inDays < 2) {
-        return 'última vez ayer a las $hora';
+        return 'última vez ayer';
       } else {
         final dia = DateFormat('dd/MM/yyyy').format(fecha);
-        return 'última vez el $dia a las $hora';
+        return 'última vez el $dia';
       }
     } catch (e) {
-      return 'última vez desconocida';
+      return 'última vez';
     }
   }
-
+  // 🔥 FORMATEAR SOLO LA HORA DE ÚLTIMA CONEXIÓN
+  String _formatearHoraConexion() {
+    if (_ultimaConexion == null) return '';
+    try {
+      final fecha = DateTime.parse(_ultimaConexion!).toLocal();
+      return DateFormat('h:mm a').format(fecha);
+    } catch (e) {
+      return '';
+    }
+  }
 Future<void> _obtenerFotoVendedorReal() async {
   try {
     print('>>> 1. ENTRE A _obtenerFotoVendedorReal()');
@@ -1705,7 +1708,7 @@ Future<void> _obtenerFotoVendedorReal() async {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: Colors.blue),
+              leading: const Icon(Icons.camera_alt, color: Colors.black),
               title: const Text('Cámara'),
               onTap: () {
                 Navigator.pop(context);
@@ -1715,7 +1718,7 @@ Future<void> _obtenerFotoVendedorReal() async {
             // 🔥 SOLO SI SOS EL VENDEDOR
             if (esVendedor)
               ListTile(
-                leading: const Icon(Icons.storefront, color: Colors.blue),
+                leading: const Icon(Icons.storefront, color: Colors.amber),
                 title: const Text('Compartir portafolio'),
                 onTap: () {
                   Navigator.pop(context);
@@ -3868,17 +3871,36 @@ ListTile(
                                     lastDate: DateTime.now().add(const Duration(days: 90)),
                                   );
                                   if (fecha != null) {
-                                    final hora = await showTimePicker(
-                                      context: context,
-                                      initialTime: const TimeOfDay(hour: 10, minute: 0),
-                                    );
-                                    if (hora != null) {
+                                    // 🔥 Pedir hora en un loop hasta que sea válida o cancele
+                                    while (true) {
+                                      final hora = await showTimePicker(
+                                        context: context,
+                                        initialTime: const TimeOfDay(hour: 10, minute: 0),
+                                      );
+                                      if (hora == null) break; // canceló
+                                      // 🔥 Validar rango 7:00 a 18:00
+                                      final minutosDelDia = hora.hour * 60 + hora.minute;
+                                      final minPermitido = 7 * 60;    // 7:00 AM
+                                      final maxPermitido = 18 * 60;   // 6:00 PM
+                                      if (minutosDelDia < minPermitido || minutosDelDia > maxPermitido) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('⚠️ Elegí una hora entre 7:00 AM y 6:00 PM'),
+                                              backgroundColor: Colors.orange,
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                        continue; // volver a pedir la hora
+                                      }
                                       setModalState(() {
                                         fechaSeleccionada = DateTime(
                                           fecha.year, fecha.month, fecha.day,
                                           hora.hour, hora.minute,
                                         );
                                       });
+                                      break;
                                     }
                                   }
                                 },
@@ -3967,7 +3989,11 @@ ListTile(
           );
         },
       ),
-    );
+    ).whenComplete(() {
+      // 🔥 Cuando se cierra el formulario (cancelar o enviar),
+      // permitir que la IA lo vuelva a abrir si detecta otro encuentro.
+      _interfazEncuentroMostrada = false;
+    });
   }
 
   // 🔥 RESUMEN DE PROPUESTAS (pantalla de confirmación)
@@ -4757,7 +4783,7 @@ ListTile(
     final fotoUrl = widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal;
 
     return PreferredSize(
-      preferredSize: Size.fromHeight(top + 92),
+      preferredSize: Size.fromHeight(top + 124),
       child: ClipPath(
         clipper: _OlaAppBarClipper(),
         child: Container(
@@ -4769,8 +4795,11 @@ ListTile(
             ),
           ),
           child: Padding(
-            padding: EdgeInsets.fromLTRB(12, top + 6, 12, 20),
-            child: Row(
+            padding: EdgeInsets.fromLTRB(12, top + 8, 12, 26),
+            child: SizedBox(
+              height: 78, // 🔥 altura fija de la fila: todos se centran en el mismo eje
+              child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 // ⬅️ Atrás
                 _botonCircularApp(
@@ -4856,7 +4885,9 @@ ListTile(
                 Expanded(
                   child: GestureDetector(
                     onTap: () => _mostrarOpcionesVendedor(context),
-                    child: Column(
+                    child: SizedBox(
+                      height: 72, // 🔥 altura fija: no cambia entre "en línea" y "última vez"
+                      child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -4891,22 +4922,44 @@ ListTile(
                                 color: Color(0xFF9AD0FF), size: 18),
                           ],
                         ),
-                        // 🔥 ÚLTIMA CONEXIÓN / EN LÍNEA
-                        Text(
-                          _formatearUltimaConexion(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: _otroUsuarioEnLinea
-                                ? const Color(0xFF4ADE80)
-                                : Colors.white70,
-                            fontSize: 11,
-                          ),
+                        // 🔥 ÚLTIMA CONEXIÓN / EN LÍNEA (siempre 1 línea, no cambia la altura)
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _otroUsuarioEnLinea
+                                    ? 'en línea'
+                                    : (_ultimaConexion == null
+                                        ? ''
+                                        : _formatearUltimaConexion()),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: _otroUsuarioEnLinea
+                                      ? const Color(0xFF4ADE80)
+                                      : Colors.white70,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                            if (!_otroUsuarioEnLinea && _ultimaConexion != null) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatearHoraConexion(),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
-                    ),
-                  ),
-                ),
+                    ), // cierra Column
+                    ), // cierra SizedBox (altura fija del texto)
+                  ),   // cierra GestureDetector
+                ),     // cierra Expanded
 
                 // 🛡️ Escudo
                 EscudoSeguridadWidget(
@@ -4914,6 +4967,17 @@ ListTile(
                   isActive: _iaActiva,
                   videoVistoInicial: _iaActiva,
                   emojiDesdeEstado: _conversationStatus,
+                  onCerrarTrato: () {
+                    // 🔥 Abrir el modal de cerrar trato (el mismo que usa la IA)
+                    setState(() {
+                      _mostrarBotonesCerrarTrato = true;
+                      _mostrarBotonesConfirmar = false;
+                    });
+                  },
+                  onProponerEncuentro: () {
+                    // 🔥 Abrir el formulario de proponer encuentro
+                    _mostrarInterfazEncuentro();
+                  },
                   onToggle: () {
                     if (_iaActiva) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -4953,11 +5017,12 @@ ListTile(
                   },
                 ),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
+            ),   // cierra Row
+            ),   // cierra SizedBox(height: 70)
+          ),     // cierra Padding
+        ),       // cierra Container
+      ),         // cierra ClipPath
+    );           // cierra PreferredSize
   }
 
   @override
@@ -6057,11 +6122,12 @@ class _OlaAppBarClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    path.lineTo(0, size.height - 14);
+    // 🔥 Ola más baja: recorta menos, deja más espacio abajo
+    path.lineTo(0, size.height - 6);
     path.quadraticBezierTo(
-        size.width * 0.25, size.height - 44, size.width * 0.5, size.height - 20);
+        size.width * 0.25, size.height - 26, size.width * 0.5, size.height - 10);
     path.quadraticBezierTo(
-        size.width * 0.78, size.height + 2, size.width, size.height - 26);
+        size.width * 0.78, size.height + 2, size.width, size.height - 14);
     path.lineTo(size.width, 0);
     path.close();
     return path;

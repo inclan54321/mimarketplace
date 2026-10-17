@@ -3533,8 +3533,7 @@ CRITERIOS:
 - "neutral": conversación muy corta, sin contexto de marketplace, o solo mensajes afectivos sin información relevante
 
 SOBRE "quiere_encuentro":
-- true: si ALGUNO de los dos usuarios está proponiendo o sugiriendo un encuentro presencial (ej: "¿nos vemos?", "¿dónde nos encontramos?", "¿a qué hora quedamos?", "¿te parece el sábado?", "¿en qué lugar?")
-- false: si NO hay ninguna sugerencia de encuentro presencial en la conversación
+- true SOLO si el usuario PIDE EXPLÍCITAMENTE verse en persona ("quiero un encuentro", "nos vemos", "juntémonos", "agendemos"). Un mensaje afectivo, sexual, un insulto o un saludo NO es un encuentro. Si dudás, false.
 
 SOBRE "acuerdo_cerrado":
 - true: si AMBOS usuarios ya llegaron a un acuerdo concreto sobre el encuentro. Ejemplos: "dale, nos vemos el sábado a las 3", "listo, quedamos en el parque", "perfecto, ahí nos vemos", "confirmado, mañana a las 10 en la entrada". O sea, ya se pusieron de acuerdo en fecha, hora o lugar, y ambos aceptaron.

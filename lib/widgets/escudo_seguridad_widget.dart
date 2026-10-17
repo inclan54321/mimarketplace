@@ -15,6 +15,8 @@ class EscudoSeguridadWidget extends StatefulWidget {
   final VoidCallback onToggle;
   final VoidCallback onAdCompleted;
   final VoidCallback onInfoTap;
+  final VoidCallback? onCerrarTrato;        // 🔥 NUEVO
+  final VoidCallback? onProponerEncuentro;  // 🔥 NUEVO
 
   const EscudoSeguridadWidget({
     this.emojiDesdeEstado, // 🔥 NUEVO
@@ -25,6 +27,8 @@ class EscudoSeguridadWidget extends StatefulWidget {
     required this.onToggle,
     required this.onAdCompleted,
     required this.onInfoTap,
+    this.onCerrarTrato,        // 🔥 NUEVO
+    this.onProponerEncuentro,  // 🔥 NUEVO
   });
 
   @override
@@ -616,6 +620,67 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     }
   }
 
+  // 🔥 ACCIONES CUANDO EL ESCUDO ESTÁ EN ON
+  void _mostrarAccionesEscudoOn() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Escudo activo',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.handshake, color: Colors.green, size: 28),
+              title: const Text('Cerrar trato', style: TextStyle(fontSize: 16)),
+              subtitle: const Text(
+                'Confirmar que el trato está cerrado',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                widget.onCerrarTrato?.call();
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.event, color: Colors.blue, size: 28),
+              title: const Text('Proponer encuentro', style: TextStyle(fontSize: 16)),
+              subtitle: const Text(
+                'Elegir lugar y fecha para verse',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                widget.onProponerEncuentro?.call();
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     Color colorCarita;
@@ -647,11 +712,14 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                 children: [
                   // 🔥 EFECTO SEGÚN EL EMOJI ACTUAL (solo si el Escudo está activo)
                   if (widget.isActive && _indiceEmojiSegunEstado != 3)
-                    _buildEfectoAura(colorCarita),
+                    Transform.translate(
+                      offset: const Offset(0, 3), // 🔥 baja el aura 1mm
+                      child: _buildEfectoAura(colorCarita),
+                    ),
 
                   // 🔥 BOTÓN DE INFORMACIÓN CON ARO LUMINOSO
                   Positioned(
-                    top: 30,
+                    top: 21,
                     child: GestureDetector(
                     onTap: widget.onInfoTap,
                     child: AnimatedContainer(
@@ -732,7 +800,8 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                 );
               }
             } else {
-              widget.onToggle();
+              // 🔥 ESCUDO EN ON: mostrar los dos botones
+              _mostrarAccionesEscudoOn();
             }
           },
           child: Container(
