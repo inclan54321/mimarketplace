@@ -4490,11 +4490,20 @@ app.post('/api/soporte/enviar', async (req, res) => {
 // ============================================================
 
 // ACTIVAR ESCUDO (mutuo y permanente)
-app.post('/api/escudo/activar', async (req, res) => {
+app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id, usuario_id, activo } = req.body;
         if (!conversacion_id || !usuario_id) {
             return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en escudo/activar');
+            return res.status(403).json({
+                error: 'No autorizado para activar el escudo con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // 🔥 El escudo solo se puede ACTIVAR, no desactivar.
@@ -4638,11 +4647,20 @@ app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
 });
 
 // 🔥 ACEPTAR EL ESCUDO (el otro usuario acepta la activación)
-app.post('/api/escudo/aceptar', async (req, res) => {
+app.post('/api/escudo/aceptar', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id, usuario_id } = req.body;
         if (!conversacion_id || !usuario_id) {
             return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en escudo/aceptar');
+            return res.status(403).json({
+                error: 'No autorizado para aceptar el escudo con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         await pool.query(
@@ -4668,11 +4686,20 @@ app.post('/api/escudo/aceptar', async (req, res) => {
 });
 
 // 🔥 MARCAR MODAL COMO VISTO (para no volver a mostrarlo)
-app.post('/api/escudo/modal-visto', async (req, res) => {
+app.post('/api/escudo/modal-visto', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id, usuario_id } = req.body;
         if (!conversacion_id || !usuario_id) {
             return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en escudo/modal-visto');
+            return res.status(403).json({
+                error: 'No autorizado para marcar el modal con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         await pool.query(
@@ -4691,11 +4718,20 @@ app.post('/api/escudo/modal-visto', async (req, res) => {
 });
 
 // 🔥 RECHAZAR EL ESCUDO (cierra el chat para ambos)
-app.post('/api/escudo/rechazar', async (req, res) => {
+app.post('/api/escudo/rechazar', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id, usuario_id } = req.body;
         if (!conversacion_id || !usuario_id) {
             return res.status(400).json({ error: 'conversacion_id y usuario_id requeridos' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en escudo/rechazar (intento de cerrar chat ajeno)');
+            return res.status(403).json({
+                error: 'No autorizado para rechazar el escudo con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // 1. Marcar rechazo Y modal visto (para no volver a mostrarlo)

@@ -206,10 +206,14 @@ class _ChatScreenState extends State<ChatScreen>
       // 2. GUARDAR EN BACKEND (persistente)
       // 🔥 El escudo solo se activa. Nunca se desactiva.
       if (activo == true) {
+        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
         final response = await http.post(
           Uri.parse(
               'https://mimarketplace-production.up.railway.app/api/escudo/activar'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            if (idToken != null) 'Authorization': 'Bearer $idToken',
+          },
           body: jsonEncode({
             'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
             'usuario_id': user.uid,
@@ -260,9 +264,13 @@ class _ChatScreenState extends State<ChatScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/escudo/modal-visto'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
           'usuario_id': user.uid,
@@ -283,9 +291,13 @@ class _ChatScreenState extends State<ChatScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final r = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/escudo/aceptar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
           'usuario_id': user.uid,
@@ -317,9 +329,13 @@ class _ChatScreenState extends State<ChatScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final r = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/escudo/rechazar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'conversacion_id': int.tryParse(_conversacionIdActual) ?? 0,
           'usuario_id': user.uid,
