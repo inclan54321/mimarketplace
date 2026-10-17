@@ -4244,11 +4244,23 @@ app.get('/api/usuarios/:uid', async (req, res) => {
 // ============================================================
 // 🔥 ACTUALIZAR DATOS DE UN USUARIO
 // ============================================================
-app.put('/api/usuarios/:uid', async (req, res) => {
+app.put('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
     try {
          const { uid } = req.params;
         const { nombre, telefono, acepta_recoleccion } = req.body;
         
+        console.log('>>> 👤 Actualizar usuario. UID de la URL:', uid);
+        console.log('>>> 👤 Usuario autenticado (token):', req.usuarioAutenticado);
+
+        // 🔥 Verificar que el uid de la URL coincida con el del token
+        if (uid !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en actualizar usuario');
+            return res.status(403).json({
+                error: 'No autorizado para modificar este perfil',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         // 🔥 CONSTRUIR QUERY DINÁMICA
         let query = 'UPDATE usuarios SET ';
         const params = [];

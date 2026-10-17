@@ -85,9 +85,14 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       await user.updateDisplayName(nombre);
 
       // 🔥 ACTUALIZAR EN EL BACKEND
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      print('>>> 👤 Editar perfil. Token: ${idToken != null ? "SÍ" : "NO"}');
       final response = await http.put(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'nombre': nombre,
           'telefono': telefono,
