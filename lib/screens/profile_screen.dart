@@ -1611,10 +1611,15 @@ Future<void> _precargarImagenPerfil() async {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) return;
 
+        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+        print('>>> 💰 Marcar vendido. Token: ${idToken != null ? "SÍ" : "NO"}');
         final response = await http.post(
           Uri.parse(
               'https://mimarketplace-production.up.railway.app/api/productos/${producto.id}/vendido'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            if (idToken != null) 'Authorization': 'Bearer $idToken',
+          },
           body: jsonEncode({'vendedor_id': user.uid}),
         );
 

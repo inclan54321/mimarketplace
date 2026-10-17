@@ -2722,13 +2722,25 @@ app.delete('/api/productos/:id', verificarTokenFirebase, async (req, res) => {
 });
 
 // ===== MARCAR PRODUCTO COMO VENDIDO =====
-app.post('/api/productos/:id/vendido', async (req, res) => {
+app.post('/api/productos/:id/vendido', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { vendedor_id } = req.body;
 
         if (!vendedor_id) {
             return res.status(400).json({ error: 'vendedor_id requerido' });
+        }
+
+        console.log('>>> 💰 Marcar vendido. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 💰 Vendedor del body:', vendedor_id);
+
+        // 🔥 Verificar que el vendedor_id del body coincida con el del token
+        if (vendedor_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en marcar vendido');
+            return res.status(403).json({
+                error: 'No autorizado para marcar este producto como vendido',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // 1. VERIFICAR QUE EL PRODUCTO PERTENEZCA AL VENDEDOR
