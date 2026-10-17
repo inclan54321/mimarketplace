@@ -3503,10 +3503,13 @@ async function analizarConversacionEnSegundoPlano(conversacionId, usuarioId) {
         const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
         const url = 'https://api.deepseek.com/v1/chat/completions';
 
+        const ultimoMensajeTexto = mensajes[mensajes.length - 1]?.texto || '';
         const prompt = `Analiza esta conversación de un marketplace en Costa Rica entre un comprador y un vendedor.
 
 CONVERSACIÓN:
 ${conversacionFormateada}
+
+ÚLTIMO MENSAJE (el más reciente): "${ultimoMensajeTexto}"
 
 INSTRUCCIONES:
 Determina el estado de la conversación según estas señales:
@@ -3533,7 +3536,8 @@ CRITERIOS:
 - "neutral": conversación muy corta, sin contexto de marketplace, o solo mensajes afectivos sin información relevante
 
 SOBRE "quiere_encuentro":
-- true SOLO si el usuario PIDE EXPLÍCITAMENTE verse en persona ("quiero un encuentro", "nos vemos", "juntémonos", "agendemos"). Un mensaje afectivo, sexual, un insulto o un saludo NO es un encuentro. Si dudás, false.
+- Mirá SOLO el "ÚLTIMO MENSAJE". Si ese mensaje NO pide explícitamente verse en persona ("quiero un encuentro", "nos vemos", "juntémonos", "agendemos"), devolvé false. Los mensajes anteriores NO cuentan para este campo.
+- Un mensaje afectivo, sexual, un insulto o un saludo NO es un encuentro. Si dudás, false.
 
 SOBRE "acuerdo_cerrado":
 - true: si AMBOS usuarios ya llegaron a un acuerdo concreto sobre el encuentro. Ejemplos: "dale, nos vemos el sábado a las 3", "listo, quedamos en el parque", "perfecto, ahí nos vemos", "confirmado, mañana a las 10 en la entrada". O sea, ya se pusieron de acuerdo en fecha, hora o lugar, y ambos aceptaron.
@@ -3565,11 +3569,11 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
             messages: [
                 { 
                     role: 'system', 
-                    content: 'Eres un asistente experto en detectar fraudes en conversaciones de marketplace. Analizas el contexto completo de la conversación. Responde SOLO con JSON.' 
+                    content: 'Eres un asistente experto en detectar fraudes en conversaciones de marketplace. Analizas el contexto completo de la conversación. Responde SOLO con JSON. IMPORTANTE: "quiere_encuentro" solo es true si el ÚLTIMO mensaje de la conversación pide explícitamente verse en persona. Mensajes afectivos, sexuales, insultos o saludos NO cuentan como encuentro. Si dudás, false.' 
                 },
                 { role: 'user', content: prompt }
             ],
-            temperature: 0.1,
+            temperature: 0,
             max_tokens: 200,
         }, {
             headers: {
