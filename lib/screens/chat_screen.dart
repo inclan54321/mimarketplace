@@ -1582,15 +1582,24 @@ Future<void> _obtenerFotoVendedorReal() async {
     });
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      print('>>> 📤 Enviando mensaje. Token: ${idToken != null ? "SÍ (${idToken.length} chars)" : "NO"}');
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'conversacion_id': int.parse(_conversacionIdActual),
           'usuario_id': user?.uid ?? '',
           'texto': mensaje,
         }),
       );
+      print('>>> 📤 Respuesta: ${response.statusCode}');
+      if (response.statusCode != 201) {
+        print('>>> ❌ Error body: ${response.body}');
+      }
 
       if (response.statusCode == 201) {
         // 🔥 Sin await: no bloquea la UI mientras se sincroniza
@@ -1784,10 +1793,14 @@ Future<void> _obtenerFotoVendedorReal() async {
     if (user == null || _conversacionIdActual.isEmpty) return;
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/mensajes'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'conversacion_id': int.parse(_conversacionIdActual),
           'usuario_id': user.uid,
@@ -1965,6 +1978,13 @@ Future<void> _obtenerFotoVendedorReal() async {
         'POST',
         Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
       );
+
+      // 🔥 Mandar el token de Firebase para autenticar la subida
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken != null) {
+        request.headers['Authorization'] = 'Bearer $idToken';
+      }
+
       request.fields['conversacion_id'] = _conversacionIdActual;
       request.fields['usuario_id'] = FirebaseAuth.instance.currentUser?.uid ?? '';
       request.fields['texto'] = '📷 Imagen';
@@ -2050,6 +2070,12 @@ Future<void> _enviarAudio(String audioPath) async {
       'POST',
       Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes/audio'),
     );
+
+    // 🔥 Mandar el token de Firebase para autenticar la subida
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (idToken != null) {
+      request.headers['Authorization'] = 'Bearer $idToken';
+    }
 
     request.fields['conversacion_id'] = _conversacionIdActual;
     request.fields['usuario_id'] = user.uid;
@@ -5916,9 +5942,13 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                     try {
                       // 🔥 PASO 1: ENVIAR MENSAJE AL CHAT (el backend lo va a interpretar
                       // como "alguien quiere seguir", y va a ocultar los botones para los 2)
+                      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
                       await http.post(
                         Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                          'Content-Type': 'application/json',
+                          if (idToken != null) 'Authorization': 'Bearer $idToken',
+                        },
                         body: jsonEncode({
                           'conversacion_id': int.parse(_conversacionIdActual),
                           'usuario_id': user.uid,

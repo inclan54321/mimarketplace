@@ -1344,11 +1344,20 @@ function contieneNumeroTelefono(texto) {
     return patrones.some(p => p.test(texto));
 }
 
-app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
+app.post('/api/mensajes', verificarTokenFirebase, upload.single('imagen'), async (req, res) => {
     try {
         console.log('>>> Archivo recibido:', req.file);
         const { conversacion_id, usuario_id, texto } = req.body;
         const imagen_url = req.file ? `/uploads/${req.file.filename}` : '';
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            return res.status(403).json({
+                error: 'No autorizado para enviar mensajes con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         // 🔥 VERIFICAR SI EL CHAT ESTÁ BLOQUEADO
         const bloqueadoResult = await pool.query(
@@ -1492,10 +1501,19 @@ app.post('/api/mensajes', upload.single('imagen'), async (req, res) => {
 
 
 // ===== RUTA PARA SUBIR AUDIO EN EL CHAT =====
-app.post('/api/mensajes/audio', uploadAudio.single('audio'), async (req, res) => {
+app.post('/api/mensajes/audio', verificarTokenFirebase, uploadAudio.single('audio'), async (req, res) => {
     try {
         const { conversacion_id, usuario_id, texto } = req.body;
         const audio_url = req.file ? `/uploads/audios/${req.file.filename}` : '';
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            return res.status(403).json({
+                error: 'No autorizado para enviar audios con este usuario_id',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         const result = await pool.query(
             `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
@@ -1811,6 +1829,23 @@ app.post('/api/perfil/foto', upload.single('foto'), async (req, res) => {
     }
 });
 
+// 🔥 MIDDLEWARE: verificar token de Firebase
+async function verificarTokenFirebase(req, res, next) {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) {
+            return res.status(401).json({ error: 'Token requerido' });
+        }
+        const decoded = await admin.auth().verifyIdToken(token);
+        req.usuarioAutenticado = decoded.uid;
+        next();
+    } catch (e) {
+        console.log('>>> ❌ Token inválido:', e.message);
+        return res.status(401).json({ error: 'Token inválido o expirado' });
+    }
+}
+
 // 🔥 RATE LIMIT SEMANAL POR IP — SOLO PARA REGISTRO
 // 3 fotos por semana por IP. La ventana se reinicia 7 días después de la primera.
 const rateLimitMap = new Map();
@@ -1850,8 +1885,12 @@ setInterval(() => {
     }
 }, 24 * 60 * 60 * 1000);
 
-// 🔥 RUTA DE SUBIDA DE FOTO SOLO PARA REGISTRO (con rate limit semanal + verificación IA)
-app.post('/api/registro/foto', rateLimitRegistro, upload.single('foto'), async (req, res) => {
+// 🔥 RUTA DE SUBIDA DE FOTO SOLO PARA REGISTRO (con rate limit semanal + token + verificación IA)
+app.post('/api/registro/foto',
+    rateLimitRegistro,
+    verificarTokenFirebase,
+    upload.single('foto'),
+    async (req, res) => {
     console.log('>>> 📸 /api/registro/foto — Body:', req.body);
     console.log('>>> 📸 File:', req.file);
 
@@ -1861,6 +1900,12 @@ app.post('/api/registro/foto', rateLimitRegistro, upload.single('foto'), async (
 
         if (!req.file) {
             return res.status(400).json({ error: 'No se subió foto' });
+        }
+
+        // 🔥 Verificar que el uid del body coincida con el del token
+        if (uid !== req.usuarioAutenticado) {
+            try { fs.unlinkSync(req.file.path); } catch (_) {}
+            return res.status(403).json({ error: 'No autorizado para modificar este perfil' });
         }
 
         const userCheck = await pool.query('SELECT * FROM usuarios WHERE uid = $1', [uid]);

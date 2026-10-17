@@ -147,6 +147,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'POST',
         Uri.parse('https://mimarketplace-production.up.railway.app/api/registro/foto'),
       );
+
+      // 🔥 Mandar el token de Firebase para autenticar la subida
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken != null) {
+        request.headers['Authorization'] = 'Bearer $idToken';
+      }
+
       request.fields['uid'] = uid;
       request.files.add(
         await http.MultipartFile.fromPath('foto', _fotoPerfil!.path),
