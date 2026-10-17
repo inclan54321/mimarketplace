@@ -590,12 +590,18 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
     );
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      print('>>> 🚀 Impulsar. Token: ${idToken != null ? "SÍ" : "NO"}');
       final response = await http.post(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/productos/${_productoSeleccionado!.id}/impulsar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({'usuario_id': user.uid}),
       );
+      print('>>> 🚀 Respuesta: ${response.statusCode}');
 
       if (!mounted) return;
       Navigator.pop(context); // cerrar loading

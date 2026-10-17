@@ -977,15 +977,25 @@ app.get('/api/productos/impulsados', async (req, res) => {
 });
 
 // POST /api/productos/:id/impulsar
-app.post('/api/productos/:id/impulsar', async (req, res) => {
+app.post('/api/productos/:id/impulsar', verificarTokenFirebase, async (req, res) => {
   try {
     const { id } = req.params;
     const { usuario_id } = req.body;
 
     console.log('>>> IMPULSAR: producto', id, 'usuario', usuario_id);
+    console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
 
     if (!usuario_id) {
       return res.status(400).json({ error: 'Falta usuario_id' });
+    }
+
+    // 🔥 Verificar que el usuario_id del body coincida con el del token
+    if (usuario_id !== req.usuarioAutenticado) {
+      console.log('>>> ❌ UID no coincide en impulsar producto');
+      return res.status(403).json({
+        error: 'No autorizado para impulsar este producto',
+        codigo: 'UID_NO_COINCIDE'
+      });
     }
 
     const producto = await pool.query(
