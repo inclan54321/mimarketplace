@@ -5356,12 +5356,24 @@ app.put('/api/encuentro/propuesta/:id/rechazar', verificarTokenFirebase, async (
 });
 
 // 🔥 CONFIRMAR ENCUENTRO (SOLO CREA EL ENCUENTRO AGENDADO, NO BLOQUEA EL CHAT)
-app.post('/api/encuentro/confirmar', async (req, res) => {
+app.post('/api/encuentro/confirmar', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id, usuario_confirma_id } = req.body;
 
         if (!conversacion_id || !usuario_confirma_id) {
             return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        console.log('>>> 🔐 Confirmar encuentro. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 🔐 usuario_confirma_id del body:', usuario_confirma_id);
+
+        // 🔥 Verificar que el usuario_confirma_id coincida con el del token
+        if (usuario_confirma_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/encuentro/confirmar');
+            return res.status(403).json({
+                error: 'No autorizado para confirmar encuentros a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // 🔥 EL CHAT YA NO SE BLOQUEA ACÁ.
@@ -5387,6 +5399,15 @@ app.post('/api/encuentro/confirmar', async (req, res) => {
             [conversacion_id]
         );
         const conv = convResult.rows[0];
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        if (conv && conv.usuario1_id !== req.usuarioAutenticado && conv.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de confirmar encuentro ajeno. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para confirmar este encuentro',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
+        }
 
         // 4. Insertar en encuentros_agendados (si no existe ya)
         const yaExiste = await pool.query(

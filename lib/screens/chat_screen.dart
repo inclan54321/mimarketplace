@@ -4833,9 +4833,13 @@ ListTile(
     if (confirmar != true) return;
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final r = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/confirmar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'conversacion_id': _conversacionIdActual,
           'usuario_confirma_id': user.uid,
@@ -5917,9 +5921,13 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
 
                     try {
                       // 🔥 1. Agendar el encuentro
+                      final idTokenConf = await FirebaseAuth.instance.currentUser?.getIdToken();
                       await http.post(
                         Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/confirmar'),
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                          'Content-Type': 'application/json',
+                          if (idTokenConf != null) 'Authorization': 'Bearer $idTokenConf',
+                        },
                         body: jsonEncode({
                           'conversacion_id': _conversacionIdActual,
                           'usuario_confirma_id': user.uid,
