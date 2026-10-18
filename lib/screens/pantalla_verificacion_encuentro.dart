@@ -240,9 +240,13 @@ class _PantallaVerificacionEncuentroState
         final selfieBase64 = base64Encode(selfieBytes);
         debugPrint('>>> Selfie base64 length: ${selfieBase64.length}');
 
+        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
         final r = await http.post(
           Uri.parse('$_baseUrl/api/encuentro/verificar-facial'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            if (idToken != null) 'Authorization': 'Bearer $idToken',
+          },
           body: jsonEncode({
             'encuentro_id': widget.encuentroId,
             'usuario_id': user?.uid ?? '',

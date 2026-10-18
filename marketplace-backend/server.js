@@ -6200,12 +6200,38 @@ app.post('/api/encuentro/cancelar/:id', async (req, res) => {
 // 🔐 VERIFICACIÓN FACIAL
 // ============================================================
 
-app.post('/api/encuentro/verificar-facial', async (req, res) => {
+app.post('/api/encuentro/verificar-facial', verificarTokenFirebase, async (req, res) => {
     try {
         const { encuentro_id, usuario_id, aprobado, confianza, selfie_base64 } = req.body;
 
         if (!encuentro_id || !usuario_id) {
             return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/encuentro/verificar-facial');
+            return res.status(403).json({
+                error: 'No autorizado para verificar identidad a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE del encuentro
+        const encCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            [encuentro_id]
+        );
+        if (encCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Encuentro no encontrado' });
+        }
+        const encData = encCheck.rows[0];
+        if (encData.usuario1_id !== req.usuarioAutenticado && encData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de verificar encuentro ajeno. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para verificar este encuentro',
+                codigo: 'NO_ES_PARTE_DEL_ENCUENTRO'
+            });
         }
 
         // 🔥 GUARDAR LA SELFIE SI VIENE EN BASE64
