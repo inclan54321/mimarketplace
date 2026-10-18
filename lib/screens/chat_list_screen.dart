@@ -111,9 +111,13 @@ class _ChatListScreenState extends State<ChatListScreen>
     if (user == null) return;
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/bloquear/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);

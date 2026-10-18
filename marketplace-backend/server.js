@@ -2679,10 +2679,21 @@ app.get('/api/bloquear/verificar/:usuario_bloquea/:usuario_bloqueado', async (re
     }
 });
 // ===== OBTENER LISTA DE BLOQUEADOS POR USUARIO =====
-app.get('/api/bloquear/:usuario_id', async (req, res) => {
+app.get('/api/bloquear/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
-        
+
+        console.log('>>> 🚫 GET /api/bloquear/:usuario_id — URL:', usuario_id, '| Token:', req.usuarioAutenticado);
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en GET /api/bloquear/:usuario_id');
+            return res.status(403).json({
+                error: 'No autorizado para ver bloqueados de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             'SELECT * FROM bloqueos WHERE usuario_bloquea = $1 ORDER BY fecha DESC',
             [usuario_id]
