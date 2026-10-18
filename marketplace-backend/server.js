@@ -3088,16 +3088,7 @@ app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
     }
 });
 
-// ===== ELIMINAR DE AGENDA =====
-app.delete('/api/agenda/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        await pool.query('DELETE FROM agenda WHERE id = $1', [id]);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+
 // ===== REGISTRAR VISTA DE PRODUCTO =====
 app.post('/api/productos/:id/vista', async (req, res) => {
     try {
