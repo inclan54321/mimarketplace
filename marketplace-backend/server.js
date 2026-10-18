@@ -1621,10 +1621,21 @@ app.post('/api/mensajes/audio', verificarTokenFirebase, uploadAudio.single('audi
 
 
 
-app.get('/api/conversaciones/:usuario_id', async (req, res) => {
+app.get('/api/conversaciones/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
         console.log('Buscando conversaciones para usuario:', usuario_id);
+        console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide, rechazando lectura de conversaciones');
+            return res.status(403).json({
+                error: 'No autorizado para ver conversaciones de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             `SELECT c.*, 
              u1.nombre AS nombre1,
