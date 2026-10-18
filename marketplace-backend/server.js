@@ -4401,12 +4401,21 @@ app.post('/api/productos/renovar/:id', verificarTokenFirebase, async (req, res) 
 // ============================================================
 // 🔥 GUARDAR FCM TOKEN DE UN USUARIO
 // ============================================================
-app.post('/api/usuarios/fcm-token', async (req, res) => {
+app.post('/api/usuarios/fcm-token', verificarTokenFirebase, async (req, res) => {
     try {
         const { uid, fcm_token } = req.body;
 
         if (!uid || !fcm_token) {
             return res.status(400).json({ error: 'uid y fcm_token requeridos' });
+        }
+
+        // 🔥 Verificar que el uid del body coincida con el del token
+        if (uid !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/usuarios/fcm-token');
+            return res.status(403).json({
+                error: 'No autorizado para modificar el FCM token de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         await pool.query(
