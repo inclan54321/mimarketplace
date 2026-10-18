@@ -60,9 +60,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await credential.user?.updateDisplayName(_nameController.text.trim());
 
       // 🔥 ENVIAR EL CAMPO DE CONSENTIMIENTO AL BACKEND
+      // 🔥 forceRefresh: true para que Firebase genere un token fresco
+      // 🔥 (el usuario acaba de crear la cuenta, el token puede no estar en caché todavía)
+      final idToken = await credential.user?.getIdToken(true);
+      print('>>> 📝 Crear usuario. Token: ${idToken != null ? "SÍ" : "NO"}');
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'uid': credential.user?.uid,
           'email': _emailController.text.trim(),
@@ -71,6 +78,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'acepta_recoleccion': _aceptaRecoleccionDatos, // 🔥 NUEVO CAMPO
         }),
       );
+      print('>>> 📝 Respuesta crear usuario: ${response.statusCode}');
+      if (response.statusCode != 201) {
+        print('>>> ❌ Error body: ${response.body}');
+      }
 
       // 🔥 SUBIR LA FOTO DE PERFIL
       await _subirFotoPerfil(credential.user!.uid);

@@ -2277,10 +2277,20 @@ app.get('/api/mensajes/:conversacion_id', verificarTokenFirebase, async (req, re
 });
 
 // RUTA PARA CREAR USUARIO
-app.post('/api/usuarios', async (req, res) => {
+app.post('/api/usuarios', verificarTokenFirebase, async (req, res) => {
     try {
         const { uid, email, nombre, telefono, acepta_recoleccion } = req.body;
         console.log('>>> Creando usuario:', { uid, email, nombre, telefono, acepta_recoleccion });
+
+        // 🔥 Verificar que el uid del body coincida con el del token
+        if (uid !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/usuarios');
+            return res.status(403).json({
+                error: 'No autorizado para crear/modificar a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             `INSERT INTO usuarios (uid, email, nombre, telefono, acepta_recoleccion) 
              VALUES ($1, $2, $3, $4, $5) 
