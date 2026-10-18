@@ -2322,7 +2322,7 @@ app.get('/api/conversaciones/:id/estado-bloqueo', async (req, res) => {
 });
 
 // 🔥 OCULTAR CONVERSACIÓN COMPLETA PARA UN USUARIO
-app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
+app.post('/api/conversaciones/:id/ocultar', verificarTokenFirebase, async (req, res) => {
     console.log('>>> 🔥🔥🔥 ENDPOINT /ocultar LLAMADO - ID:', req.params.id, 'usuario:', req.body.usuario_id);
     try {
         const { id } = req.params;
@@ -2330,6 +2330,31 @@ app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
 
         if (!usuario_id) {
             return res.status(400).json({ error: 'usuario_id requerido' });
+        }
+
+        // 🔥 Verificar que el usuario_id coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en /ocultar');
+            return res.status(403).json({
+                error: 'No autorizado para ocultar conversaciones de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            return res.status(403).json({
+                error: 'No autorizado para ocultar esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
         }
 
         // 1. MARCAR COMO OCULTA PARA ESTE USUARIO CON FECHA
@@ -2381,10 +2406,27 @@ app.post('/api/conversaciones/:id/ocultar', async (req, res) => {
 });
 
 // RUTA PARA ELIMINAR CONVERSACIÓN
-app.delete('/api/conversaciones/:id', async (req, res) => {
+app.delete('/api/conversaciones/:id', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         console.log('>>> Eliminando conversación ID:', id);
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de borrar conversación ajena. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para eliminar esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
+        }
         
         // Eliminar mensajes de la conversación
         await pool.query('DELETE FROM mensajes_app WHERE conversacion_id = $1', [id]);
