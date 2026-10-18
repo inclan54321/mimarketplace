@@ -732,9 +732,13 @@ void dispose() {
     }
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'usuario1_id': user.uid,
           'usuario2_id': widget.otroUsuarioId,

@@ -1685,10 +1685,23 @@ app.get('/api/conversaciones/:usuario_id', verificarTokenFirebase, async (req, r
     }
 });
 
-app.post('/api/conversaciones', async (req, res) => {
+app.post('/api/conversaciones', verificarTokenFirebase, async (req, res) => {
     try {
         console.log('>>> 1. POST /api/conversaciones recibido');
         const { usuario1_id, usuario2_id, producto_nombre, producto_id, producto_imagen } = req.body;
+
+        console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
+        console.log('>>> 🔐 Usuario del body (usuario1_id):', usuario1_id);
+
+        // 🔥 Verificar que el usuario1_id del body sea el usuario autenticado
+        // (quien crea el chat debe ser uno de los dos participantes, y ese es usuario1_id)
+        if (usuario1_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/conversaciones');
+            return res.status(403).json({
+                error: 'No autorizado para crear conversaciones a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         // 🔥 BUSCAR SI YA EXISTE UNA CONVERSACIÓN ENTRE ESTOS DOS USUARIOS PARA ESTE PRODUCTO
         const existente = await pool.query(
