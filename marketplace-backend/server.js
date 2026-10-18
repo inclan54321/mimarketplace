@@ -6137,7 +6137,7 @@ app.get('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (r
 });
 
 // 🔥 CONTRAPROPUESTA
-app.put('/api/encuentro/propuesta/:id/contrapropuesta', async (req, res) => {
+app.put('/api/encuentro/propuesta/:id/contrapropuesta', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const {
@@ -6147,6 +6147,32 @@ app.put('/api/encuentro/propuesta/:id/contrapropuesta', async (req, res) => {
             lugar_lng,
             fecha_encuentro,
         } = req.body;
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en contrapropuesta');
+            return res.status(403).json({
+                error: 'No autorizado para hacer contrapropuestas a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la propuesta
+        const propCheck = await pool.query(
+            'SELECT usuario_propone_id, usuario_recibe_id FROM propuestas_encuentro WHERE id = $1',
+            [id]
+        );
+        if (propCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+        const propData = propCheck.rows[0];
+        if (propData.usuario_propone_id !== req.usuarioAutenticado && propData.usuario_recibe_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de contrapropuesta en propuesta ajena. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para hacer contrapropuestas en esta propuesta',
+                codigo: 'NO_ES_PARTE_DE_LA_PROPUESTA'
+            });
+        }
 
         const result = await pool.query(
             `UPDATE propuestas_encuentro 
@@ -6182,9 +6208,27 @@ app.put('/api/encuentro/propuesta/:id/contrapropuesta', async (req, res) => {
 });
 
 // 🔥 CONFIRMAR PROPUESTA FINAL
-app.put('/api/encuentro/propuesta/:id/confirmar', async (req, res) => {
+app.put('/api/encuentro/propuesta/:id/confirmar', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la propuesta
+        const propCheck = await pool.query(
+            'SELECT usuario_propone_id, usuario_recibe_id FROM propuestas_encuentro WHERE id = $1',
+            [id]
+        );
+        if (propCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+        const propData = propCheck.rows[0];
+        if (propData.usuario_propone_id !== req.usuarioAutenticado && propData.usuario_recibe_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de confirmar propuesta ajena. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para confirmar esta propuesta',
+                codigo: 'NO_ES_PARTE_DE_LA_PROPUESTA'
+            });
+        }
+
         const result = await pool.query(
             `UPDATE propuestas_encuentro 
              SET estado = 'confirmada', fecha_actualizacion = NOW()

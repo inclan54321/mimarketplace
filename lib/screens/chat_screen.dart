@@ -371,10 +371,14 @@ class _ChatScreenState extends State<ChatScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null || _conversacionIdActual.isEmpty) return;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       await http.put(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/leer'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({'usuario_id': user.uid}),
       );
       print('>>> ✅ Conversación marcada como leída');
@@ -1051,8 +1055,12 @@ void dispose() {
       // 🔥 CONSULTAR SI ALGUIEN QUIERE CERRAR EL TRATO
       // 🔥 REGLA NUEVA: si el OTRO confirmó, a mí me aparece el recuadro para decidir
       try {
+        final idTokenCerrar = await FirebaseAuth.instance.currentUser?.getIdToken();
         final r = await http.get(
           Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
+          headers: {
+            if (idTokenCerrar != null) 'Authorization': 'Bearer $idTokenCerrar',
+          },
         );
         if (r.statusCode == 200) {
           final data = jsonDecode(r.body);
@@ -1100,8 +1108,12 @@ void dispose() {
       }
       // 🔥 CONSULTAR SI ALGUIEN DIJO "SEGUIR CONVERSANDO"
       try {
+        final idTokenSeguir = await FirebaseAuth.instance.currentUser?.getIdToken();
         final r = await http.get(
           Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
+          headers: {
+            if (idTokenSeguir != null) 'Authorization': 'Bearer $idTokenSeguir',
+          },
         );
         if (r.statusCode == 200) {
           final data = jsonDecode(r.body);
@@ -5386,16 +5398,24 @@ ListTile(
                             });
 
                             try {
+                              final idTokenCancelar = await FirebaseAuth.instance.currentUser?.getIdToken();
                               // 🔥 1. Cancelar cierre de trato
                               await http.post(
                                 Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cancelar-cierre-trato'),
-                                headers: {'Content-Type': 'application/json'},
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  if (idTokenCancelar != null) 'Authorization': 'Bearer $idTokenCancelar',
+                                },
                               );
 
                               // 🔥 2. Resetear seguir-conversando (borra los mensajes)
+                              final idTokenReset = await FirebaseAuth.instance.currentUser?.getIdToken();
                               await http.post(
                                 Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/reset-seguir-conversando'),
-                                headers: {'Content-Type': 'application/json'},
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  if (idTokenReset != null) 'Authorization': 'Bearer $idTokenReset',
+                                },
                               );
 
                               // 🔥 3. Recargar mensajes
