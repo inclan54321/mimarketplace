@@ -1785,11 +1785,21 @@ app.delete('/api/favoritos', async (req, res) => {
     }
 });
 
-app.get('/api/favoritos/:usuario_id', async (req, res) => {
+app.get('/api/favoritos/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
         console.log('🔥 Buscando favoritos para usuario:', usuario_id);
-        
+        console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en GET /api/favoritos/:usuario_id');
+            return res.status(403).json({
+                error: 'No autorizado para ver favoritos de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             `SELECT 
                 p.*, 
