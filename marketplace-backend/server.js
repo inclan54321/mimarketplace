@@ -6295,12 +6295,38 @@ app.post('/api/encuentro/verificar-facial', verificarTokenFirebase, async (req, 
 // 📍 GPS TRACKING
 // ============================================================
 
-app.post('/api/encuentro/gps', async (req, res) => {
+app.post('/api/encuentro/gps', verificarTokenFirebase, async (req, res) => {
     try {
         const { encuentro_id, usuario_id, lat, lng } = req.body;
 
         if (!encuentro_id || !usuario_id || lat === undefined || lng === undefined) {
             return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/encuentro/gps');
+            return res.status(403).json({
+                error: 'No autorizado para enviar GPS a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE del encuentro
+        const encCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            [encuentro_id]
+        );
+        if (encCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Encuentro no encontrado' });
+        }
+        const encData = encCheck.rows[0];
+        if (encData.usuario1_id !== req.usuarioAutenticado && encData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de enviar GPS a encuentro ajeno. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para enviar GPS a este encuentro',
+                codigo: 'NO_ES_PARTE_DEL_ENCUENTRO'
+            });
         }
 
         const result = await pool.query(
@@ -6400,13 +6426,22 @@ app.get('/api/lugares-seguros/distritos', async (req, res) => {
 // ============================================================
 // 🔥 VERIFICAR SI EL USUARIO ESTÁ CERCA DEL LUGAR
 // ============================================================
-app.post('/api/encuentro/:id/verificar-ubicacion', async (req, res) => {
+app.post('/api/encuentro/:id/verificar-ubicacion', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { usuario_id, lat, lng } = req.body;
 
         if (!usuario_id || lat === undefined || lng === undefined) {
             return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/encuentro/:id/verificar-ubicacion');
+            return res.status(403).json({
+                error: 'No autorizado para verificar ubicación a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // Obtener el encuentro
@@ -6420,6 +6455,15 @@ app.post('/api/encuentro/:id/verificar-ubicacion', async (req, res) => {
         }
 
         const enc = encResult.rows[0];
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE del encuentro
+        if (enc.usuario1_id !== req.usuarioAutenticado && enc.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de verificar ubicación en encuentro ajeno. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para verificar ubicación en este encuentro',
+                codigo: 'NO_ES_PARTE_DEL_ENCUENTRO'
+            });
+        }
 
         if (enc.lugar_lat === null || enc.lugar_lng === null) {
             return res.status(400).json({ error: 'El encuentro no tiene coordenadas' });

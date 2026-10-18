@@ -149,10 +149,14 @@ class _PantallaVerificacionEncuentroState
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final r = await http.post(
         Uri.parse(
             '$_baseUrl/api/encuentro/${widget.encuentroId}/verificar-ubicacion'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'usuario_id': user.uid,
           'lat': pos.latitude,
