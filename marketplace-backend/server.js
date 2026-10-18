@@ -1748,11 +1748,20 @@ app.post('/api/conversaciones', verificarTokenFirebase, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/favoritos', async (req, res) => {
+app.post('/api/favoritos', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id, producto_id } = req.body;
         
         console.log('>>> AGREGANDO FAVORITO - producto:', producto_id);
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/favoritos');
+            return res.status(403).json({
+                error: 'No autorizado para agregar favoritos a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
         
         await pool.query(
             'INSERT INTO productos_favoritos (usuario_id, producto_id) VALUES ($1, $2::text)',
@@ -1773,11 +1782,20 @@ app.post('/api/favoritos', async (req, res) => {
     }
 });
 
-app.delete('/api/favoritos', async (req, res) => {
+app.delete('/api/favoritos', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id, producto_id } = req.body;
         
         console.log('>>> ELIMINANDO FAVORITO - producto:', producto_id);
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en DELETE /api/favoritos');
+            return res.status(403).json({
+                error: 'No autorizado para quitar favoritos a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
         
         await pool.query(
             'DELETE FROM productos_favoritos WHERE usuario_id = $1 AND producto_id::text = $2',
@@ -2667,12 +2685,21 @@ app.post('/api/busquedas-app', async (req, res) => {
     }
 });
 // ===== RUTAS DE BLOQUEO =====
-app.post('/api/bloquear', async (req, res) => {
+app.post('/api/bloquear', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_bloquea, usuario_bloqueado } = req.body;
         
         if (!usuario_bloquea || !usuario_bloqueado) {
             return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        // 🔥 Verificar que el usuario_bloquea coincida con el del token
+        if (usuario_bloquea !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/bloquear');
+            return res.status(403).json({
+                error: 'No autorizado para bloquear a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         if (usuario_bloquea === usuario_bloqueado) {
@@ -2704,12 +2731,21 @@ app.post('/api/bloquear', async (req, res) => {
     }
 });
 
-app.delete('/api/bloquear', async (req, res) => {
+app.delete('/api/bloquear', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_bloquea, usuario_bloqueado } = req.body;
         
         if (!usuario_bloquea || !usuario_bloqueado) {
             return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        // 🔥 Verificar que el usuario_bloquea coincida con el del token
+        if (usuario_bloquea !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en DELETE /api/bloquear');
+            return res.status(403).json({
+                error: 'No autorizado para desbloquear a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         const result = await pool.query(

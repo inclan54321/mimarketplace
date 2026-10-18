@@ -170,8 +170,12 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
 
   Future<void> _verificarFavorito() async {
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos/$_usuarioId'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -187,11 +191,15 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
 
   Future<void> _toggleFavorito() async {
     final id = _producto.id.toString();
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
 
     if (_isFavorito) {
       final response = await http.delete(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'usuario_id': _usuarioId,
           'producto_id': id,
@@ -204,7 +212,10 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     } else {
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'usuario_id': _usuarioId,
           'producto_id': id,
@@ -268,9 +279,13 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     print('>>> INICIO BLOQUEO - Vendedor: $vendedorId');
     print('>>> Usuario que bloquea: $_usuarioId');
     
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
     final response = await http.post(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
       body: jsonEncode({
         'usuario_bloquea': _usuarioId,
         'usuario_bloqueado': vendedorId,
@@ -330,9 +345,13 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     print('>>> INICIO DESBLOQUEO - Vendedor: $vendedorId');
     print('>>> Usuario que desbloquea: $_usuarioId');
     
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
     final response = await http.delete(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
       body: jsonEncode({
         'usuario_bloquea': _usuarioId,
         'usuario_bloqueado': vendedorId,
