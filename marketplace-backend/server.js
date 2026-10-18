@@ -3532,12 +3532,24 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.single('imagen'), a
     }
 });
 // En tu server.js
-app.post('/api/denuncias', async (req, res) => {
+app.post('/api/denuncias', verificarTokenFirebase, async (req, res) => {
     try {
         const { denunciante_id, denunciado_id, producto_id, motivo } = req.body;
         
         if (!denunciante_id || !denunciado_id || !producto_id) {
             return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        console.log('>>> 🚨 Denuncia. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 🚨 Denunciante del body:', denunciante_id);
+
+        // 🔥 Verificar que el denunciante_id coincida con el del token
+        if (denunciante_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/denuncias');
+            return res.status(403).json({
+                error: 'No autorizado para denunciar a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         const result = await pool.query(
