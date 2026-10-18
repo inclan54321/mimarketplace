@@ -2448,9 +2448,21 @@ app.put('/api/conversaciones/:id/leer', async (req, res) => {
 });
 
 // ===== RUTA PARA OBTENER ALERTAS =====
-app.get('/api/alertas/:usuario_id', async (req, res) => {
+app.get('/api/alertas/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
+
+        console.log('>>> 🔔 GET /api/alertas/:usuario_id — URL:', usuario_id, '| Token:', req.usuarioAutenticado);
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide, rechazando lectura de alertas');
+            return res.status(403).json({
+                error: 'No autorizado para ver alertas de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             'SELECT * FROM alertas WHERE usuario_id = $1 ORDER BY fecha DESC',
             [usuario_id]

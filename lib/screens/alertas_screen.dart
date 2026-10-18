@@ -33,8 +33,12 @@ class _AlertasScreenState extends State<AlertasScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/alertas/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {
