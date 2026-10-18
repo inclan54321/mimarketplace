@@ -2292,10 +2292,27 @@ app.post('/api/usuarios', async (req, res) => {
 
 
 // 🔥 FIJAR/DESFIJAR CONVERSACIÓN
-app.put('/api/conversaciones/:id/fijar', async (req, res) => {
+app.put('/api/conversaciones/:id/fijar', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { fijada } = req.body;
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de fijar conversación ajena. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para fijar esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
+        }
 
         const result = await pool.query(
             `UPDATE conversaciones_app 
@@ -2493,13 +2510,22 @@ app.get('/api/conversaciones/no-leidos/:usuario_id', async (req, res) => {
 });
 
 // ===== MARCAR CONVERSACIÓN COMO LEÍDA =====
-app.put('/api/conversaciones/:id/leer', async (req, res) => {
+app.put('/api/conversaciones/:id/leer', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { usuario_id } = req.body;
 
         if (!usuario_id) {
             return res.status(400).json({ error: 'usuario_id requerido' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en PUT /api/conversaciones/:id/leer');
+            return res.status(403).json({
+                error: 'No autorizado para marcar conversaciones de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // Obtener la conversación
@@ -5709,9 +5735,25 @@ app.post('/api/conversaciones/:id/seguir-conversando', verificarTokenFirebase, a
 });
 
 // GET - Consultar si ambos quieren seguir
-app.get('/api/conversaciones/:id/seguir-conversando', async (req, res) => {
+app.get('/api/conversaciones/:id/seguir-conversando', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            return res.status(403).json({
+                error: 'No autorizado para ver el estado de esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
+        }
 
         // 🔥 LEER DE LOS MENSAJES, NO DE LA TABLA NUEVA
         const result = await pool.query(
@@ -5973,9 +6015,26 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
     }
 });
 // POST - Cancelar cierre de trato
-app.post('/api/conversaciones/:id/cancelar-cierre-trato', async (req, res) => {
+app.post('/api/conversaciones/:id/cancelar-cierre-trato', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de cancelar cierre de trato ajeno. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para cancelar el cierre de trato en esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
+        }
 
         await pool.query(
             `UPDATE conversaciones_app 
@@ -5994,9 +6053,25 @@ app.post('/api/conversaciones/:id/cancelar-cierre-trato', async (req, res) => {
 });
 
 // GET - Consultar quién confirmó cerrar trato
-app.get('/api/conversaciones/:id/cerrar-trato', async (req, res) => {
+app.get('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            return res.status(403).json({
+                error: 'No autorizado para ver el estado de esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
+        }
 
         const result = await pool.query(
             `SELECT DISTINCT usuario_id 

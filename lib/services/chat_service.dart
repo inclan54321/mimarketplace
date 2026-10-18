@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ChatService {
   static const String baseUrl = 'https://mimarketplace-production.up.railway.app/api';
 
   Future<List<dynamic>> getConversaciones(String usuarioId) async {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
     final response = await http.get(
       Uri.parse('$baseUrl/conversaciones/$usuarioId'),
+      headers: {
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -15,8 +20,12 @@ class ChatService {
   }
 
   Future<List<dynamic>> getMensajes(String conversacionId) async {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
     final response = await http.get(
       Uri.parse('$baseUrl/mensajes/$conversacionId'),
+      headers: {
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -25,9 +34,13 @@ class ChatService {
   }
 
   Future<void> enviarMensaje(String conversacionId, String texto, String usuarioId) async {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
     await http.post(
       Uri.parse('$baseUrl/mensajes'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
       body: jsonEncode({
         'conversacion_id': conversacionId,
         'usuario_id': usuarioId,
