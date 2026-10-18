@@ -220,10 +220,14 @@ class _ChatListScreenState extends State<ChatListScreen>
       print('>>> chatsDelVendedor.length: ${chatsDelVendedor.length}');
 
       // 🔥 Enviar al backend CON TODOS LOS PRODUCTOS
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/agenda'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'usuario_id': user.uid,
           'otro_usuario': chat['otroUsuario'] ?? 'Usuario',
@@ -269,9 +273,13 @@ class _ChatListScreenState extends State<ChatListScreen>
   // ===== ELIMINAR DE AGENDA (BACKEND) =====
   Future<void> _eliminarDeAgenda(dynamic id) async {
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.delete(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/agenda/$id'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {

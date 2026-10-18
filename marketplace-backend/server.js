@@ -3006,7 +3006,7 @@ app.post('/api/productos/:id/vendido', verificarTokenFirebase, async (req, res) 
         res.status(500).json({ error: error.message });
     }
 });
-app.post('/api/agenda', async (req, res) => {
+app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
     console.log('>>> 🔥🔥🔥 VERSIÓN 3 CON productos_lista 🔥🔥🔥');
     try {
         console.log('>>> GUARDANDO EN AGENDA:', req.body);
@@ -3021,6 +3021,15 @@ app.post('/api/agenda', async (req, res) => {
             productos_lista,     // 🔥 NUEVO
             foto_perfil          // 🔥 NUEVO
         } = req.body;
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/agenda');
+            return res.status(403).json({
+                error: 'No autorizado para guardar en la agenda de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
         
         console.log('>>> usuario_id:', usuario_id);
         console.log('>>> conversacion_id:', conversacion_id);
@@ -3342,9 +3351,27 @@ app.get('/api/agenda/:usuario_id', verificarTokenFirebase, async (req, res) => {
 });
 
 // ===== ELIMINAR DE AGENDA =====
-app.delete('/api/agenda/:id', async (req, res) => {
+app.delete('/api/agenda/:id', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 🔥 Verificar que el registro pertenezca al usuario autenticado
+        const checkResult = await pool.query(
+            'SELECT usuario_id FROM agenda WHERE id = $1',
+            [id]
+        );
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Registro de agenda no encontrado' });
+        }
+
+        if (checkResult.rows[0].usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de borrar registro de agenda ajena. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para eliminar registros de la agenda de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         await pool.query('DELETE FROM agenda WHERE id = $1', [id]);
 
