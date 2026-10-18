@@ -4789,9 +4789,18 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
 });
 
 // OBTENER ESTADO DEL ESCUDO
-app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
+app.get('/api/escudo/estado/:conversacion_id/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id, usuario_id } = req.params;
+
+        // 🔥 Verificar que el uid de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en escudo/estado');
+            return res.status(403).json({
+                error: 'No autorizado para ver el estado del escudo de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         // 🔥 Obtener los dos usuarios de la conversación
         const convResult = await pool.query(
@@ -4801,6 +4810,16 @@ app.get('/api/escudo/estado/:conversacion_id/:usuario_id', async (req, res) => {
 
         if (convResult.rows.length === 0) {
             return res.json({ escudo_activo: false, video_visto: false });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convData = convResult.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de ver escudo ajeno. User:', req.usuarioAutenticado, '| Conv:', conversacion_id);
+            return res.status(403).json({
+                error: 'No autorizado para ver el escudo de esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
         }
 
         const conv = convResult.rows[0];
@@ -6276,10 +6295,10 @@ app.get('/api/lugares-seguros', async (req, res) => {
 // ============================================================
 // 🔥 DATOS DEL ENCUENTRO (foto del otro usuario)
 // ============================================================
-app.get('/api/encuentro/:id/datos', async (req, res) => {
+app.get('/api/encuentro/:id/datos', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
-        const { usuario_id } = req.query;
+        const usuario_id = req.usuarioAutenticado; // 🔥 del token, no del query
 
         const encResult = await pool.query(
             `SELECT * FROM encuentros_agendados WHERE id = $1`,
@@ -6291,6 +6310,16 @@ app.get('/api/encuentro/:id/datos', async (req, res) => {
         }
 
         const enc = encResult.rows[0];
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE del encuentro
+        if (enc.usuario1_id !== usuario_id && enc.usuario2_id !== usuario_id) {
+            console.log('>>> ❌ Intento de leer encuentro ajeno. User:', usuario_id, '| Encuentro:', id);
+            return res.status(403).json({
+                error: 'No autorizado para ver este encuentro',
+                codigo: 'NO_ES_PARTE_DEL_ENCUENTRO'
+            });
+        }
+
         const otroUsuarioId = enc.usuario1_id === usuario_id
             ? enc.usuario2_id
             : enc.usuario1_id;

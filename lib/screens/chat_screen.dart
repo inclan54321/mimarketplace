@@ -402,9 +402,13 @@ class _ChatScreenState extends State<ChatScreen>
       print('>>> 💾 Escudo local: $activoLocal');
 
       // 2. CONSULTAR AL BACKEND (por si cambió en otro lado)
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/escudo/estado/$_conversacionIdActual/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {

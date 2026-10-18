@@ -347,9 +347,13 @@ class _PantallaVerificacionEncuentroState
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final r = await http.get(
         Uri.parse(
             '$_baseUrl/api/encuentro/${widget.encuentroId}/datos?usuario_id=${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
       if (r.statusCode != 200) return null;
 
@@ -366,8 +370,12 @@ class _PantallaVerificacionEncuentroState
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final r = await http.get(
         Uri.parse('$_baseUrl/api/encuentro/${widget.encuentroId}/datos?usuario_id=${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
       if (r.statusCode != 200) return null;
 
