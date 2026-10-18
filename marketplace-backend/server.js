@@ -2646,12 +2646,21 @@ app.delete('/api/alertas/limpiar/:usuario_id', async (req, res) => {
     }
 });
 // ===== RUTA PARA GUARDAR BÚSQUEDAS =====
-app.post('/api/busquedas-app', async (req, res) => {
+app.post('/api/busquedas-app', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id, termino } = req.body;
         
         if (!usuario_id || !termino || termino.length < 4) {
             return res.status(400).json({ error: 'Datos inválidos' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/busquedas-app');
+            return res.status(403).json({
+                error: 'No autorizado para guardar búsquedas a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // 🔥 VERIFICAR SI EL USUARIO ACEPTÓ LA RECOLECCIÓN DE DATOS

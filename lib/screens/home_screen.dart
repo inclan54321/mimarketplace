@@ -71,8 +71,12 @@ final TextEditingController _busquedaController = TextEditingController();
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       if (uid.isEmpty) return [];
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear/$uid'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -170,10 +174,14 @@ Future<void> _cargarProductosDestacados() async {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse(
           'https://mimarketplace-production.up.railway.app/api/favoritos/${user.uid}',
         ),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -211,13 +219,17 @@ Future<void> _cargarProductosDestacados() async {
     });
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       if (esFavorito) {
         // QUITAR DE FAVORITOS
         final response = await http.delete(
           Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/favoritos',
           ),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            if (idToken != null) 'Authorization': 'Bearer $idToken',
+          },
           body: jsonEncode({
             'usuario_id': user.uid,
             'producto_id': producto.id.toString(),
@@ -232,7 +244,10 @@ Future<void> _cargarProductosDestacados() async {
           Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/favoritos',
           ),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            if (idToken != null) 'Authorization': 'Bearer $idToken',
+          },
           body: jsonEncode({
             'usuario_id': user.uid,
             'producto_id': producto.id.toString(),
@@ -749,9 +764,13 @@ Future<void> _cargarProductosDestacados() async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       if (uid.isNotEmpty) {
+        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
         final guardarResponse = await http.post(
           Uri.parse('https://mimarketplace-production.up.railway.app/api/busquedas-app'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            if (idToken != null) 'Authorization': 'Bearer $idToken',
+          },
           body: jsonEncode({
             'usuario_id': uid,
             'termino': value,
