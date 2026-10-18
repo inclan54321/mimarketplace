@@ -1914,7 +1914,13 @@ app.post('/api/perfil/foto', upload.single('foto'), async (req, res) => {
     }
 });
 
-// 🔥 MIDDLEWARE: verificar token de Firebase
+// ============================================================
+// 🔥 CACHÉ DE TOKENS VERIFICADOS (evita llamar a Firebase en cada request)
+// ============================================================
+const tokenCache = new Map(); // token → { uid, expira }
+const TOKEN_CACHE_MS = 5 * 60 * 1000; // 5 minutos
+
+// 🔥 MIDDLEWARE: verificar token de Firebase (con caché)
 async function verificarTokenFirebase(req, res, next) {
     try {
         const authHeader = req.headers.authorization || '';
@@ -1922,13 +1928,34 @@ async function verificarTokenFirebase(req, res, next) {
         if (!token) {
             return res.status(401).json({ error: 'Token requerido' });
         }
+
+        // 🔥 ¿Ya lo verificamos hace poco? Devolver sin llamar a Firebase
+        const cached = tokenCache.get(token);
+        if (cached && Date.now() < cached.expira) {
+            req.usuarioAutenticado = cached.uid;
+            return next();
+        }
+
+        // 🔥 No está en caché: verificar con Firebase (tarda ~150 ms)
         const decoded = await getAuth().verifyIdToken(token);
         req.usuarioAutenticado = decoded.uid;
+        tokenCache.set(token, {
+            uid: decoded.uid,
+            expira: Date.now() + TOKEN_CACHE_MS,
+        });
+
+        // 🔥 Limpieza: si el caché crece mucho, borrar los expirados
+        if (tokenCache.size > 5000) {
+            const ahora = Date.now();
+            for (const [k, v] of tokenCache.entries()) {
+                if (ahora > v.expira) tokenCache.delete(k);
+            }
+        }
+
         next();
     } catch (e) {
         console.log('>>> ❌ Token inválido:', e.message);
         console.log('>>> ❌ Token inválido (code):', e.code);
-        console.log('>>> ❌ Token inválido (stack):', e.stack);
         return res.status(401).json({
             error: 'Token inválido o expirado',
             detalle: e.message,
