@@ -2601,9 +2601,19 @@ app.get('/api/alertas/no-leidas/:usuario_id', async (req, res) => {
 });
 
 // ===== RUTA PARA MARCAR TODAS LAS ALERTAS COMO LEÍDAS =====
-app.put('/api/alertas/marcar-leidas/:usuario_id', async (req, res) => {
+app.put('/api/alertas/marcar-leidas/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en PUT /api/alertas/marcar-leidas/:usuario_id');
+            return res.status(403).json({
+                error: 'No autorizado para marcar alertas de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             'UPDATE alertas SET leida = TRUE WHERE usuario_id = $1 AND leida = FALSE',
             [usuario_id]
@@ -2633,26 +2643,29 @@ app.get('/api/alertas/no-leidas/:usuario_id', async (req, res) => {
     }
 });
 
-// ===== RUTA PARA MARCAR TODAS LAS ALERTAS COMO LEÍDAS =====
-app.put('/api/alertas/marcar-leidas/:usuario_id', async (req, res) => {
-    try {
-        const { usuario_id } = req.params;
-        const result = await pool.query(
-            'UPDATE alertas SET leida = TRUE WHERE usuario_id = $1 AND leida = FALSE',
-            [usuario_id]
-        );
-        console.log(`>>> ✅ ${result.rowCount} alertas marcadas como leídas para ${usuario_id}`);
-        res.json({ success: true, marcadas: result.rowCount });
-    } catch (error) {
-        console.error('Error al marcar alertas como leídas:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
+
 
 // ===== RUTA PARA MARCAR ALERTA COMO LEÍDA =====
-app.put('/api/alertas/:id', async (req, res) => {
+app.put('/api/alertas/:id', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 🔥 Verificar que la alerta pertenezca al usuario autenticado
+        const checkResult = await pool.query(
+            'SELECT usuario_id FROM alertas WHERE id = $1',
+            [id]
+        );
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Alerta no encontrada' });
+        }
+        if (checkResult.rows[0].usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de marcar alerta ajena. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para marcar esta alerta',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         await pool.query('UPDATE alertas SET leida = TRUE WHERE id = $1', [id]);
         res.json({ success: true });
     } catch (error) {
@@ -2661,9 +2674,19 @@ app.put('/api/alertas/:id', async (req, res) => {
 });
 
 // ===== RUTA PARA ELIMINAR TODAS LAS ALERTAS DE UN USUARIO =====
-app.delete('/api/alertas/limpiar/:usuario_id', async (req, res) => {
+app.delete('/api/alertas/limpiar/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en DELETE /api/alertas/limpiar/:usuario_id');
+            return res.status(403).json({
+                error: 'No autorizado para limpiar alertas de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         await pool.query('DELETE FROM alertas WHERE usuario_id = $1', [usuario_id]);
         res.json({ success: true, mensaje: 'Todas las alertas eliminadas' });
     } catch (error) {

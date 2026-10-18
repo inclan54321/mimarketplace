@@ -50,9 +50,13 @@ class _AlertasScreenState extends State<AlertasScreen> {
         _alertasCache = List.from(_alertas);
 
         // 🔥 Marcar todas como leídas en el backend
+        final idTokenMarcar = await FirebaseAuth.instance.currentUser?.getIdToken();
         await http.put(
           Uri.parse(
               'https://mimarketplace-production.up.railway.app/api/alertas/marcar-leidas/${user.uid}'),
+          headers: {
+            if (idTokenMarcar != null) 'Authorization': 'Bearer $idTokenMarcar',
+          },
         );
       } else {
         setState(() => _isLoading = false);
@@ -190,8 +194,12 @@ class _AlertasScreenState extends State<AlertasScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.delete(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/alertas/limpiar/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {
