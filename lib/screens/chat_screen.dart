@@ -971,8 +971,12 @@ void dispose() {
   }
 
   try {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
     final response = await http.get(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes/$conversacionId?usuario_id=${user.uid}'),
+      headers: {
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
     );
 
     if (response.statusCode == 200) {

@@ -2104,14 +2104,10 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
         res.json({ provincia: '', canton: '' });
     }
 });
-app.get('/api/mensajes/:conversacion_id', async (req, res) => {
+app.get('/api/mensajes/:conversacion_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id } = req.params;
-        const usuario_id = req.query.usuario_id;
-
-        if (!usuario_id) {
-            return res.status(400).json({ error: 'usuario_id es requerido' });
-        }
+        const usuario_id = req.usuarioAutenticado; // 🔥 del token, no del query
 
         // 1. OBTENER LA CONVERSACIÓN
         const convResult = await pool.query(
@@ -2120,6 +2116,16 @@ app.get('/api/mensajes/:conversacion_id', async (req, res) => {
         );
         if (convResult.rows.length === 0) {
             return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convData = convResult.rows[0];
+        if (convData.usuario1_id !== usuario_id && convData.usuario2_id !== usuario_id) {
+            console.log('>>> ❌ Intento de leer mensajes ajenos. User:', usuario_id, '| Conv:', conversacion_id);
+            return res.status(403).json({
+                error: 'No autorizado para ver los mensajes de esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
         }
 
         // 🔥 SI EL CHAT ESTÁ BLOQUEADO, DEVOLVER LISTA VACÍA
