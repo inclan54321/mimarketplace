@@ -659,6 +659,13 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
       Uri.parse('https://mimarketplace-production.up.railway.app/api/revisar-imagen-destacada'),
     );
 
+    // 🔥 Mandar el token de Firebase
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (idToken != null) {
+      request.headers['Authorization'] = 'Bearer $idToken';
+    }
+    print('>>> 5b. Token: ${idToken != null ? "SÍ" : "NO"}');
+
     print('>>> 6. AGREGANDO ARCHIVO...');
     request.files.add(
       await http.MultipartFile.fromPath(

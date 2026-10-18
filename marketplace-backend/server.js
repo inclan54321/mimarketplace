@@ -3918,7 +3918,7 @@ REGLAS:
     }
 }
 // ===== REVISAR IMAGEN DESTACADA CON IA =====
-app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, res) => {
+app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single('imagen'), async (req, res) => {
     console.log('>>> 🔥 LLEGÓ PETICIÓN A /api/revisar-imagen-destacada');
     console.log('>>> 🔥 BODY:', req.body);
     console.log('>>> 🔥 FILE:', req.file);
@@ -3932,6 +3932,16 @@ app.post('/api/revisar-imagen-destacada', upload.single('imagen'), async (req, r
         
         if (!vendedor_id) {
             return res.status(400).json({ error: 'vendedor_id es requerido' });
+        }
+
+        // 🔥 Verificar que el vendedor_id del body coincida con el del token
+        if (vendedor_id !== req.usuarioAutenticado) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            console.log('>>> ❌ UID no coincide en POST /api/revisar-imagen-destacada');
+            return res.status(403).json({
+                error: 'No autorizado para publicar a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         const imagenPath = `/uploads/${req.file.filename}`;
