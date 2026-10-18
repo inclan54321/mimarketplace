@@ -1934,7 +1934,7 @@ RESPONDE ÚNICAMENTE CON ESTE JSON (sin texto adicional):
 }
 
 // RUTA PARA SUBIR FOTO DE PERFIL
-app.post('/api/perfil/foto', upload.single('foto'), async (req, res) => {
+app.post('/api/perfil/foto', verificarTokenFirebase, upload.single('foto'), async (req, res) => {
     console.log('Body:', req.body);
     console.log('File:', req.file);
     console.log('UID:', req.body.uid);
@@ -1942,6 +1942,16 @@ app.post('/api/perfil/foto', upload.single('foto'), async (req, res) => {
     try {
         const { uid } = req.body;
         const fotoUrl = req.file ? `/uploads/${req.file.filename}` : '';
+
+        // 🔥 Verificar que el uid del body coincida con el del token
+        if (uid !== req.usuarioAutenticado) {
+            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            console.log('>>> ❌ UID no coincide en POST /api/perfil/foto');
+            return res.status(403).json({
+                error: 'No autorizado para modificar la foto de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         // Verificar si el usuario existe
         const userCheck = await pool.query('SELECT * FROM usuarios WHERE uid = $1', [uid]);

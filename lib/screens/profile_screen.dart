@@ -315,6 +315,13 @@ Future<void> _cargarMasVistos() async {
         Uri.parse('https://mimarketplace-production.up.railway.app/api/perfil/foto'),
       );
       
+      // 🔥 Mandar el token de Firebase
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken != null) {
+        request.headers['Authorization'] = 'Bearer $idToken';
+      }
+      print('>>> 📸 Cambiar foto perfil. Token: ${idToken != null ? "SÍ" : "NO"}');
+      
       request.fields['uid'] = FirebaseAuth.instance.currentUser!.uid;
       request.files.add(await http.MultipartFile.fromPath('foto', imagen.path));
       
