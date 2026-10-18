@@ -6090,7 +6090,7 @@ app.put('/api/encuentro/propuesta/:id/confirmar', async (req, res) => {
 // ============================================================
 
 // AGENDAR ENCUENTRO
-app.post('/api/encuentro/agendar', async (req, res) => {
+app.post('/api/encuentro/agendar', verificarTokenFirebase, async (req, res) => {
     try {
         const {
             conversacion_id,
@@ -6104,6 +6104,32 @@ app.post('/api/encuentro/agendar', async (req, res) => {
 
         if (!conversacion_id || !usuario1_id || !usuario2_id || !fecha_encuentro) {
             return res.status(400).json({ error: 'Faltan datos obligatorios' });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea uno de los dos participantes
+        if (usuario1_id !== req.usuarioAutenticado && usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de agendar encuentro a nombre de otros. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para agendar encuentros a nombre de otros usuarios',
+                codigo: 'NO_ES_PARTE_DEL_ENCUENTRO'
+            });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [conversacion_id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de agendar encuentro en conversación ajena');
+            return res.status(403).json({
+                error: 'No autorizado para agendar encuentros en esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
         }
 
         const result = await pool.query(
@@ -6174,9 +6200,27 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
 });
 
 // CANCELAR ENCUENTRO
-app.post('/api/encuentro/cancelar/:id', async (req, res) => {
+app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE del encuentro
+        const encCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            [id]
+        );
+        if (encCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Encuentro no encontrado' });
+        }
+        const encData = encCheck.rows[0];
+        if (encData.usuario1_id !== req.usuarioAutenticado && encData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de cancelar encuentro ajeno. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para cancelar este encuentro',
+                codigo: 'NO_ES_PARTE_DEL_ENCUENTRO'
+            });
+        }
+
         const result = await pool.query(
             `UPDATE encuentros_agendados 
              SET estado = 'cancelado' 
