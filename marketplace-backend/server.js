@@ -2488,9 +2488,18 @@ app.delete('/api/conversaciones/:id', verificarTokenFirebase, async (req, res) =
 
 
 // ===== CONTEO DE MENSAJES NO LEÍDOS =====
-app.get('/api/conversaciones/no-leidos/:usuario_id', async (req, res) => {
+app.get('/api/conversaciones/no-leidos/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en GET /api/conversaciones/no-leidos/:usuario_id');
+            return res.status(403).json({
+                error: 'No autorizado para ver mensajes no leídos de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         // Buscar conversaciones donde el último mensaje NO es mío
         // y es más reciente que mi última lectura
@@ -2594,9 +2603,19 @@ app.get('/api/alertas/:usuario_id', verificarTokenFirebase, async (req, res) => 
 });
 
 // ===== RUTA PARA OBTENER CONTEO DE ALERTAS NO LEÍDAS =====
-app.get('/api/alertas/no-leidas/:usuario_id', async (req, res) => {
+app.get('/api/alertas/no-leidas/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en GET /api/alertas/no-leidas/:usuario_id');
+            return res.status(403).json({
+                error: 'No autorizado para ver alertas de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             'SELECT COUNT(*) as total FROM alertas WHERE usuario_id = $1 AND leida = FALSE',
             [usuario_id]
@@ -2637,9 +2656,19 @@ app.put('/api/alertas/marcar-leidas/:usuario_id', verificarTokenFirebase, async 
 });
 
 // ===== RUTA PARA OBTENER CONTEO DE ALERTAS NO LEÍDAS =====
-app.get('/api/alertas/no-leidas/:usuario_id', async (req, res) => {
+app.get('/api/alertas/no-leidas/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
+
+        // 🔥 Verificar que el usuario_id de la URL coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en GET /api/alertas/no-leidas/:usuario_id');
+            return res.status(403).json({
+                error: 'No autorizado para ver alertas de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             'SELECT COUNT(*) as total FROM alertas WHERE usuario_id = $1 AND leida = FALSE',
             [usuario_id]

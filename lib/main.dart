@@ -288,9 +288,13 @@ class _MainScreenState extends State<MainScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/conversaciones/no-leidos/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -311,9 +315,13 @@ class _MainScreenState extends State<MainScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/alertas/no-leidas/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {
