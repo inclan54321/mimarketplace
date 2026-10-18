@@ -137,11 +137,15 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   Future<void> _registrarVista() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
         Uri.parse(
           'https://mimarketplace-production.up.railway.app/api/productos/${_producto.id}/vista',
         ),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({'usuario_id': user?.uid}),
       );
       print('>>> VISTA REGISTRADA: ${response.statusCode}');

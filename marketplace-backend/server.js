@@ -3126,11 +3126,20 @@ app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
 
 
 // ===== REGISTRAR VISTA DE PRODUCTO =====
-app.post('/api/productos/:id/vista', async (req, res) => {
+app.post('/api/productos/:id/vista', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { usuario_id } = req.body;
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+        // 🔥 El usuario_id del body tiene que ser el autenticado (o null para anónimo)
+        if (usuario_id !== null && usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/productos/:id/vista');
+            return res.status(403).json({
+                error: 'No autorizado para registrar vistas a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         // 1. Insertar vista individual
         await pool.query(
