@@ -2859,8 +2859,12 @@ Widget _buildAudioMessage({
     if (user == null) return false;
     
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear/verificar/${user.uid}/$vendedorId'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

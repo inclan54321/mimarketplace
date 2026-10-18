@@ -2871,10 +2871,19 @@ app.delete('/api/bloquear', verificarTokenFirebase, async (req, res) => {
     }
 });
 
-app.get('/api/bloquear/verificar/:usuario_bloquea/:usuario_bloqueado', async (req, res) => {
+app.get('/api/bloquear/verificar/:usuario_bloquea/:usuario_bloqueado', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_bloquea, usuario_bloqueado } = req.params;
-        
+
+        // 🔥 Verificar que el usuario_bloquea de la URL coincida con el del token
+        if (usuario_bloquea !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en GET /api/bloquear/verificar');
+            return res.status(403).json({
+                error: 'No autorizado para verificar bloqueos de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             'SELECT * FROM bloqueos WHERE usuario_bloquea = $1 AND usuario_bloqueado = $2',
             [usuario_bloquea, usuario_bloqueado]

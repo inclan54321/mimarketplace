@@ -264,8 +264,12 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
 
   Future<bool> _verificarBloqueo(String vendedorId) async {
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/bloquear/verificar/$_usuarioId/$vendedorId'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
