@@ -3779,10 +3779,14 @@ ListTile(
                               final user = FirebaseAuth.instance.currentUser;
                               int enviadas = 0;
 
+                              final idTokenProp = await FirebaseAuth.instance.currentUser?.getIdToken();
                               for (final prop in propuestasTemporales) {
                                 final response = await http.post(
                                   Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/proponer'),
-                                  headers: {'Content-Type': 'application/json'},
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    if (idTokenProp != null) 'Authorization': 'Bearer $idTokenProp',
+                                  },
                                   body: jsonEncode({
                                     'conversacion_id': int.parse(_conversacionIdActual),
                                     'usuario_propone_id': user?.uid ?? '',

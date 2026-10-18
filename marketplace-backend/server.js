@@ -5068,7 +5068,7 @@ app.post('/api/escudo/rechazar', verificarTokenFirebase, async (req, res) => {
 // ============================================================
 
 // 🔥 PROPONER ENCUENTRO (CON LUGAR SEGURO)
-app.post('/api/encuentro/proponer', async (req, res) => {
+app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => {
     try {
         const {
             conversacion_id,
@@ -5080,6 +5080,35 @@ app.post('/api/encuentro/proponer', async (req, res) => {
 
         if (!conversacion_id || !usuario_propone_id || !usuario_recibe_id || !lugar_id || !fecha_encuentro) {
             return res.status(400).json({ error: 'Faltan datos obligatorios' });
+        }
+
+        console.log('>>> 🔐 Proponer encuentro. Usuario autenticado:', req.usuarioAutenticado);
+        console.log('>>> 🔐 usuario_propone_id del body:', usuario_propone_id);
+
+        // 🔥 Verificar que quien propone sea el usuario autenticado
+        if (usuario_propone_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/encuentro/proponer');
+            return res.status(403).json({
+                error: 'No autorizado para proponer encuentros a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 Verificar que el usuario autenticado sea PARTE de la conversación
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [conversacion_id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de proponer encuentro en conversación ajena');
+            return res.status(403).json({
+                error: 'No autorizado para proponer encuentros en esta conversación',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
         }
 
         const lugarResult = await pool.query(
