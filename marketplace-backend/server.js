@@ -4732,12 +4732,21 @@ app.get('/api/conversaciones/:conversacionId/calificacion-pendiente', async (req
 // ============================================================
 // 🔥 SOPORTE - ENVIAR MENSAJE
 // ============================================================
-app.post('/api/soporte/enviar', async (req, res) => {
+app.post('/api/soporte/enviar', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id, asunto, mensaje } = req.body;
 
         if (!usuario_id || !mensaje || mensaje.trim().isEmpty) {
             return res.status(400).json({ error: 'usuario_id y mensaje obligatorios' });
+        }
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/soporte/enviar');
+            return res.status(403).json({
+                error: 'No autorizado para enviar soporte a nombre de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
         }
 
         // Obtener datos del usuario

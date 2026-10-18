@@ -65,9 +65,13 @@ class _SoporteScreenState extends State<SoporteScreen> {
       }
 
       // 🔥 ENVIAR MENSAJE DE SOPORTE AL BACKEND REAL
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/soporte/enviar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'usuario_id': user.uid,
           'asunto': '[$_tipoConsulta] ${_asuntoController.text.trim()}',
