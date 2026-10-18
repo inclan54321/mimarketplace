@@ -4871,9 +4871,13 @@ ListTile(
   // 🔥 RESPONDER PROPUESTA (ACEPTAR O RECHAZAR)
   Future<void> _responderPropuesta(String propuestaId, String accion) async {
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.put(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId/$accion'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {

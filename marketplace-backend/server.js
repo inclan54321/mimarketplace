@@ -5184,7 +5184,7 @@ app.get('/api/encuentro/propuesta/:id', async (req, res) => {
 });
 
 // 🔥 ACEPTAR PROPUESTA (RECHAZA AUTOMÁTICAMENTE LAS OTRAS)
-app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
+app.put('/api/encuentro/propuesta/:id/aceptar', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -5200,6 +5200,15 @@ app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
 
         const propuesta = propuestaResult.rows[0];
         const conversacionId = propuesta.conversacion_id;
+
+        // 🔥 Solo el usuario que RECIBE la propuesta puede aceptarla
+        if (propuesta.usuario_recibe_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de aceptar propuesta ajena. User:', req.usuarioAutenticado, '| Recibe:', propuesta.usuario_recibe_id);
+            return res.status(403).json({
+                error: 'No autorizado para aceptar esta propuesta',
+                codigo: 'NO_ES_EL_RECEPTOR'
+            });
+        }
 
         // 2. Aceptar esta propuesta
         const result = await pool.query(
@@ -5294,9 +5303,29 @@ app.put('/api/encuentro/propuesta/:id/aceptar', async (req, res) => {
 });
 
 // 🔥 RECHAZAR PROPUESTA
-app.put('/api/encuentro/propuesta/:id/rechazar', async (req, res) => {
+app.put('/api/encuentro/propuesta/:id/rechazar', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+
+        // 🔥 Primero verificar quién es el receptor
+        const checkResult = await pool.query(
+            `SELECT usuario_recibe_id FROM propuestas_encuentro WHERE id = $1`,
+            [id]
+        );
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Propuesta no encontrada' });
+        }
+
+        // 🔥 Solo el usuario que RECIBE la propuesta puede rechazarla
+        if (checkResult.rows[0].usuario_recibe_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ Intento de rechazar propuesta ajena. User:', req.usuarioAutenticado);
+            return res.status(403).json({
+                error: 'No autorizado para rechazar esta propuesta',
+                codigo: 'NO_ES_EL_RECEPTOR'
+            });
+        }
+
         const result = await pool.query(
             `UPDATE propuestas_encuentro 
              SET estado = 'rechazada', fecha_actualizacion = NOW()
