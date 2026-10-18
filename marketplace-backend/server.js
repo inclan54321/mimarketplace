@@ -3378,11 +3378,20 @@ app.get('/api/estadisticas/usuario/:usuario_id/ranking', async (req, res) => {
 
 
 // ===== GUARDAR AGENDA (CADA PRODUCTO ES UN REGISTRO SEPARADO) =====
-app.post('/api/agenda/guardar-todas', async (req, res) => {
+app.post('/api/agenda/guardar-todas', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id, conversaciones } = req.body;
 
         console.log('>>> Agenda - Recibidas:', conversaciones.length);
+
+        // 🔥 Verificar que el usuario_id del body coincida con el del token
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en POST /api/agenda/guardar-todas');
+            return res.status(403).json({
+                error: 'No autorizado para modificar la agenda de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         if (!conversaciones || conversaciones.length === 0) {
             return res.status(400).json({ error: 'No hay conversaciones' });
