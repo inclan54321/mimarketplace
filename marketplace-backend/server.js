@@ -4300,9 +4300,19 @@ app.get('/api/usuarios/:uid/ultima-conexion', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-app.get('/api/usuarios/:uid', async (req, res) => {
+app.get('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
     try {
         const { uid } = req.params;
+
+        // 🔥 Verificar que el uid de la URL coincida con el del token
+        if (uid !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en GET /api/usuarios/:uid');
+            return res.status(403).json({
+                error: 'No autorizado para ver datos de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
         const result = await pool.query(
             'SELECT uid, email, nombre, telefono, acepta_recoleccion FROM usuarios WHERE uid = $1',
             [uid]

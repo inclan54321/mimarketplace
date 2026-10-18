@@ -36,8 +36,12 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         return;
       }
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {
