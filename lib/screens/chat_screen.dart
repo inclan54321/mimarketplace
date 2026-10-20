@@ -549,7 +549,14 @@ class _ChatScreenState extends State<ChatScreen>
       },
       onEstadoCambio: (data) {
         print('>>> 🔄 WS cambio de estado: ${data['estado']}');
-        if (mounted) _cargarMensajes(_conversacionIdActual, forzar: true);
+        if (!mounted) return;
+        if (data['estado'] == 'analisis_listo') {
+          // 🔥 El servidor terminó de analizar: consultar al instante
+          final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+          _analizarMensajeConIA('', uid, esMensajeNuevo: true);
+        } else {
+          _cargarMensajes(_conversacionIdActual, forzar: true);
+        }
       },
       onConectado: () {
         print('>>> ✅ WS conectado');
@@ -5041,7 +5048,155 @@ ListTile(
       ),
     );
   }
+  // 🔥 PANTALLA QUE SE MUESTRA CUANDO EL CHAT ESTÁ BLOQUEADO (TRATO CERRADO)
+  Widget _buildPantallaTratoCerrado() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 🔥 LOGO DE LA APP
+          Image.asset(
+            'assets/icon/icon.png',
+            width: 72,
+            height: 72,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.handshake,
+              size: 72,
+              color: Color(0xFF0A5BE0),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            '🤝 Trato cerrado',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0A3D91),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'El chat quedó bloqueado. Nos vemos en el encuentro.',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
 
+          // 🔥 PASOS DEL PROCESO
+          _buildPasoTratoCerrado(
+            icono: Icons.notifications_active,
+            titulo: '1. Revisá tus alertas',
+            descripcion:
+                'Entrá a la sección de Alertas para ver la fecha, hora y lugar del encuentro confirmado.',
+          ),
+          const SizedBox(height: 14),
+          _buildPasoTratoCerrado(
+            icono: Icons.face,
+            titulo: '2. Reconocimiento facial',
+            descripcion:
+                'El día del encuentro, la app te va a pedir una selfie para verificar tu identidad antes de salir.',
+          ),
+          const SizedBox(height: 14),
+          _buildPasoTratoCerrado(
+            icono: Icons.location_on,
+            titulo: '3. Activá el GPS',
+            descripcion:
+                'Al llegar al lugar, activá la ubicación. La app confirma que estás en el punto seguro.',
+          ),
+          const SizedBox(height: 14),
+          _buildPasoTratoCerrado(
+            icono: Icons.lock_open,
+            titulo: '4. Se desbloquea el chat',
+            descripcion:
+                'Cuando ambos estén presentes y verificados, el chat vuelve a abrirse.',
+          ),
+          const SizedBox(height: 32),
+
+          // 🔥 AVISO IMPORTANTE
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange, size: 22),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Llegá 10 minutos antes. Si no llegás, el encuentro se marca como "no presentado" y el chat queda cerrado.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPasoTratoCerrado({
+    required IconData icono,
+    required String titulo,
+    required String descripcion,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE3EEFF)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A5BE0).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icono, color: const Color(0xFF0A5BE0), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xFF0A3D91),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  descripcion,
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     final top = MediaQuery.viewPaddingOf(context).top;
     final fotoUrl = widget.fotoPerfil.isNotEmpty ? widget.fotoPerfil : _fotoVendedorReal;
@@ -5569,12 +5724,14 @@ ListTile(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _mensajes.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No hay mensajes aún',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      )
+                    ? (_chatBloqueado
+                        ? _buildPantallaTratoCerrado()
+                        : const Center(
+                            child: Text(
+                              'No hay mensajes aún',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ))
                     : RepaintBoundary(
                         child: ListView.builder(
                         reverse: true,

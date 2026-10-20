@@ -1638,6 +1638,31 @@ app.post('/api/mensajes', verificarTokenFirebase, upload.single('imagen'), async
 
         if (escudoDeEsteUsuario) {
             console.log('>>> 🛡️ Escudo activo → analizando con DeepSeek');
+
+            // 🔥 Vía rápida: si el mensaje pide un encuentro, marcarlo YA (sin esperar a DeepSeek)
+            try {
+                const t = (texto || '').toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (!t.startsWith('||') &&
+                    /(encuentro|vernos|juntemonos|agendemos|reunirnos|encontrarnos)/.test(t)) {
+                    await pool.query(
+                        `UPDATE conversaciones_app
+                         SET quiere_encuentro = true,
+                             analisis_ia = COALESCE(NULLIF(analisis_ia, ''), 'Propuesta de encuentro detectada'),
+                             fecha_analisis = NOW()
+                         WHERE id = $1`,
+                        [conversacion_id]
+                    );
+                    global.broadcast(conversacion_id, {
+                        tipo: 'estado_cambio',
+                        estado: 'analisis_listo',
+                    });
+                    console.log('>>> ⚡ Encuentro detectado por vía rápida');
+                }
+            } catch (e) {
+                console.error('>>> ❌ Error en vía rápida de encuentro:', e.message);
+            }
+
             analizarConversacionEnSegundoPlano(conversacion_id, usuario_id);
         } else {
             console.log('>>> ⏭️ Escudo apagado → sin análisis');
@@ -4511,6 +4536,12 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
                 );
 
                 console.log('>>> 🤝 ¿Acuerdo cerrado?:', acuerdoCerrado);
+
+                // 🔥 Avisar a la app de que el análisis ya está listo
+                global.broadcast(conversacionId, {
+                    tipo: 'estado_cambio',
+                    estado: 'analisis_listo',
+                });
 
                 // 🔥 Si la IA detecta cierre, el "seguir conversando" ya no aplica.
                 if (quiereCerrarTrato && !yaEstabaActivo) {
