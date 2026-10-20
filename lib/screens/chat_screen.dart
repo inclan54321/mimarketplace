@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:async';
 import 'package:animated_emoji/animated_emoji.dart';
 import 'package:image_picker/image_picker.dart';
@@ -67,7 +68,7 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final TextEditingController _controller = TextEditingController();
   final TextEditingController _comentarioController = TextEditingController(); // 🔥 NUEVO
   final List<Map<String, String>> _mensajes = [];
@@ -123,6 +124,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _otroUsuarioConfirmoCerrarTrato = false; // 🔥 NUEVO
   bool _esperandoConfirmacionCerrarTrato = false; // 🔥 NUEVO
   bool _estadoCargado = false; // 🔥 El input no se muestra hasta conocer el estado de bloqueo
+  bool _cerrarTratoForzado = false; // 🔥 Modal de cerrar trato abierto por el escudo o por el otro usuario (la IA no lo apaga)
 
   // 🔥 ESCUDO MUTUO (aceptar/rechazar por el otro usuario)
   String? _escudoActivadoPor;
@@ -161,6 +163,9 @@ class _ChatScreenState extends State<ChatScreen>
   // 🔥 NUEVO: ANIMACIÓN DEL CÍRCULO OSCILANTE
   late AnimationController _oscilacionController;
   late Animation<double> _oscilacionAnim;
+
+  // 🔥 ANIMACIÓN DEL BORDE PUNTEADO DE LA PROPUESTA
+  late AnimationController _bordeController;
 
   // 🔥 WEBSOCKET
   ChatWebSocketService? _wsService;
@@ -507,7 +512,9 @@ class _ChatScreenState extends State<ChatScreen>
         _usuarioDecidioSeguirConversando = false;
         _propuestaEncuentroPendiente = m['propuestaPendiente'] == true;
         _quiereCerrarTrato = m['quiereCerrarTrato'] == true;
-        _mostrarBotonesCerrarTrato = m['mostrarBotonesCerrarTrato'] == true;
+        // 🔥 NO restaurar el modal de cerrar trato del caché: lo decide el servidor.
+        // Si se restaura, aparece unos segundos y luego se apaga.
+        _mostrarBotonesCerrarTrato = false;
 
         // 🔥 Ya tenemos el estado: el input se muestra/oculta al instante
         _estadoCargado = true;
@@ -542,7 +549,7 @@ class _ChatScreenState extends State<ChatScreen>
       },
       onEstadoCambio: (data) {
         print('>>> 🔄 WS cambio de estado: ${data['estado']}');
-        if (mounted) _cargarMensajes(_conversacionIdActual);
+        if (mounted) _cargarMensajes(_conversacionIdActual, forzar: true);
       },
       onConectado: () {
         print('>>> ✅ WS conectado');
@@ -644,6 +651,12 @@ void initState() {
   );
 
   // 🔥 Ya no gira todo el tiempo: se inicia solo al grabar
+
+  // 🔥 Borde punteado de la tarjeta de propuesta (loop continuo)
+  _bordeController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  )..repeat();
   
   // 🔥 CONFIGURAR REPRODUCTOR DE AUDIO
   _audioPlayer.onPlayerComplete.listen((event) {
@@ -709,6 +722,7 @@ void dispose() {
   _wsService?.desconectar(); // 🔥 CERRAR WEBSOCKET
   _ocultarCirculoGrabacion(); // 🔥 ELIMINAR OVERLAY
   _oscilacionController.dispose(); // 🔥 LIBERAR ANIMACIÓN
+  _bordeController.dispose();
   // _timerEmociones.cancel(); // 🔥 Ya no se usa
   _timer?.cancel();
   _controller.dispose();
@@ -902,6 +916,7 @@ void dispose() {
   Future<void> _cargarMensajes(
     String conversacionId, {
     bool esMensajeNuevo = false,
+    bool forzar = false,
   }) async {
   if (conversacionId.isEmpty) {
     setState(() => _isLoading = false);
@@ -1038,7 +1053,7 @@ void dispose() {
 
       // 🔥 SI NO HAY CAMBIOS, no hace falta consultar nada más.
       // 🔥 Esto ahorra 5 requests cada 3 segundos cuando el chat está quieto.
-      if (!hayCambios && _estadoCargado) {
+      if (!hayCambios && _estadoCargado && !forzar) {
         // 🔥 El análisis de la IA llega después del mensaje: seguir consultándolo
         await _analizarMensajeConIA('', user.uid, esMensajeNuevo: esMensajeNuevo);
         return;
@@ -1084,6 +1099,8 @@ void dispose() {
                 _otroUsuarioConfirmoCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = true;
                 _mostrarBotonesCerrarTrato = false;
+                _cerrarTratoForzado = false;
+                _usuarioDecidioSeguirConversando = false;
               } else {
                 _usuarioConfirmoCerrarTrato = yoConfirme;
                 _otroUsuarioConfirmoCerrarTrato = otroConfirme;
@@ -1093,9 +1110,16 @@ void dispose() {
                 // 🔥 Así los dos usuarios ven el mismo flujo (modal azul o espera).
                 if (yoConfirme || otroConfirme) {
                   _mostrarBotonesConfirmar = false;
+                  _usuarioDecidioSeguirConversando = false;
                 }
 
-                // 🔥 Si yo confirmé y el otro no, mantener el cartel azul y el input oculto.
+                // 🔥 Si el OTRO confirmó y yo no: me sale el recuadro para decidir
+                // (y el input queda oculto porque el modal está visible).
+                if (otroConfirme && !yoConfirme && !_chatBloqueado) {
+                  _mostrarBotonesCerrarTrato = true;
+                  _cerrarTratoForzado = true;
+                }
+
                 if (!yoConfirme) {
                   _esperandoConfirmacionCerrarTrato = false;
                 }
@@ -1125,7 +1149,11 @@ void dispose() {
             setState(() => _usuarioDecidioSeguirConversando = false);
           }
 
-          if (mounted && alguienDijoSeguir) {
+          // 🔥 Si alguien ya confirmó cerrar trato, un "seguir conversando" viejo no debe pisarlo
+          if (mounted &&
+              alguienDijoSeguir &&
+              !_usuarioConfirmoCerrarTrato &&
+              !_otroUsuarioConfirmoCerrarTrato) {
             setState(() {
               _usuarioDecidioSeguirConversando = true;
               _esperandoRespuestaOtro = false;
@@ -1733,7 +1761,7 @@ Future<void> _obtenerFotoVendedorReal() async {
             _mostrarBotonesConfirmar = false; // 🔥 instantáneo: apagar botones verdes
             print('>>> 🟩 MODAL CERRAR TRATO activado por IA');
           } else {
-            if (!quiereCerrarTrato) _mostrarBotonesCerrarTrato = false;
+            if (!quiereCerrarTrato && !_cerrarTratoForzado) _mostrarBotonesCerrarTrato = false;
             print('>>> ⬜ IA no activó modal cerrar trato: quiereCerrarTrato=$quiereCerrarTrato, quiereEncuentro=$quiereEncuentro');
           }
         });
@@ -4375,7 +4403,7 @@ ListTile(
 
 
 
-    return GestureDetector(
+    final tarjeta = GestureDetector(
       onTap: () => _mostrarDetallePropuesta(propuesta),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -4451,6 +4479,10 @@ ListTile(
         ),
       ),
     );
+
+    // 🔥 Solo las pendientes llevan el borde animado
+    if (estado != 'pendiente') return tarjeta;
+    return BordePunteadoAnimado(controller: _bordeController, child: tarjeta);
   }
   // 🔥 TARJETA DE PROPUESTA: mismo diseño (imagen del asset) desde el primer frame
   Widget _buildTarjetaPropuesta(String propuestaId) {
@@ -5203,6 +5235,7 @@ ListTile(
                     // 🔥 Abrir el modal de cerrar trato (el mismo que usa la IA)
                     setState(() {
                       _mostrarBotonesCerrarTrato = true;
+                      _cerrarTratoForzado = true;
                       _mostrarBotonesConfirmar = false;
                     });
                   },
@@ -5290,154 +5323,245 @@ ListTile(
           if (_mostrarBotonesCerrarTrato && !_usuarioConfirmoCerrarTrato)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.shade200, width: 2),
-              ),
-              child: Column(
-                children: [
-                  const Icon(Icons.handshake, color: Colors.blue, size: 32),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '¿Ya está todo listo para el encuentro?',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    textAlign: TextAlign.center,
+                borderRadius: BorderRadius.circular(16),
+                image: const DecorationImage(
+                  image: AssetImage('assets/images/escudo/fondo_trato.png'),
+                  fit: BoxFit.cover,
+                ),
+                border: Border.all(color: const Color(0xFF0A5BE0), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0A5BE0).withValues(alpha: 0.15),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
                   ),
-                  const SizedBox(height: 12),
-                  // 🔥 El cartel de "confirmaste" va afuera del modal, en la zona del input.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            final hayPropuesta = await _hayPropuestaEncuentro();
-                            if (!hayPropuesta) {
-                              // 🔥 Todavía no hay una propuesta de encuentro aceptada.
-                              // 🔥 En vez de cerrar el trato, pedirle al usuario que proponga un encuentro.
-                              setState(() {
-                                _mostrarBotonesCerrarTrato = false;
-                              });
-
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      '📍 Primero proponé un lugar y una fecha para el encuentro.\n'
-                                      'Cuando el otro acepte, vas a poder cerrar el trato.',
-                                    ),
-                                    backgroundColor: Colors.blue,
-                                    duration: Duration(seconds: 4),
-                                  ),
-                                );
-                              }
-
-                              _mostrarInterfazEncuentro();
-                              return;
-                            }
-
-                            final user = FirebaseAuth.instance.currentUser;
-                            if (user == null) return;
-
-                            try {
-                              final idTokenCerrar2 = await FirebaseAuth.instance.currentUser?.getIdToken();
-                              final r = await http.post(
-                                Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  if (idTokenCerrar2 != null) 'Authorization': 'Bearer $idTokenCerrar2',
-                                },
-                                body: jsonEncode({'usuario_id': user.uid}),
-                              );
-
-                              if (r.statusCode == 200) {
-                                final data = jsonDecode(r.body);
-                                final ambos = data['ambos_confirmaron'] == true;
-
+                ],
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: Colors.white.withValues(alpha: 0.82),
+                ),
+                child: Column(
+                  children: [
+                    // 🔥 LOGO DE LA APP EN LUGAR DEL ÍCONO DE HANDSHAKE
+                    Image.asset(
+                      'assets/icon/icon.png',
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.handshake,
+                        color: Color(0xFF0A5BE0),
+                        size: 48,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '¿Ya está todo listo para el encuentro?',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Color(0xFF0A3D91),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        // 🔥 BOTÓN CONFIRMAR CON DEGRADADO AZUL TIPO INPUT
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () async {
+                              final hayPropuesta = await _hayPropuestaEncuentro();
+                              if (!hayPropuesta) {
                                 setState(() {
-                                  _usuarioConfirmoCerrarTrato = true;
                                   _mostrarBotonesCerrarTrato = false;
-
-                                  if (ambos) {
-                                    _esperandoConfirmacionCerrarTrato = false;
-                                  } else {
-                                    _esperandoConfirmacionCerrarTrato = true;
-                                  }
                                 });
 
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(ambos
-                                          ? '✅ Trato cerrado. Esperando el encuentro.'
-                                          : '⏳ Esperando que el otro usuario confirme...'),
-                                      backgroundColor: ambos ? Colors.green : Colors.blue,
+                                    const SnackBar(
+                                      content: Text(
+                                        '📍 Primero proponé un lugar y una fecha para el encuentro.\n'
+                                        'Cuando el otro acepte, vas a poder cerrar el trato.',
+                                      ),
+                                      backgroundColor: Colors.blue,
+                                      duration: Duration(seconds: 4),
                                     ),
                                   );
                                 }
 
-                                await _cargarMensajes(_conversacionIdActual);
+                                _mostrarInterfazEncuentro();
+                                return;
                               }
-                            } catch (e) {
-                              print('Error al cerrar trato: $e');
-                            }
-                          },
-                          icon: const Icon(Icons.check_circle, size: 18),
-                          label: const Text('Confirmar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+
+                              final user = FirebaseAuth.instance.currentUser;
+                              if (user == null) return;
+
+                              try {
+                                final idTokenCerrar2 = await FirebaseAuth.instance.currentUser?.getIdToken();
+                                final r = await http.post(
+                                  Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    if (idTokenCerrar2 != null) 'Authorization': 'Bearer $idTokenCerrar2',
+                                  },
+                                  body: jsonEncode({'usuario_id': user.uid}),
+                                );
+
+                                if (r.statusCode == 200) {
+                                  final data = jsonDecode(r.body);
+                                  final ambos = data['ambos_confirmaron'] == true;
+
+                                  setState(() {
+                                    _usuarioConfirmoCerrarTrato = true;
+                                    _mostrarBotonesCerrarTrato = false;
+                                    _cerrarTratoForzado = false;
+                                    _usuarioDecidioSeguirConversando = false;
+                                    if (ambos) {
+                                      _esperandoConfirmacionCerrarTrato = false;
+                                    } else {
+                                      _esperandoConfirmacionCerrarTrato = true;
+                                    }
+                                  });
+
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(ambos
+                                            ? '✅ Trato cerrado. Esperando el encuentro.'
+                                            : '⏳ Esperando que el otro usuario confirme...'),
+                                        backgroundColor: ambos ? Colors.green : Colors.blue,
+                                      ),
+                                    );
+                                  }
+
+                                  await _cargarMensajes(_conversacionIdActual);
+                                }
+                              } catch (e) {
+                                print('Error al cerrar trato: $e');
+                              }
+                            },
+                            child: Container(
+                              height: 46,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(26),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [Color(0xFF3B9BFF), Color(0xFF0A5BE0)],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF0A5BE0).withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.check_circle, size: 18, color: Colors.white),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Confirmar',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            setState(() {
-                              _mostrarBotonesCerrarTrato = false;
-                              _quiereCerrarTrato = false;
-                            });
+                        const SizedBox(width: 8),
+                        // 🔥 BOTÓN OUTLINED TIPO INPUT
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              setState(() {
+                                _mostrarBotonesCerrarTrato = false;
+                                _cerrarTratoForzado = false;
+                                _quiereCerrarTrato = false;
+                              });
 
-                            try {
-                              final idTokenCancelar = await FirebaseAuth.instance.currentUser?.getIdToken();
-                              // 🔥 1. Cancelar cierre de trato
-                              await http.post(
-                                Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cancelar-cierre-trato'),
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  if (idTokenCancelar != null) 'Authorization': 'Bearer $idTokenCancelar',
-                                },
-                              );
+                              try {
+                                final idTokenCancelar = await FirebaseAuth.instance.currentUser?.getIdToken();
+                                await http.post(
+                                  Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cancelar-cierre-trato'),
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    if (idTokenCancelar != null) 'Authorization': 'Bearer $idTokenCancelar',
+                                  },
+                                );
 
-                              // 🔥 2. Resetear seguir-conversando (borra los mensajes)
-                              final idTokenReset = await FirebaseAuth.instance.currentUser?.getIdToken();
-                              await http.post(
-                                Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/reset-seguir-conversando'),
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  if (idTokenReset != null) 'Authorization': 'Bearer $idTokenReset',
-                                },
-                              );
+                                final idTokenReset = await FirebaseAuth.instance.currentUser?.getIdToken();
+                                await http.post(
+                                  Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/reset-seguir-conversando'),
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    if (idTokenReset != null) 'Authorization': 'Bearer $idTokenReset',
+                                  },
+                                );
 
-                              // 🔥 3. Recargar mensajes
-                              await _cargarMensajes(_conversacionIdActual);
-                            } catch (e) {
-                              print('Error al cancelar cierre de trato: $e');
-                            }
-                          },
-                          icon: const Icon(Icons.help_outline, size: 18),
-                          label: const Text('Tengo más preguntas'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                                // 🔥 Avisar al otro usuario que quieres seguir conversando
+                                // (se envía DESPUÉS del reset, porque el reset borra estos mensajes)
+                                final uidSeguir = FirebaseAuth.instance.currentUser?.uid;
+                                if (uidSeguir != null) {
+                                  final idTokenMsg = await FirebaseAuth.instance.currentUser?.getIdToken();
+                                  await http.post(
+                                    Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      if (idTokenMsg != null) 'Authorization': 'Bearer $idTokenMsg',
+                                    },
+                                    body: jsonEncode({
+                                      'conversacion_id': int.parse(_conversacionIdActual),
+                                      'usuario_id': uidSeguir,
+                                      'texto': '||SEGUIR_CONVERSANDO||$uidSeguir',
+                                    }),
+                                  );
+                                }
+
+                                // 🔥 Guardar el estado ya sin el recuadro, para que no reaparezca desde la caché
+                                _guardarEstadoBloqueo();
+
+                                await _cargarMensajes(_conversacionIdActual);
+                              } catch (e) {
+                                print('Error al cancelar cierre de trato: $e');
+                              }
+                            },
+                            icon: const Icon(Icons.help_outline, size: 18, color: Color(0xFF0A5BE0)),
+                            label: const Text(
+                              'Tengo más preguntas',
+                              style: TextStyle(
+                                color: Color(0xFF0A5BE0),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(46),
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              side: const BorderSide(color: Color(0xFF0A5BE0), width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(26),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -5454,7 +5578,12 @@ ListTile(
                     : RepaintBoundary(
                         child: ListView.builder(
                         reverse: true,
-                        padding: const EdgeInsets.only(bottom: 30),
+                        padding: EdgeInsets.only(
+                          bottom: (_propuestaEncuentroPendiente || _chatBloqueado)
+                              ? MediaQuery.of(context).size.height * 0.25
+                              : 30,
+                          top: 120,
+                        ),
                         itemCount: _mensajes.length,
               itemBuilder: (context, index) {
   final mensaje = _mensajes[_mensajes.length - 1 - index];
@@ -5911,7 +6040,10 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           ),
 
          // 🔥 BOTÓN DE CALIFICACIÓN ELIMINADO - AHORA SOLO APARECE EN EL LISTVIEW
-         SafeArea(
+              // 🔥 BOTÓN DE CALIFICACIÓN ELIMINADO - AHORA SOLO APARECE EN EL LISTVIEW
+         // 🔥 EL ÓVALO COMPLETO DEL INPUT SE OCULTA SI HAY PROPUESTA PENDIENTE O CHAT BLOQUEADO
+         if (!_propuestaEncuentroPendiente && !_chatBloqueado)
+  SafeArea(
   top: false,
   bottom: true,
   child: Container(
@@ -6395,4 +6527,71 @@ class _OlaAppBarClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+// ✨ Borde punteado que gira y "respira" alrededor de un widget
+class BordePunteadoAnimado extends StatelessWidget {
+  final AnimationController controller;
+  final Widget child;
+  const BordePunteadoAnimado({
+    super.key,
+    required this.controller,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      foregroundPainter: _BordePunteadoPainter(controller),
+      child: child,
+    );
+  }
+}
+
+class _BordePunteadoPainter extends CustomPainter {
+  final AnimationController controller;
+  _BordePunteadoPainter(this.controller) : super(repaint: controller);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = controller.value;
+
+    // 🔥 Pulso: se agranda y se encoge (2 veces por vuelta)
+    final pulso = (math.sin(t * 2 * math.pi) + 1) / 2; // 0..1 (1 pulso por ciclo)
+    final inflar = 1 + pulso * 6;
+
+    // 🔥 Rectángulo base = tarjeta sin su margen (16 horizontal, 8 vertical)
+    final rect = Rect.fromLTWH(16, 8, size.width - 32, size.height - 16)
+        .inflate(inflar);
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(18)));
+
+    final paint = Paint()
+      ..color = Colors.orange.withValues(alpha: 0.6 + pulso * 0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    const dash = 10.0;
+    const gap = 6.0;
+    const ciclo = dash + gap;
+
+    // 🔥 Las rayas avanzan alrededor de la tarjeta
+    final desplazamiento = (t * ciclo * 20) % ciclo;
+
+    for (final metric in path.computeMetrics()) {
+      double d = desplazamiento - ciclo;
+      while (d < metric.length) {
+        final inicio = d < 0 ? 0.0 : d;
+        final fin = (d + dash) > metric.length ? metric.length : (d + dash);
+        if (fin > inicio) {
+          canvas.drawPath(metric.extractPath(inicio, fin), paint);
+        }
+        d += ciclo;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BordePunteadoPainter old) => false;
 }

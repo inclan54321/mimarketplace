@@ -1171,8 +1171,12 @@ Future<void> _enviarDenuncia(String motivo) async {
                         try {
                           print('>>> 3. PRODUCTO: ${_producto.nombre}');
                           print('>>> 4. IMAGEN URL: ${_producto.imagenUrl}');
+                          final idTokenGet = await FirebaseAuth.instance.currentUser?.getIdToken();
                           final convResponse = await http.get(
                             Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/${user.uid}'),
+                            headers: {
+                              if (idTokenGet != null) 'Authorization': 'Bearer $idTokenGet',
+                            },
                           );
                           if (convResponse.statusCode == 200) {
                             final List conversaciones = jsonDecode(convResponse.body);
@@ -1207,9 +1211,13 @@ Future<void> _enviarDenuncia(String motivo) async {
                             }
                           }
                           print('>>> No existe conversación, creando nueva...');
+                          final idTokenConv = await FirebaseAuth.instance.currentUser?.getIdToken();
                           final response = await http.post(
                             Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones'),
-                            headers: {'Content-Type': 'application/json'},
+                            headers: {
+                              'Content-Type': 'application/json',
+                              if (idTokenConv != null) 'Authorization': 'Bearer $idTokenConv',
+                            },
                             body: jsonEncode({
                               'usuario1_id': user.uid,
                               'usuario2_id': _producto.vendedorId ?? '',

@@ -969,25 +969,87 @@ app.get('/', (req, res) => {
     res.send('API funcionando correctamente');
 });
 
+// ============================================================
+// 🔥 DETECTAR PAÍS POR IP
+// ============================================================
+async function detectarPaisPorIP(req) {
+    try {
+        // 🔥 Railway pone la IP real en x-forwarded-for (primera IP de la lista)
+        const forwarded = req.headers['x-forwarded-for'] || '';
+        let ip = forwarded.split(',')[0].trim() || req.socket.remoteAddress || '';
+
+        // Limpiar IPv6 mapeada (::ffff:1.2.3.4 → 1.2.3.4)
+        if (ip.startsWith('::ffff:')) ip = ip.substring(7);
+
+        // Si es IP privada o localhost, no podemos geolocalizar
+        if (!ip || ip === '::1' || ip === '127.0.0.1' || ip.startsWith('10.') ||
+            ip.startsWith('192.168.') || ip.startsWith('172.')) {
+            console.log('>>> 🌍 IP privada/local, usando CR por defecto:', ip);
+            return 'CR';
+        }
+
+        // 🔥 Llamar a ip-api.com (gratis, sin API key, 45 req/min)
+        const r = await axios.get(`http://ip-api.com/json/${ip}?fields=status,countryCode`, {
+            timeout: 3000,
+        });
+
+        if (r.data && r.data.status === 'success' && r.data.countryCode) {
+            console.log('>>> 🌍 País detectado para IP', ip, ':', r.data.countryCode);
+            return r.data.countryCode;
+        }
+
+        console.log('>>> 🌍 ip-api no pudo detectar país para', ip, ', usando CR');
+        return 'CR';
+    } catch (e) {
+        console.log('>>> 🌍 Error detectando país:', e.message, ', usando CR');
+        return 'CR';
+    }
+}
 
 
-app.get('/api/productos/buscar', rateLimitBuscar, async (req, res) => {
+
+app.get('/api/productos/buscar', rateLimitBuscar, verificarTokenOpcional, async (req, res) => {
     console.log('>>> BUSCANDO:', req.query.q);
     try {
         const { q } = req.query;
         if (!q || q.length < 2) {
             return res.json([]);
         }
-        const result = await pool.query(
-            `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto
-             FROM productos_app p
-             LEFT JOIN usuarios u ON p.vendedor_id = u.uid
-             WHERE (p.nombre ILIKE $1 OR p.descripcion ILIKE $1) 
-             AND p.estado_moderacion = 'aprobado'
-             AND p.estado = 'activo'
-             AND COALESCE(p.vendido, FALSE) = FALSE`,
-            [`%${q}%`]
-        );
+
+        let paisUsuario = null;
+        if (req.usuarioAutenticado) {
+            const userResult = await pool.query(
+                'SELECT pais FROM usuarios WHERE uid = $1',
+                [req.usuarioAutenticado]
+            );
+            paisUsuario = userResult.rows[0]?.pais || null;
+        }
+
+        let result;
+        if (paisUsuario) {
+            result = await pool.query(
+                `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto
+                 FROM productos_app p
+                 LEFT JOIN usuarios u ON p.vendedor_id = u.uid
+                 WHERE (p.nombre ILIKE $1 OR p.descripcion ILIKE $1) 
+                 AND p.estado_moderacion = 'aprobado'
+                 AND p.estado = 'activo'
+                 AND COALESCE(p.vendido, FALSE) = FALSE
+                 AND (p.pais = $2 OR p.pais IS NULL)`,
+                [`%${q}%`, paisUsuario]
+            );
+        } else {
+            result = await pool.query(
+                `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto
+                 FROM productos_app p
+                 LEFT JOIN usuarios u ON p.vendedor_id = u.uid
+                 WHERE (p.nombre ILIKE $1 OR p.descripcion ILIKE $1) 
+                 AND p.estado_moderacion = 'aprobado'
+                 AND p.estado = 'activo'
+                 AND COALESCE(p.vendido, FALSE) = FALSE`,
+                [`%${q}%`]
+            );
+        }
         console.log('>>> ENCONTRADOS:', result.rows.length);
         res.json(result.rows);
     } catch (error) {
@@ -1001,24 +1063,50 @@ app.get('/api/productos/buscar', rateLimitBuscar, async (req, res) => {
 // ============================================================
 
 // GET /api/productos/impulsados
-app.get('/api/productos/impulsados', async (req, res) => {
+app.get('/api/productos/impulsados', verificarTokenOpcional, async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        p.*,
-        i.fecha_impulso
-      FROM productos_impulsados i
-      INNER JOIN productos_app p ON p.id = i.producto_id
-      WHERE i.activo = TRUE
-        AND p.estado_moderacion = 'aprobado'
-        AND p.estado = 'activo'
-        AND COALESCE(p.vendido, FALSE) = FALSE
-      ORDER BY i.fecha_impulso DESC
-      LIMIT 20
-    `);
+    let paisUsuario = null;
+    if (req.usuarioAutenticado) {
+      const userResult = await pool.query(
+        'SELECT pais FROM usuarios WHERE uid = $1',
+        [req.usuarioAutenticado]
+      );
+      paisUsuario = userResult.rows[0]?.pais || null;
+    }
+
+    let result;
+    if (paisUsuario) {
+      result = await pool.query(`
+        SELECT 
+          p.*,
+          i.fecha_impulso
+        FROM productos_impulsados i
+        INNER JOIN productos_app p ON p.id = i.producto_id
+        WHERE i.activo = TRUE
+          AND p.estado_moderacion = 'aprobado'
+          AND p.estado = 'activo'
+          AND COALESCE(p.vendido, FALSE) = FALSE
+          AND (p.pais = $1 OR p.pais IS NULL)
+        ORDER BY i.fecha_impulso DESC
+        LIMIT 20
+      `, [paisUsuario]);
+    } else {
+      result = await pool.query(`
+        SELECT 
+          p.*,
+          i.fecha_impulso
+        FROM productos_impulsados i
+        INNER JOIN productos_app p ON p.id = i.producto_id
+        WHERE i.activo = TRUE
+          AND p.estado_moderacion = 'aprobado'
+          AND p.estado = 'activo'
+          AND COALESCE(p.vendido, FALSE) = FALSE
+        ORDER BY i.fecha_impulso DESC
+        LIMIT 20
+      `);
+    }
 
     console.log('>>> IMPULSADOS DEVUELTOS:', result.rows.length);
-
     res.json(result.rows);
 
   } catch (error) {
@@ -1106,35 +1194,82 @@ app.get('/api/productos/:id', rateLimitProducto, async (req, res) => {
     }
 });
 
-app.get('/api/productos/categoria/:categoria', rateLimitCategoria, async (req, res) => {
+app.get('/api/productos/categoria/:categoria', rateLimitCategoria, verificarTokenOpcional, async (req, res) => {
     try {
         const { categoria } = req.params;
-        const result = await pool.query(
-            `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto 
-             FROM productos_app p
-             LEFT JOIN usuarios u ON p.vendedor_id = u.uid
-             WHERE p.categoria = $1 
-               AND p.estado_moderacion = 'aprobado' 
-               AND p.estado = 'activo'
-               AND COALESCE(p.vendido, FALSE) = FALSE`,
-            [categoria]
-        );
+
+        let paisUsuario = null;
+        if (req.usuarioAutenticado) {
+            const userResult = await pool.query(
+                'SELECT pais FROM usuarios WHERE uid = $1',
+                [req.usuarioAutenticado]
+            );
+            paisUsuario = userResult.rows[0]?.pais || null;
+        }
+
+        let result;
+        if (paisUsuario) {
+            result = await pool.query(
+                `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto 
+                 FROM productos_app p
+                 LEFT JOIN usuarios u ON p.vendedor_id = u.uid
+                 WHERE p.categoria = $1 
+                   AND p.estado_moderacion = 'aprobado' 
+                   AND p.estado = 'activo'
+                   AND COALESCE(p.vendido, FALSE) = FALSE
+                   AND (p.pais = $2 OR p.pais IS NULL)`,
+                [categoria, paisUsuario]
+            );
+        } else {
+            result = await pool.query(
+                `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto 
+                 FROM productos_app p
+                 LEFT JOIN usuarios u ON p.vendedor_id = u.uid
+                 WHERE p.categoria = $1 
+                   AND p.estado_moderacion = 'aprobado' 
+                   AND p.estado = 'activo'
+                   AND COALESCE(p.vendido, FALSE) = FALSE`,
+                [categoria]
+            );
+        }
         res.json(result.rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.get('/api/productos', rateLimitProductos, async (req, res) => {
+app.get('/api/productos', rateLimitProductos, verificarTokenOpcional, async (req, res) => {
     try {
-        const result = await pool.query(
-            `SELECT * FROM productos_app 
-             WHERE estado_moderacion = $1 
-               AND estado = $2
-               AND COALESCE(vendido, FALSE) = FALSE
-             ORDER BY id DESC`,
-            ['aprobado', 'activo']
-        );
+        let paisUsuario = null;
+        if (req.usuarioAutenticado) {
+            const userResult = await pool.query(
+                'SELECT pais FROM usuarios WHERE uid = $1',
+                [req.usuarioAutenticado]
+            );
+            paisUsuario = userResult.rows[0]?.pais || null;
+        }
+
+        let result;
+        if (paisUsuario) {
+            result = await pool.query(
+                `SELECT * FROM productos_app 
+                 WHERE estado_moderacion = $1 
+                   AND estado = $2
+                   AND COALESCE(vendido, FALSE) = FALSE
+                   AND (pais = $3 OR pais IS NULL)
+                 ORDER BY id DESC`,
+                ['aprobado', 'activo', paisUsuario]
+            );
+        } else {
+            result = await pool.query(
+                `SELECT * FROM productos_app 
+                 WHERE estado_moderacion = $1 
+                   AND estado = $2
+                   AND COALESCE(vendido, FALSE) = FALSE
+                 ORDER BY id DESC`,
+                ['aprobado', 'activo']
+            );
+        }
         res.json(result.rows);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1255,10 +1390,12 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
         let vendedor_nombre = '';
         let provincia = '';
         let canton = '';
+        let paisVendedor = 'CR';
         if (vendedor_id) {
-            const userResult = await pool.query('SELECT nombre FROM usuarios WHERE uid = $1', [vendedor_id]);
+            const userResult = await pool.query('SELECT nombre, pais FROM usuarios WHERE uid = $1', [vendedor_id]);
             if (userResult.rows.length > 0) {
                 vendedor_nombre = userResult.rows[0].nombre;
+                paisVendedor = userResult.rows[0].pais || 'CR';
             }
         }
 
@@ -1284,10 +1421,10 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
         // ===== GUARDAR CON ESTADO PENDIENTE =====
         const result = await pool.query(
             `INSERT INTO productos_app 
-            (nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_url, vendedor_nombre, provincia, canton, imagen_destacada, imagenes_reales, estado_moderacion, estado, fecha_expiracion, imagen_miniatura) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pendiente', 'activo', NOW() + INTERVAL '30 days', $14) 
+            (nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_url, vendedor_nombre, provincia, canton, imagen_destacada, imagenes_reales, estado_moderacion, estado, fecha_expiracion, imagen_miniatura, pais) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pendiente', 'activo', NOW() + INTERVAL '30 days', $14, $15) 
             RETURNING *`,
-            [nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_principal_url || '', vendedor_nombre, provincia, canton, imagen_destacada_url, imagenes_reales_json, imagen_miniatura_url || '']
+            [nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion, imagen_principal_url || '', vendedor_nombre, provincia, canton, imagen_destacada_url, imagenes_reales_json, imagen_miniatura_url || '', paisVendedor]
         );
 
         const producto = result.rows[0];
@@ -2025,6 +2162,24 @@ async function verificarTokenFirebase(req, res, next) {
     }
 }
 
+// 🔥 MIDDLEWARE OPCIONAL: si viene token, autentica; si no, sigue sin autenticar
+async function verificarTokenOpcional(req, res, next) {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) {
+            req.usuarioAutenticado = null;
+            return next();
+        }
+        const decoded = await getAuth().verifyIdToken(token);
+        req.usuarioAutenticado = decoded.uid;
+        next();
+    } catch (e) {
+        req.usuarioAutenticado = null;
+        next();
+    }
+}
+
 // 🔥 RATE LIMIT SEMANAL POR IP — SOLO PARA REGISTRO
 // 3 fotos por semana por IP. La ventana se reinicia 7 días después de la primera.
 const rateLimitMap = new Map();
@@ -2291,16 +2446,21 @@ app.post('/api/usuarios', verificarTokenFirebase, async (req, res) => {
             });
         }
 
+        // 🔥 Detectar país SOLO en el registro (una sola vez)
+        const pais = await detectarPaisPorIP(req);
+        console.log('>>> 🌍 País del usuario:', pais);
+
         const result = await pool.query(
-            `INSERT INTO usuarios (uid, email, nombre, telefono, acepta_recoleccion) 
-             VALUES ($1, $2, $3, $4, $5) 
+            `INSERT INTO usuarios (uid, email, nombre, telefono, acepta_recoleccion, pais) 
+             VALUES ($1, $2, $3, $4, $5, $6) 
              ON CONFLICT (uid) DO UPDATE SET 
              email = EXCLUDED.email, 
              nombre = EXCLUDED.nombre, 
              telefono = EXCLUDED.telefono,
-             acepta_recoleccion = EXCLUDED.acepta_recoleccion
+             acepta_recoleccion = EXCLUDED.acepta_recoleccion,
+             pais = COALESCE(usuarios.pais, EXCLUDED.pais)
              RETURNING *`,
-            [uid, email, nombre, telefono, acepta_recoleccion || false]
+            [uid, email, nombre, telefono, acepta_recoleccion || false, pais]
         );
         console.log('>>> Usuario creado:', result.rows[0]);
         res.status(201).json(result.rows[0]);
@@ -6144,10 +6304,60 @@ app.post('/api/conversaciones/:id/cancelar-cierre-trato', verificarTokenFirebase
             [id]
         );
 
+        // 🔥 Borrar las confirmaciones de AMBOS usuarios, para que la próxima
+        // vez que alguien confirme no cuente la confirmación vieja del otro.
+        const borradas = await pool.query(
+            `DELETE FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||CERRAR_TRATO||%'`,
+            [id]
+        );
+        console.log(`>>> 🧹 ${borradas.rowCount} confirmaciones de cerrar trato borradas en conv ${id}`);
+
+        // 🔥 Avisar a los dos por WebSocket para que se actualice el estado
+        global.broadcast(id, {
+            tipo: 'estado_cambio',
+            estado: 'cierre_trato_cancelado',
+        });
+
         console.log(`>>> 🚫 Cierre de trato cancelado en conv ${id}`);
         res.json({ success: true });
     } catch (error) {
         console.error('Error al cancelar cierre de trato:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST - Resetear los "seguir conversando" (los borra de la conversación)
+app.post('/api/conversaciones/:id/reset-seguir-conversando', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const convCheck = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+            [id]
+        );
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const convData = convCheck.rows[0];
+        if (convData.usuario1_id !== req.usuarioAutenticado && convData.usuario2_id !== req.usuarioAutenticado) {
+            return res.status(403).json({
+                error: 'No autorizado',
+                codigo: 'NO_ES_PARTE_DE_LA_CONVERSACION'
+            });
+        }
+
+        const borrados = await pool.query(
+            `DELETE FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||SEGUIR_CONVERSANDO||%'`,
+            [id]
+        );
+        console.log(`>>> 🧹 Reset seguir-conversando conv ${id}: ${borrados.rowCount} borrados`);
+        res.json({ success: true, borrados: borrados.rowCount });
+    } catch (error) {
+        console.error('Error en reset-seguir-conversando:', error);
         res.status(500).json({ error: error.message });
     }
 });

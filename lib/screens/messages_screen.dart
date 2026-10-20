@@ -25,8 +25,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> _cargarMensajes() async {
     try {
       print('Cargando mensajes...');
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes/1'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
       print('Status code: ${response.statusCode}');
       print('Body: ${response.body}');
@@ -62,9 +66,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'conversacion_id': '1',
           'usuario_id': user?.uid ?? '',

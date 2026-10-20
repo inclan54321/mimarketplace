@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/producto.dart';
 
 class ProductoService {
@@ -7,9 +8,13 @@ class ProductoService {
 
   Future<List<Producto>> getProductosByCategoria(String categoria, {List<String>? bloqueados}) async {
     try {
-      // ✅ RUTA CORRECTA CON /categoria/ EN LA URL
+      // ✅ RUTA CORRECTA CON /categoria/ EN LA URL (con token)
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('$baseUrl/api/productos/categoria/$categoria'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       print('>>> RESPONSE STATUS: ${response.statusCode}');

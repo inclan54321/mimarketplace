@@ -101,9 +101,13 @@ Future<void> _cargarProductosDestacados() async {
   try {
     print('>>> 1. INICIANDO CARGA DE DESTACADOS');
 
-    // 🔥 1. CARGAR IMPULSADOS PRIMERO
+    // 🔥 1. CARGAR IMPULSADOS PRIMERO (con token)
+    final idTokenImpulsados = await FirebaseAuth.instance.currentUser?.getIdToken();
     final impulsadosResponse = await http.get(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/impulsados'),
+      headers: {
+        if (idTokenImpulsados != null) 'Authorization': 'Bearer $idTokenImpulsados',
+      },
     );
 
     print('>>> IMPULSADOS STATUS: ${impulsadosResponse.statusCode}');
@@ -118,9 +122,13 @@ Future<void> _cargarProductosDestacados() async {
       print('>>> IMPULSADOS: ${impulsados.length}');
     }
 
-    // 🔥 2. CARGAR DESTACADOS NORMALES
+    // 🔥 2. CARGAR DESTACADOS NORMALES (con token)
+    final idTokenProductos = await FirebaseAuth.instance.currentUser?.getIdToken();
     final response = await http.get(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/productos'),
+      headers: {
+        if (idTokenProductos != null) 'Authorization': 'Bearer $idTokenProductos',
+      },
     );
     print('>>> 2. STATUS CODE: ${response.statusCode}');
 
@@ -790,11 +798,15 @@ Future<void> _cargarProductosDestacados() async {
     }
   }
 
-  // 🔥 BUSCAR PRODUCTOS
+  // 🔥 BUSCAR PRODUCTOS (con token)
   if (value.length >= 2) {
     try {
+      final idTokenBuscar = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/buscar?q=${Uri.encodeComponent(value)}'),
+        headers: {
+          if (idTokenBuscar != null) 'Authorization': 'Bearer $idTokenBuscar',
+        },
       );
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);

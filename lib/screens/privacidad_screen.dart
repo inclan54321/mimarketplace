@@ -26,8 +26,12 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -50,9 +54,13 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
 
       setState(() => _isSaving = true);
 
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.put(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({
           'acepta_recoleccion': _aceptaRecoleccion,
         }),
