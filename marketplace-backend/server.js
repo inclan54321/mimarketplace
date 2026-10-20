@@ -1641,6 +1641,11 @@ app.post('/api/mensajes', verificarTokenFirebase, upload.single('imagen'), async
 
             // 🔥 Vía rápida: si el mensaje pide un encuentro, marcarlo YA (sin esperar a DeepSeek)
             try {
+                // 🔥 Cada mensaje nuevo parte de false, para que un true viejo no cuente
+                await pool.query(
+                    'UPDATE conversaciones_app SET quiere_encuentro = false WHERE id = $1',
+                    [conversacion_id]
+                );
                 const t = (texto || '').toLowerCase()
                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 if (!t.startsWith('||') &&

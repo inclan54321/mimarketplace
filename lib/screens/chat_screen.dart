@@ -113,6 +113,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _escudoCargado = false; // 🔥 NUEVO
   bool _interfazEncuentroMostrada = false; // 🔥 NUEVO: para no mostrar dos veces
   bool _ultimoQuiereEncuentroProcesado = false; // 🔥 Para no disparar con análisis viejo
+  String? _ultimoMensajeEncuentroId; // 🔥 Último mensaje que ya abrió el formulario
   bool _propuestaEncuentroPendiente = false; // 🔥 NUEVO
   bool _chatBloqueado = false; // 🔥 NUEVO
   bool _mostrarBotonesConfirmar = false; // 🔥 NUEVO
@@ -1783,8 +1784,12 @@ Future<void> _obtenerFotoVendedorReal() async {
         if (quiereEncuentro &&
             esMensajeNuevo &&
             _iaActiva &&
+            _mensajes.isNotEmpty &&
+            _mensajes.last['usuario_id'] == FirebaseAuth.instance.currentUser?.uid &&
             !_interfazEncuentroMostrada &&
-            !_ultimoQuiereEncuentroProcesado) {
+            !(_mensajes.last['id'] ?? '').startsWith('tmp_') &&
+            _mensajes.last['id'] != _ultimoMensajeEncuentroId) {
+          _ultimoMensajeEncuentroId = _mensajes.last['id'];
           // 🔥 Marcar la bandera ANTES del await para bloquear dobles disparos
           // (Timer de 5s + WebSocket que llegan casi juntos).
           _interfazEncuentroMostrada = true;
