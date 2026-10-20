@@ -118,13 +118,20 @@ class _PantallaVerificacionEncuentroState
 
   Future<Map<String, dynamic>?> _cargarEncuentro() async {
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final r = await http.get(
-        Uri.parse('$_baseUrl/api/encuentro/propuesta/${widget.encuentroId}'),
+        Uri.parse('$_baseUrl/api/encuentro/${widget.encuentroId}/datos'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
       );
+      debugPrint('>>> cargarEncuentro status: ${r.statusCode} body: ${r.body}');
       if (r.statusCode == 200) {
         return jsonDecode(r.body) as Map<String, dynamic>;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('>>> Error cargando encuentro: $e');
+    }
     return null;
   }
 

@@ -102,16 +102,13 @@ class NotificationService {
 
   // 🔥 NAVEGAR A PANTALLA DE VERIFICACIÓN DE ENCUENTRO
   static void _navegarAPantallaVerificacion(int encuentroId) {
-    final navigatorKey = GlobalKey<NavigatorState>();
-    // Necesitamos un Navigator global. Ver Parte 2C.
-
-    final context = _navigatorKey.currentContext;
-    if (context == null) {
-      print('>>> ⚠️ No hay contexto para navegar');
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) {
+      print('>>> ⚠️ No hay navigator para navegar');
       return;
     }
 
-    Navigator.of(context).push(
+    navigator.push(
       MaterialPageRoute(
         builder: (_) =>
             PantallaVerificacionEncuentro(encuentroId: encuentroId),
