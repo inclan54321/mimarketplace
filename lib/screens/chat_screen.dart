@@ -17,6 +17,7 @@ import 'perfil_vendedor_screen.dart';
 import 'portafolio_vendedor_screen.dart'; // 🔥 NUEVO
 import '../widgets/conversation_status_indicator.dart';
 import 'image_viewer_screen.dart';
+import 'pantalla_verificacion_encuentro.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -5142,6 +5143,60 @@ ListTile(
               ],
             ),
           ),
+          const SizedBox(height: 24),
+
+          // 🔥 BOTÓN PARA IR A VERIFICAR IDENTIDAD Y UBICACIÓN
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  final r = await http.get(
+                    Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/agendado/$_conversacionIdActual'),
+                  );
+                  if (r.statusCode == 200) {
+                    final data = jsonDecode(r.body);
+                    final encuentro = data['encuentro'];
+                    if (encuentro != null && encuentro['id'] != null && mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PantallaVerificacionEncuentro(
+                            encuentroId: int.parse(encuentro['id'].toString()),
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Error al abrir verificación: $e');
+                }
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('No se encontró el encuentro agendado'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.verified_user, size: 22),
+              label: const Text(
+                'Verificar identidad y ubicación',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0A5BE0),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(26),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -5454,6 +5509,8 @@ ListTile(
   Widget build(BuildContext context) {
 
   final user = FirebaseAuth.instance.currentUser;
+
+  print('>>> BUILD: loading=$_isLoading, msgs=${_mensajes.length}, bloqueado=$_chatBloqueado');
 
     return Scaffold(
  appBar: _buildAppBar(context),

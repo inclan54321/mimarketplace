@@ -6664,6 +6664,26 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
     }
 });
 
+// OBTENER ENCUENTRO AGENDADO POR CONVERSACIÓN
+app.get('/api/encuentro/agendado/:conversacion_id', async (req, res) => {
+    try {
+        const { conversacion_id } = req.params;
+        const result = await pool.query(
+            `SELECT * FROM encuentros_agendados 
+             WHERE conversacion_id = $1
+             ORDER BY id DESC LIMIT 1`,
+            [conversacion_id]
+        );
+        if (result.rows.length === 0) {
+            return res.json({ encuentro: null });
+        }
+        res.json({ encuentro: result.rows[0] });
+    } catch (error) {
+        console.error('Error al obtener encuentro agendado:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // CANCELAR ENCUENTRO
 app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res) => {
     try {
