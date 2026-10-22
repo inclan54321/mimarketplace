@@ -3831,20 +3831,30 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO (sin texto adicional):
     }
 }
 // ===== EDITAR PRODUCTO (CON IMAGEN) =====
-app.put('/api/productos/:id', verificarTokenFirebase, upload.single('imagen'), async (req, res) => {
+app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
+    { name: 'imagen', maxCount: 1 },
+    { name: 'audio', maxCount: 1 }
+]), async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, descripcion, precio, categoria, subcategoria, direccion, vendedor_id } = req.body;
         
+        const imagenRecibida = req.files && req.files['imagen'] ? req.files['imagen'][0] : null;
+        const audioRecibido = req.files && req.files['audio'] ? req.files['audio'][0] : null;
+
         console.log('>>> EDITANDO PRODUCTO ID:', id);
         console.log('>>> NOMBRE:', nombre);
-        console.log('>>> IMAGEN RECIBIDA:', req.file ? 'SÍ' : 'NO');
+        console.log('>>> IMAGEN RECIBIDA:', imagenRecibida ? 'SÍ' : 'NO');
+        console.log('>>> AUDIO RECIBIDO:', audioRecibido ? 'SÍ' : 'NO');
         console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
         console.log('>>> 🔐 Vendedor del body:', vendedor_id);
         
         // 🔥 Verificar que el vendedor_id del body coincida con el del token
         if (vendedor_id !== req.usuarioAutenticado) {
-            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            if (req.files) {
+                if (req.files['imagen']) { try { fs.unlinkSync(req.files['imagen'][0].path); } catch (_) {} }
+                if (req.files['audio']) { try { fs.unlinkSync(req.files['audio'][0].path); } catch (_) {} }
+            }
             console.log('>>> ❌ UID no coincide, rechazando');
             return res.status(403).json({
                 error: 'No autorizado para editar este producto',
@@ -3859,13 +3869,19 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.single('imagen'), a
         );
         
         if (productoActual.rows.length === 0) {
-            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            if (req.files) {
+                if (req.files['imagen']) { try { fs.unlinkSync(req.files['imagen'][0].path); } catch (_) {} }
+                if (req.files['audio']) { try { fs.unlinkSync(req.files['audio'][0].path); } catch (_) {} }
+            }
             return res.status(404).json({ error: 'Producto no encontrado' });
         }
 
         // 🔥 Verificar que el producto pertenezca al usuario autenticado
         if (productoActual.rows[0].vendedor_id !== req.usuarioAutenticado) {
-            if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
+            if (req.files) {
+                if (req.files['imagen']) { try { fs.unlinkSync(req.files['imagen'][0].path); } catch (_) {} }
+                if (req.files['audio']) { try { fs.unlinkSync(req.files['audio'][0].path); } catch (_) {} }
+            }
             console.log('>>> ❌ Intento de editar producto ajeno. Dueño:', productoActual.rows[0].vendedor_id, '| Atacante:', req.usuarioAutenticado);
             return res.status(403).json({
                 error: 'No autorizado para editar este producto',
@@ -3918,14 +3934,19 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.single('imagen'), a
         }
         
         // 3. Si hay nueva imagen, actualizarla
-        if (req.file) {
-            const imagen_url = `/uploads/${req.file.filename}`;
+        if (imagenRecibida) {
+            const imagen_url = `/uploads/${imagenRecibida.filename}`;
             query += `imagen_url = $${paramIndex}, `;
             params.push(imagen_url);
             paramIndex++;
-            
-            // 🔥 Si es la imagen principal, actualizar también imagen_destacada?
-            // (opcional, depende de tu lógica)
+        }
+
+        // 🔥 4. Si hay audio nuevo, guardarlo
+        if (audioRecibido) {
+            const audio_url = `/uploads/audios/${audioRecibido.filename}`;
+            query += `audio_url = $${paramIndex}, `;
+            params.push(audio_url);
+            paramIndex++;
         }
         
         // Quitar la última coma y espacio

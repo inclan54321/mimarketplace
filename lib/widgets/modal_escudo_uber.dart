@@ -88,7 +88,17 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
                       color: const Color(0xFF0F2447),
                       child: Column(
                         children: [
-                          const Icon(Icons.verified_user, color: Color(0xFF00E676), size: 32),
+                          Image.asset(
+                            'assets/images/escudo/logoescudo.png',
+                            width: 32,
+                            height: 32,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.verified_user,
+                              color: Color(0xFF00E676),
+                              size: 32,
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           Text(
                             '${widget.nombreQuienActivo} activó el Escudo de Seguridad',

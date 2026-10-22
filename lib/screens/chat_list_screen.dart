@@ -369,12 +369,19 @@ class _ChatListScreenState extends State<ChatListScreen>
   // ===== FIJAR/DESFIJAR CHAT =====
   Future<void> _fijarChat(String conversacionId, bool fijar) async {
     try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.put(
         Uri.parse(
             'https://mimarketplace-production.up.railway.app/api/conversaciones/$conversacionId/fijar'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
         body: jsonEncode({'fijada': fijar}),
       );
+
+      print('>>> 📌 Fijar chat $conversacionId → $fijar | status: ${response.statusCode}');
+      print('>>> 📌 Body: ${response.body}');
 
       if (response.statusCode == 200) {
         if (mounted) {
@@ -402,6 +409,15 @@ class _ChatListScreenState extends State<ChatListScreen>
               content: Text(fijar ? '📌 Chat fijado' : '📌 Chat desfijado'),
               backgroundColor: Colors.blue,
               duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al fijar: ${response.statusCode}'),
+              backgroundColor: Colors.red,
             ),
           );
         }

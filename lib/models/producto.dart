@@ -18,6 +18,7 @@ class Producto {
   final int likes;
   final int? vistas;
   final String? imagenMiniatura; // 🔥 NUEVO
+  final String? audioUrl; // 🔥 NUEVO
 
   Producto({
     required this.id,
@@ -39,6 +40,7 @@ class Producto {
     this.likes = 0,
     this.vistas = 0,
     this.imagenMiniatura, // 🔥 NUEVO
+    this.audioUrl, // 🔥 NUEVO
   });
 
   factory Producto.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ class Producto {
       likes: json['likes'] ?? 0,
       vistas: json['total_vistas'] ?? json['vistas'] ?? 0,
       imagenMiniatura: json['imagen_miniatura'] ?? '', // 🔥 NUEVO
+      audioUrl: json['audio_url'] ?? '', // 🔥 NUEVO
     );
   }
 
@@ -82,6 +85,7 @@ class Producto {
       'likes': likes,
       'vistas': vistas,
       'imagen_miniatura': imagenMiniatura, // 🔥 NUEVO
+      'audio_url': audioUrl, // 🔥 NUEVO
     };
   }
 }

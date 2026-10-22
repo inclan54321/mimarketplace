@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import '../models/producto.dart';
 import 'detalle_producto_screen.dart';
 
-class ImagenCompletaScreen extends StatelessWidget {
+class ImagenCompletaScreen extends StatefulWidget {
   final String imagenUrl;
   final String nombreProducto;
   final Producto? producto; // 🔥 NUEVO
@@ -15,14 +16,56 @@ class ImagenCompletaScreen extends StatelessWidget {
   });
 
   @override
+  State<ImagenCompletaScreen> createState() => _ImagenCompletaScreenState();
+}
+
+class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _audioSonando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 🔥 Reproducir el audio del producto (si tiene) al abrir
+    final audio = widget.producto?.audioUrl ?? '';
+    if (audio.isNotEmpty) {
+      _reproducirAudio(audio);
+    }
+  }
+
+  Future<void> _reproducirAudio(String audioUrl) async {
+    try {
+      final urlCompleta = audioUrl.startsWith('http')
+          ? audioUrl
+          : 'https://mimarketplace-production.up.railway.app$audioUrl';
+      await _audioPlayer.play(UrlSource(urlCompleta));
+      if (mounted) setState(() => _audioSonando = true);
+    } catch (e) {
+      debugPrint('>>> ❌ Error al reproducir audio: $e');
+    }
+  }
+
+  Future<void> _pausarAudio() async {
+    await _audioPlayer.pause();
+    if (mounted) setState(() => _audioSonando = false);
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.stop();
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     print('>>> IMAGEN COMPLETA - build');
-    print('>>> producto?.id: ${producto?.id}');
-    print('>>> producto?.vendedorId: ${producto?.vendedorId}');
-    print('>>> producto?.vendedorNombre: ${producto?.vendedorNombre}');
-    print('>>> producto?.vendedorFoto: ${producto?.vendedorFoto}');
-    print('>>> imagenUrl: $imagenUrl');
-    print('>>> nombreProducto: $nombreProducto');
+    print('>>> producto?.id: ${widget.producto?.id}');
+    print('>>> producto?.vendedorId: ${widget.producto?.vendedorId}');
+    print('>>> producto?.vendedorNombre: ${widget.producto?.vendedorNombre}');
+    print('>>> producto?.vendedorFoto: ${widget.producto?.vendedorFoto}');
+    print('>>> imagenUrl: ${widget.imagenUrl}');
+    print('>>> nombreProducto: ${widget.nombreProducto}');
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -31,7 +74,7 @@ class ImagenCompletaScreen extends StatelessWidget {
         elevation: 0,
         foregroundColor: Colors.white,
         title: Text(
-          nombreProducto,
+          widget.nombreProducto,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -51,9 +94,9 @@ class ImagenCompletaScreen extends StatelessWidget {
                 minScale: 0.5,
                 maxScale: 4.0,
                 child: Hero(
-                  tag: imagenUrl,
+                  tag: widget.imagenUrl,
                   child: Image.network(
-                    'https://mimarketplace-production.up.railway.app$imagenUrl',
+                    'https://mimarketplace-production.up.railway.app${widget.imagenUrl}',
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => const Center(
                       child: Icon(Icons.broken_image,
@@ -65,8 +108,36 @@ class ImagenCompletaScreen extends StatelessWidget {
             ),
           ),
 
+          // 🔥 BOTÓN DE PLAY/PAUSA DEL AUDIO
+          if ((widget.producto?.audioUrl ?? '').isNotEmpty)
+            Positioned(
+              top: 100,
+              right: 20,
+              child: GestureDetector(
+                onTap: () {
+                  if (_audioSonando) {
+                    _pausarAudio();
+                  } else {
+                    _reproducirAudio(widget.producto!.audioUrl!);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _audioSonando ? Icons.pause : Icons.play_arrow,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+              ),
+            ),
+
           // 🔥 BOTÓN "VER PRODUCTO" ABAJO
-          if (producto != null)
+          if (widget.producto != null)
             Positioned(
               bottom: 60,
               left: 24,
@@ -77,7 +148,7 @@ class ImagenCompletaScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => DetalleProductoScreen(
-                        producto: producto!,
+                        producto: widget.producto!,
                       ),
                     ),
                   );

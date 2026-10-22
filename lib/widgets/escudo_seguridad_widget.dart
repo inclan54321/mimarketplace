@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:animated_emoji/animated_emoji.dart';
 import 'conversation_status_indicator.dart';
 import 'rewarded_ad_prueba.dart';
@@ -37,6 +39,12 @@ class EscudoSeguridadWidget extends StatefulWidget {
 
 class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
     with TickerProviderStateMixin {
+  // 🔥 ANIMACIÓN DE REBOTE AL TOCAR EL ESCUDO
+  late AnimationController _reboteController;
+  late Animation<double> _reboteAnim;
+
+  // 🔥 REPRODUCTOR PARA EL SONIDO DEL ESCUDO
+  final AudioPlayer _uiSoundPlayer = AudioPlayer();
   final List<AnimatedEmoji> _emojis = const [
     AnimatedEmoji(AnimatedEmojis.joy, size: 42, repeat: true),          // 0: good
     AnimatedEmoji(AnimatedEmojis.smile, size: 42, repeat: true),        // 1: neutral
@@ -104,6 +112,20 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
       vsync: this,
       duration: const Duration(milliseconds: 150),
     )..repeat(reverse: true);
+
+    // 🔥 REBOTE: sube y baja rápido
+    _reboteController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _reboteAnim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.92), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(
+      parent: _reboteController,
+      curve: Curves.easeOut,
+    ));
   }
 
   @override
@@ -122,6 +144,8 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
   @override
   void dispose() {
     // _timerEmoji?.cancel(); // 🔥 Ya no se usa
+    _uiSoundPlayer.dispose();
+    _reboteController.dispose();
     _ondasController.dispose();
     _destellosController.dispose();
     _vibracionController.dispose();
@@ -650,7 +674,14 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.handshake, color: Colors.green, size: 28),
+              leading: Image.asset(
+                'assets/icon/icon.png',
+                width: 28,
+                height: 28,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.sell, color: Colors.green, size: 28),
+              ),
               title: const Text('Cerrar trato', style: TextStyle(fontSize: 16)),
               subtitle: const Text(
                 'Confirmar que el trato está cerrado',
@@ -702,7 +733,7 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
       mainAxisSize: MainAxisSize.min,
       children: [
         Transform.translate(
-          offset: const Offset(20, -4),
+          offset: const Offset(8, -4),
           child: SizedBox(
             width: 100,
             height: 100,
@@ -786,6 +817,13 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
         const SizedBox(width: 6),
         GestureDetector(
           onTap: () async {
+            // 🔥 Sonido de click (archivo real)
+            _uiSoundPlayer.stop();
+            _uiSoundPlayer.play(AssetSource('sounds/click.wav'));
+
+            // 🔥 REBOTE al tocar
+            _reboteController.forward(from: 0);
+
             if (!_videoVisto) {
               final prefs = await SharedPreferences.getInstance();
               final noMostrar = prefs.getBool('escudo_no_mostrar_mas') ?? false;
@@ -804,24 +842,38 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
               _mostrarAccionesEscudoOn();
             }
           },
-          child: Container(
-            width: 44,
-            height: 44,
+          child: ScaleTransition(
+            scale: _reboteAnim,
+            child: AnimatedBuilder(
+            animation: _ondasController,
+            builder: (context, _) {
+              // 🔥 Pulso 0..1 que sube y baja suavemente
+              final pulso =
+                  (math.sin(_ondasController.value * 2 * math.pi) + 1) / 2;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+          Container(
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: const Color(0xFF0F2447),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: _videoVisto
-                    ? const Color(0xFF00E676)
-                    : Colors.grey.shade600,
-                width: 1.5,
-              ),
+              // 🔥 Borde verde que late cuando el escudo está activo
+              border: _videoVisto
+                  ? Border.all(
+                      color: const Color(0xFF00E676)
+                          .withValues(alpha: 0.5 + pulso * 0.5),
+                      width: 2,
+                    )
+                  : null,
               boxShadow: _videoVisto
                   ? [
                       BoxShadow(
-                        color: const Color(0xFF00E676).withValues(alpha: 0.4),
-                        blurRadius: 10,
-                        spreadRadius: 1,
+                        color: const Color(0xFF00E676)
+                            .withValues(alpha: 0.25 + pulso * 0.35),
+                        blurRadius: 8 + pulso * 10,
+                        spreadRadius: 1 + pulso * 2,
                       ),
                     ]
                   : [],
@@ -830,26 +882,60 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.verified_user,
-                  color: _videoVisto
-                      ? const Color(0xFF00E676)
-                      : Colors.grey.shade400,
-                  size: 22,
-                ),
-                Text(
-                  _videoVisto ? 'ON' : 'PLUS',
-                  style: TextStyle(
-                    color: _videoVisto
-                        ? const Color(0xFF00E676)
-                        : Colors.white,
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                Opacity(
+                  // 🔥 Apagado: la imagen se ve atenuada. Encendido: a todo color.
+                  opacity: _videoVisto ? 1.0 : 0.45,
+                  child: Image.asset(
+                    'assets/images/escudo/logoescudo.png',
+                    width: 38,
+                    height: 38,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('>>> ❌ No cargó la imagen del escudo: $error');
+                      return Icon(
+                        Icons.verified_user,
+                        color: _videoVisto
+                            ? const Color(0xFF00E676)
+                            : Colors.grey.shade400,
+                        size: 22,
+                      );
+                    },
                   ),
                 ),
+
               ],
             ),
+          ),
+          // 🔥 Insignia con check: solo cuando el escudo está activo
+          if (_videoVisto)
+            Positioned(
+              bottom: -6,
+              right: -6,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00E676),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00E676).withValues(alpha: 0.6),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.check,
+                  size: 13,
+                  color: Color(0xFF0F2447),
+                ),
+              ),
+            ),
+                ],
+              );
+            },
+          ),
           ),
         ),
       ],
