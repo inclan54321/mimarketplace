@@ -19,7 +19,9 @@ class EscudoSeguridadWidget extends StatefulWidget {
   final VoidCallback onInfoTap;
   final VoidCallback? onCerrarTrato;        // 🔥 NUEVO
   final VoidCallback? onProponerEncuentro;  // 🔥 NUEVO
+  final VoidCallback? onCancelarTrato;      // 🔥 NUEVO: cancelar el encuentro ya cerrado
   final bool hayPropuestaAceptada;          // 🔥 NUEVO: oculta "Proponer encuentro"
+  final bool tratoCerrado;                  // 🔥 NUEVO: si el trato ya está cerrado
 
   const EscudoSeguridadWidget({
     this.emojiDesdeEstado, // 🔥 NUEVO
@@ -32,7 +34,9 @@ class EscudoSeguridadWidget extends StatefulWidget {
     required this.onInfoTap,
     this.onCerrarTrato,        // 🔥 NUEVO
     this.onProponerEncuentro,  // 🔥 NUEVO
+    this.onCancelarTrato,      // 🔥 NUEVO
     this.hayPropuestaAceptada = false, // 🔥 NUEVO
+    this.tratoCerrado = false,         // 🔥 NUEVO
   });
 
   @override
@@ -667,48 +671,71 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
               ),
             ),
             const SizedBox(height: 20),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                'Escudo activo',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                widget.tratoCerrado ? 'Trato cerrado' : 'Escudo activo',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 16),
-            ListTile(
-              leading: Image.asset(
-                'assets/icon/icon.png',
-                width: 28,
-                height: 28,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.sell, color: Colors.green, size: 28),
-              ),
-              title: const Text('Cerrar trato', style: TextStyle(fontSize: 16)),
-              subtitle: const Text(
-                'Confirmar que el trato está cerrado',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                widget.onCerrarTrato?.call();
-              },
-            ),
-            // 🔥 Ocultar "Proponer encuentro" si ya hay una propuesta aceptada
-            if (!widget.hayPropuestaAceptada) ...[
-              const Divider(height: 1),
+
+            // 🔥 SI EL TRATO YA ESTÁ CERRADO: solo "Cancelar trato"
+            if (widget.tratoCerrado) ...[
               ListTile(
-                leading: const Icon(Icons.event, color: Colors.blue, size: 28),
-                title: const Text('Proponer encuentro', style: TextStyle(fontSize: 16)),
+                leading: const Icon(Icons.event_busy, color: Colors.red, size: 28),
+                title: const Text(
+                  'Cancelar trato',
+                  style: TextStyle(fontSize: 16),
+                ),
                 subtitle: const Text(
-                  'Elegir lugar y fecha para verse',
+                  'Cancelar el encuentro agendado',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
-                  widget.onProponerEncuentro?.call();
+                  widget.onCancelarTrato?.call();
                 },
               ),
+            ]
+
+            // 🔥 SI EL TRATO NO ESTÁ CERRADO: flujo normal (cerrar / proponer)
+            else ...[
+              ListTile(
+                leading: Image.asset(
+                  'assets/icon/icon.png',
+                  width: 28,
+                  height: 28,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.sell, color: Colors.green, size: 28),
+                ),
+                title: const Text('Cerrar trato', style: TextStyle(fontSize: 16)),
+                subtitle: const Text(
+                  'Confirmar que el trato está cerrado',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onCerrarTrato?.call();
+                },
+              ),
+              // 🔥 Ocultar "Proponer encuentro" si ya hay una propuesta aceptada
+              if (!widget.hayPropuestaAceptada) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.event, color: Colors.blue, size: 28),
+                  title: const Text('Proponer encuentro', style: TextStyle(fontSize: 16)),
+                  subtitle: const Text(
+                    'Elegir lugar y fecha para verse',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.onProponerEncuentro?.call();
+                  },
+                ),
+              ],
             ],
             const SizedBox(height: 20),
           ],

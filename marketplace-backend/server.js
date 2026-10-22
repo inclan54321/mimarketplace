@@ -6731,21 +6731,21 @@ app.get('/api/encuentro/agendado/:conversacion_id', async (req, res) => {
     }
 });
 
-// CANCELAR ENCUENTRO
+// CANCELAR ENCUENTRO (con regla de 1 hora mínima + desbloqueo de chat)
 app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
 
         // 🔥 Verificar que el usuario autenticado sea PARTE del encuentro
         const encCheck = await pool.query(
-            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            'SELECT * FROM encuentros_agendados WHERE id = $1',
             [id]
         );
         if (encCheck.rows.length === 0) {
             return res.status(404).json({ error: 'Encuentro no encontrado' });
         }
-        const encData = encCheck.rows[0];
-        if (encData.usuario1_id !== req.usuarioAutenticado && encData.usuario2_id !== req.usuarioAutenticado) {
+        const enc = encCheck.rows[0];
+        if (enc.usuario1_id !== req.usuarioAutenticado && enc.usuario2_id !== req.usuarioAutenticado) {
             console.log('>>> ❌ Intento de cancelar encuentro ajeno. User:', req.usuarioAutenticado);
             return res.status(403).json({
                 error: 'No autorizado para cancelar este encuentro',
@@ -6753,6 +6753,23 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             });
         }
 
+        // 🔥 REGLA: solo se puede cancelar si faltan al menos 1 hora
+        const faltan = await pool.query(
+            `SELECT EXTRACT(EPOCH FROM (fecha_encuentro - NOW())) AS segundos
+             FROM encuentros_agendados WHERE id = $1`,
+            [id]
+        );
+        const segundos = parseFloat(faltan.rows[0]?.segundos || '0');
+        if (segundos < 3600) {
+            console.log(`>>> 🚫 Cancelación rechazada: faltan ${Math.round(segundos/60)} min`);
+            return res.status(400).json({
+                error: 'Solo podés cancelar hasta 1 hora antes del encuentro.',
+                codigo: 'CANCELACION_TARDE',
+                minutos_restantes: Math.round(segundos / 60),
+            });
+        }
+
+        // 🔥 Marcar encuentro como cancelado
         const result = await pool.query(
             `UPDATE encuentros_agendados 
              SET estado = 'cancelado' 
@@ -6761,10 +6778,83 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             [id]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Encuentro no encontrado' });
+        // 🔥 Desbloquear el chat
+        await pool.query(
+            `UPDATE conversaciones_app 
+             SET chat_bloqueado = false,
+                 cerrado_por_escudo = false,
+                 quiere_cerrar_trato = false
+             WHERE id = $1`,
+            [enc.conversacion_id]
+        );
+
+        // 🔥 Borrar confirmaciones de cerrar trato
+        await pool.query(
+            `DELETE FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||CERRAR_TRATO||%'`,
+            [enc.conversacion_id]
+        );
+
+        // 🔥 Insertar mensaje de sistema en el chat
+        await pool.query(
+            `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+             VALUES ($1, 'SYSTEM', '||TRATO_CANCELADO||', '', NOW())`,
+            [enc.conversacion_id]
+        );
+
+        // 🔥 Avisar al otro (alerta + push)
+        try {
+            const otroId = enc.usuario1_id === req.usuarioAutenticado
+                ? enc.usuario2_id
+                : enc.usuario1_id;
+            const quien = await pool.query(
+                'SELECT nombre FROM usuarios WHERE uid = $1',
+                [req.usuarioAutenticado]
+            );
+            const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
+            const textoAviso = `❌ ${nombreQuien} canceló el encuentro. El chat volvió a abrirse.`;
+
+            await pool.query(
+                `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
+                 VALUES ($1, 0, $2, 'encuentro', NOW())`,
+                [otroId, textoAviso]
+            );
+
+            const tk = await pool.query(
+                'SELECT fcm_token FROM usuarios WHERE uid = $1',
+                [otroId]
+            );
+            const token = tk.rows[0]?.fcm_token;
+            if (token) {
+                try {
+                    const { getMessaging } = require('firebase-admin/messaging');
+                    await getMessaging().send({
+                        token,
+                        notification: {
+                            title: '❌ Encuentro cancelado',
+                            body: `${nombreQuien} canceló el encuentro. El chat volvió a abrirse.`,
+                        },
+                        data: {
+                            tipo: 'encuentro_cancelado',
+                            conversacionId: enc.conversacion_id.toString(),
+                        },
+                    });
+                } catch (e) {
+                    console.error('>>> ❌ Error push cancelación:', e.message);
+                }
+            }
+        } catch (e) {
+            console.error('>>> ❌ Error al avisar cancelación:', e.message);
         }
 
+        // 🔥 Avisar por WebSocket
+        global.broadcast(enc.conversacion_id, {
+            tipo: 'estado_cambio',
+            estado: 'trato_cancelado',
+        });
+
+        console.log(`>>> ❌ Encuentro ${id} cancelado. Chat desbloqueado.`);
         res.json({ success: true, encuentro: result.rows[0] });
     } catch (error) {
         console.error('Error al cancelar encuentro:', error);

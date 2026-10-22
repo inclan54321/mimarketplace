@@ -5018,6 +5018,201 @@ ListTile(
     return false;
   }
 
+  // 🔥 DIÁLOGO: CANCELAR TRATO (con regla de 1 hora mínima)
+  Future<void> _mostrarDialogoCancelarTrato() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Consultar el encuentro agendado para saber la fecha
+    Map<String, dynamic>? encuentro;
+    try {
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/agendado/$_conversacionIdActual'),
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        encuentro = data['encuentro'];
+      }
+    } catch (e) {
+      debugPrint('Error al consultar encuentro: $e');
+    }
+
+    if (encuentro == null || encuentro['id'] == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se encontró el encuentro agendado'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Verificar cuánto falta
+    final fechaStr = encuentro['fecha_encuentro']?.toString();
+    DateTime? fecha;
+    if (fechaStr != null) {
+      fecha = DateTime.tryParse(fechaStr)?.toLocal();
+    }
+    final minutosRestantes = fecha != null
+        ? fecha.difference(DateTime.now()).inMinutes
+        : null;
+    final puedeCancelar = minutosRestantes == null || minutosRestantes >= 60;
+
+    if (!mounted) return;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(
+              puedeCancelar ? Icons.event_busy : Icons.lock_clock,
+              color: puedeCancelar ? Colors.red : Colors.orange,
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text('¿Cancelar el trato?'),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (fecha != null) ...[
+              Text(
+                'Encuentro: ${DateFormat('dd/MM/yyyy HH:mm').format(fecha)}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (!puedeCancelar) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Ya no podés cancelar. Solo se permite hasta 1 hora antes del encuentro.',
+                        style: TextStyle(fontSize: 13, color: Color(0xFF92400E)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              const Text(
+                'El encuentro se cancelará para los dos y el chat volverá a abrirse.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Recordá: podés cancelar como mínimo 1 hora antes del encuentro.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          if (puedeCancelar)
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sí, cancelar'),
+            ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    // Llamar al backend
+    try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final r = await http.post(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/cancelar/${encuentro['id']}'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+      );
+
+      if (r.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _chatBloqueado = false;
+            _escudoOtroRechazo = false;
+            _usuarioConfirmoCerrarTrato = false;
+            _otroUsuarioConfirmoCerrarTrato = false;
+            _esperandoConfirmacionCerrarTrato = false;
+            _mostrarBotonesCerrarTrato = false;
+            _quiereCerrarTrato = false;
+          });
+          _guardarEstadoBloqueo();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ Encuentro cancelado. El chat volvió a abrirse.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        await _cargarMensajes(_conversacionIdActual);
+      } else {
+        final err = jsonDecode(r.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(err['error'] ?? 'No se pudo cancelar'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   // 🔥 Devuelve true SOLO si hay una propuesta de encuentro ACEPTADA.
   // 🔥 Si solo hay pendiente o rechazada, devuelve false.
   Future<bool> _hayPropuestaEncuentro() async {
@@ -5480,6 +5675,8 @@ ListTile(
                   videoVistoInicial: _iaActiva,
                   emojiDesdeEstado: _conversationStatus,
                   hayPropuestaAceptada: _hayPropuestaAceptadaEnCache,
+                  tratoCerrado: _chatBloqueado,
+                  onCancelarTrato: _mostrarDialogoCancelarTrato,
                   onCerrarTrato: () {
                     // 🔥 Abrir el modal de cerrar trato (el mismo que usa la IA)
                     setState(() {
@@ -6119,6 +6316,31 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   
   return _buildCalificacionButton();
 }
+  // 🔥 TRATO CANCELADO
+  if ((mensaje['texto'] ?? '').startsWith('||TRATO_CANCELADO||')) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade300, width: 2),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.event_busy, color: Colors.orange, size: 24),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '❌ El encuentro fue cancelado. El chat volvió a abrirse.',
+              style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 🔥 MENSAJE NORMAL CON MENÚ
   final mensajeId = mensaje['id'] ?? '';
   final mensajeTexto = mensaje['texto'] ?? '';
