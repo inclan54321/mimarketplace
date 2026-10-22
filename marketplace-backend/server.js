@@ -3972,7 +3972,7 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
         res.status(500).json({ error: error.message });
     }
 });
-// En tu server.js
+// En tu  server.js
 app.post('/api/denuncias', verificarTokenFirebase, async (req, res) => {
     try {
         const { denunciante_id, denunciado_id, producto_id, motivo } = req.body;
