@@ -4544,8 +4544,19 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
                 const normalizar = t => (t || '').toLowerCase()
                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
                 const reDespedida = /(nos vemos|hasta luego|hasta pronto|hasta entonces|hasta manana|chao|chau|adios|bye|cuidese|cuidate|nos hablamos|me retiro|quedamos asi|en eso quedamos|pura vida|buenas noches|que le vaya bien|que te vaya bien|gracias por todo)/;
+                // 🔥 Si alguien eligió "seguir conversando", las despedidas anteriores ya no cuentan
+                const seguirRes = await pool.query(
+                    `SELECT MAX(fecha) AS f FROM mensajes_app
+                     WHERE conversacion_id = $1 AND texto LIKE '||SEGUIR_CONVERSANDO||%'`,
+                    [conversacionId]
+                );
+                const fechaSeguir = seguirRes.rows[0]?.f || null;
+                const mensajesPosteriores = fechaSeguir
+                    ? mensajes.filter(m => new Date(m.fecha) > new Date(fechaSeguir))
+                    : mensajes;
+
                 const usuariosDespidieron = new Set(
-                    mensajes.slice(-4)
+                    mensajesPosteriores.slice(-4)
                         .filter(m => reDespedida.test(normalizar(m.texto)))
                         .map(m => m.usuario_id)
                 );
@@ -4557,8 +4568,12 @@ En el campo "analisis", SIEMPRE da una recomendación útil, incluso si es "neut
                     [conversacionId]
                 );
                 const yaEstabaActivo = previo.rows[0]?.quiere_cerrar_trato === true;
+                // 🔥 Después de "seguir conversando", DeepSeek solo cuenta si hay mensajes nuevos
+                const cierreDeepSeek = (fechaSeguir && mensajesPosteriores.length < 2)
+                    ? false
+                    : resultado.quiere_cerrar_trato === true;
                 const quiereCerrarTrato =
-                    yaEstabaActivo || resultado.quiere_cerrar_trato === true || porRegex;
+                    yaEstabaActivo || cierreDeepSeek || porRegex;
 
                 await pool.query(
                     `UPDATE conversaciones_app 

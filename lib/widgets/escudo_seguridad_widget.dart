@@ -19,6 +19,7 @@ class EscudoSeguridadWidget extends StatefulWidget {
   final VoidCallback onInfoTap;
   final VoidCallback? onCerrarTrato;        // 🔥 NUEVO
   final VoidCallback? onProponerEncuentro;  // 🔥 NUEVO
+  final bool hayPropuestaAceptada;          // 🔥 NUEVO: oculta "Proponer encuentro"
 
   const EscudoSeguridadWidget({
     this.emojiDesdeEstado, // 🔥 NUEVO
@@ -31,6 +32,7 @@ class EscudoSeguridadWidget extends StatefulWidget {
     required this.onInfoTap,
     this.onCerrarTrato,        // 🔥 NUEVO
     this.onProponerEncuentro,  // 🔥 NUEVO
+    this.hayPropuestaAceptada = false, // 🔥 NUEVO
   });
 
   @override
@@ -692,19 +694,22 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                 widget.onCerrarTrato?.call();
               },
             ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.event, color: Colors.blue, size: 28),
-              title: const Text('Proponer encuentro', style: TextStyle(fontSize: 16)),
-              subtitle: const Text(
-                'Elegir lugar y fecha para verse',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+            // 🔥 Ocultar "Proponer encuentro" si ya hay una propuesta aceptada
+            if (!widget.hayPropuestaAceptada) ...[
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.event, color: Colors.blue, size: 28),
+                title: const Text('Proponer encuentro', style: TextStyle(fontSize: 16)),
+                subtitle: const Text(
+                  'Elegir lugar y fecha para verse',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  widget.onProponerEncuentro?.call();
+                },
               ),
-              onTap: () {
-                Navigator.pop(ctx);
-                widget.onProponerEncuentro?.call();
-              },
-            ),
+            ],
             const SizedBox(height: 20),
           ],
         ),

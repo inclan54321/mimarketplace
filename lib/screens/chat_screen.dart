@@ -2686,9 +2686,16 @@ Widget _buildAudioMessage({
                               imagenUrl: p['productoImagen'] ?? '',
                               descripcion: p['productoDescripcion'] ?? '',
                               direccion: p['productoDireccion'] ?? '',
-                              vendedorNombre: widget.otroUsuario,
-                              vendedorId: widget.otroUsuarioId,
-                              vendedorFoto: _fotoVendedorReal,
+                              // 🔥 SI YO SOY EL VENDEDOR, el vendedor SOY YO
+                              vendedorNombre: _esMiPropioProducto
+                                  ? (FirebaseAuth.instance.currentUser?.displayName ?? widget.otroUsuario)
+                                  : widget.otroUsuario,
+                              vendedorId: _esMiPropioProducto
+                                  ? (FirebaseAuth.instance.currentUser?.uid ?? widget.otroUsuarioId)
+                                  : widget.otroUsuarioId,
+                              vendedorFoto: _esMiPropioProducto
+                                  ? _fotoVendedorReal
+                                  : widget.fotoPerfil,
                               provincia: '',
                               imagenDestacada: '',
                               imagenesReales: p['productoImagenesReales'] ?? '',
@@ -2859,9 +2866,16 @@ Widget _buildAudioMessage({
                             imagenUrl: widget.productoImagen,
                             descripcion: widget.productoDescripcion,
                             direccion: widget.productoDireccion,
-                            vendedorNombre: widget.otroUsuario,
-                            vendedorId: widget.otroUsuarioId,
-                            vendedorFoto: _fotoVendedorReal,
+                            // 🔥 SI YO SOY EL VENDEDOR, el vendedor SOY YO
+                            vendedorNombre: _esMiPropioProducto
+                                ? (FirebaseAuth.instance.currentUser?.displayName ?? widget.otroUsuario)
+                                : widget.otroUsuario,
+                            vendedorId: _esMiPropioProducto
+                                ? (FirebaseAuth.instance.currentUser?.uid ?? widget.otroUsuarioId)
+                                : widget.otroUsuarioId,
+                            vendedorFoto: _esMiPropioProducto
+                                ? _fotoVendedorReal
+                                : widget.fotoPerfil,
                             provincia: '',
                             imagenDestacada: widget.productoImagenDestacada,
                             imagenesReales: widget.productoImagenesReales,
@@ -3206,7 +3220,7 @@ Widget _buildAudioMessage({
                           builder: (context) => PerfilVendedorScreen(
                             vendedorId: widget.otroUsuarioId,
                             vendedorNombre: widget.otroUsuario,
-                            vendedorFoto: _fotoVendedorReal,
+                            vendedorFoto: widget.fotoPerfil,
                           ),
                         ),
                       );
@@ -4985,6 +4999,25 @@ ListTile(
     }
   }
 
+  // 🔥 SI EL USUARIO ACTUAL ES EL VENDEDOR DE ESTE CHAT
+  bool get _esMiPropioProducto {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    return user.uid == _vendedorId;
+  }
+
+  // 🔥 SI YA HAY UNA PROPUESTA DE ENCUENTRO ACEPTADA O CONFIRMADA
+  // 🔥 (sirve para ocultar "Proponer encuentro" en el menú del escudo)
+  bool get _hayPropuestaAceptadaEnCache {
+    for (final prop in _cachePropuestas.values) {
+      final estado = prop['estado'] ?? 'pendiente';
+      if (estado == 'aceptada' || estado == 'confirmada') {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // 🔥 Devuelve true SOLO si hay una propuesta de encuentro ACEPTADA.
   // 🔥 Si solo hay pendiente o rechazada, devuelve false.
   Future<bool> _hayPropuestaEncuentro() async {
@@ -5446,6 +5479,7 @@ ListTile(
                   isActive: _iaActiva,
                   videoVistoInicial: _iaActiva,
                   emojiDesdeEstado: _conversationStatus,
+                  hayPropuestaAceptada: _hayPropuestaAceptadaEnCache,
                   onCerrarTrato: () {
                     // 🔥 Abrir el modal de cerrar trato (el mismo que usa la IA)
                     setState(() {
