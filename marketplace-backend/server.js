@@ -3941,8 +3941,19 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
             paramIndex++;
         }
 
-        // 🔥 4. Si hay audio nuevo, guardarlo
+        // 🔥 4. Si hay audio nuevo, moverlo a uploads/audios/ y guardarlo
         if (audioRecibido) {
+            try {
+                const dirAudios = path.join(__dirname, 'uploads/audios');
+                if (!fs.existsSync(dirAudios)) {
+                    fs.mkdirSync(dirAudios, { recursive: true });
+                }
+                const destino = path.join(dirAudios, audioRecibido.filename);
+                fs.renameSync(audioRecibido.path, destino);
+                console.log('>>> 🎤 Audio movido a:', destino);
+            } catch (e) {
+                console.error('>>> ❌ Error moviendo audio:', e.message);
+            }
             const audio_url = `/uploads/audios/${audioRecibido.filename}`;
             query += `audio_url = $${paramIndex}, `;
             params.push(audio_url);

@@ -123,11 +123,27 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
 
     try {
       final path = await _audioRecorder?.stopRecorder();
+      String? pathFinal = path;
+
+      // 🔥 MOVER EL AUDIO A UNA CARPETA PERMANENTE (evita que el sistema lo borre)
+      if (path != null && path.isNotEmpty) {
+        try {
+          final dir = await getApplicationDocumentsDirectory();
+          final nombre = path.split('/').last;
+          final destino = '${dir.path}/$nombre';
+          await File(path).copy(destino);
+          pathFinal = destino;
+          debugPrint('>>> 📁 Audio movido a: $destino');
+        } catch (e) {
+          debugPrint('>>> ⚠️ No se pudo mover el audio: $e');
+        }
+      }
+
       setState(() {
         _isRecording = false;
         _recordingTime = '00:00';
-        if (path != null && path.isNotEmpty) {
-          _audioPath = path;
+        if (pathFinal != null && pathFinal.isNotEmpty) {
+          _audioPath = pathFinal;
           _audioGrabado = true;
         }
       });
@@ -208,13 +224,31 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
         );
       }
 
-      // 🔥 Enviar audio si hay uno grabado
+      // 🔥 Enviar audio si hay uno grabado (solo si el archivo existe)
       if (_audioGrabado && _audioPath != null) {
+        final archivoAudio = File(_audioPath!);
+        final existe = await archivoAudio.exists();
+
+        if (!existe) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    '⚠️ El audio ya no existe. Por favor grabálo de nuevo.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          setState(() {
+            _audioGrabado = false;
+            _audioPath = null;
+            _guardando = false;
+          });
+          return;
+        }
+
         request.files.add(
-          await http.MultipartFile.fromPath(
-            'audio',
-            _audioPath!,
-          ),
+          await http.MultipartFile.fromPath('audio', _audioPath!),
         );
       }
 
