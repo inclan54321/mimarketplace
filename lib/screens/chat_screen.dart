@@ -117,6 +117,7 @@ class _ChatScreenState extends State<ChatScreen>
   String? _ultimoMensajeEncuentroId; // 🔥 Último mensaje que ya abrió el formulario
   bool _propuestaEncuentroPendiente = false; // 🔥 NUEVO
   bool _chatBloqueado = false; // 🔥 NUEVO
+  bool _chatDesbloqueadoPorVerificacion = false; // 🔥 Si ya pasó la verificación cruzada
   bool _mostrarBotonesConfirmar = false; // 🔥 NUEVO
   bool _esperandoRespuestaOtro = false; // 🔥 NUEVO
   bool _usuarioDecidioSeguirConversando = false; // 🔥 NUEVO
@@ -149,6 +150,9 @@ class _ChatScreenState extends State<ChatScreen>
   // 🔥 NUEVO: REPRODUCTOR PARA SONIDOS DE UI (botón de grabación)
   final AudioPlayer _uiSoundPlayer = AudioPlayer();
 
+  // 🚨 REPRODUCTOR PARA SONIDO DE EMERGENCIA
+  final AudioPlayer _emergencySoundPlayer = AudioPlayer();
+
   // ============ 🔥 NUEVO: GRABACIÓN CON PRESIÓN LARGA ============
   double _micScale = 1.0;              // Para animación del botón
   bool _isSwipedToCancel = false;      // Para detectar deslizamiento
@@ -168,6 +172,10 @@ class _ChatScreenState extends State<ChatScreen>
 
   // 🔥 ANIMACIÓN DEL BORDE PUNTEADO DE LA PROPUESTA
   late AnimationController _bordeController;
+
+  // 🚨 ANIMACIÓN DE REBOTE DEL BOTÓN DE EMERGENCIA
+  late AnimationController _emergencyReboteController;
+  late Animation<double> _emergencyReboteAnim;
 
   // 🔥 WEBSOCKET
   ChatWebSocketService? _wsService;
@@ -405,7 +413,9 @@ class _ChatScreenState extends State<ChatScreen>
       final key = 'escudo_activo_${widget.conversacionId}';
       final activoLocal = prefs.getBool(key) ?? false;
 
-      if (mounted) {
+      // 🔥 Solo actualizar si cambió. _restaurarEstadoEscudo ya lo pudo haber
+      // puesto en true antes de que termine esta consulta.
+      if (mounted && activoLocal != _iaActiva) {
         setState(() {
           _iaActiva = activoLocal;
         });
@@ -435,29 +445,38 @@ class _ChatScreenState extends State<ChatScreen>
           await prefs.setBool(key, activoBackend);
         }
         if (mounted) {
-          setState(() {
-            _iaActiva = activoBackend;
-            _escudoActivadoPor = activadoPor;
-            _escudoYoAcepte = yoAcepte;
-            _escudoOtroRechazo = otroRechazo;
-            _escudoConfirmado = escudoConfirmado;
-            _escudoYoViModal = yoViModal;
+          // 🔥 Solo setState si algo cambió de verdad.
+          final necesitaSetState = _iaActiva != activoBackend ||
+              _escudoActivadoPor != activadoPor ||
+              _escudoYoAcepte != yoAcepte ||
+              _escudoOtroRechazo != otroRechazo ||
+              _escudoConfirmado != escudoConfirmado ||
+              _escudoYoViModal != yoViModal ||
+              (otroRechazo && !_chatBloqueado) ||
+              ((escudoConfirmado || otroRechazo || yoViModal) && !_escudoResuelto);
 
-            // 🔥 Si el OTRO rechazó el escudo, el chat queda cerrado para AMBOS.
-            if (otroRechazo) {
-              _chatBloqueado = true;
-              _mostrarBotonesConfirmar = false;
-              _mostrarBotonesCerrarTrato = false;
-              _esperandoConfirmacionCerrarTrato = false;
-              _esperandoRespuestaOtro = false;
-            }
+          if (necesitaSetState) {
+            setState(() {
+              _iaActiva = activoBackend;
+              _escudoActivadoPor = activadoPor;
+              _escudoYoAcepte = yoAcepte;
+              _escudoOtroRechazo = otroRechazo;
+              _escudoConfirmado = escudoConfirmado;
+              _escudoYoViModal = yoViModal;
 
-            // 🔥 Si ya está resuelto (confirmado o rechazado o modal ya visto),
-            // 🔥 dejamos de consultar en cada ciclo.
-            if (escudoConfirmado || otroRechazo || yoViModal) {
-              _escudoResuelto = true;
-            }
-          });
+              if (otroRechazo) {
+                _chatBloqueado = true;
+                _mostrarBotonesConfirmar = false;
+                _mostrarBotonesCerrarTrato = false;
+                _esperandoConfirmacionCerrarTrato = false;
+                _esperandoRespuestaOtro = false;
+              }
+
+              if (escudoConfirmado || otroRechazo || yoViModal) {
+                _escudoResuelto = true;
+              }
+            });
+          }
         }
         print('>>> 🛡️ Escudo backend: activo=$activoBackend, activadoPor=$activadoPor, yoAcepte=$yoAcepte, otroRechazo=$otroRechazo, confirmado=$escudoConfirmado');
       }
@@ -486,6 +505,24 @@ class _ChatScreenState extends State<ChatScreen>
       }));
     } catch (e) {
       print('Error al guardar estado de bloqueo: $e');
+    }
+  }
+
+  // 🔥 RESTAURAR ESCUDO Y VERIFICACIÓN DESDE CACHÉ LOCAL (antes del primer frame)
+  Future<void> _restaurarEstadoEscudo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final activo = prefs.getBool('escudo_activo_${widget.conversacionId}') ?? false;
+      final verificado = prefs.getBool('chat_verificado_${widget.conversacionId}') ?? false;
+      if (mounted && (activo != _iaActiva || verificado != _chatDesbloqueadoPorVerificacion)) {
+        setState(() {
+          _iaActiva = activo;
+          _chatDesbloqueadoPorVerificacion = verificado;
+        });
+      }
+      print('>>> 💾 Escudo restaurado desde caché: activo=$activo, verificado=$verificado');
+    } catch (e) {
+      print('Error al restaurar escudo: $e');
     }
   }
 
@@ -519,6 +556,7 @@ class _ChatScreenState extends State<ChatScreen>
         _mostrarBotonesCerrarTrato = false;
 
         // 🔥 Ya tenemos el estado: el input se muestra/oculta al instante
+        // y el AppBar deja de mostrar el placeholder del botón.
         _estadoCargado = true;
       });
     } catch (e) {
@@ -607,26 +645,34 @@ Future<void> _verificarCalificacion() async {
     
     print('>>> 🔥 9. ANTES DE SETSTATE - _vendedorId: "$_vendedorId"');
     
-    setState(() {
-      _calificacionPendiente = result['pendiente'] ?? false;
-      _vendedorId = result['vendedor_id'] ?? '';
-      _productoId = int.tryParse(result['producto_id']?.toString() ?? '0') ?? 0;
-    });
+    final nuevoPendiente = result['pendiente'] ?? false;
+    final nuevoVendedorId = result['vendedor_id'] ?? '';
+    final nuevoProductoId = int.tryParse(result['producto_id']?.toString() ?? '0') ?? 0;
+
+    // 🔥 Solo setState si algo cambió de verdad, para no repintar el AppBar
+    final huboCambio = _calificacionPendiente != nuevoPendiente ||
+        _vendedorId != nuevoVendedorId ||
+        _productoId != nuevoProductoId;
+
+    if (huboCambio) {
+      setState(() {
+        _calificacionPendiente = nuevoPendiente;
+        _vendedorId = nuevoVendedorId;
+        _productoId = nuevoProductoId;
+      });
+    } else {
+      _calificacionPendiente = nuevoPendiente;
+      _vendedorId = nuevoVendedorId;
+      _productoId = nuevoProductoId;
+    }
     
     print('>>> 🔥 10. DESPUÉS DE SETSTATE - _vendedorId: "$_vendedorId"');
     print('>>> 🔥 11. _vendedorId ES VACÍO? ${_vendedorId.isEmpty}');
     print('>>> 🔥 12. _calificacionPendiente: $_calificacionPendiente');
     print('>>> 🔥 13. _productoId: $_productoId');
     
-    // 🔥 ESTO FUERZA LA RECONSTRUCCIÓN DEL LISTVIEW
-    print('>>> 🔥 14. Ejecutando addPostFrameCallback...');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      print('>>> 🔥 15. addPostFrameCallback EJECUTADO - forzando setState');
-      setState(() {
-        print('>>> 🔥 16. setState dentro de addPostFrameCallback - _vendedorId: "$_vendedorId"');
-      });
-    });
-    
+    // 🔥 (Eliminado) addPostFrameCallback con setState forzado.
+
     print('>>> 🔥 17. _verificarCalificacion() TERMINÓ');
     
   } catch (e) {
@@ -666,6 +712,20 @@ void initState() {
     vsync: this,
     duration: const Duration(milliseconds: 2400),
   )..repeat();
+
+  // 🚨 Controller de rebote del botón de emergencia
+  _emergencyReboteController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 350),
+  );
+  _emergencyReboteAnim = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.25), weight: 40),
+    TweenSequenceItem(tween: Tween(begin: 1.25, end: 0.92), weight: 30),
+    TweenSequenceItem(tween: Tween(begin: 0.92, end: 1.0), weight: 30),
+  ]).animate(CurvedAnimation(
+    parent: _emergencyReboteController,
+    curve: Curves.easeOut,
+  ));
   
   // 🔥 CONFIGURAR REPRODUCTOR DE AUDIO
   _audioPlayer.onPlayerComplete.listen((event) {
@@ -694,6 +754,7 @@ void initState() {
       );
     }
   });
+  _restaurarEstadoEscudo(); // 🔥 escudo y verificación desde caché local
   _restaurarEstadoBloqueo(); // 🔥 estado de bloqueo inmediato desde caché local
   _cargarPropuestasDesdeCache(); // 🔥 propuestas cerradas inmediatas desde caché local
   _obtenerOCrearConversacion();
@@ -716,11 +777,8 @@ void initState() {
     //   }
     // });
 
-  // 🔥 VERIFICAR CALIFICACIÓN PENDIENTE - DESPUÉS DEL PRIMER BUILD
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    print('>>> 🔥 addPostFrameCallback - LLAMANDO A _verificarCalificacion()');
-    _verificarCalificacion();
-  });
+  // 🔥 (Eliminado) _verificarCalificacion() ya se llama arriba en initState.
+  // Llamarla dos veces solo provocaba setState duplicados y repintados del AppBar.
 
   // 🔥 (Eliminado el timer aleatorio - ahora el estado lo determina la IA)
 }
@@ -732,12 +790,14 @@ void dispose() {
   _ocultarCirculoGrabacion(); // 🔥 ELIMINAR OVERLAY
   _oscilacionController.dispose(); // 🔥 LIBERAR ANIMACIÓN
   _bordeController.dispose();
+  _emergencyReboteController.dispose();
   // _timerEmociones.cancel(); // 🔥 Ya no se usa
   _timer?.cancel();
   _controller.dispose();
   _audioRecorder?.closeRecorder();
   _audioPlayer.dispose();
   _uiSoundPlayer.dispose();  // 🔥 LIBERAR REPRODUCTOR DE UI
+  _emergencySoundPlayer.dispose();  // 🚨 LIBERAR REPRODUCTOR DE EMERGENCIA
   _recordingTimer?.cancel();  // 🔥 NUEVO
   _presenciaTimer?.cancel();  // 🔥 NUEVO
   super.dispose();
@@ -941,16 +1001,9 @@ void dispose() {
     return;
   }
 
-  // 🔥 CARGAR ESTADO DEL ESCUDO
-  // 🔥 Solo consultar si todavía NO está resuelto.
-  // 🔥 Si ya está confirmado o rechazado o el modal ya se vio, no gastamos requests.
-  if (conversacionId.isNotEmpty && !_escudoResuelto) {
-    _escudoCargado = true;
-    await _cargarEstadoEscudo();
-  }
-
-  // 🔥 CONSULTAR SI EL CHAT ESTÁ BLOQUEADO EN LA BD
-  // 🔥 Si el rechazo del escudo cerró el chat, el backend lo marca en conversaciones_app.
+  // 🔥 PRIMERO: consultar el estado de bloqueo y la verificación del encuentro.
+  // 🔥 Se hace ANTES de _cargarEstadoEscudo para que el AppBar se pinte
+  // 🔥 una sola vez con el botón correcto (escudo o emergencia).
   try {
     final rBloqueo = await http.get(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/estado-bloqueo'),
@@ -962,23 +1015,30 @@ void dispose() {
 
       print('>>> 🔒 Estado de bloqueo BD: chat_bloqueado=$chatBloqueadoBD, cerrado_por_escudo=$cerradoPorEscudoBD');
 
+      // 🔥 Ahora el backend ya devuelve escudo_verificado en la misma request.
+      // No hace falta un segundo roundtrip.
+      final escudoVerificado = dataBloqueo['escudo_verificado'] == true;
+
       if (mounted) {
-        if (chatBloqueadoBD && !_chatBloqueado) {
-          // 🔥 Se bloqueó en el backend → reflejar local
-          setState(() {
+        // 🔥 Un solo setState con TODO el estado nuevo:
+        // bloqueo + escudo rechazado + botón de emergencia.
+        // Así el AppBar se pinta una sola vez con el botón correcto.
+        setState(() {
+          if (chatBloqueadoBD && !_chatBloqueado) {
             _chatBloqueado = true;
             if (cerradoPorEscudoBD) {
               _escudoOtroRechazo = true;
               _escudoResuelto = true;
             }
-          });
-        } else if (!chatBloqueadoBD && _chatBloqueado) {
-          // 🔥 Se desbloqueó en el backend (verificación cruzada OK) → reflejar local
-          setState(() {
+          } else if (!chatBloqueadoBD && _chatBloqueado) {
             _chatBloqueado = false;
             _escudoOtroRechazo = false;
-          });
-        }
+          }
+
+          if (escudoVerificado && !_chatDesbloqueadoPorVerificacion) {
+            _chatDesbloqueadoPorVerificacion = true;
+          }
+        });
       }
     }
   } catch (e) {
@@ -2377,6 +2437,16 @@ Future<void> _reproducirSonidoUI(String assetPath) async {
     await _uiSoundPlayer.play(AssetSource(assetPath));
   } catch (e) {
     print('Error al reproducir sonido UI: $e');
+  }
+}
+
+// 🚨 REPRODUCIR SONIDO DE EMERGENCIA
+Future<void> _reproducirSonidoEmergencia() async {
+  try {
+    await _emergencySoundPlayer.stop();
+    await _emergencySoundPlayer.play(AssetSource('sounds/click.wav'));
+  } catch (e) {
+    debugPrint('Error al reproducir sonido de emergencia: $e');
   }
 }
 
@@ -5734,6 +5804,102 @@ ListTile(
     );
   }
 
+  // 🚨 Botón de llamada a emergencias con efecto neón intermitente
+  Widget _buildBotonEmergencias() {
+    return GestureDetector(
+      onTap: () {
+        // 🚨 Sonido de emergencia
+        _reproducirSonidoEmergencia();
+
+        // 🔥 Rebote (1.0 → 1.25 → 0.92 → 1.0)
+        _emergencyReboteController.forward(from: 0);
+      },
+      child: ScaleTransition(
+        scale: _emergencyReboteAnim,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedBuilder(
+              animation: _bordeController,
+              builder: (context, _) {
+                final t = _bordeController.value;
+                final pulso = (math.sin(t * 2 * math.pi) + 1) / 2;
+
+                return Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color.lerp(Colors.red.shade400, Colors.red.shade900, pulso)!,
+                        Color.lerp(Colors.red.shade700, Colors.red.shade900, pulso)!,
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withValues(alpha: 0.4 + pulso * 0.6),
+                        blurRadius: 12 + pulso * 20,
+                        spreadRadius: 2 + pulso * 6,
+                      ),
+                      BoxShadow(
+                        color: Colors.red.withValues(alpha: 0.2 + pulso * 0.4),
+                        blurRadius: 24 + pulso * 30,
+                        spreadRadius: 4 + pulso * 8,
+                      ),
+                    ],
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.85 + pulso * 0.15),
+                      width: 2,
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.emergency,
+                      color: Colors.white.withValues(alpha: 0.9 + pulso * 0.1),
+                      size: 28,
+                      shadows: [
+                        Shadow(
+                          color: Colors.red.withValues(alpha: 0.5 + pulso * 0.5),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 2),
+            AnimatedBuilder(
+              animation: _bordeController,
+              builder: (context, _) {
+                final t = _bordeController.value;
+                final pulso = (math.sin(t * 2 * math.pi) + 1) / 2;
+                return Text(
+                  'EMERGENCIA',
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.6,
+                    color: Colors.white.withValues(alpha: 0.6 + pulso * 0.4),
+                    shadows: [
+                      Shadow(
+                        color: Colors.red.withValues(alpha: 0.3 + pulso * 0.5),
+                        blurRadius: 4 + pulso * 4,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 🔘 Botón circular estilo "cristal" del app bar
   Widget _botonCircularApp({required Widget child, required VoidCallback onTap}) {
     return GestureDetector(
@@ -6098,7 +6264,10 @@ ListTile(
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.85),
-                                  fontSize: 14,
+                                  // 🔥 Cuando aparece el botón de emergencia,
+                                  // achicamos un poco la fuente del producto
+                                  // para que no se corte tanto
+                                  fontSize: _chatDesbloqueadoPorVerificacion ? 12 : 14,
                                 ),
                               ),
                             ),
@@ -6146,66 +6315,76 @@ ListTile(
                   ),   // cierra GestureDetector
                 ),     // cierra Expanded
 
-                // 🛡️ Escudo
-                EscudoSeguridadWidget(
-                  estado: _conversationStatus,
-                  isActive: _iaActiva,
-                  videoVistoInicial: _iaActiva,
-                  emojiDesdeEstado: _conversationStatus,
-                  hayPropuestaAceptada: _hayPropuestaAceptadaEnCache,
-                  tratoCerrado: _chatBloqueado,
-                  onCancelarTrato: _mostrarDialogoCancelarTrato,
-                  onCerrarTrato: () {
-                    // 🔥 Abrir el modal de cerrar trato (el mismo que usa la IA)
-                    setState(() {
-                      _mostrarBotonesCerrarTrato = true;
-                      _cerrarTratoForzado = true;
-                      _usuarioDecidioSeguirConversando = false;
-                      _mostrarBotonesConfirmar = false;
-                    });
-                  },
-                  onProponerEncuentro: () {
-                    // 🔥 Abrir el formulario de proponer encuentro
-                    _mostrarInterfazEncuentro();
-                  },
-                  onToggle: () {
-                    if (_iaActiva) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              '🛡️ El Escudo ya está activo y no se puede desactivar'),
-                          backgroundColor: Colors.blue,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                      return;
-                    }
-                    setState(() => _iaActiva = true);
-                    _guardarEstadoEscudo(true);
-                  },
-                  onAdCompleted: () {
-                    setState(() {
-                      _analisisIA = '🛡️ Escudo activado. Analizando mensajes...';
-                      _iaActiva = true;
-                      _panelAnalisisAbierto = false;
-                    });
-                    _guardarEstadoEscudo(true);
-                  },
-                  onInfoTap: () {
-                    if (!_iaActiva) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                              '🛡️ Activa el Escudo para ver el análisis de la conversación'),
-                          backgroundColor: Colors.orange,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                      return;
-                    }
-                    setState(() => _panelAnalisisAbierto = !_panelAnalisisAbierto);
-                  },
-                ),
+                // 🚨 Si ya pasó la verificación → botón de emergencias
+                // 🛡️ Si no → escudo normal
+                // 🔥 Mientras _estadoCargado == false, mostramos un placeholder
+                // del mismo tamaño. Así no se ve el escudo "apagado" y después
+                // el botón de emergencia. Se pinta una sola vez el correcto.
+                if (!_estadoCargado)
+                  const SizedBox(width: 52, height: 52)
+                else if (_chatDesbloqueadoPorVerificacion)
+                  Transform.translate(
+                    offset: const Offset(0, 10), // 🔥 baja 10px el botón
+                    child: _buildBotonEmergencias(),
+                  )
+                else
+                  EscudoSeguridadWidget(
+                    estado: _conversationStatus,
+                    isActive: _iaActiva,
+                    videoVistoInicial: _iaActiva,
+                    emojiDesdeEstado: _conversationStatus,
+                    hayPropuestaAceptada: _hayPropuestaAceptadaEnCache,
+                    tratoCerrado: _chatBloqueado,
+                    onCancelarTrato: _mostrarDialogoCancelarTrato,
+                    onCerrarTrato: () {
+                      setState(() {
+                        _mostrarBotonesCerrarTrato = true;
+                        _cerrarTratoForzado = true;
+                        _usuarioDecidioSeguirConversando = false;
+                        _mostrarBotonesConfirmar = false;
+                      });
+                    },
+                    onProponerEncuentro: () {
+                      _mostrarInterfazEncuentro();
+                    },
+                    onToggle: () {
+                      if (_iaActiva) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                '🛡️ El Escudo ya está activo y no se puede desactivar'),
+                            backgroundColor: Colors.blue,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+                      setState(() => _iaActiva = true);
+                      _guardarEstadoEscudo(true);
+                    },
+                    onAdCompleted: () {
+                      setState(() {
+                        _analisisIA = '🛡️ Escudo activado. Analizando mensajes...';
+                        _iaActiva = true;
+                        _panelAnalisisAbierto = false;
+                      });
+                      _guardarEstadoEscudo(true);
+                    },
+                    onInfoTap: () {
+                      if (!_iaActiva) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                '🛡️ Activa el Escudo para ver el análisis de la conversación'),
+                            backgroundColor: Colors.orange,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
+                      setState(() => _panelAnalisisAbierto = !_panelAnalisisAbierto);
+                    },
+                  ),
               ],
             ),   // cierra Row
             ),   // cierra SizedBox(height: 70)

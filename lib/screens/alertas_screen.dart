@@ -16,16 +16,21 @@ class AlertasScreen extends StatefulWidget {
 class _AlertasScreenState extends State<AlertasScreen> {
   // 🔥 Caché en memoria: sobrevive mientras la app esté abierta
   static List<Map<String, dynamic>>? _alertasCache;
+  static Map<int, Map<String, bool>>? _estadosCache;
 
   List<Map<String, dynamic>> _alertas = [];
   bool _isLoading = true;
+  final Map<int, Map<String, bool>> _estadosVerificacion = {};
 
   @override
   void initState() {
     super.initState();
     if (_alertasCache != null) {
       _alertas = List.from(_alertasCache!);
-      _isLoading = false; // se muestra ya, y se refresca por detrás
+      if (_estadosCache != null) {
+        _estadosVerificacion.addAll(_estadosCache!);
+      }
+      _isLoading = false;
     }
     _cargarAlertas();
   }
@@ -45,13 +50,31 @@ class _AlertasScreenState extends State<AlertasScreen> {
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
-        setState(() {
-          _alertas = data.map((item) => Map<String, dynamic>.from(item)).toList();
-          _isLoading = false;
-        });
-        _alertasCache = List.from(_alertas);
+        final nuevas = data.map((item) => Map<String, dynamic>.from(item)).toList();
 
-        // 🔥 Marcar todas como leídas en el backend
+        // 🔥 Cargar estados ANTES de pintar (evita el "refresco")
+        _alertas = nuevas;
+        await _cargarEstadosVerificacion(silencioso: true);
+
+        // Solo repintar si cambió algo
+        final cambioAlertas = _alertas.length != nuevas.length ||
+            (_alertas.isNotEmpty &&
+                nuevas.isNotEmpty &&
+                (_alertas.first['id'] != nuevas.first['id'] ||
+                    _alertas.first['fecha'] != nuevas.first['fecha']));
+
+        if (mounted && (cambioAlertas || _isLoading)) {
+          setState(() {
+            _alertas = nuevas;
+            _isLoading = false;
+          });
+        } else {
+          _alertas = nuevas;
+        }
+        _alertasCache = List.from(_alertas);
+        _estadosCache = Map.from(_estadosVerificacion);
+
+        // 🔥 Marcar todas como leídas
         final idTokenMarcar = await FirebaseAuth.instance.currentUser?.getIdToken();
         await http.put(
           Uri.parse(
@@ -66,6 +89,145 @@ class _AlertasScreenState extends State<AlertasScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _cargarEstadosVerificacion({bool silencioso = false}) async {
+    final idsUnicos = <int>{};
+    for (final a in _alertas) {
+      final eid = (a['encuentro_id'] ?? 0) as int;
+      if (eid > 0) idsUnicos.add(eid);
+    }
+    if (idsUnicos.isEmpty) return;
+
+    for (final eid in idsUnicos) {
+      try {
+        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+        final r = await http.get(
+          Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/$eid/mi-estado-verificacion'),
+          headers: {if (idToken != null) 'Authorization': 'Bearer $idToken'},
+        );
+        debugPrint('>>> mi-estado-verificacion [$eid] status: ${r.statusCode} body: ${r.body}');
+        if (r.statusCode == 200) {
+          final data = jsonDecode(r.body) as Map<String, dynamic>;
+          _estadosVerificacion[eid] = {
+            'mi_selfie': data['mi_selfie_existe'] == true,
+            'otro_selfie': data['otro_selfie_existe'] == true,
+            'confirmado': data['mi_confirmacion_cruzada'] == true,
+            'rechazado': data['mi_rechazo_cruzado'] == true,
+          };
+        }
+      } catch (e) {
+        debugPrint('>>> Error cargando estado [$eid]: $e');
+      }
+    }
+    _estadosCache = Map.from(_estadosVerificacion);
+    if (mounted && !silencioso) setState(() {});
+  }
+
+  Widget _buildBotonVerificacion({required int encuentroId}) {
+    final estado = _estadosVerificacion[encuentroId];
+    final miSelfie = estado?['mi_selfie'] ?? false;
+    final otroSelfie = estado?['otro_selfie'] ?? false;
+    final confirmado = estado?['confirmado'] ?? false;
+    final rechazado = estado?['rechazado'] ?? false;
+
+    // 1. Yo no me tomé la selfie → "Verificar identidad"
+    if (!miSelfie) {
+      return ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PantallaVerificacionEncuentro(encuentroId: encuentroId),
+            ),
+          ).then((_) async {
+            await _cargarEstadosVerificacion();
+          });
+        },
+        icon: const Icon(Icons.verified_user, size: 16),
+        label: const Text('Verificar identidad'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0A5BE0),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    // 2. Yo sí, el otro no → "Esperando al otro"
+    if (!otroSelfie) {
+      return ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.hourglass_top, size: 16, color: Colors.grey),
+        label: const Text('Esperando al otro', style: TextStyle(color: Colors.grey)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey.shade200,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    // 3. Ambos selfies, no confirmé → "Verificar identidad del otro"
+    if (!confirmado && !rechazado) {
+      return ElevatedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PantallaVerificarIdentidadOtro(encuentroId: encuentroId),
+            ),
+          ).then((_) async {
+            await _cargarEstadosVerificacion();
+          });
+        },
+        icon: const Icon(Icons.face_retouching_natural, size: 16),
+        label: const Text('Verificar identidad del otro'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0A5BE0),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    // 4. Ya rechacé → "Identidad rechazada" (deshabilitado)
+    if (rechazado) {
+      return ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.cancel, size: 16, color: Colors.grey),
+        label: const Text('Identidad rechazada', style: TextStyle(color: Colors.grey)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey.shade200,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    // 5. Ya confirmé → "Revisar comparación"
+    return ElevatedButton.icon(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PantallaVerificarIdentidadOtro(encuentroId: encuentroId),
+          ),
+        ).then((_) async {
+          await _cargarEstadosVerificacion();
+        });
+      },
+      icon: const Icon(Icons.search, size: 16),
+      label: const Text('Revisar comparación'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.grey.shade700,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        textStyle: const TextStyle(fontSize: 12),
+      ),
+    );
   }
 
   Future<void> _renovarProducto(Map<String, dynamic> alerta) async {
@@ -138,7 +300,6 @@ class _AlertasScreenState extends State<AlertasScreen> {
     );
   }
 
-  // 🔥 Quita emojis de forma segura (unicode: true evita romper pares sustitutos)
   String _limpiarMensaje(String mensaje) {
     final limpio = mensaje
         .replaceAll(
@@ -209,6 +370,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
           _alertas.clear();
         });
         _alertasCache = [];
+        _estadosCache = {};
+        _estadosVerificacion.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Todas las alertas han sido eliminadas'),
@@ -232,9 +395,22 @@ class _AlertasScreenState extends State<AlertasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F8FF),
       appBar: AppBar(
-        title: const Text('Alertas'),
-        backgroundColor: const Color(0xFF087FE8),
+        title: const Text(
+          'Alertas',
+          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0A5BE0), Color(0xFF1E9BF0), Color(0xFF0A5BE0)],
+            ),
+          ),
+        ),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -244,7 +420,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
             tooltip: 'Recargar',
           ),
           IconButton(
-            icon: const Icon(Icons.delete_sweep, color: Colors.red),
+            icon: const Icon(Icons.delete_sweep, color: Colors.white),
             onPressed: _limpiarAlertas,
             tooltip: 'Limpiar todas las alertas',
           ),
@@ -253,10 +429,49 @@ class _AlertasScreenState extends State<AlertasScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _alertas.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No tienes alertas',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF0F2447),
+                          border: Border.all(
+                            color: const Color(0xFF00E676).withValues(alpha: 0.7),
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00E676).withValues(alpha: 0.35),
+                              blurRadius: 22,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none_rounded,
+                          size: 46,
+                          color: Color(0xFF00E676),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No tienes alertas',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0A3D91),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Aquí aparecerán tus avisos y encuentros.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
@@ -320,29 +535,48 @@ class _AlertasScreenState extends State<AlertasScreen> {
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.white,
+                            rayaColor.withValues(alpha: 0.06),
+                          ],
+                        ),
+                        border: Border.all(
+                          color: rayaColor.withValues(alpha: 0.35),
+                          width: 1.2,
+                        ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.grey.withValues(alpha: 0.12),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                            color: rayaColor.withValues(alpha: 0.18),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
+                      clipBehavior: Clip.antiAlias,
                       child: Row(
                         children: [
                           Container(
                             width: 6,
-                            height: tipo == 'caducado'
-                                ? 100
-                                : (tipo == 'encuentro' ? 110 : 70),
+                            constraints: const BoxConstraints(minHeight: 70),
                             decoration: BoxDecoration(
-                              color: rayaColor,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(12),
-                                bottomLeft: Radius.circular(12),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  rayaColor,
+                                  rayaColor.withValues(alpha: 0.55),
+                                ],
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: rayaColor.withValues(alpha: 0.6),
+                                  blurRadius: 8,
+                                ),
+                              ],
                             ),
                           ),
                           Expanded(
@@ -350,10 +584,24 @@ class _AlertasScreenState extends State<AlertasScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    icono,
-                                    color: iconoColor,
-                                    size: 28,
+                                  Container(
+                                    width: 46,
+                                    height: 46,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: iconoColor.withValues(alpha: 0.12),
+                                      border: Border.all(
+                                        color: iconoColor.withValues(alpha: 0.45),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: iconoColor.withValues(alpha: 0.25),
+                                          blurRadius: 10,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(icono, color: iconoColor, size: 24),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -365,8 +613,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                           _limpiarMensaje(mensaje),
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: esLeida ? Colors.grey : Colors.black87,
-                                            fontWeight: esLeida ? FontWeight.normal : FontWeight.w500,
+                                            color: Colors.black,
+                                            fontWeight: esLeida ? FontWeight.normal : FontWeight.w600,
                                           ),
                                           maxLines: (tipo == 'encuentro' || tipo == 'recordatorio_encuentro') ? 10 : 2,
                                           overflow: TextOverflow.ellipsis,
@@ -376,7 +624,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                           fecha,
                                           style: const TextStyle(
                                             fontSize: 11,
-                                            color: Colors.grey,
+                                            color: Colors.black54,
                                           ),
                                         ),
                                         if (tipo == 'caducado' && productoId != null)
@@ -397,92 +645,16 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                               ),
                                             ),
                                           ),
-                                        // 🔥 BOTÓN VERIFICAR IDENTIDAD EN ALERTAS DE ENCUENTRO
+                                        // 🔥 BOTÓN DE VERIFICACIÓN (cambia según el avance)
                                         if ((tipo == 'recordatorio_encuentro' ||
-                                                tipo == 'encuentro') &&
+                                                tipo == 'encuentro' ||
+                                                tipo == 'esperando_verificacion' ||
+                                                tipo == 'verificar_identidad') &&
                                             (alerta['encuentro_id'] ?? 0) > 0)
                                           Padding(
                                             padding: const EdgeInsets.only(top: 8),
-                                            child: ElevatedButton.icon(
-                                              onPressed: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => PantallaVerificacionEncuentro(
-                                                      encuentroId: (alerta['encuentro_id'] as num).toInt(),
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              icon: const Icon(Icons.verified_user, size: 16),
-                                              label: const Text('Verificar identidad'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: const Color(0xFF0A5BE0),
-                                                foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                  vertical: 4,
-                                                ),
-                                                textStyle: const TextStyle(fontSize: 12),
-                                              ),
-                                            ),
-                                          ),
-                                        // 🔥 ESPERANDO AL OTRO
-                                        if (tipo == 'esperando_verificacion' &&
-                                            (alerta['encuentro_id'] ?? 0) > 0)
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 8),
-                                            child: ElevatedButton.icon(
-                                              onPressed: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => PantallaVerificacionEncuentro(
-                                                      encuentroId: (alerta['encuentro_id'] as num).toInt(),
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              icon: const Icon(Icons.hourglass_top, size: 16),
-                                              label: const Text('Volver a la verificación'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.orange,
-                                                foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                  vertical: 4,
-                                                ),
-                                                textStyle: const TextStyle(fontSize: 12),
-                                              ),
-                                            ),
-                                          ),
-                                        // 🔥 VERIFICAR IDENTIDAD DEL OTRO (con selfie)
-                                        if (tipo == 'verificar_identidad' &&
-                                            (alerta['encuentro_id'] ?? 0) > 0)
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 8),
-                                            child: ElevatedButton.icon(
-                                              onPressed: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => PantallaVerificarIdentidadOtro(
-                                                      encuentroId: (alerta['encuentro_id'] as num).toInt(),
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              icon: const Icon(Icons.face_retouching_natural, size: 16),
-                                              label: const Text('Verificar identidad del otro'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: const Color(0xFF0A5BE0),
-                                                foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                  vertical: 4,
-                                                ),
-                                                textStyle: const TextStyle(fontSize: 12),
-                                              ),
+                                            child: _buildBotonVerificacion(
+                                              encuentroId: (alerta['encuentro_id'] as num).toInt(),
                                             ),
                                           ),
                                       ],
@@ -492,9 +664,16 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                     Container(
                                       width: 8,
                                       height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.blue,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF00E676),
                                         shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF00E676).withValues(alpha: 0.7),
+                                            blurRadius: 8,
+                                            spreadRadius: 1,
+                                          ),
+                                        ],
                                       ),
                                     ),
                                 ],
