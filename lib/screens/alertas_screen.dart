@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../widgets/rewarded_ad_prueba.dart';
+import 'pantalla_verificacion_encuentro.dart';
 
 class AlertasScreen extends StatefulWidget {
   const AlertasScreen({super.key});
@@ -370,6 +371,36 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                               label: const Text('Renovar por 30 días'),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.orange,
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 4,
+                                                ),
+                                                textStyle: const TextStyle(fontSize: 12),
+                                              ),
+                                            ),
+                                          ),
+                                        // 🔥 BOTÓN VERIFICAR IDENTIDAD EN ALERTAS DE ENCUENTRO
+                                        if ((tipo == 'recordatorio_encuentro' ||
+                                                tipo == 'encuentro') &&
+                                            (alerta['encuentro_id'] ?? 0) > 0)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: ElevatedButton.icon(
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => PantallaVerificacionEncuentro(
+                                                      encuentroId: (alerta['encuentro_id'] as num).toInt(),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              icon: const Icon(Icons.verified_user, size: 16),
+                                              label: const Text('Verificar identidad'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(0xFF0A5BE0),
                                                 foregroundColor: Colors.white,
                                                 padding: const EdgeInsets.symmetric(
                                                   horizontal: 12,

@@ -1102,34 +1102,34 @@ void dispose() {
                 _otroUsuarioConfirmoCerrarTrato = otroConfirme;
                 _mostrarBotonesCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = false;
+                _cerrarTratoForzado = false;
                 _chatBloqueado = true;
               } else if (yoConfirme && !otroConfirme) {
                 _usuarioConfirmoCerrarTrato = true;
                 _otroUsuarioConfirmoCerrarTrato = false;
                 _esperandoConfirmacionCerrarTrato = true;
-                _mostrarBotonesCerrarTrato = false;
-                _cerrarTratoForzado = false;
                 _usuarioDecidioSeguirConversando = false;
+                // 🔥 Si el modal está abierto manualmente, NO lo cerramos
+                if (!_cerrarTratoForzado) {
+                  _mostrarBotonesCerrarTrato = false;
+                }
               } else {
                 _usuarioConfirmoCerrarTrato = yoConfirme;
                 _otroUsuarioConfirmoCerrarTrato = otroConfirme;
 
-                // 🔥 Si CUALQUIERA de los dos confirmó cerrar trato,
-                // 🔥 los botones verdes de propuesta de encuentro ya no aplican.
-                // 🔥 Así los dos usuarios ven el mismo flujo (modal azul o espera).
                 if (yoConfirme || otroConfirme) {
                   _mostrarBotonesConfirmar = false;
                   _usuarioDecidioSeguirConversando = false;
                 }
 
-                // 🔥 Si el OTRO confirmó y yo no: me sale el recuadro para decidir
-                // (y el input queda oculto porque el modal está visible).
                 if (otroConfirme && !yoConfirme && !_chatBloqueado) {
                   _mostrarBotonesCerrarTrato = true;
                   _cerrarTratoForzado = true;
                 }
 
-                if (!yoConfirme) {
+                // 🔥 Si nadie confirmó y el modal NO fue forzado por el usuario,
+                // no lo abrimos. Si ya estaba forzado, lo respetamos.
+                if (!yoConfirme && !otroConfirme) {
                   _esperandoConfirmacionCerrarTrato = false;
                 }
               }
@@ -1167,7 +1167,8 @@ void dispose() {
               _usuarioDecidioSeguirConversando = true;
               _esperandoRespuestaOtro = false;
               _mostrarBotonesConfirmar = false;
-              _mostrarBotonesCerrarTrato = false;
+              // 🔥 Si el usuario abrió el modal a mano desde el escudo, no lo apagamos
+              if (!_cerrarTratoForzado) _mostrarBotonesCerrarTrato = false;
               _usuarioConfirmoCerrarTrato = false;
               _otroUsuarioConfirmoCerrarTrato = false;
               _esperandoConfirmacionCerrarTrato = false;
@@ -1767,11 +1768,15 @@ Future<void> _obtenerFotoVendedorReal() async {
               !_chatBloqueado &&
               !quiereEncuentro) {
             _mostrarBotonesCerrarTrato = true;
-            _mostrarBotonesConfirmar = false; // 🔥 instantáneo: apagar botones verdes
+            _mostrarBotonesConfirmar = false;
             print('>>> 🟩 MODAL CERRAR TRATO activado por IA');
           } else {
-            if (!quiereCerrarTrato && !_cerrarTratoForzado) _mostrarBotonesCerrarTrato = false;
-            print('>>> ⬜ IA no activó modal cerrar trato: quiereCerrarTrato=$quiereCerrarTrato, quiereEncuentro=$quiereEncuentro');
+            // 🔥 Solo apagamos el modal si NO está forzado por el usuario.
+            // Si el usuario lo abrió manualmente desde el escudo, lo respetamos.
+            if (!quiereCerrarTrato && !_cerrarTratoForzado && !_quiereCerrarTrato) {
+              _mostrarBotonesCerrarTrato = false;
+            }
+            print('>>> ⬜ IA no activó modal cerrar trato: quiereCerrarTrato=$quiereCerrarTrato, quiereEncuentro=$quiereEncuentro, forzado=$_cerrarTratoForzado');
           }
         });
 
@@ -5064,96 +5069,417 @@ ListTile(
 
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(
-              puedeCancelar ? Icons.event_busy : Icons.lock_clock,
-              color: puedeCancelar ? Colors.red : Colors.orange,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            // 🔥 Gradiente azul profundo (igual familia que el modal de cerrar trato)
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF0A3D91),
+                Color(0xFF0A5BE0),
+                Color(0xFF1E9BF0),
+                Color(0xFF0A5BE0),
+              ],
+              stops: [0.0, 0.35, 0.7, 1.0],
             ),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text('¿Cancelar el trato?'),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (fecha != null) ...[
-              Text(
-                'Encuentro: ${DateFormat('dd/MM/yyyy HH:mm').format(fecha)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            // 🔥 Borde negro fino (armoniza con el otro modal)
+            border: Border.all(color: Colors.black, width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.55),
+                blurRadius: 30,
+                spreadRadius: 2,
               ),
-              const SizedBox(height: 12),
-            ],
-            if (!puedeCancelar) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Ya no podés cancelar. Solo se permite hasta 1 hora antes del encuentro.',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF92400E)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              const Text(
-                'El encuentro se cancelará para los dos y el chat volverá a abrirse.',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Recordá: podés cancelar como mínimo 1 hora antes del encuentro.',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
-                      ),
-                    ),
-                  ],
-                ),
+              BoxShadow(
+                color: const Color(0xFF1E9BF0).withValues(alpha: 0.25),
+                blurRadius: 40,
+                spreadRadius: 6,
               ),
             ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Volver'),
           ),
-          if (puedeCancelar)
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withValues(alpha: 0.14),
+                  Colors.white.withValues(alpha: 0.04),
+                ],
               ),
-              child: const Text('Sí, cancelar'),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12),
+                width: 1,
+              ),
             ),
-        ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 🔥 ÍCONO CON HALO PULSANTE (azul si puede cancelar, rojo si no)
+                _buildIconoHaloCancelar(puedeCancelar: puedeCancelar),
+
+                const SizedBox(height: 14),
+
+                // 🔥 TÍTULO CON DEGRADADO
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white,
+                      Color(0xFFBFDBFE),
+                      Color(0xFF7CC4FF),
+                    ],
+                  ).createShader(bounds),
+                  child: const Text(
+                    '¿Cancelar el trato?',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 19,
+                      color: Colors.white,
+                      height: 1.25,
+                      shadows: [
+                        Shadow(
+                          color: Color(0x660A3D91),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                // 🔥 SUBTÍTULO
+                const Text(
+                  'Esta acción anula el encuentro para ambos.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                    height: 1.3,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 18),
+
+                // 🔥 CHIP DE FECHA (estilo "cristal")
+                if (fecha != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.12),
+                          Colors.white.withValues(alpha: 0.05),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: const Color(0xFF7CC4FF).withValues(alpha: 0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF7CC4FF).withValues(alpha: 0.2),
+                          ),
+                          child: const Icon(
+                            Icons.calendar_today,
+                            size: 14,
+                            color: Color(0xFFBFDBFE),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'ENCUENTRO',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFBFDBFE),
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                DateFormat('dd/MM/yyyy · h:mm a').format(fecha),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
+                // 🔥 CAJA DE REGLA (siempre visible)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF1E9BF0).withValues(alpha: 0.18),
+                        const Color(0xFF0A5BE0).withValues(alpha: 0.12),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: const Color(0xFF7CC4FF).withValues(alpha: 0.4),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF7CC4FF).withValues(alpha: 0.25),
+                            ),
+                            child: const Icon(
+                              Icons.shield_outlined,
+                              size: 14,
+                              color: Color(0xFFBFDBFE),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Regla de cancelación',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Solo podés cancelar el trato hasta 1 hora antes del encuentro. '
+                        'Si falta menos de 1 hora, ya no se permite cancelar y deben '
+                        'presentarse en el lugar acordado.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 🔥 CAJA DE ADVERTENCIA / AVISO (según puedeCancelar)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: puedeCancelar
+                        ? Colors.orange.withValues(alpha: 0.18)
+                        : Colors.red.withValues(alpha: 0.20),
+                    border: Border(
+                      left: BorderSide(
+                        color: puedeCancelar ? Colors.orange : Colors.red,
+                        width: 3,
+                      ),
+                      top: BorderSide(
+                        color: (puedeCancelar ? Colors.orange : Colors.red)
+                            .withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                      right: BorderSide(
+                        color: (puedeCancelar ? Colors.orange : Colors.red)
+                            .withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                      bottom: BorderSide(
+                        color: (puedeCancelar ? Colors.orange : Colors.red)
+                            .withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        puedeCancelar
+                            ? Icons.warning_amber_rounded
+                            : Icons.lock_clock,
+                        color: puedeCancelar ? Colors.orange : Colors.red,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          puedeCancelar
+                              ? 'Al cancelar, el encuentro se anula para los dos y el chat vuelve a abrirse. '
+                                'El otro usuario recibirá una notificación.'
+                              : 'Ya no podés cancelar este encuentro porque falta menos de 1 hora. '
+                                'Deben presentarse en el lugar acordado.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.45,
+                            color: puedeCancelar
+                                ? const Color(0xFFFFE0B2)
+                                : const Color(0xFFFFCDD2),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // 🔥 BOTONES estilo app (radio 26, altura 48)
+                Row(
+                  children: [
+                    // VOLVER (outlined tipo cristal)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        icon: const Icon(
+                          Icons.arrow_back_rounded,
+                          size: 18,
+                          color: Color(0xFFBFDBFE),
+                        ),
+                        label: const Text(
+                          'Volver',
+                          style: TextStyle(
+                            color: Color(0xFFBFDBFE),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          backgroundColor: Colors.white.withValues(alpha: 0.08),
+                          side: BorderSide(
+                            color: const Color(0xFF7CC4FF).withValues(alpha: 0.55),
+                            width: 1.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(26),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (puedeCancelar) ...[
+                      const SizedBox(width: 10),
+                      // SÍ, CANCELAR (rojo con glow)
+                      Expanded(
+                        child: Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(26),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFFFF6B6B),
+                                Color(0xFFE53935),
+                                Color(0xFFB71C1C),
+                              ],
+                              stops: [0.0, 0.5, 1.0],
+                            ),
+                            border: Border.all(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFE53935).withValues(alpha: 0.55),
+                                blurRadius: 16,
+                                spreadRadius: 1,
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFFB71C1C).withValues(alpha: 0.4),
+                                blurRadius: 24,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(26),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(26),
+                              onTap: () => Navigator.pop(ctx, true),
+                              child: const Center(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.event_busy,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Sí, cancelar',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        shadows: [
+                                          Shadow(
+                                            color: Color(0x66000000),
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
 
@@ -5254,6 +5580,149 @@ ListTile(
     } catch (e) {
       return false;
     }
+  }
+
+  // 🔥 ÍCONO CON HALO AZUL ANIMADO (pulso lento, NO gira)
+  Widget _buildIconoHaloAzul() {
+    return SizedBox(
+      width: 88,
+      height: 88,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _bordeController,
+            builder: (context, _) {
+              final t = _bordeController.value;
+              final pulso = (math.sin(t * 2 * math.pi) + 1) / 2;
+              return Container(
+                width: 78 + pulso * 8,
+                height: 78 + pulso * 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF3B9BFF).withValues(alpha: 0.55 + pulso * 0.15),
+                      const Color(0xFF0A5BE0).withValues(alpha: 0.25),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3B9BFF).withValues(alpha: 0.45 + pulso * 0.2),
+                      blurRadius: 20 + pulso * 8,
+                      spreadRadius: 2 + pulso * 2,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          Container(
+            width: 66,
+            height: 66,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.12),
+              border: Border.all(
+                color: const Color(0xFFBFDBFE).withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+            ),
+          ),
+          ClipOval(
+            child: Container(
+              width: 56,
+              height: 56,
+              color: Colors.white.withValues(alpha: 0.95),
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                'assets/icon/icon.png',
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.handshake,
+                  color: Color(0xFF0A5BE0),
+                  size: 36,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 ÍCONO CON HALO PULSANTE PARA EL DIÁLOGO DE CANCELAR TRATO
+  // 🔥 Azul si se puede cancelar, rojo si ya no se permite.
+  Widget _buildIconoHaloCancelar({required bool puedeCancelar}) {
+    final colorBase = puedeCancelar ? const Color(0xFF3B9BFF) : const Color(0xFFE53935);
+    final colorClaro = puedeCancelar ? const Color(0xFF7CC4FF) : const Color(0xFFFF8A80);
+
+    return SizedBox(
+      width: 112,
+      height: 112,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Halo pulsante
+          AnimatedBuilder(
+            animation: _bordeController,
+            builder: (context, _) {
+              final t = _bordeController.value;
+              final pulso = (math.sin(t * 2 * math.pi) + 1) / 2;
+              return Container(
+                width: 100 + pulso * 10,
+                height: 100 + pulso * 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      colorBase.withValues(alpha: 0.55 + pulso * 0.15),
+                      colorBase.withValues(alpha: 0.2),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colorBase.withValues(alpha: 0.5 + pulso * 0.2),
+                      blurRadius: 22 + pulso * 10,
+                      spreadRadius: 3 + pulso * 2,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          // Anillo interior
+          Container(
+            width: 84,
+            height: 84,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.10),
+              border: Border.all(
+                color: colorClaro.withValues(alpha: 0.65),
+                width: 2,
+              ),
+            ),
+          ),
+          // Ícono central
+          Icon(
+            puedeCancelar ? Icons.event_busy : Icons.lock_clock,
+            color: colorClaro,
+            size: 46,
+            shadows: [
+              Shadow(
+                color: colorBase.withValues(alpha: 0.8),
+                blurRadius: 12,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   // 🔘 Botón circular estilo "cristal" del app bar
@@ -5682,6 +6151,7 @@ ListTile(
                     setState(() {
                       _mostrarBotonesCerrarTrato = true;
                       _cerrarTratoForzado = true;
+                      _usuarioDecidioSeguirConversando = false;
                       _mostrarBotonesConfirmar = false;
                     });
                   },
@@ -5770,53 +6240,94 @@ ListTile(
           // 🔥 Solo se muestra si NO confirmé. Si ya confirmé, se muestra el cartel azul abajo.
           if (_mostrarBotonesCerrarTrato && !_usuarioConfirmoCerrarTrato)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/escudo/fondo_trato.png'),
-                  fit: BoxFit.cover,
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0A3D91),
+                    Color(0xFF0A5BE0),
+                    Color(0xFF1E9BF0),
+                    Color(0xFF0A5BE0),
+                  ],
+                  stops: [0.0, 0.35, 0.7, 1.0],
                 ),
-                border: Border.all(color: const Color(0xFF0A5BE0), width: 2),
+                border: Border.all(
+                  color: Colors.black,
+                  width: 2.5,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0A5BE0).withValues(alpha: 0.15),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
+                    color: const Color(0xFF1E9BF0).withValues(alpha: 0.45),
+                    blurRadius: 30,
+                    spreadRadius: 4,
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF0A5BE0).withValues(alpha: 0.35),
+                    blurRadius: 50,
+                    spreadRadius: 8,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: Colors.white.withValues(alpha: 0.82),
+                  borderRadius: BorderRadius.circular(18),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.15),
+                      Colors.white.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    width: 1,
+                  ),
                 ),
                 child: Column(
                   children: [
-                    // 🔥 LOGO DE LA APP EN LUGAR DEL ÍCONO DE HANDSHAKE
-                    Image.asset(
-                      'assets/icon/icon.png',
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.handshake,
-                        color: Color(0xFF0A5BE0),
-                        size: 48,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '¿Ya está todo listo para el encuentro?',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Color(0xFF0A3D91),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    // 🔥 ÍCONO CON HALO AZUL ANIMADO
+                    _buildIconoHaloAzul(),
                     const SizedBox(height: 12),
+                    // 🔥 TÍTULO CON DEGRADADO AZUL CLARO
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white,
+                          Color(0xFFBFDBFE),
+                          Color(0xFF7CC4FF),
+                        ],
+                      ).createShader(bounds),
+                      child: const Text(
+                        '¿Ya está todo listo para el encuentro?',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.white,
+                          height: 1.3,
+                          shadows: [
+                            Shadow(
+                              color: Color(0x660A3D91),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
                         // 🔥 BOTÓN CONFIRMAR CON DEGRADADO AZUL TIPO INPUT
@@ -7008,16 +7519,18 @@ class _OlaAppBarClipper extends CustomClipper<Path> {
 class BordePunteadoAnimado extends StatelessWidget {
   final AnimationController controller;
   final Widget child;
+  final Color color;
   const BordePunteadoAnimado({
     super.key,
     required this.controller,
     required this.child,
+    this.color = Colors.orange,
   });
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      foregroundPainter: _BordePunteadoPainter(controller),
+      foregroundPainter: _BordePunteadoPainter(controller, color),
       child: child,
     );
   }
@@ -7025,7 +7538,8 @@ class BordePunteadoAnimado extends StatelessWidget {
 
 class _BordePunteadoPainter extends CustomPainter {
   final AnimationController controller;
-  _BordePunteadoPainter(this.controller) : super(repaint: controller);
+  final Color color;
+  _BordePunteadoPainter(this.controller, this.color) : super(repaint: controller);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -7042,7 +7556,7 @@ class _BordePunteadoPainter extends CustomPainter {
       ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(18)));
 
     final paint = Paint()
-      ..color = Colors.orange.withValues(alpha: 0.6 + pulso * 0.4)
+      ..color = color.withValues(alpha: 0.6 + pulso * 0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;

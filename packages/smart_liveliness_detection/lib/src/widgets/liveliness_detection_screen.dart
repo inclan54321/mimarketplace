@@ -458,7 +458,7 @@ class _LivenessDetectionViewState extends State<LivenessDetectionView> {
     final appBar = widget.showAppBar
         ? widget.customAppBar ??
             AppBar(
-              title: const Text('Face Liveness Detection'),
+              title: const Text('Verificación facial'),
               backgroundColor: theme.appBarBackgroundColor,
               foregroundColor: theme.appBarTextColor,
               elevation: 0,

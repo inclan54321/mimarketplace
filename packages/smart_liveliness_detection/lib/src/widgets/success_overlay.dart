@@ -126,15 +126,15 @@ class _SuccessOverlayState extends State<SuccessOverlay>
     }
 
     final String message = widget.isSuccessful
-        ? widget.successMessage ?? 'Verification Complete!'
-        : widget.failureMessage ?? 'Verification Failed';
+        ? widget.successMessage ?? '¡Verificación completa!'
+        : widget.failureMessage ?? 'Verificación fallida';
 
     final IconData icon =
         widget.isSuccessful ? Icons.check_circle : Icons.error;
     final Color iconColor = widget.isSuccessful
         ? widget.theme.successColor
         : widget.theme.errorColor;
-    final String buttonText = widget.buttonText ?? 'Start Again';
+    final String buttonText = widget.buttonText ?? 'Reintentar';
 
     String displaySessionId = widget.sessionId;
     if (widget.sessionIdCharacters > 0 &&
@@ -168,10 +168,10 @@ class _SuccessOverlayState extends State<SuccessOverlay>
                     ),
                     if (widget.showSessionId) ...[
                       const SizedBox(height: 8),
-                      Text(
-                        'Session ID: $displaySessionId',
-                        style: widget.theme.sessionIdStyle,
-                      ),
+                                    Text(
+                      'ID de sesión: $displaySessionId',
+                      style: widget.theme.sessionIdStyle,
+                    ),
                     ],
                     const SizedBox(height: 30),
                     if (widget.showCaptureImageButton &&
@@ -188,7 +188,7 @@ class _SuccessOverlayState extends State<SuccessOverlay>
                           }
                         },
                         child:
-                            Text(widget.captureButtonText ?? 'Capture Image'),
+                            Text(widget.captureButtonText ?? 'Capturar imagen'),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -311,7 +311,7 @@ class _ChallengeCompletedAnimationState
 
   @override
   Widget build(BuildContext context) {
-    final String message = widget.message ?? 'Great!';
+    final String message = widget.message ?? '¡Genial!';
     final IconData icon;
 
     // Choose icon based on challenge type

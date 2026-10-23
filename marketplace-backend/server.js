@@ -585,10 +585,10 @@ cron.schedule('* * * * *', async () => {
             // 🔥 INSERTAR ALERTA EN LA APP
             try {
                 await pool.query(
-                    `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
-                     VALUES ($1, 0, $2, 'recordatorio_encuentro', NOW()),
-                            ($3, 0, $2, 'recordatorio_encuentro', NOW())`,
-                    [enc.usuario1_id, `${titulo}\n${cuerpo}`, enc.usuario2_id]
+                    `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha) 
+                     VALUES ($1, 0, $2, $3, 'recordatorio_encuentro', NOW()),
+                            ($4, 0, $2, $3, 'recordatorio_encuentro', NOW())`,
+                    [enc.usuario1_id, enc.id, `${titulo}\n${cuerpo}`, enc.usuario2_id]
                 );
                 console.log(`>>> 📥 Alerta 1h insertada para usuarios ${enc.usuario1_id} y ${enc.usuario2_id}`);
             } catch (e) { console.error('>>> ❌ Error INSERT alerta 1h:', e.message); }
@@ -647,10 +647,10 @@ cron.schedule('* * * * *', async () => {
             // 🔥 INSERTAR ALERTA EN LA APP
             try {
                 await pool.query(
-                    `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
-                     VALUES ($1, 0, $2, 'recordatorio_encuentro', NOW()),
-                            ($3, 0, $2, 'recordatorio_encuentro', NOW())`,
-                    [enc.usuario1_id, `${titulo}\n${cuerpo}`, enc.usuario2_id]
+                    `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha) 
+                     VALUES ($1, 0, $2, $3, 'recordatorio_encuentro', NOW()),
+                            ($4, 0, $2, $3, 'recordatorio_encuentro', NOW())`,
+                    [enc.usuario1_id, enc.id, `${titulo}\n${cuerpo}`, enc.usuario2_id]
                 );
                 console.log(`>>> 📥 Alerta 10m insertada para usuarios ${enc.usuario1_id} y ${enc.usuario2_id}`);
             } catch (e) { console.error('>>> ❌ Error INSERT alerta 10m:', e.message); }
@@ -6275,6 +6275,14 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
                     const p = propAlerta.rows[0];
                     const c = convAlerta.rows[0];
 
+                    // 🔥 Buscar el encuentro agendado para tener el encuentro_id
+                    const encAlerta = await pool.query(
+                        `SELECT id FROM encuentros_agendados 
+                         WHERE conversacion_id = $1 ORDER BY id DESC LIMIT 1`,
+                        [id]
+                    );
+                    const encuentroId = encAlerta.rows[0]?.id ?? 0;
+
                     if (p && c) {
                         const fechaTxt = new Date(p.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
                         const ubicacion = [p.lugar_nombre, p.distrito, p.canton, p.provincia]
@@ -6283,11 +6291,11 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
                         const mensajeAlerta = `🤝 Trato cerrado. Encuentro confirmado.\n📍 ${ubicacion}\n🕐 ${fechaTxt}\n\n⚠️ No llegues tarde.\n🔒 Se pedirá reconocimiento facial.\n📍 Se activará el GPS el día del encuentro.\n💬 El chat queda bloqueado hasta que se vean.`;
 
                         await pool.query(
-                            `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha) 
-                             VALUES ($1, 0, $3, 'encuentro', NOW()), ($2, 0, $3, 'encuentro', NOW())`,
-                            [c.usuario1_id, c.usuario2_id, mensajeAlerta]
+                            `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha) 
+                             VALUES ($1, 0, $4, $3, 'encuentro', NOW()), ($2, 0, $4, $3, 'encuentro', NOW())`,
+                            [c.usuario1_id, c.usuario2_id, mensajeAlerta, encuentroId]
                         );
-                        console.log(`>>> 📥 Alertas de trato cerrado insertadas para conv ${id}`);
+                        console.log(`>>> 📥 Alertas de trato cerrado insertadas para conv ${id} (encuentro ${encuentroId})`);
                     }
                 } catch (e) {
                     console.error('>>> ❌ Error al crear alerta de trato cerrado:', e.message);

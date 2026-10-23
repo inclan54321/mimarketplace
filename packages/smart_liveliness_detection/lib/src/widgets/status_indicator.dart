@@ -63,10 +63,10 @@ class StatusIndicator extends StatelessWidget {
       activeColor: theme.successColor,
       inactiveColor: theme.errorColor,
       theme: theme,
-      label: label ?? 'Face',
+      label: label ?? 'Rostro',
       size: size,
       animate: animate,
-      tooltip: isActive ? 'Face detected' : 'No face detected',
+      tooltip: isActive ? 'Rostro detectado' : 'No se detecta rostro',
     );
   }
 
@@ -85,10 +85,10 @@ class StatusIndicator extends StatelessWidget {
       activeColor: theme.successColor,
       inactiveColor: theme.warningColor,
       theme: theme,
-      label: label ?? 'Lighting',
+      label: label ?? 'Luz',
       size: size,
       animate: animate,
-      tooltip: isActive ? 'Good lighting' : 'Poor lighting',
+      tooltip: isActive ? 'Buena iluminación' : 'Poca iluminación',
     );
   }
 
