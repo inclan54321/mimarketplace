@@ -11,6 +11,7 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart' as
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'chat_screen.dart';
+import 'pantalla_verificar_identidad_otro.dart';
 
 class PantallaVerificacionEncuentro extends StatefulWidget {
   final int encuentroId;
@@ -269,6 +270,55 @@ class _PantallaVerificacionEncuentroState
 
         debugPrint('>>> Verificar-facial status: ${r.statusCode}');
         debugPrint('>>> Verificar-facial body: ${r.body}');
+
+        // 🔥 NUEVO: verificar estado cruzado
+        try {
+          final dataVF = jsonDecode(r.body);
+          final estadoCruzado = dataVF['estado_cruzado'];
+
+          if (estadoCruzado == 'esperando_al_otro') {
+            // Mostrar pantalla de espera
+            if (mounted) {
+              Navigator.of(context).pop(); // Cerrar pantalla de verificación
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogCtx) => AlertDialog(
+                  title: const Text('⏳ Esperando al otro usuario'),
+                  content: const Text(
+                    'Tu selfie fue registrada. Ahora el otro usuario debe tomarse la suya para que ambos se verifiquen.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dialogCtx);
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Ir a Alertas'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return;
+          }
+
+          if (estadoCruzado == 'listo_para_verificar') {
+            // Ir directo a verificar la identidad del otro
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => PantallaVerificarIdentidadOtro(
+                    encuentroId: widget.encuentroId,
+                  ),
+                ),
+              );
+            }
+            return;
+          }
+        } catch (e) {
+          debugPrint('>>> Error procesando estado cruzado: $e');
+        }
       } catch (e) {
         debugPrint('>>> Error marcando verificación: $e');
       }
@@ -380,6 +430,7 @@ class _PantallaVerificacionEncuentroState
   }
 
   // 🔥 OBTENER FOTO DE PERFIL DEL OTRO USUARIO
+  // ignore: unused_element
   Future<String?> _obtenerFotoPerfilOtroUsuario() async {
     try {
       final user = FirebaseAuth.instance.currentUser;

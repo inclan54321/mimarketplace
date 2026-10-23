@@ -6954,10 +6954,93 @@ app.post('/api/encuentro/verificar-facial', verificarTokenFirebase, async (req, 
             );
         }
 
+        // ============================================================
+        // 🔥 NUEVO: verificación cruzada entre los dos usuarios
+        // ============================================================
+        let estadoCruzado = 'sin_selfie';
+        try {
+            // Obtener los dos usuarios del encuentro
+            const encData2 = await pool.query(
+                'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+                [encuentro_id]
+            );
+            if (encData2.rows.length > 0) {
+                const e = encData2.rows[0];
+                const otroId = e.usuario1_id === usuario_id ? e.usuario2_id : e.usuario1_id;
+
+                // ¿El otro ya tiene selfie aprobada?
+                const otroSelfie = await pool.query(
+                    `SELECT id FROM verificaciones_faciales
+                     WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE
+                     LIMIT 1`,
+                    [encuentro_id, otroId]
+                );
+
+                if (otroSelfie.rows.length === 0) {
+                    // El otro NO se ha tomado la selfie → alerta de espera
+                    estadoCruzado = 'esperando_al_otro';
+                    await pool.query(
+                        `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                         VALUES ($1, 0, $2, $3, 'esperando_verificacion', NOW())`,
+                        [
+                            usuario_id,
+                            encuentro_id,
+                            `⏳ Esperando que el otro usuario se tome la selfie para verificar identidad.\n\nPodés volver desde esta alerta cuando el otro termine.`
+                        ]
+                    );
+                } else {
+                    // El otro YA se la tomó → crear las 2 verificaciones cruzadas y las 2 alertas
+                    estadoCruzado = 'listo_para_verificar';
+
+                    // Insertar las 2 filas (una por cada dirección), con ON CONFLICT para no duplicar
+                    await pool.query(
+                        `INSERT INTO verificaciones_cruzadas 
+                            (encuentro_id, usuario_verifica_id, usuario_verificado_id)
+                         VALUES ($1, $2, $3), ($1, $3, $2)
+                         ON CONFLICT DO NOTHING`,
+                        [encuentro_id, usuario_id, otroId]
+                    );
+
+                    // Obtener nombres para el mensaje
+                    const nombres = await pool.query(
+                        `SELECT uid, nombre, foto_perfil FROM usuarios WHERE uid IN ($1, $2)`,
+                        [usuario_id, otroId]
+                    );
+                    const nombreOtro = nombres.rows.find(r => r.uid === otroId)?.nombre || 'El otro usuario';
+                    const nombreYo = nombres.rows.find(r => r.uid === usuario_id)?.nombre || 'El otro usuario';
+
+                    // Alerta para MÍ: "Verificá la identidad de [otro]"
+                    await pool.query(
+                        `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                         VALUES ($1, 0, $2, $3, 'verificar_identidad', NOW())`,
+                        [
+                            usuario_id,
+                            encuentro_id,
+                            `🔍 Verificá la identidad de ${nombreOtro}.\n\nTocá el botón para comparar la foto de perfil con la selfie que se tomó.`
+                        ]
+                    );
+
+                    // Alerta para el OTRO: "Verificá la identidad de [yo]"
+                    await pool.query(
+                        `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                         VALUES ($1, 0, $2, $3, 'verificar_identidad', NOW())`,
+                        [
+                            otroId,
+                            encuentro_id,
+                            `🔍 Verificá la identidad de ${nombreYo}.\n\nTocá el botón para comparar la foto de perfil con la selfie que se tomó.`
+                        ]
+                    );
+                }
+            }
+        } catch (e) {
+            console.error('>>> ❌ Error en verificación cruzada:', e.message);
+        }
+
         res.status(201).json({ 
             success: true, 
             verificacion: result.rows[0],
             foto_selfie: fotoSelfieUrl,
+            estado_cruzado: estadoCruzado,
         });
     } catch (error) {
         console.error('Error al guardar verificación facial:', error);
@@ -7355,7 +7438,151 @@ app.get('/api/encuentro/:id/datos', verificarTokenFirebase, async (req, res) => 
         res.status(500).json({ error: error.message });
     }
 });
+// ============================================================
+// 🔥 VERIFICACIÓN CRUZADA DE IDENTIDAD
+// ============================================================
 
+// GET: selfie del otro usuario (URL)
+app.get('/api/encuentro/:id/selfie/:usuarioId', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { id, usuarioId } = req.params;
+
+        // Verificar que el usuario autenticado sea parte del encuentro
+        const enc = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            [id]
+        );
+        if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
+        const e = enc.rows[0];
+        if (e.usuario1_id !== req.usuarioAutenticado && e.usuario2_id !== req.usuarioAutenticado) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        const selfie = await pool.query(
+            `SELECT foto_selfie FROM verificaciones_faciales
+             WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE
+             ORDER BY id DESC LIMIT 1`,
+            [id, usuarioId]
+        );
+        if (selfie.rows.length === 0) {
+            return res.json({ selfie_url: null });
+        }
+        res.json({ selfie_url: selfie.rows[0].foto_selfie });
+    } catch (e) {
+        console.error('Error al obtener selfie:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST: confirmar identidad del otro
+app.post('/api/encuentro/:id/confirmar-identidad', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Buscar la fila de verificación cruzada donde yo soy el que verifica
+        const enc = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            [id]
+        );
+        if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
+        const e = enc.rows[0];
+        if (e.usuario1_id !== req.usuarioAutenticado && e.usuario2_id !== req.usuarioAutenticado) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+        const otroId = e.usuario1_id === req.usuarioAutenticado ? e.usuario2_id : e.usuario1_id;
+
+        await pool.query(
+            `UPDATE verificaciones_cruzadas
+             SET confirmado = TRUE, rechazado = FALSE, fecha = NOW()
+             WHERE encuentro_id = $1 AND usuario_verifica_id = $2 AND usuario_verificado_id = $3`,
+            [id, req.usuarioAutenticado, otroId]
+        );
+
+        // ¿Ambos confirmaron?
+        const pendientes = await pool.query(
+            `SELECT COUNT(*) as total FROM verificaciones_cruzadas
+             WHERE encuentro_id = $1 AND confirmado = FALSE AND rechazado = FALSE`,
+            [id]
+        );
+        const ambos = parseInt(pendientes.rows[0]?.total || 0) === 0;
+
+        if (ambos) {
+            // Desbloquear chat
+            await pool.query(
+                `UPDATE conversaciones_app SET chat_bloqueado = FALSE
+                 WHERE id = (SELECT conversacion_id FROM encuentros_agendados WHERE id = $1)`,
+                [id]
+            );
+            // Alerta para ambos
+            await pool.query(
+                `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                 VALUES ($1, 0, $3, $4, 'chat_desbloqueado', NOW()),
+                        ($2, 0, $3, $4, 'chat_desbloqueado', NOW())`,
+                [
+                    e.usuario1_id,
+                    e.usuario2_id,
+                    id,
+                    '✅ Ambos confirmaron. Chat desbloqueado. Nos vemos en el encuentro.'
+                ]
+            );
+        }
+
+        res.json({ success: true, ambos_confirmaron: ambos });
+    } catch (e) {
+        console.error('Error al confirmar identidad:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST: rechazar identidad del otro
+app.post('/api/encuentro/:id/rechazar-identidad', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const enc = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            [id]
+        );
+        if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
+        const e = enc.rows[0];
+        if (e.usuario1_id !== req.usuarioAutenticado && e.usuario2_id !== req.usuarioAutenticado) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+        const otroId = e.usuario1_id === req.usuarioAutenticado ? e.usuario2_id : e.usuario1_id;
+
+        // Marcar rechazo
+        await pool.query(
+            `UPDATE verificaciones_cruzadas
+             SET rechazado = TRUE, confirmado = FALSE, fecha = NOW()
+             WHERE encuentro_id = $1 AND usuario_verifica_id = $2 AND usuario_verificado_id = $3`,
+            [id, req.usuarioAutenticado, otroId]
+        );
+
+        // Bloquear chat para AMBOS inmediatamente
+        await pool.query(
+            `UPDATE conversaciones_app SET chat_bloqueado = TRUE, cerrado_por_escudo = TRUE
+             WHERE id = (SELECT conversacion_id FROM encuentros_agendados WHERE id = $1)`,
+            [id]
+        );
+
+        // Alerta para ambos: trato cancelado
+        const quien = await pool.query('SELECT nombre FROM usuarios WHERE uid = $1', [req.usuarioAutenticado]);
+        const nombreQuien = quien.rows[0]?.nombre || 'Un usuario';
+        const mensaje = `❌ ${nombreQuien} rechazó la verificación de identidad. El trato quedó cancelado.`;
+
+        await pool.query(
+            `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+             VALUES ($1, 0, $3, $4, 'trato_cancelado', NOW()),
+                    ($2, 0, $3, $4, 'trato_cancelado', NOW())`,
+            [e.usuario1_id, e.usuario2_id, id, mensaje]
+        );
+
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Error al rechazar identidad:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
     console.log('>>> 🔌 WebSocket disponible en ws://0.0.0.0:3000/ws/chat');

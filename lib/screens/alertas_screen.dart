@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../widgets/rewarded_ad_prueba.dart';
 import 'pantalla_verificacion_encuentro.dart';
+import 'pantalla_verificar_identidad_otro.dart';
 
 class AlertasScreen extends StatefulWidget {
   const AlertasScreen({super.key});
@@ -298,6 +299,22 @@ class _AlertasScreenState extends State<AlertasScreen> {
                       rayaColor = Colors.orange;
                       icono = Icons.alarm;
                       iconoColor = Colors.orange;
+                    } else if (tipo == 'esperando_verificacion') {
+                      rayaColor = Colors.orange;
+                      icono = Icons.hourglass_top;
+                      iconoColor = Colors.orange;
+                    } else if (tipo == 'verificar_identidad') {
+                      rayaColor = const Color(0xFF0A5BE0);
+                      icono = Icons.face_retouching_natural;
+                      iconoColor = const Color(0xFF0A5BE0);
+                    } else if (tipo == 'trato_cancelado') {
+                      rayaColor = Colors.red;
+                      icono = Icons.cancel;
+                      iconoColor = Colors.red;
+                    } else if (tipo == 'chat_desbloqueado') {
+                      rayaColor = Colors.green;
+                      icono = Icons.lock_open;
+                      iconoColor = Colors.green;
                     }
 
                     return Container(
@@ -399,6 +416,64 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                               },
                                               icon: const Icon(Icons.verified_user, size: 16),
                                               label: const Text('Verificar identidad'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(0xFF0A5BE0),
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 4,
+                                                ),
+                                                textStyle: const TextStyle(fontSize: 12),
+                                              ),
+                                            ),
+                                          ),
+                                        // 🔥 ESPERANDO AL OTRO
+                                        if (tipo == 'esperando_verificacion' &&
+                                            (alerta['encuentro_id'] ?? 0) > 0)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: ElevatedButton.icon(
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => PantallaVerificacionEncuentro(
+                                                      encuentroId: (alerta['encuentro_id'] as num).toInt(),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              icon: const Icon(Icons.hourglass_top, size: 16),
+                                              label: const Text('Volver a la verificación'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.orange,
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 4,
+                                                ),
+                                                textStyle: const TextStyle(fontSize: 12),
+                                              ),
+                                            ),
+                                          ),
+                                        // 🔥 VERIFICAR IDENTIDAD DEL OTRO (con selfie)
+                                        if (tipo == 'verificar_identidad' &&
+                                            (alerta['encuentro_id'] ?? 0) > 0)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: ElevatedButton.icon(
+                                              onPressed: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => PantallaVerificarIdentidadOtro(
+                                                      encuentroId: (alerta['encuentro_id'] as num).toInt(),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              icon: const Icon(Icons.face_retouching_natural, size: 16),
+                                              label: const Text('Verificar identidad del otro'),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: const Color(0xFF0A5BE0),
                                                 foregroundColor: Colors.white,
