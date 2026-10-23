@@ -2548,33 +2548,17 @@ app.put('/api/conversaciones/:id/fijar', verificarTokenFirebase, async (req, res
 app.get('/api/conversaciones/:id/estado-bloqueo', async (req, res) => {
     try {
         const { id } = req.params;
-
-        // 🔥 Traer TODO en una sola query: bloqueo + encuentro agendado + verificación
         const result = await pool.query(
-            `SELECT c.chat_bloqueado, c.cerrado_por_escudo,
-                    e.id AS encuentro_id,
-                    COALESCE(e.escudo_verificado, false) AS escudo_verificado
-             FROM conversaciones_app c
-             LEFT JOIN encuentro s_agendados e
-                    ON e.id = (
-                      SELECT id FROM encuentros_agendados 
-                      WHERE conversacion_id = c.id 
-                      ORDER BY id DESC LIMIT 1
-                    )
-             WHERE c.id = $1`,
+            `SELECT chat_bloqueado, cerrado_por_escudo 
+             FROM conversaciones_app WHERE id = $1`,
             [id]
         );
-
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Conversación no encontrada' });
         }
-
-        const row = result.rows[0];
         res.json({
-            chat_bloqueado: row.chat_bloqueado === true,
-            cerrado_por_escudo: row.cerrado_por_escudo === true,
-            encuentro_id: row.encuentro_id || null,
-            escudo_verificado: row.escudo_verificado === true,
+            chat_bloqueado: result.rows[0].chat_bloqueado === true,
+            cerrado_por_escudo: result.rows[0].cerrado_por_escudo === true,
         });
     } catch (error) {
         console.error('Error al obtener estado de bloqueo:', error);

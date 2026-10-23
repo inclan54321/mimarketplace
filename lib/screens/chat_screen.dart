@@ -445,38 +445,29 @@ class _ChatScreenState extends State<ChatScreen>
           await prefs.setBool(key, activoBackend);
         }
         if (mounted) {
-          // 🔥 Solo setState si algo cambió de verdad.
-          final necesitaSetState = _iaActiva != activoBackend ||
-              _escudoActivadoPor != activadoPor ||
-              _escudoYoAcepte != yoAcepte ||
-              _escudoOtroRechazo != otroRechazo ||
-              _escudoConfirmado != escudoConfirmado ||
-              _escudoYoViModal != yoViModal ||
-              (otroRechazo && !_chatBloqueado) ||
-              ((escudoConfirmado || otroRechazo || yoViModal) && !_escudoResuelto);
+          setState(() {
+            _iaActiva = activoBackend;
+            _escudoActivadoPor = activadoPor;
+            _escudoYoAcepte = yoAcepte;
+            _escudoOtroRechazo = otroRechazo;
+            _escudoConfirmado = escudoConfirmado;
+            _escudoYoViModal = yoViModal;
 
-          if (necesitaSetState) {
-            setState(() {
-              _iaActiva = activoBackend;
-              _escudoActivadoPor = activadoPor;
-              _escudoYoAcepte = yoAcepte;
-              _escudoOtroRechazo = otroRechazo;
-              _escudoConfirmado = escudoConfirmado;
-              _escudoYoViModal = yoViModal;
+            // 🔥 Si el OTRO rechazó el escudo, el chat queda cerrado para AMBOS.
+            if (otroRechazo) {
+              _chatBloqueado = true;
+              _mostrarBotonesConfirmar = false;
+              _mostrarBotonesCerrarTrato = false;
+              _esperandoConfirmacionCerrarTrato = false;
+              _esperandoRespuestaOtro = false;
+            }
 
-              if (otroRechazo) {
-                _chatBloqueado = true;
-                _mostrarBotonesConfirmar = false;
-                _mostrarBotonesCerrarTrato = false;
-                _esperandoConfirmacionCerrarTrato = false;
-                _esperandoRespuestaOtro = false;
-              }
-
-              if (escudoConfirmado || otroRechazo || yoViModal) {
-                _escudoResuelto = true;
-              }
-            });
-          }
+            // 🔥 Si ya está resuelto (confirmado o rechazado o modal ya visto),
+            // 🔥 dejamos de consultar en cada ciclo.
+            if (escudoConfirmado || otroRechazo || yoViModal) {
+              _escudoResuelto = true;
+            }
+          });
         }
         print('>>> 🛡️ Escudo backend: activo=$activoBackend, activadoPor=$activadoPor, yoAcepte=$yoAcepte, otroRechazo=$otroRechazo, confirmado=$escudoConfirmado');
       }
@@ -556,7 +547,6 @@ class _ChatScreenState extends State<ChatScreen>
         _mostrarBotonesCerrarTrato = false;
 
         // 🔥 Ya tenemos el estado: el input se muestra/oculta al instante
-        // y el AppBar deja de mostrar el placeholder del botón.
         _estadoCargado = true;
       });
     } catch (e) {
@@ -671,8 +661,15 @@ Future<void> _verificarCalificacion() async {
     print('>>> 🔥 12. _calificacionPendiente: $_calificacionPendiente');
     print('>>> 🔥 13. _productoId: $_productoId');
     
-    // 🔥 (Eliminado) addPostFrameCallback con setState forzado.
-
+    // 🔥 ESTO FUERZA LA RECONSTRUCCIÓN DEL LISTVIEW
+    print('>>> 🔥 14. Ejecutando addPostFrameCallback...');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print('>>> 🔥 15. addPostFrameCallback EJECUTADO - forzando setState');
+      setState(() {
+        print('>>> 🔥 16. setState dentro de addPostFrameCallback - _vendedorId: "$_vendedorId"');
+      });
+    });AC
+    
     print('>>> 🔥 17. _verificarCalificacion() TERMINÓ');
     
   } catch (e) {
@@ -1015,9 +1012,23 @@ void dispose() {
 
       print('>>> 🔒 Estado de bloqueo BD: chat_bloqueado=$chatBloqueadoBD, cerrado_por_escudo=$cerradoPorEscudoBD');
 
-      // 🔥 Ahora el backend ya devuelve escudo_verificado en la misma request.
-      // No hace falta un segundo roundtrip.
-      final escudoVerificado = dataBloqueo['escudo_verificado'] == true;
+      // 🔥 Consultar el encuentro ANTES del setState, para no repintar el AppBar
+      // con el escudo y medio segundo después con el botón de emergencia.
+      bool escudoVerificado = false;
+      if (!chatBloqueadoBD) {
+        try {
+          final rEnc = await http.get(
+            Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/agendado/$_conversacionIdActual'),
+          );
+          if (rEnc.statusCode == 200) {
+            final dataEnc = jsonDecode(rEnc.body);
+            final enc = dataEnc['encuentro'];
+            escudoVerificado = enc != null && enc['escudo_verificado'] == true;
+          }
+        } catch (e) {
+          debugPrint('>>> Error verificando escudo: $e');
+        }
+      }
 
       if (mounted) {
         // 🔥 Un solo setState con TODO el estado nuevo:
