@@ -962,14 +962,23 @@ void dispose() {
 
       print('>>> 🔒 Estado de bloqueo BD: chat_bloqueado=$chatBloqueadoBD, cerrado_por_escudo=$cerradoPorEscudoBD');
 
-      if (mounted && chatBloqueadoBD && !_chatBloqueado) {
-        setState(() {
-          _chatBloqueado = true;
-          if (cerradoPorEscudoBD) {
-            _escudoOtroRechazo = true;
-            _escudoResuelto = true;
-          }
-        });
+      if (mounted) {
+        if (chatBloqueadoBD && !_chatBloqueado) {
+          // 🔥 Se bloqueó en el backend → reflejar local
+          setState(() {
+            _chatBloqueado = true;
+            if (cerradoPorEscudoBD) {
+              _escudoOtroRechazo = true;
+              _escudoResuelto = true;
+            }
+          });
+        } else if (!chatBloqueadoBD && _chatBloqueado) {
+          // 🔥 Se desbloqueó en el backend (verificación cruzada OK) → reflejar local
+          setState(() {
+            _chatBloqueado = false;
+            _escudoOtroRechazo = false;
+          });
+        }
       }
     }
   } catch (e) {

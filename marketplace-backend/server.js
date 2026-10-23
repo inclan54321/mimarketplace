@@ -7583,6 +7583,58 @@ app.post('/api/encuentro/:id/rechazar-identidad', verificarTokenFirebase, async 
         res.status(500).json({ error: e.message });
     }
 });
+// ============================================================
+// 🔥 ESTADO DE VERIFICACIÓN DEL USUARIO EN UN ENCUENTRO
+// ============================================================
+app.get('/api/encuentro/:id/mi-estado-verificacion', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const enc = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            [id]
+        );
+        if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
+        const e = enc.rows[0];
+        if (e.usuario1_id !== req.usuarioAutenticado && e.usuario2_id !== req.usuarioAutenticado) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+        const otroId = e.usuario1_id === req.usuarioAutenticado ? e.usuario2_id : e.usuario1_id;
+
+        // ¿Mi selfie existe?
+        const miSelfie = await pool.query(
+            `SELECT id FROM verificaciones_faciales
+             WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE LIMIT 1`,
+            [id, req.usuarioAutenticado]
+        );
+
+        // ¿La selfie del otro existe?
+        const otroSelfie = await pool.query(
+            `SELECT id FROM verificaciones_faciales
+             WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE LIMIT 1`,
+            [id, otroId]
+        );
+
+        // ¿Ya confirmé/rechacé la identidad del otro?
+        const miCruzada = await pool.query(
+            `SELECT confirmado, rechazado FROM verificaciones_cruzadas
+             WHERE encuentro_id = $1 AND usuario_verifica_id = $2 AND usuario_verificado_id = $3
+             LIMIT 1`,
+            [id, req.usuarioAutenticado, otroId]
+        );
+
+        res.json({
+            mi_selfie_existe: miSelfie.rows.length > 0,
+            otro_selfie_existe: otroSelfie.rows.length > 0,
+            mi_confirmacion_cruzada: miCruzada.rows[0]?.confirmado === true,
+            mi_rechazo_cruzado: miCruzada.rows[0]?.rechazado === true,
+        });
+    } catch (err) {
+        console.error('Error al obtener estado de verificación:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
     console.log('>>> 🔌 WebSocket disponible en ws://0.0.0.0:3000/ws/chat');

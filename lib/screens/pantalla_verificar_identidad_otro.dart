@@ -24,6 +24,8 @@ class _PantallaVerificarIdentidadOtroState
   Map<String, dynamic>? _datos;
   String? _selfieUrl;
   bool _enviando = false;
+  bool _yaConfirme = false;
+  bool _yaRechace = false;
 
   @override
   void initState() {
@@ -61,6 +63,17 @@ class _PantallaVerificarIdentidadOtroState
       if (r2.statusCode == 200) {
         final data2 = jsonDecode(r2.body) as Map<String, dynamic>;
         _selfieUrl = data2['selfie_url'];
+      }
+
+      // 🔥 Ver si ya confirmé/rechacé antes
+      final r3 = await http.get(
+        Uri.parse('$_baseUrl/api/encuentro/${widget.encuentroId}/mi-estado-verificacion'),
+        headers: {if (idToken != null) 'Authorization': 'Bearer $idToken'},
+      );
+      if (r3.statusCode == 200) {
+        final d3 = jsonDecode(r3.body) as Map<String, dynamic>;
+        _yaConfirme = d3['mi_confirmacion_cruzada'] == true;
+        _yaRechace = d3['mi_rechazo_cruzado'] == true;
       }
 
       setState(() => _cargando = false);
@@ -197,37 +210,81 @@ class _PantallaVerificarIdentidadOtroState
             ),
           ),
           const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _enviando ? null : _rechazar,
-                  icon: const Icon(Icons.close, color: Colors.red),
-                  label: const Text(
-                    'No coincide',
-                    style: TextStyle(color: Colors.red),
+          // 🔥 Si ya confirmó/rechazó antes, mostrar cartel en vez de botones
+          if (_yaConfirme)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Ya confirmaste que es la misma persona.',
+                      style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                    side: const BorderSide(color: Colors.red),
+                ],
+              ),
+            )
+          else if (_yaRechace)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.cancel, color: Colors.red),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Rechazaste la identidad. El trato está cancelado.',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _enviando ? null : _rechazar,
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    label: const Text(
+                      'No coincide',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      side: const BorderSide(color: Colors.red),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _enviando ? null : _confirmar,
-                  icon: const Icon(Icons.check, color: Colors.white),
-                  label: const Text('Sí, es la misma'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(50),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _enviando ? null : _confirmar,
+                    icon: const Icon(Icons.check, color: Colors.white),
+                    label: const Text('Sí, es la misma'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(50),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );
