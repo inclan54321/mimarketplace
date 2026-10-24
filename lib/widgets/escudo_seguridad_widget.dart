@@ -736,6 +736,19 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                   },
                 ),
               ],
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.menu_book, color: Colors.blue, size: 28),
+                title: const Text('Instrucciones', style: TextStyle(fontSize: 16)),
+                subtitle: const Text(
+                  'Ver cómo funciona el Escudo de Seguridad',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ModalEscudoUber.mostrar(context);
+                },
+              ),
             ],
             const SizedBox(height: 20),
           ],

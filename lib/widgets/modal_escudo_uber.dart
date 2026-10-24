@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 // 🔥 MODAL DEL ESCUDO ESTILO UBER
 // 🔥 Se usa en dos casos:
 //   1. Cuando el usuario va a activar el escudo por primera vez (botón "Ver video").
-//   2. Cuando el OTRO usuario ya activó el escudo y este debe aceptar o rechazar.
+//   2. Cuando el otro usuario ya activó el escudo y este debe aceptar o rechazar.
+//   3. Cuando el escudo ya está activo y el usuario quiere ver las instrucciones (solo "Cerrar").
 class ModalEscudoUber extends StatefulWidget {
   final String? nombreQuienActivo; // Si es null, modo "activar". Si tiene valor, modo "aceptar/rechazar".
   final VoidCallback? onVerVideo;   // Modo activar: qué hacer al tocar "Ver video".
@@ -59,6 +60,9 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
   // 🔥 Modo "aceptar/rechazar" si viene nombreQuienActivo
   bool get _esModoAceptar => widget.nombreQuienActivo != null;
 
+  // 🔥 Modo "solo instrucciones" si NO hay onVerVideo y NO hay nombreQuienActivo
+  bool get _esModoInstrucciones => !_esModoAceptar && widget.onVerVideo == null;
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -80,7 +84,7 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
             children: [
               Column(
                 children: [
-                  // 🔥 CABECERA: "X activó el Escudo" (solo en modo aceptar)
+                  // 🔥 CABECERA: "X activó el Escudo" + instrucciones (solo en modo aceptar)
                   if (_esModoAceptar)
                     Container(
                       width: double.infinity,
@@ -107,6 +111,49 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
                               color: Colors.white,
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFF00E676).withValues(alpha: 0.35),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '¿Qué tenés que hacer?',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const _InstruccionEscudo(
+                                  icono: Icons.check_circle,
+                                  color: Color(0xFF00E676),
+                                  titulo: 'Aceptar',
+                                  texto:
+                                      'El chat sigue habilitado. Ambos podrán seguir conversando, pero se activan el bloqueo de números de teléfono y enlaces, el seguimiento GPS y el reconocimiento facial el día del encuentro.',
+                                ),
+                                const SizedBox(height: 8),
+                                const _InstruccionEscudo(
+                                  icono: Icons.cancel,
+                                  color: Colors.red,
+                                  titulo: 'No aceptar',
+                                  texto:
+                                      'El chat se cierra para los dos. No podrán seguir hablando hasta que ambos acepten el Escudo o se cancele el trato desde las alertas.',
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -212,7 +259,12 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
                             height: 50,
                             child: ElevatedButton(
                               onPressed: () {
-                                // 🔥 En modo "activar", si todavía no está en la última página, avanzar.
+                                // 🔥 Modo instrucciones: "Cerrar" desde el primer paso
+                                if (_esModoInstrucciones) {
+                                  Navigator.pop(context);
+                                  return;
+                                }
+                                // 🔥 Modo activar: "Siguiente" hasta el último paso, luego "Ver video"
                                 if (_paginaActual < 2) {
                                   _pageController.nextPage(
                                     duration: const Duration(milliseconds: 300),
@@ -231,7 +283,9 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
                                 ),
                               ),
                               child: Text(
-                                _paginaActual < 2 ? 'Siguiente' : 'Ver video',
+                                _esModoInstrucciones
+                                    ? 'Cerrar'
+                                    : (_paginaActual < 2 ? 'Siguiente' : 'Ver video'),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -244,7 +298,7 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
                 ],
               ),
 
-              // 🔥 BOTÓN X (solo en modo activar, para poder cerrar sin activar)
+              // 🔥 BOTÓN X (en modo activar y en modo instrucciones, para poder cerrar)
               if (!_esModoAceptar)
                 Positioned(
                   top: 12,
@@ -294,53 +348,106 @@ class _PasoEscudo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // 🔥 IMAGEN FULL WIDTH ARRIBA
-        ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          child: Image.asset(
-            imagen,
-            width: double.infinity,
-            height: 200,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // 🔥 IMAGEN FULL WIDTH ARRIBA
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Image.asset(
+              imagen,
               width: double.infinity,
-              height: 200,
-              color: Colors.grey.shade200,
-              child: Icon(
-                Icons.image_not_supported,
-                size: 48,
-                color: Colors.grey.shade500,
+              height: 160,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: double.infinity,
+                height: 160,
+                color: Colors.grey.shade200,
+                child: Icon(
+                  Icons.image_not_supported,
+                  size: 48,
+                  color: Colors.grey.shade500,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          titulo,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-            letterSpacing: -0.3,
-            height: 1.2,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text(
-            descripcion,
+          const SizedBox(height: 16),
+          Text(
+            titulo,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.5,
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w400,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
+              letterSpacing: -0.3,
+              height: 1.2,
             ),
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              descripcion,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.45,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+// 🔥 FILA DE INSTRUCCIÓN (ícono + título + texto)
+class _InstruccionEscudo extends StatelessWidget {
+  final IconData icono;
+  final Color color;
+  final String titulo;
+  final String texto;
+
+  const _InstruccionEscudo({
+    required this.icono,
+    required this.color,
+    required this.titulo,
+    required this.texto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icono, color: color, size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titulo,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                texto,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  height: 1.35,
+                ),
+              ),
+            ],
           ),
         ),
       ],

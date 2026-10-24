@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math' as math;
 import '../widgets/rewarded_ad_prueba.dart';
 import 'pantalla_verificacion_encuentro.dart';
 import 'pantalla_verificar_identidad_otro.dart';
@@ -395,7 +396,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F8FF),
+      backgroundColor: const Color(0xFF0A1929),
       appBar: AppBar(
         title: const Text(
           'Alertas',
@@ -426,9 +427,41 @@ class _AlertasScreenState extends State<AlertasScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _alertas.isEmpty
+      body: Stack(
+        children: [
+          // 🌄 Capa 1: Formas geométricas
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.6,
+              child: const CustomPaint(
+                painter: _GeometricBackgroundPainter(),
+                size: Size.infinite,
+              ),
+            ),
+          ),
+
+          // 🌑 Capa 2: Gradiente radial oscuro
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0.0, -0.5),
+                  radius: 1.5,
+                  colors: [
+                    Color(0x990A1929),
+                    Color(0xCC0F2447),
+                    Color(0xFF0A1929),
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // 📱 Capa 3: Contenido
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _alertas.isEmpty
               ? Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -536,12 +569,12 @@ class _AlertasScreenState extends State<AlertasScreen> {
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Colors.white,
-                            rayaColor.withValues(alpha: 0.06),
+                            Colors.black,
+                            Colors.black,
                           ],
                         ),
                         border: Border.all(
@@ -613,7 +646,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                           _limpiarMensaje(mensaje),
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: Colors.black,
+                                            color: Colors.white,
                                             fontWeight: esLeida ? FontWeight.normal : FontWeight.w600,
                                           ),
                                           maxLines: (tipo == 'encuentro' || tipo == 'recordatorio_encuentro') ? 10 : 2,
@@ -624,7 +657,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                           fecha,
                                           style: const TextStyle(
                                             fontSize: 11,
-                                            color: Colors.black54,
+                                            color: Colors.white70,
                                           ),
                                         ),
                                         if (tipo == 'caducado' && productoId != null)
@@ -685,6 +718,148 @@ class _AlertasScreenState extends State<AlertasScreen> {
                     );
                   },
                 ),
+        ],
+      ),
     );
   }
+}
+
+// ============================================================
+// 🎨 GEOMETRIC BACKGROUND PAINTER (copiado de SellScreen)
+// ============================================================
+class _GeometricBackgroundPainter extends CustomPainter {
+  const _GeometricBackgroundPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final width = size.width;
+    final height = size.height;
+
+    _drawHexagon(
+      canvas,
+      center: Offset(width * 0.75, height * 0.35),
+      radius: width * 0.6,
+      color: const Color(0xFF3B82F6),
+      alpha: 0.9,
+    );
+
+    _drawHexagon(
+      canvas,
+      center: Offset(width * 0.15, height * 0.2),
+      radius: width * 0.45,
+      color: const Color(0xFF06B6D4),
+      alpha: 0.7,
+    );
+
+    _drawHexagon(
+      canvas,
+      center: Offset(width * 0.5, height * 0.85),
+      radius: width * 0.55,
+      color: const Color(0xFF8B5CF6),
+      alpha: 0.6,
+    );
+
+    _drawTriangle(
+      canvas,
+      center: Offset(width * 0.5, height * 0.1),
+      radius: width * 0.4,
+      color: const Color(0xFF60A5FA),
+      alpha: 0.5,
+    );
+
+    _drawDiamond(
+      canvas,
+      center: Offset(width * 0.9, height * 0.75),
+      radius: width * 0.35,
+      color: const Color(0xFF0891B2),
+      alpha: 0.6,
+    );
+  }
+
+  void _drawHexagon(Canvas canvas, {
+    required Offset center,
+    required double radius,
+    required Color color,
+    required double alpha,
+  }) {
+    final path = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = (i * 60 - 90) * (math.pi / 180);
+      final x = center.dx + radius * math.cos(angle);
+      final y = center.dy + radius * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: alpha),
+          color.withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawTriangle(Canvas canvas, {
+    required Offset center,
+    required double radius,
+    required Color color,
+    required double alpha,
+  }) {
+    final path = Path();
+    for (int i = 0; i < 3; i++) {
+      final angle = (i * 120 - 90) * (math.pi / 180);
+      final x = center.dx + radius * math.cos(angle);
+      final y = center.dy + radius * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: alpha),
+          color.withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawDiamond(Canvas canvas, {
+    required Offset center,
+    required double radius,
+    required Color color,
+    required double alpha,
+  }) {
+    final path = Path();
+    path.moveTo(center.dx, center.dy - radius);
+    path.lineTo(center.dx + radius, center.dy);
+    path.lineTo(center.dx, center.dy + radius);
+    path.lineTo(center.dx - radius, center.dy);
+    path.close();
+
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: alpha),
+          color.withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

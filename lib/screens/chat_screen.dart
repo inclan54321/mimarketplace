@@ -19,6 +19,8 @@ import '../widgets/conversation_status_indicator.dart';
 import 'image_viewer_screen.dart';
 import 'pantalla_verificacion_encuentro.dart';
 import 'package:flutter_sound/flutter_sound.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../widgets/escudo_seguridad_widget.dart'; // 🔥 NUEVO
@@ -413,9 +415,7 @@ class _ChatScreenState extends State<ChatScreen>
       final key = 'escudo_activo_${widget.conversacionId}';
       final activoLocal = prefs.getBool(key) ?? false;
 
-      // 🔥 Solo actualizar si cambió. _restaurarEstadoEscudo ya lo pudo haber
-      // puesto en true antes de que termine esta consulta.
-      if (mounted && activoLocal != _iaActiva) {
+      if (mounted) {
         setState(() {
           _iaActiva = activoLocal;
         });
@@ -668,7 +668,7 @@ Future<void> _verificarCalificacion() async {
       setState(() {
         print('>>> 🔥 16. setState dentro de addPostFrameCallback - _vendedorId: "$_vendedorId"');
       });
-    });AC
+    });
     
     print('>>> 🔥 17. _verificarCalificacion() TERMINÓ');
     
@@ -1945,6 +1945,14 @@ Future<void> _obtenerFotoVendedorReal() async {
                 _seleccionarImagen(ImageSource.camera);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.location_on, color: Colors.red),
+              title: const Text('Compartir ubicación'),
+              onTap: () {
+                Navigator.pop(context);
+                _enviarUbicacion();
+              },
+            ),
             // 🔥 SOLO SI SOS EL VENDEDOR
             if (esVendedor)
               ListTile(
@@ -1955,6 +1963,179 @@ Future<void> _obtenerFotoVendedorReal() async {
                   _enviarPortafolio();
                 },
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 📍 ENVIAR UBICACIÓN ACTUAL AL CHAT
+  Future<void> _enviarUbicacion() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _conversacionIdActual.isEmpty) return;
+
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Activa el GPS del teléfono para compartir tu ubicación'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      var permiso = await Geolocator.checkPermission();
+      if (permiso == LocationPermission.denied) {
+        permiso = await Geolocator.requestPermission();
+      }
+      if (permiso == LocationPermission.denied ||
+          permiso == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Se necesita permiso de ubicación'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📍 Obteniendo tu ubicación...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+
+      // 🔥 5 decimales (~1 m). Así no se confunde con un número de teléfono.
+      final lat = pos.latitude.toStringAsFixed(5);
+      final lng = pos.longitude.toStringAsFixed(5);
+
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final response = await http.post(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'conversacion_id': int.parse(_conversacionIdActual),
+          'usuario_id': user.uid,
+          'texto': '||UBICACION||$lat,$lng',
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        await _cargarMensajes(_conversacionIdActual);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pudo enviar la ubicación (${response.statusCode})'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al obtener la ubicación: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // 📍 ABRIR UNA URL EN LA APP EXTERNA
+  Future<void> _abrirEnlaceExterno(String url) async {
+    try {
+      final ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo abrir la aplicación'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error al abrir enlace: $e');
+    }
+  }
+
+  // 📍 MENÚ: ABRIR UBICACIÓN EN GOOGLE MAPS / WAZE / UBER
+  void _mostrarOpcionesNavegacion(String lat, String lng) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Abrir ubicación con...',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.map, color: Color(0xFF34A853), size: 28),
+              title: const Text('Google Maps'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _abrirEnlaceExterno(
+                    'https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.navigation, color: Color(0xFF33CCFF), size: 28),
+              title: const Text('Waze'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _abrirEnlaceExterno(
+                    'https://waze.com/ul?ll=$lat,$lng&navigate=yes');
+              },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.local_taxi, color: Colors.black, size: 28),
+              title: const Text('Uber'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _abrirEnlaceExterno(
+                    'https://m.uber.com/ul/?action=setPref&dropoff[latitude]=$lat&dropoff[longitude]=$lng');
+              },
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -6328,14 +6509,9 @@ ListTile(
 
                 // 🚨 Si ya pasó la verificación → botón de emergencias
                 // 🛡️ Si no → escudo normal
-                // 🔥 Mientras _estadoCargado == false, mostramos un placeholder
-                // del mismo tamaño. Así no se ve el escudo "apagado" y después
-                // el botón de emergencia. Se pinta una sola vez el correcto.
-                if (!_estadoCargado)
-                  const SizedBox(width: 52, height: 52)
-                else if (_chatDesbloqueadoPorVerificacion)
+                if (_chatDesbloqueadoPorVerificacion)
                   Transform.translate(
-                    offset: const Offset(0, 10), // 🔥 baja 10px el botón
+                    offset: const Offset(0, 7), // 🔥 baja solo 4px
                     child: _buildBotonEmergencias(),
                   )
                 else
@@ -7026,6 +7202,86 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   
   return _buildCalificacionButton();
 }
+  // 📍 UBICACIÓN COMPARTIDA
+  if ((mensaje['texto'] ?? '').startsWith('||UBICACION||')) {
+    final partes = (mensaje['texto'] ?? '')
+        .replaceAll('||UBICACION||', '')
+        .trim()
+        .split(',');
+    if (partes.length != 2) return const SizedBox.shrink();
+    final latU = partes[0];
+    final lngU = partes[1];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Align(
+        alignment: esMio ? Alignment.centerRight : Alignment.centerLeft,
+        child: GestureDetector(
+          onTap: () => _mostrarOpcionesNavegacion(latU, lngU),
+          child: Container(
+            width: 240,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF0F2447), Color(0xFF0A5BE0)],
+              ),
+              border: Border.all(
+                color: const Color(0xFF00E676).withValues(alpha: 0.6),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF00E676).withValues(alpha: 0.25),
+                  blurRadius: 12,
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF00E676).withValues(alpha: 0.15),
+                    border: Border.all(color: const Color(0xFF00E676), width: 1.5),
+                  ),
+                  child: const Icon(Icons.location_on,
+                      color: Color(0xFF00E676), size: 26),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        esMio ? 'Compartiste tu ubicación' : 'Ubicación compartida',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Toca para abrir en mapas',
+                        style: TextStyle(color: Color(0xFFBBD7FF), fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.white70),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // 🔥 TRATO CANCELADO
   if ((mensaje['texto'] ?? '').startsWith('||TRATO_CANCELADO||')) {
     return Container(
