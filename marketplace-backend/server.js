@@ -1611,6 +1611,16 @@ app.post('/api/mensajes', verificarTokenFirebase, upload.single('imagen'), async
             });
         }
 
+        // 🔥 SI EL ESCUDO ESTÁ ACTIVO, BLOQUEAR COMPARTIR UBICACIÓN
+        if (escudoActivo && (texto || '').startsWith('||UBICACION||')) {
+            console.log('>>> 🛡️ MENSAJE BLOQUEADO: compartir ubicación con escudo activo');
+            return res.status(403).json({
+                error: 'El Escudo de Seguridad bloqueó el envío de ubicación',
+                motivo: 'Con el Escudo activo no se puede compartir la ubicación',
+                codigo: 'UBICACION_BLOQUEADA_ESCUDO'
+            });
+        }
+
         // 1. GUARDAR EL MENSAJE
         const result = await pool.query(
             `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 

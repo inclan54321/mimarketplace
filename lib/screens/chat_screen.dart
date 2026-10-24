@@ -1945,14 +1945,16 @@ Future<void> _obtenerFotoVendedorReal() async {
                 _seleccionarImagen(ImageSource.camera);
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.location_on, color: Colors.red),
-              title: const Text('Compartir ubicación'),
-              onTap: () {
-                Navigator.pop(context);
-                _enviarUbicacion();
-              },
-            ),
+            // 🔥 COMPARTIR UBICACIÓN SOLO SI EL ESCUDO ESTÁ APAGADO
+            if (!_iaActiva)
+              ListTile(
+                leading: const Icon(Icons.location_on, color: Colors.red),
+                title: const Text('Compartir ubicación'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _enviarUbicacion();
+                },
+              ),
             // 🔥 SOLO SI SOS EL VENDEDOR
             if (esVendedor)
               ListTile(
@@ -7203,6 +7205,10 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   return _buildCalificacionButton();
 }
   // 📍 UBICACIÓN COMPARTIDA
+  // 🔥 SI EL ESCUDO ESTÁ ACTIVO, OCULTAR LA TARJETA DE UBICACIÓN
+  if ((mensaje['texto'] ?? '').startsWith('||UBICACION||') && _iaActiva) {
+    return const SizedBox.shrink();
+  }
   if ((mensaje['texto'] ?? '').startsWith('||UBICACION||')) {
     final partes = (mensaje['texto'] ?? '')
         .replaceAll('||UBICACION||', '')
