@@ -6819,10 +6819,10 @@ ListTile(
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // 🔥 BOTÓN OUTLINED TIPO INPUT
+                        // 🔥 BOTÓN "TENGO MÁS PREGUNTAS" CON EL MISMO ESTILO QUE "CONFIRMAR"
                         Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
+                          child: GestureDetector(
+                            onTap: () async {
                               setState(() {
                                 _mostrarBotonesCerrarTrato = false;
                                 _cerrarTratoForzado = false;
@@ -6875,21 +6875,44 @@ ListTile(
                                 print('Error al cancelar cierre de trato: $e');
                               }
                             },
-                            icon: const Icon(Icons.help_outline, size: 18, color: Color(0xFF0A5BE0)),
-                            label: const Text(
-                              'Tengo más preguntas',
-                              style: TextStyle(
-                                color: Color(0xFF0A5BE0),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(46),
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              side: const BorderSide(color: Color(0xFF0A5BE0), width: 1.5),
-                              shape: RoundedRectangleBorder(
+                            child: Container(
+                              height: 46,
+                              decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(26),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [Color(0xFF3B9BFF), Color(0xFF0A5BE0)],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF0A5BE0).withValues(alpha: 0.4),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.help_outline, size: 15, color: Colors.white),
+                                    SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        'Tengo más preguntas',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),

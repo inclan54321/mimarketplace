@@ -16,6 +16,12 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
 
+  // 🔥 ESTADO DE CUENTA (advertencias y suspensiones)
+  int _advertencias = 0;
+  int _suspensiones = 0;
+  static const int _maxAdvertencias = 3;
+  static const int _maxSuspensiones = 3;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +48,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
           _isLoading = false;
         });
       }
+
+      // 🔥 Cargar estado de cuenta (advertencias y suspensiones)
+      await _cargarEstadoCuenta();
     } catch (e) {
       print('Error al cargar preferencias: $e');
       setState(() => _isLoading = false);
@@ -87,6 +96,110 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
     } finally {
       setState(() => _isSaving = false);
     }
+  }
+
+  // 🔥 CARGAR ESTADO DE CUENTA (ADVERTENCIAS Y SUSPENSIONES)
+  Future<void> _cargarEstadoCuenta() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final response = await http.get(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}/estado-cuenta'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _advertencias = int.tryParse(data['advertencias']?.toString() ?? '0') ?? 0;
+          _suspensiones = int.tryParse(data['suspensiones']?.toString() ?? '0') ?? 0;
+        });
+      }
+    } catch (e) {
+      // Si falla, dejamos los contadores en 0 sin romper la pantalla
+      print('Error al cargar estado de cuenta: $e');
+    }
+  }
+
+  // 🔥 MOSTRAR INFO DEL ESTADO DE CUENTA
+  void _mostrarInfoEstadoCuenta() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.blue),
+            SizedBox(width: 8),
+            Expanded(child: Text('Estado de cuenta')),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '¿Cómo funciona?',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Tu cuenta acumula advertencias y suspensiones temporales por incumplir las normas de la comunidad.',
+                style: TextStyle(fontSize: 13),
+              ),
+              SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Advertencias (máx. 3): se generan por reportes leves como lenguaje inapropiado, publicaciones con información engañosa o incumplimiento menor de las reglas. No bloquean tu cuenta.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lock_clock, color: Colors.red, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Suspensiones temporales (máx. 3): se aplican por faltas más graves como estafas, acoso, suplantación de identidad o reincidencia en advertencias. Cada suspensión bloquea tu cuenta por un período.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 14),
+              Text(
+                'Si llegás a 3 suspensiones, tu cuenta puede ser inhabilitada permanentemente.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -219,6 +332,148 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                   ),
                 );
               },
+            ),
+
+            // 🔥 NUEVA SECCIÓN: ESTADO DE CUENTA
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 20),
+            const Text(
+              'Estado de cuenta',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Revisá tus advertencias y suspensiones activas en la plataforma.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+
+            // 🔥 TARJETA: ADVERTENCIAS
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Advertencias',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$_advertencias/$_maxAdvertencias',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _advertencias >= _maxAdvertencias
+                          ? Colors.red
+                          : Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 🔥 TARJETA: SUSPENSIONES TEMPORALES
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.red.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.lock_clock,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Suspensiones temporales',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$_suspensiones/$_maxSuspensiones',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: _suspensiones >= _maxSuspensiones
+                          ? Colors.red
+                          : Colors.red.shade400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 🔥 BOTÓN: INFORMACIÓN
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _mostrarInfoEstadoCuenta,
+                icon: const Icon(Icons.info_outline, size: 20),
+                label: const Text(
+                  'Información',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue,
+                  side: const BorderSide(color: Colors.blue, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

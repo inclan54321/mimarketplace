@@ -5030,6 +5030,61 @@ app.put('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
     }
 });
 // ============================================================
+// 🔥 ESTADO DE CUENTA (ADVERTENCIAS Y SUSPENSIONES)
+// ============================================================
+app.get('/api/usuarios/:uid/estado-cuenta', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { uid } = req.params;
+
+        // 🔥 Verificar que el uid de la URL coincida con el del token
+        if (uid !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en GET /api/usuarios/:uid/estado-cuenta');
+            return res.status(403).json({
+                error: 'No autorizado para ver el estado de cuenta de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 Contar advertencias y suspensiones activas.
+        // Si las tablas no existen todavía, devolvemos 0 sin romper.
+        let advertencias = 0;
+        let suspensiones = 0;
+
+        try {
+            const advResult = await pool.query(
+                `SELECT COUNT(*)::int AS total 
+                 FROM advertencias_usuarios 
+                 WHERE usuario_id = $1 
+                   AND (expira_en IS NULL OR expira_en > NOW())`,
+                [uid]
+            );
+            advertencias = advResult.rows[0]?.total ?? 0;
+        } catch (e) {
+            console.log('>>> ⚠️ Tabla advertencias_usuarios no existe o error:', e.message);
+        }
+
+        try {
+            const suspResult = await pool.query(
+                `SELECT COUNT(*)::int AS total 
+                 FROM suspensiones_usuarios 
+                 WHERE usuario_id = $1 
+                   AND (fin IS NULL OR fin > NOW())`,
+                [uid]
+            );
+            suspensiones = suspResult.rows[0]?.total ?? 0;
+        } catch (e) {
+            console.log('>>> ⚠️ Tabla suspensiones_usuarios no existe o error:', e.message);
+        }
+
+        console.log(`>>> 📋 Estado de cuenta ${uid}: advertencias=${advertencias}, suspensiones=${suspensiones}`);
+        res.json({ advertencias, suspensiones });
+    } catch (error) {
+        console.error('Error al obtener estado de cuenta:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
 // 🔥 GUARDAR CALIFICACIÓN CON COMENTARIO
 // ============================================================
 app.post('/api/calificaciones', verificarTokenFirebase, async (req, res) => {
