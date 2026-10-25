@@ -396,7 +396,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1929),
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text(
           'Alertas',
@@ -429,36 +429,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
       ),
       body: Stack(
         children: [
-          // 🌄 Capa 1: Formas geométricas
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.6,
-              child: const CustomPaint(
-                painter: _GeometricBackgroundPainter(),
-                size: Size.infinite,
-              ),
-            ),
-          ),
-
-          // 🌑 Capa 2: Gradiente radial oscuro
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(0.0, -0.5),
-                  radius: 1.5,
-                  colors: [
-                    Color(0x990A1929),
-                    Color(0xCC0F2447),
-                    Color(0xFF0A1929),
-                  ],
-                  stops: [0.0, 0.5, 1.0],
-                ),
-              ),
-            ),
-          ),
-
-          // 📱 Capa 3: Contenido
+          // 📱 Contenido (fondo negro puro)
           _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _alertas.isEmpty

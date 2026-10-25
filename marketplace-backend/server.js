@@ -3392,17 +3392,45 @@ app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
             ? JSON.stringify(productos_lista) 
             : null;
         
-        // Verificar si ya existe
-        const check = await pool.query(
-            'SELECT * FROM agenda WHERE usuario_id = $1 AND conversacion_id = $2',
-            [usuario_id, conversacion_id]
+        // 🔥 NORMALIZAR conversacion_id (puede venir como int o string)
+        const convIdNorm = conversacion_id != null && conversacion_id !== ''
+            ? String(conversacion_id)
+            : null;
+
+        if (!convIdNorm) {
+            console.log('>>> ❌ conversacion_id vacío, no se puede guardar en agenda');
+            return res.status(400).json({
+                error: 'conversacion_id requerido para guardar en agenda',
+                codigo: 'CONV_ID_REQUERIDO'
+            });
+        }
+
+        // 🔥 DEDUPE POR VENDEDOR: si ya hay una fila para este otro_usuario, actualizarla.
+        //    Así no se guarda dos veces al mismo contacto aunque tenga N conversaciones.
+        const checkPorVendedor = await pool.query(
+            `SELECT * FROM agenda 
+             WHERE usuario_id = $1 
+               AND otro_usuario = $2
+             ORDER BY fecha_guardado DESC
+             LIMIT 1`,
+            [usuario_id, otro_usuario]
         );
+
+        // 🔥 Verificar también por conversacion_id (por si el vendedor se llama distinto)
+        const check = await pool.query(
+            `SELECT * FROM agenda 
+             WHERE usuario_id = $1 AND conversacion_id::text = $2
+             LIMIT 1`,
+            [usuario_id, convIdNorm]
+        );
+
+        const filaExistente = check.rows[0] || checkPorVendedor.rows[0];
+        console.log('>>> EXISTE (por conv):', check.rows.length > 0);
+        console.log('>>> EXISTE (por vendedor):', checkPorVendedor.rows.length > 0);
         
-        console.log('>>> EXISTE:', check.rows.length > 0);
-        
-        if (check.rows.length > 0) {
-            // Actualizar
-            console.log('>>> ACTUALIZANDO...');
+        if (filaExistente) {
+            // Actualizar (por id, para que sea robusto)
+            console.log('>>> ACTUALIZANDO fila', filaExistente.id);
             const result = await pool.query(
                 `UPDATE agenda 
                  SET otro_usuario = $1, 
@@ -3411,11 +3439,12 @@ app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
                      producto_imagen = $4, 
                      productos_lista = $5,
                      foto_perfil = $6,
+                     conversacion_id = $7,
                      fecha_guardado = NOW()
-                 WHERE usuario_id = $7 AND conversacion_id = $8
+                 WHERE id = $8
                  RETURNING *`,
                 [otro_usuario, producto_nombre, ultimo_mensaje, producto_imagen, 
-                 productosJson, foto_perfil, usuario_id, conversacion_id]
+                 productosJson, foto_perfil, convIdNorm, filaExistente.id]
             );
             console.log('>>> ACTUALIZADO:', result.rows[0]);
             res.json(result.rows[0]);
@@ -3429,7 +3458,7 @@ app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                  RETURNING *`,
                 [usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, 
-                 producto_imagen, conversacion_id, productosJson, foto_perfil]
+                 producto_imagen, convIdNorm, productosJson, foto_perfil]
             );
             console.log('>>> INSERTADO:', result.rows[0]);
             res.status(201).json(result.rows[0]);

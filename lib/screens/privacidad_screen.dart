@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'historial_pagos_screen.dart';
 
 class PrivacidadScreen extends StatefulWidget {
   const PrivacidadScreen({super.key});
@@ -98,7 +99,8 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
@@ -163,7 +165,63 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                         ),
                 ),
               ),
+            // 🔥 NUEVA SECCIÓN: HISTORIAL DE PAGOS
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 20),
+            const Text(
+              'Historial de pagos',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Consultá todos los pagos que hiciste dentro de la app: impulsos de publicaciones, renovaciones, eliminación de publicidad y otros servicios.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.receipt_long,
+                  color: Colors.blue,
+                ),
+              ),
+              title: const Text(
+                'Ver historial de pagos',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: const Text(
+                'Todos tus pagos y transacciones',
+                style: TextStyle(fontSize: 13),
+              ),
+              trailing: const Icon(
+                Icons.chevron_right,
+                color: Colors.grey,
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HistorialPagosScreen(),
+                  ),
+                );
+              },
+            ),
           ],
+        ),
         ),
       ),
     );
