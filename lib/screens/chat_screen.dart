@@ -130,6 +130,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _esperandoConfirmacionCerrarTrato = false; // 🔥 NUEVO
   bool _estadoCargado = false; // 🔥 El input no se muestra hasta conocer el estado de bloqueo
   bool _cerrarTratoForzado = false; // 🔥 Modal de cerrar trato abierto por el escudo o por el otro usuario (la IA no lo apaga)
+  bool _yoAbriCerrarTrato = false;  // 🔥 true SOLO si YO pulsé "Cerrar trato" en el menú del escudo
 
   // 🔥 ESCUDO MUTUO (aceptar/rechazar por el otro usuario)
   String? _escudoActivadoPor;
@@ -1205,6 +1206,7 @@ void dispose() {
                 if (otroConfirme && !yoConfirme && !_chatBloqueado) {
                   _mostrarBotonesCerrarTrato = true;
                   _cerrarTratoForzado = true;
+                  _yoAbriCerrarTrato = false; // 🔥 lo disparó el OTRO
                 }
 
                 // 🔥 Si nadie confirmó y el modal NO fue forzado por el usuario,
@@ -5284,6 +5286,26 @@ ListTile(
     return user.uid == _vendedorId;
   }
 
+  // 🔥 TÍTULO DEL MODAL DE CERRAR TRATO
+  // - Si YO abrí el modal desde el escudo, o lo disparó la IA → texto genérico
+  // - Si el modal lo disparó la confirmación del OTRO        → "{Nombre del otro} desea saber..."
+  String get _tituloModalCerrarTrato {
+    if (_cerrarTratoForzado && !_yoAbriCerrarTrato) {
+      return '${widget.otroUsuario} desea saber si ya todo está listo para el encuentro';
+    }
+    return '¿Ya está todo listo para el encuentro?';
+  }
+
+  // 🔥 SUBTÍTULO DEL MODAL
+  // - Si el texto es el del otro → explicación de bloqueo
+  // - Si es el genérico          → explicación de acuerdo
+  String get _subtituloModalCerrarTrato {
+    if (_cerrarTratoForzado && !_yoAbriCerrarTrato) {
+      return 'Si ambos confirman, el chat se bloquea hasta que se vean en persona.';
+    }
+    return 'La conversación parece haber llegado a un acuerdo.';
+  }
+
   // 🔥 SI YA HAY UNA PROPUESTA DE ENCUENTRO ACEPTADA O CONFIRMADA
   // 🔥 (sirve para ocultar "Proponer encuentro" en el menú del escudo)
   bool get _hayPropuestaAceptadaEnCache {
@@ -6529,6 +6551,7 @@ ListTile(
                       setState(() {
                         _mostrarBotonesCerrarTrato = true;
                         _cerrarTratoForzado = true;
+                        _yoAbriCerrarTrato = true;   // 🔥 YO lo abrí
                         _usuarioDecidioSeguirConversando = false;
                         _mostrarBotonesConfirmar = false;
                       });
@@ -6675,7 +6698,7 @@ ListTile(
                     // 🔥 ÍCONO CON HALO AZUL ANIMADO
                     _buildIconoHaloAzul(),
                     const SizedBox(height: 12),
-                    // 🔥 TÍTULO CON DEGRADADO AZUL CLARO
+                    // 🔥 TÍTULO CON DEGRADADO AZUL CLARO (VARÍA SEGÚN ORIGEN)
                     ShaderMask(
                       shaderCallback: (bounds) => const LinearGradient(
                         begin: Alignment.topCenter,
@@ -6686,9 +6709,9 @@ ListTile(
                           Color(0xFF7CC4FF),
                         ],
                       ).createShader(bounds),
-                      child: const Text(
-                        '¿Ya está todo listo para el encuentro?',
-                        style: TextStyle(
+                      child: Text(
+                        _tituloModalCerrarTrato,
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                           color: Colors.white,
@@ -6702,6 +6725,17 @@ ListTile(
                           ],
                         ),
                         textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // 🔥 SUBTÍTULO (VARÍA SEGÚN ORIGEN)
+                    Text(
+                      _subtituloModalCerrarTrato,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.75),
+                        height: 1.3,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -6756,6 +6790,7 @@ ListTile(
                                     _usuarioConfirmoCerrarTrato = true;
                                     _mostrarBotonesCerrarTrato = false;
                                     _cerrarTratoForzado = false;
+                                    _yoAbriCerrarTrato = false; // 🔥 limpiar
                                     _usuarioDecidioSeguirConversando = false;
                                     if (ambos) {
                                       _esperandoConfirmacionCerrarTrato = false;
@@ -6826,6 +6861,7 @@ ListTile(
                               setState(() {
                                 _mostrarBotonesCerrarTrato = false;
                                 _cerrarTratoForzado = false;
+                                _yoAbriCerrarTrato = false; // 🔥 limpiar
                                 _quiereCerrarTrato = false;
                               });
 

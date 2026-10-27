@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'historial_pagos_screen.dart';
 
 class PrivacidadScreen extends StatefulWidget {
@@ -22,10 +23,14 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   static const int _maxAdvertencias = 3;
   static const int _maxSuspensiones = 3;
 
+  // 🔥 CONTACTOS DE EMERGENCIA
+  List<Map<String, String>> _contactosEmergencia = [];
+
   @override
   void initState() {
     super.initState();
     _cargarPreferencias();
+    _cargarContactosEmergencia();
   }
 
   Future<void> _cargarPreferencias() async {
@@ -200,6 +205,194 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
         ],
       ),
     );
+  }
+
+  // ============================================================
+  // 🔥 CONTACTOS DE EMERGENCIA
+  // ============================================================
+  Future<void> _cargarContactosEmergencia() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('contactos_emergencia');
+      if (raw == null || raw.isEmpty) return;
+      final List data = jsonDecode(raw);
+      if (mounted) {
+        setState(() {
+          _contactosEmergencia = data
+              .map((e) => Map<String, String>.from(e as Map))
+              .toList();
+        });
+      }
+    } catch (e) {
+      print('Error al cargar contactos de emergencia: $e');
+    }
+  }
+
+  Future<void> _guardarContactosEmergencia() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'contactos_emergencia',
+        jsonEncode(_contactosEmergencia),
+      );
+    } catch (e) {
+      print('Error al guardar contactos de emergencia: $e');
+    }
+  }
+
+  void _mostrarDialogoAgregarContacto({int? indexEditar}) {
+    final nombreCtrl = TextEditingController(
+      text: indexEditar != null
+          ? _contactosEmergencia[indexEditar]['nombre'] ?? ''
+          : '',
+    );
+    final numeroCtrl = TextEditingController(
+      text: indexEditar != null
+          ? _contactosEmergencia[indexEditar]['numero'] ?? ''
+          : '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.emergency, color: Colors.red),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                indexEditar == null
+                    ? 'Agregar contacto de emergencia'
+                    : 'Editar contacto de emergencia',
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nombreCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Nombre',
+                hintText: 'Ej: Mamá, Papá, Hermano',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: numeroCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Número de teléfono',
+                hintText: 'Ej: 8888-8888',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final nombre = nombreCtrl.text.trim();
+              final numero = numeroCtrl.text.trim();
+              if (nombre.isEmpty || numero.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Completá nombre y número'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              setState(() {
+                if (indexEditar == null) {
+                  _contactosEmergencia.add({
+                    'nombre': nombre,
+                    'numero': numero,
+                  });
+                } else {
+                  _contactosEmergencia[indexEditar] = {
+                    'nombre': nombre,
+                    'numero': numero,
+                  };
+                }
+              });
+              await _guardarContactosEmergencia();
+
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      indexEditar == null
+                          ? '✅ Contacto agregado'
+                          : '✅ Contacto actualizado',
+                    ),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.save, size: 18),
+            label: Text(indexEditar == null ? 'Agregar' : 'Guardar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _eliminarContactoEmergencia(int index) async {
+    final contacto = _contactosEmergencia[index];
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar contacto?'),
+        content: Text(
+          'Se eliminará "${contacto['nombre']}" de tus contactos de emergencia.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    setState(() {
+      _contactosEmergencia.removeAt(index);
+    });
+    await _guardarContactosEmergencia();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🗑️ Contacto eliminado'),
+          backgroundColor: Colors.grey,
+        ),
+      );
+    }
   }
 
   @override
@@ -469,6 +662,158 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.blue,
                   side: const BorderSide(color: Colors.blue, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+
+            // 🔥 NUEVA SECCIÓN: LLAMADA DE EMERGENCIA
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 20),
+            const Text(
+              'Llamada de emergencia',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Agregá los nombres y números de las personas que querés que aparezcan en tu pantalla de emergencia. Podrás llamarlas rápido desde cualquier chat con el Escudo activo.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+
+            // 🔥 LISTA DE CONTACTOS
+            if (_contactosEmergencia.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.contacts_outlined,
+                      size: 40,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No tenés contactos de emergencia',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Agregá al menos uno para usarlo desde el chat.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...List.generate(_contactosEmergencia.length, (i) {
+                final c = _contactosEmergencia[i];
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.3),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.red,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              c['nombre'] ?? '',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              c['numero'] ?? '',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        onPressed: () =>
+                            _mostrarDialogoAgregarContacto(indexEditar: i),
+                        tooltip: 'Editar',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        onPressed: () => _eliminarContactoEmergencia(i),
+                        tooltip: 'Eliminar',
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+            // 🔥 BOTÓN AGREGAR
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () => _mostrarDialogoAgregarContacto(),
+                icon: const Icon(Icons.add, size: 20),
+                label: const Text(
+                  'Agregar contacto',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

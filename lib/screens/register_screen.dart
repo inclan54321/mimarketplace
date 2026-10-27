@@ -3,7 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
-import 'package:image_picker/image_picker.dart';
+import 'package:camera/camera.dart';
+import 'package:smart_liveliness_detection/smart_liveliness_detection.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -18,16 +19,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
-  
-  // 🔥 NUEVA VARIABLE PARA EL CHECKBOX
+
   bool _aceptaRecoleccionDatos = false;
 
-  // 🔥 NUEVA: FOTO DE PERFIL OBLIGATORIA
-  File? _fotoPerfil;
+  XFile? _fotoPerfil;
   bool _subiendoFoto = false;
 
   Future<void> _register() async {
-    // 🔥 VALIDAR QUE EL CHECKBOX ESTÉ MARCADO
     if (!_aceptaRecoleccionDatos) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -38,7 +36,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // 🔥 VALIDAR QUE LA FOTO DE PERFIL ESTÉ SELECCIONADA
     if (_fotoPerfil == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -59,9 +56,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       await credential.user?.updateDisplayName(_nameController.text.trim());
 
-      // 🔥 ENVIAR EL CAMPO DE CONSENTIMIENTO AL BACKEND
-      // 🔥 forceRefresh: true para que Firebase genere un token fresco
-      // 🔥 (el usuario acaba de crear la cuenta, el token puede no estar en caché todavía)
       final idToken = await credential.user?.getIdToken(true);
       print('>>> 📝 Crear usuario. Token: ${idToken != null ? "SÍ" : "NO"}');
       final response = await http.post(
@@ -75,7 +69,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'email': _emailController.text.trim(),
           'nombre': _nameController.text.trim(),
           'telefono': _phoneController.text.trim(),
-          'acepta_recoleccion': _aceptaRecoleccionDatos, // 🔥 NUEVO CAMPO
+          'acepta_recoleccion': _aceptaRecoleccionDatos,
         }),
       );
       print('>>> 📝 Respuesta crear usuario: ${response.statusCode}');
@@ -83,7 +77,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         print('>>> ❌ Error body: ${response.body}');
       }
 
-      // 🔥 SUBIR LA FOTO DE PERFIL
       await _subirFotoPerfil(credential.user!.uid);
 
       if (mounted) {
@@ -102,50 +95,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // 🔥 SELECCIONAR FOTO DE PERFIL (galería o cámara)
-  Future<void> _seleccionarFoto(ImageSource source) async {
-    final picker = ImagePicker();
-    final XFile? imagen = await picker.pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: 1024,
-    );
-    if (imagen == null) return;
-    setState(() {
-      _fotoPerfil = File(imagen.path);
-    });
-  }
+  // 🔥 VERIFICACIÓN DE VIDA PARA LA FOTO DE PERFIL
+  Future<void> _verificarVidaYSubirFoto() async {
+    if (_subiendoFoto) return;
 
-  // 🔥 BOTTOM SHEET PARA ELEGIR CÁMARA O GALERÍA
-  void _mostrarOpcionesFoto() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Colors.blue),
-              title: const Text('Galería'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _seleccionarFoto(ImageSource.gallery);
-              },
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No hay cámara disponible'),
+              backgroundColor: Colors.red,
             ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Colors.black),
-              title: const Text('Cámara'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _seleccionarFoto(ImageSource.camera);
-              },
+          );
+        }
+        return;
+      }
+
+      final frontCamera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
+
+      setState(() => _subiendoFoto = true);
+
+      final XFile? fotoCapturada = await Navigator.of(context).push<XFile>(
+        MaterialPageRoute(
+          builder: (_) => LivenessDetectionScreen(
+            cameras: [frontCamera],
+            config: LivenessConfig(
+              challengeTypes: [
+                ChallengeType.blink,
+                ChallengeType.turnLeft,
+              ],
             ),
-          ],
+            captureFinalImage: false,
+            showCaptureImageButton: true,
+            captureButtonText: 'Capturar foto',
+            onLivenessCompleted: (sessionId, isSuccessful, metadata) {
+              debugPrint('>>> Liveness completado: $isSuccessful');
+            },
+            onManualImageCaptured: (sessionId, imageFile) {
+              Navigator.of(context).pop(imageFile);
+            },
+          ),
         ),
-      ),
-    );
+      );
+
+      if (fotoCapturada == null) {
+        if (mounted) setState(() => _subiendoFoto = false);
+        return;
+      }
+
+      setState(() {
+        _fotoPerfil = fotoCapturada;
+        _subiendoFoto = false;
+      });
+    } catch (e) {
+      debugPrint('>>> Error liveness: $e');
+      if (mounted) {
+        setState(() => _subiendoFoto = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   // 🔥 SUBIR LA FOTO AL BACKEND
@@ -159,7 +174,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Uri.parse('https://mimarketplace-production.up.railway.app/api/registro/foto'),
       );
 
-      // 🔥 Mandar el token de Firebase para autenticar la subida
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       if (idToken != null) {
         request.headers['Authorization'] = 'Bearer $idToken';
@@ -201,7 +215,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-            // 🔥 PRINTS PARA DEPURAR
             (() {
               print('>>> Intentando cargar icono: assets/icon/icon.png');
               return Image.asset(
@@ -220,9 +233,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             })(),
             const SizedBox(height: 20),
 
-            // 🔥 SELECTOR DE FOTO DE PERFIL (OBLIGATORIO)
+            // 🔥 SELECTOR DE FOTO DE PERFIL (OBLIGATORIO) CON LIVENESS
             GestureDetector(
-              onTap: _mostrarOpcionesFoto,
+              onTap: _subiendoFoto ? null : _verificarVidaYSubirFoto,
               child: Stack(
                 alignment: Alignment.bottomRight,
                 children: [
@@ -241,7 +254,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     child: ClipOval(
                       child: _fotoPerfil != null
-                          ? Image.file(_fotoPerfil!, fit: BoxFit.cover)
+                          ? Image.file(File(_fotoPerfil!.path), fit: BoxFit.cover)
                           : Icon(
                               Icons.person,
                               size: 60,
@@ -255,8 +268,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       color: Colors.blue,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.camera_alt,
-                        color: Colors.white, size: 18),
+                    child: _subiendoFoto
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.camera_alt,
+                            color: Colors.white, size: 18),
                   ),
                 ],
               ),
@@ -310,7 +332,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 🔥 CHECKBOX DE CONSENTIMIENTO
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

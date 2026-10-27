@@ -484,6 +484,34 @@ cron.schedule('* * * * *', async () => {
                 }
             }
         }
+
+        // 🔥 FIX B: RECONCILIADOR
+        // Cualquier producto caducado SIN alerta → crear alerta.
+        // Atrapa los casos donde el for de arriba falló, el cron se reinició,
+        // o alguien renovó por SQL sin limpiar alertas_caducidad.
+        try {
+            const reconciliadas = await pool.query(`
+                INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha)
+                SELECT 
+                    p.vendedor_id,
+                    p.id,
+                    '⏰ Tu producto "' || p.nombre || '" ha caducado. Renueva viendo un anuncio.',
+                    'caducado',
+                    NOW()
+                FROM productos_app p
+                WHERE p.estado = 'caducado'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM alertas a 
+                    WHERE a.producto_id = p.id AND a.tipo = 'caducado'
+                  )
+                RETURNING id
+            `);
+            if (reconciliadas.rowCount > 0) {
+                console.log(`>>> 🔧 ${reconciliadas.rowCount} alertas de caducidad reconciliadas`);
+            }
+        } catch (e) {
+            console.error('Error en reconciliador de alertas:', e.message);
+        }
     } catch (error) {
         console.error('Error al caducar productos:', error);
     }
@@ -2935,6 +2963,13 @@ app.delete('/api/alertas/limpiar/:usuario_id', verificarTokenFirebase, async (re
                 codigo: 'UID_NO_COINCIDE'
             });
         }
+
+        // 🔥 FIX A: borrar también alertas_caducidad
+        // Si no, el cron piensa "ya avisé" y nunca vuelve a crear la alerta
+        await pool.query(
+            'DELETE FROM alertas_caducidad WHERE usuario_id = $1',
+            [usuario_id]
+        );
 
         await pool.query('DELETE FROM alertas WHERE usuario_id = $1', [usuario_id]);
         res.json({ success: true, mensaje: 'Todas las alertas eliminadas' });

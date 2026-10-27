@@ -283,6 +283,32 @@ class _SellScreenState extends State<SellScreen> {
                           style: const TextStyle(fontSize: 14, color: Colors.white),
                         ),
                       ),
+                      // 🔥 BOTÓN X PARA BORRAR Y SALIR DEL BUSCADOR
+                      if (_busquedaController.text.isNotEmpty)
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _busquedaController.clear();
+                              _filtro = '';
+                            });
+                            // 🔥 Cerrar el teclado
+                            FocusManager.instance.primaryFocus?.unfocus();
+                            SystemChannels.textInput.invokeMethod('TextInput.hide');
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            margin: const EdgeInsets.only(left: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.white.withValues(alpha: 0.8),
+                              size: 18,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

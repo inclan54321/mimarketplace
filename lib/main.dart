@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui'; // 🔥 BackdropFilter + ImageFilter para efecto cristal
 import 'package:firebase_core/firebase_core.dart';
 import 'services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -375,6 +376,8 @@ class _MainScreenState extends State<MainScreen> {
   // 🎨 Colores según la pestaña activa
   Color _getBackgroundColor() {
     switch (_selectedIndex) {
+      case 1: // Avisos → transparente (el blur lo pone el Stack)
+        return Colors.transparent;
       case 2: // Vender
         return const Color(0xFF1A0B2E); // Morado oscuro
       case 3: // Mensajes
@@ -385,6 +388,9 @@ class _MainScreenState extends State<MainScreen> {
         return Colors.white;
     }
   }
+
+  // 🔥 ¿Estamos en la pestaña de Avisos? (para aplicar cristal)
+  bool get _esTabAvisos => _selectedIndex == 1;
 
   Color _getSelectedColor() {
     switch (_selectedIndex) {
@@ -425,85 +431,124 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 BottomNavigationBar base (reutilizado abajo)
+    final barra = BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: _getBackgroundColor(),
+      elevation: _selectedIndex == 4 ? 10 : 0,
+      currentIndex: _selectedIndex,
+      onTap: _onItemTapped,
+      selectedItemColor: _getSelectedColor(),
+      unselectedItemColor: _getUnselectedColor(),
+      showSelectedLabels: true,
+      showUnselectedLabels: true,
+      items: [
+        const BottomNavigationBarItem(icon: Icon(Icons.shop), label: 'Inicio'),
+        BottomNavigationBarItem(
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.notifications),
+              if (_hayAlertasNuevas)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          label: 'Avisos',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.add_circle, size: 50, color: _getVenderIconColor()),
+          label: 'Vender',
+        ),
+        BottomNavigationBarItem(
+          icon: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Icons.chat_bubble_outline),
+              if (_hayMensajesNuevos)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          label: 'Mensajes',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(
+            Icons.person_outline,
+            shadows: _selectedIndex == 4
+                ? [
+                    Shadow(
+                      color: const Color(0xFF39FF14).withValues(alpha: 0.8),
+                      blurRadius: 15,
+                    ),
+                  ]
+                : null,
+          ),
+          label: 'Perfil',
+        ),
+      ],
+    );
+
+    // 🔥 En Avisos, envolvemos con blur + tinte de cristal
+    if (!_esTabAvisos) {
+      return Scaffold(
+        body: _widgetOptions[_selectedIndex],
+        bottomNavigationBar: barra,
+      );
+    }
+
+    // 🔥 EFECTO CRISTAL (glassmorphism)
     return Scaffold(
+      extendBody: true, // 🔥 deja que el contenido pase por debajo
       body: _widgetOptions[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: _getBackgroundColor(),
-        elevation: _selectedIndex == 4 ? 10 : 0,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: _getSelectedColor(),
-        unselectedItemColor: _getUnselectedColor(),
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.shop), label: 'Inicio'),
-          BottomNavigationBarItem(
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.notifications),
-                if (_hayAlertasNuevas)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                    ),
-                  ),
+      bottomNavigationBar: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              // 🔥 tinte blanco translúcido encima del blur
+              color: Colors.white.withValues(alpha: 0.15),
+              // 🔥 línea superior tipo "borde de vidrio"
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+              ),
+              // 🔥 sombra suave hacia arriba
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, -4),
+                ),
               ],
             ),
-            label: 'Avisos',
+            child: barra,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle, size: 50, color: _getVenderIconColor()),
-            label: 'Vender',
-          ),
-          BottomNavigationBarItem(
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.chat_bubble_outline),
-                if (_hayMensajesNuevos)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            label: 'Mensajes',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
-              Icons.person_outline,
-              shadows: _selectedIndex == 4
-                  ? [
-                      Shadow(
-                        color: const Color(0xFF39FF14).withValues(alpha: 0.8),
-                        blurRadius: 15,
-                      ),
-                    ]
-                  : null,
-            ),
-            label: 'Perfil',
-          ),
-        ],
+        ),
       ),
     );
   }
