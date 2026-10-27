@@ -26,6 +26,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
   @override
   void initState() {
     super.initState();
+    // 🔥 Mostrar caché para no ver pantalla vacía mientras carga
     if (_alertasCache != null) {
       _alertas = List.from(_alertasCache!);
       if (_estadosCache != null) {
@@ -33,12 +34,15 @@ class _AlertasScreenState extends State<AlertasScreen> {
       }
       _isLoading = false;
     }
+    // 🔥 PERO siempre pedir al backend. Si hay algo nuevo, el setState lo pinta.
     _cargarAlertas();
   }
 
   Future<void> _cargarAlertas() async {
+    print('>>> 🔍 _cargarAlertas INICIADO');
     try {
       final user = FirebaseAuth.instance.currentUser;
+      print('>>> 🔍 user.uid: ${user?.uid}');
       if (user == null) return;
 
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
@@ -49,29 +53,53 @@ class _AlertasScreenState extends State<AlertasScreen> {
         },
       );
 
+      print('>>> 🔍 STATUS HTTP: ${response.statusCode}');
+      print('>>> 🔍 BODY RAW: ${response.body}');
+
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
         final nuevas = data.map((item) => Map<String, dynamic>.from(item)).toList();
 
-        // 🔥 Cargar estados ANTES de pintar (evita el "refresco")
+        print('>>> 🔍 ALERTAS DEL BACKEND: ${nuevas.length}');
+        for (final a in nuevas) {
+          print('>>>   id=${a['id']} tipo=${a['tipo']} producto_id=${a['producto_id']} leida=${a['leida']}');
+        }
+
+        // 🔥 PRINT 1: cuántas alertas llegaron del backend
+        print('>>> 🔍 ALERTAS DEL BACKEND: ${nuevas.length}');
+        print('>>> 🔍 DETALLE:');
+        for (final a in nuevas) {
+          print('>>>   id=${a['id']} tipo=${a['tipo']} producto_id=${a['producto_id']} leida=${a['leida']} mensaje=${a['mensaje']}');
+        }
+
+        // 🔥 PRINT 2: cuántas alertas tiene la app ahora
+        print('>>> 🔍 ALERTAS EN APP (antes): ${_alertas.length}');
+
+        debugPrint('>>> 🔔 Alertas recibidas: ${nuevas.length} para ${user.uid}');
+
+        // 🔥 Usar la lista NUEVA para cargar los estados de verificación
+        // (sin asignar todavía a _alertas, para que el setState detecte el cambio)
+        final listaAnterior = _alertas;
         _alertas = nuevas;
         await _cargarEstadosVerificacion(silencioso: true);
 
-        // Solo repintar si cambió algo
-        final cambioAlertas = _alertas.length != nuevas.length ||
-            (_alertas.isNotEmpty &&
-                nuevas.isNotEmpty &&
-                (_alertas.first['id'] != nuevas.first['id'] ||
-                    _alertas.first['fecha'] != nuevas.first['fecha']));
+        // 🔥 Solo repintar si cambió algo o si estamos cargando
+        final cambio = _isLoading ||
+            listaAnterior.length != nuevas.length ||
+            (nuevas.isNotEmpty &&
+                (listaAnterior.isEmpty || listaAnterior.first['id'] != nuevas.first['id']));
 
-        if (mounted && (cambioAlertas || _isLoading)) {
+        if (mounted && cambio) {
           setState(() {
             _alertas = nuevas;
             _isLoading = false;
           });
-        } else {
+        } else if (mounted && !cambio) {
+          // Igual actualizar por si acaso el widget no estaba reconstruido
           _alertas = nuevas;
+          _isLoading = false;
         }
+
         _alertasCache = List.from(_alertas);
         _estadosCache = Map.from(_estadosVerificacion);
 
@@ -85,10 +113,12 @@ class _AlertasScreenState extends State<AlertasScreen> {
           },
         );
       } else {
-        setState(() => _isLoading = false);
+        debugPrint('>>> ❌ Alertas status ${response.statusCode}: ${response.body}');
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      debugPrint('>>> ❌ Error cargando alertas: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -395,6 +425,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
 
   @override
   Widget build(BuildContext context) {
+    print('>>> 🎨 BUILD AlertasScreen: _isLoading=$_isLoading, _alertas.length=${_alertas.length}');
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -417,7 +448,13 @@ class _AlertasScreenState extends State<AlertasScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _cargarAlertas,
+            onPressed: () async {
+              // 🔥 Forzar recarga limpia: descartar caché y pedir fresco
+              setState(() {
+                _isLoading = true;
+              });
+              await _cargarAlertas();
+            },
             tooltip: 'Recargar',
           ),
           IconButton(
@@ -482,6 +519,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
                   itemCount: _alertas.length,
                   itemBuilder: (context, index) {
                     final alerta = _alertas[index];
+                    print('>>> 🎨 DIBUJANDO ALERTA $index: id=${alerta['id']} tipo=${alerta['tipo']} producto_id=${alerta['producto_id']}');
                     final esLeida = alerta['leida'] ?? false;
                     final tipo = alerta['tipo'] ?? 'info';
                     final mensaje = alerta['mensaje'] ?? '';
