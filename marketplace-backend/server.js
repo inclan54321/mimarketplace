@@ -2833,6 +2833,7 @@ app.get('/api/alertas/:usuario_id', verificarTokenFirebase, async (req, res) => 
             'SELECT * FROM alertas WHERE usuario_id = $1 ORDER BY fecha DESC',
             [usuario_id]
         );
+        console.log(`>>> 🚨 ALERTAS DEVUELTAS: ${result.rows.length} → IDs: [${result.rows.map(r => r.id).join(', ')}]`);
         res.json(result.rows);
     } catch (error) {
         console.error('Error al obtener alertas:', error);
