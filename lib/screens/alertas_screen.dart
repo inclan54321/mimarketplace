@@ -683,6 +683,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
                       rayaColor = const Color(0xFF0A5BE0);
                       icono = Icons.face_retouching_natural;
                       iconoColor = const Color(0xFF0A5BE0);
+                    } else if (tipo == 'no_presentado') {
+                      rayaColor = Colors.red;
+                      icono = Icons.location_off;
+                      iconoColor = Colors.red;
                     } else if (tipo == 'trato_cancelado') {
                       rayaColor = Colors.red;
                       icono = Icons.cancel;

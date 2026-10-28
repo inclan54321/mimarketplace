@@ -708,7 +708,7 @@ cron.schedule('* * * * *', async () => {
         }
 
         // ============================================================
-        // 4. MARCAR 'NO_PRESENTADO' (15 min después de la hora)
+        // 4. MARCAR 'NO_PRESENTADO' (15 min después de la hora) + AVISO
         // ============================================================
         const marcadosNoPresentado = await pool.query(
             `UPDATE encuentros_agendados 
@@ -716,10 +716,53 @@ cron.schedule('* * * * *', async () => {
              WHERE estado IN ('agendado', 'tarde')
                AND fecha_encuentro < NOW() - INTERVAL '15 minutes'
                AND fecha_encuentro > NOW() - INTERVAL '16 minutes'
-             RETURNING id`
+             RETURNING id, conversacion_id, usuario1_id, usuario2_id, lugar_nombre, fecha_encuentro`
         );
-        if (marcadosNoPresentado.rowCount > 0) {
-            console.log(`>>> 🚫 ${marcadosNoPresentado.rowCount} encuentros marcados como 'no_presentado'`);
+
+        for (const enc of marcadosNoPresentado.rows) {
+            console.log(`>>> 🚫 Encuentro ${enc.id} marcado como no_presentado`);
+
+            const fechaTxt = new Date(enc.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
+            const mensaje = `🚫 No llegaste al encuentro.\n\n📍 ${enc.lugar_nombre}\n🕐 ${fechaTxt}\n\nEl encuentro se marcó como "no presentado".`;
+            const titulo = '🚫 No llegaste al encuentro';
+
+            // Alertas en la app para ambos
+            try {
+                await pool.query(
+                    `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                     VALUES ($1, 0, $3, $4, 'no_presentado', NOW()),
+                            ($2, 0, $3, $4, 'no_presentado', NOW())`,
+                    [enc.usuario1_id, enc.usuario2_id, enc.id, mensaje]
+                );
+                console.log(`>>> 📥 Alertas "no_presentado" insertadas para usuarios ${enc.usuario1_id} y ${enc.usuario2_id}`);
+            } catch (e) {
+                console.error('>>> ❌ Error INSERT alerta no_presentado:', e.message);
+            }
+
+            // Push para ambos
+            try {
+                const tokensRes = await pool.query(
+                    'SELECT fcm_token FROM usuarios WHERE uid IN ($1, $2) AND fcm_token IS NOT NULL',
+                    [enc.usuario1_id, enc.usuario2_id]
+                );
+                const { getMessaging } = require('firebase-admin/messaging');
+                for (const row of tokensRes.rows) {
+                    if (row.fcm_token) {
+                        try {
+                            await getMessaging().send({
+                                token: row.fcm_token,
+                                notification: { title: titulo, body: `📍 ${enc.lugar_nombre}\n🕐 ${fechaTxt}\n\nEl encuentro se marcó como "no presentado".` },
+                                data: { tipo: 'no_presentado', encuentro_id: enc.id.toString() },
+                            });
+                        } catch (e) {
+                            console.error('>>> ❌ Error push no_presentado:', e.message);
+                        }
+                    }
+                }
+                console.log(`>>> 📨 Push "no_presentado" enviada al encuentro ${enc.id}`);
+            } catch (e) {
+                console.error('>>> ❌ Error enviando push no_presentado:', e.message);
+            }
         }
 
     } catch (error) {
