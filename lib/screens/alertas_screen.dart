@@ -667,6 +667,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
                       rayaColor = Colors.orange;
                       icono = Icons.alarm;
                       iconoColor = Colors.orange;
+                    } else if (tipo == 'recordatorio_10m') {
+                      rayaColor = Colors.deepOrange;
+                      icono = Icons.face_retouching_natural;
+                      iconoColor = Colors.deepOrange;
                     } else if (tipo == 'confirmacion_asistencia') {
                       rayaColor = Colors.green;
                       icono = Icons.check_circle_outline;
@@ -802,13 +806,22 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                               ),
                                             ),
                                           ),
-                                        // 🔥 BOTÓN DE CONFIRMAR ASISTENCIA (1 hora antes / aviso al otro)
+                                        // 🔥 BOTÓN DE CONFIRMAR ASISTENCIA (solo 1h y confirmación)
                                         if ((tipo == 'recordatorio_encuentro' ||
                                                 tipo == 'confirmacion_asistencia') &&
                                             (alerta['encuentro_id'] ?? 0) > 0)
                                           Padding(
                                             padding: const EdgeInsets.only(top: 8),
                                             child: _buildBotonConfirmarAsistencia(
+                                              encuentroId: (alerta['encuentro_id'] as num).toInt(),
+                                            ),
+                                          ),
+                                        // 🔥 BOTÓN DE VERIFICACIÓN FACIAL (solo 10min)
+                                        if (tipo == 'recordatorio_10m' &&
+                                            (alerta['encuentro_id'] ?? 0) > 0)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: _buildBotonVerificacion(
                                               encuentroId: (alerta['encuentro_id'] as num).toInt(),
                                             ),
                                           ),

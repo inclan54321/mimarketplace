@@ -672,12 +672,12 @@ cron.schedule('* * * * *', async () => {
                 } catch (e) { console.error('>>> ❌ Error push 10m:', e.message); }
             }
 
-            // 🔥 INSERTAR ALERTA EN LA APP
+            // 🔥 INSERTAR ALERTA EN LA APP (tipo 'recordatorio_10m' para distinguir de 1h)
             try {
                 await pool.query(
                     `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha) 
-                     VALUES ($1, 0, $2, $3, 'recordatorio_encuentro', NOW()),
-                            ($4, 0, $2, $3, 'recordatorio_encuentro', NOW())`,
+                     VALUES ($1, 0, $2, $3, 'recordatorio_10m', NOW()),
+                            ($4, 0, $2, $3, 'recordatorio_10m', NOW())`,
                     [enc.usuario1_id, enc.id, `${titulo}\n${cuerpo}`, enc.usuario2_id]
                 );
                 console.log(`>>> 📥 Alerta 10m insertada para usuarios ${enc.usuario1_id} y ${enc.usuario2_id}`);
