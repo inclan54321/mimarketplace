@@ -579,7 +579,7 @@ cron.schedule('* * * * *', async () => {
              LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
              WHERE e.estado = 'agendado'
                AND e.recordatorio_1h_enviado = FALSE
-               AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '59 minutes'
+               AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '55 minutes'
                                           AND NOW() + INTERVAL '61 minutes'`
         );
 
@@ -641,7 +641,7 @@ cron.schedule('* * * * *', async () => {
              LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
              WHERE e.estado = 'agendado'
                AND e.recordatorio_10m_enviado = FALSE
-               AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '9 minutes'
+               AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '5 minutes'
                                           AND NOW() + INTERVAL '11 minutes'`
         );
 
