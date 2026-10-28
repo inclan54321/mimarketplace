@@ -726,6 +726,8 @@ cron.schedule('* * * * *', async () => {
             const mensaje = `🚫 No llegaste al encuentro.\n\n📍 ${enc.lugar_nombre}\n🕐 ${fechaTxt}\n\nEl encuentro se marcó como "no presentado".`;
             const titulo = '🚫 No llegaste al encuentro';
 
+            console.log(`>>> 🔓 [BLOQUE NUEVO] Entrando a liberar chat para conv ${enc.conversacion_id}`);
+
             // 🔥 LIBERAR EL CHAT, DESACTIVAR EL ESCUDO y dejar un mensaje suave
             try {
                 await pool.query(
