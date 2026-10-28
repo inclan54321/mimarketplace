@@ -6834,7 +6834,32 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
     try {
         const { conversacion_id } = req.params;
 
-        // 🔥 BUSCAR EN propuestas_encuentro (no en encuentros_agendados)
+        // 🔥 PRIMERO: buscar en encuentros_agendados (fecha real del encuentro)
+        const agendado = await pool.query(
+            `SELECT * FROM encuentros_agendados 
+             WHERE conversacion_id = $1
+             ORDER BY id DESC
+             LIMIT 1`,
+            [conversacion_id]
+        );
+
+        if (agendado.rows.length > 0) {
+            const enc = agendado.rows[0];
+            console.log(`>>> 🟢 Encuentro agendado para conv ${conversacion_id}: id ${enc.id} (estado: ${enc.estado})`);
+            return res.json({
+                encuentro: {
+                    id: enc.id,
+                    conversacion_id: enc.conversacion_id,
+                    fecha_encuentro: enc.fecha_encuentro,
+                    estado: enc.estado === 'agendado' ? 'aceptada' : enc.estado,
+                    lugar_nombre: enc.lugar_nombre,
+                    lugar_lat: enc.lugar_lat,
+                    lugar_lng: enc.lugar_lng,
+                }
+            });
+        }
+
+        // 🔥 FALLBACK: si no hay agendado, buscar en propuestas_encuentro
         const result = await pool.query(
             `SELECT * FROM propuestas_encuentro 
              WHERE conversacion_id = $1
@@ -6847,7 +6872,7 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
             return res.json({ encuentro: null });
         }
 
-        console.log(`>>> 🟢 Encuentro encontrado para conv ${conversacion_id}: propuesta ${result.rows[0].id} (estado: ${result.rows[0].estado})`);
+        console.log(`>>> 🟢 Propuesta para conv ${conversacion_id}: propuesta ${result.rows[0].id} (estado: ${result.rows[0].estado})`);
         res.json({ encuentro: result.rows[0] });
     } catch (error) {
         console.error('Error al obtener encuentro:', error);
