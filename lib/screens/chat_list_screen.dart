@@ -94,6 +94,42 @@ class _ChatListScreenState extends State<ChatListScreen>
               .compareTo(DateTime.parse(fechaA.toString()));
         });
 
+        // 🔥 CONSULTAR EN PARALELO SI CADA CHAT TIENE ENCUENTRO PENDIENTE
+        await Future.wait(conversacionesFiltradas.map((chat) async {
+          try {
+            final convId = chat['id'].toString();
+            final r = await http.get(
+              Uri.parse(
+                'https://mimarketplace-production.up.railway.app/api/encuentro/conversacion/$convId',
+              ),
+              headers: {
+                if (idToken != null) 'Authorization': 'Bearer $idToken',
+              },
+            );
+            if (r.statusCode == 200) {
+              final data = jsonDecode(r.body);
+              final encuentro = data['encuentro'];
+              if (encuentro != null) {
+                final estado = (encuentro['estado'] ?? '').toString();
+                // 🔥 El estado que dispara el aviso es "aceptada".
+                chat['encuentroPendiente'] = estado == 'aceptada';
+                chat['encuentroAceptado'] = estado == 'aceptada';
+                // 🔥 Guardar la fecha del encuentro para el temporizador
+                chat['fechaEncuentro'] =
+                    encuentro['fecha_encuentro']?.toString();
+              } else {
+                chat['encuentroPendiente'] = false;
+                chat['encuentroAceptado'] = false;
+                chat['fechaEncuentro'] = null;
+              }
+            }
+          } catch (_) {
+            chat['encuentroPendiente'] = false;
+            chat['encuentroAceptado'] = false;
+            chat['fechaEncuentro'] = null;
+          }
+        }));
+
         if (mounted) {
           setState(() {
             _conversaciones = conversacionesFiltradas;
@@ -725,6 +761,7 @@ class _ChatListScreenState extends State<ChatListScreen>
         // 🔥 DETECTAR SI HAY MENSAJES NUEVOS
         bool hayMensajesNuevos = false;
         bool esArticuloVendido = false;
+        final bool hayEncuentroPendiente = chat['encuentroPendiente'] == true;
         try {
           final ultimaFechaStr = chat['ultima_fecha']?.toString();
           final miUltimoLeidoStr = chat['mi_ultimo_leido']?.toString();
@@ -789,48 +826,72 @@ class _ChatListScreenState extends State<ChatListScreen>
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                // 🔥 COLOR CAMBIA SI HAY MENSAJES NUEVOS
-                color: hayMensajesNuevos
-                    ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
-                    : Colors.white.withValues(alpha: 0.06),
+                // 🔥 PRIORIDAD: encuentro pendiente (rojo) > mensajes nuevos (azul)
+                color: hayEncuentroPendiente
+                    ? const Color(0xFFEF4444).withValues(alpha: 0.15)
+                    : hayMensajesNuevos
+                        ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: hayMensajesNuevos
-                      ? const Color(0xFF60A5FA)
-                      : const Color(0xFF3B82F6).withValues(alpha: 0.4),
-                  width: hayMensajesNuevos ? 2.5 : 1.5,
+                  color: hayEncuentroPendiente
+                      ? const Color(0xFFEF4444)
+                      : hayMensajesNuevos
+                          ? const Color(0xFF60A5FA)
+                          : const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                  width: hayEncuentroPendiente
+                      ? 2.5
+                      : hayMensajesNuevos
+                          ? 2.5
+                          : 1.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: hayMensajesNuevos
-                        ? const Color(0xFF3B82F6).withValues(alpha: 0.6)
-                        : const Color(0xFF3B82F6).withValues(alpha: 0.2),
-                    blurRadius: hayMensajesNuevos ? 25 : 15,
-                    spreadRadius: hayMensajesNuevos ? 3 : 1,
+                    color: hayEncuentroPendiente
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.6)
+                        : hayMensajesNuevos
+                            ? const Color(0xFF3B82F6).withValues(alpha: 0.6)
+                            : const Color(0xFF3B82F6).withValues(alpha: 0.2),
+                    blurRadius: hayEncuentroPendiente
+                        ? 25
+                        : hayMensajesNuevos
+                            ? 25
+                            : 15,
+                    spreadRadius: hayEncuentroPendiente
+                        ? 3
+                        : hayMensajesNuevos
+                            ? 3
+                            : 1,
                   ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (hayMensajesNuevos || esArticuloVendido)
+                  // 🔥 AVISO DE ENCUENTRO PENDIENTE TIENE PRIORIDAD
+                  if (hayEncuentroPendiente || hayMensajesNuevos || esArticuloVendido)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 8, left: 4),
+                      padding: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: esArticuloVendido
-                                  ? Colors.red
-                                  : const Color(0xFF3B82F6),
+                              color: hayEncuentroPendiente
+                                  ? const Color(0xFFEF4444)
+                                  : esArticuloVendido
+                                      ? Colors.red
+                                      : const Color(0xFF3B82F6),
                               borderRadius: BorderRadius.circular(8),
                               boxShadow: [
                                 BoxShadow(
-                                  color: (esArticuloVendido
-                                          ? Colors.red
-                                          : const Color(0xFF3B82F6))
+                                  color: (hayEncuentroPendiente
+                                          ? const Color(0xFFEF4444)
+                                          : esArticuloVendido
+                                              ? Colors.red
+                                              : const Color(0xFF3B82F6))
                                       .withValues(alpha: 0.7),
                                   blurRadius: 10,
                                   spreadRadius: 1,
@@ -838,9 +899,11 @@ class _ChatListScreenState extends State<ChatListScreen>
                               ],
                             ),
                             child: Text(
-                              esArticuloVendido
-                                  ? 'ARTÍCULO VENDIDO'
-                                  : 'NUEVO MENSAJE',
+                              hayEncuentroPendiente
+                                  ? 'ENCUENTRO ACEPTADO'
+                                  : esArticuloVendido
+                                      ? 'ARTÍCULO VENDIDO'
+                                      : 'NUEVO MENSAJE',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
@@ -849,6 +912,19 @@ class _ChatListScreenState extends State<ChatListScreen>
                               ),
                             ),
                           ),
+                          // 🔥 TEMPORIZADOR A LA DERECHA (solo si hay encuentro aceptado)
+                          if (hayEncuentroPendiente &&
+                              chat['fechaEncuentro'] != null)
+                            Builder(builder: (context) {
+                              final fechaStr =
+                                  chat['fechaEncuentro']?.toString();
+                              final fecha = fechaStr != null
+                                  ? DateTime.tryParse(fechaStr)?.toLocal()
+                                  : null;
+                              if (fecha == null) return const SizedBox.shrink();
+                              return _TemporizadorEncuentro(
+                                  fechaEncuentro: fecha);
+                            }),
                         ],
                       ),
                     ),
@@ -1488,4 +1564,103 @@ class _BottomWaveClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+// ⏱️ Temporizador de cuenta regresiva con ":" parpadeante
+class _TemporizadorEncuentro extends StatefulWidget {
+  final DateTime fechaEncuentro;
+  const _TemporizadorEncuentro({required this.fechaEncuentro});
+
+  @override
+  State<_TemporizadorEncuentro> createState() => _TemporizadorEncuentroState();
+}
+
+class _TemporizadorEncuentroState extends State<_TemporizadorEncuentro>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _parpadeoController;
+  late String _horas;
+  late String _minutos;
+
+  @override
+  void initState() {
+    super.initState();
+    _parpadeoController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+
+    _calcularTiempo();
+  }
+
+  void _calcularTiempo() {
+    final diff = widget.fechaEncuentro.difference(DateTime.now());
+    if (diff.isNegative) {
+      _horas = '00';
+      _minutos = '00';
+    } else {
+      final totalMinutos = diff.inMinutes;
+      final h = (totalMinutos ~/ 60).toString().padLeft(2, '0');
+      final m = (totalMinutos % 60).toString().padLeft(2, '0');
+      _horas = h;
+      _minutos = m;
+    }
+  }
+
+  @override
+  void dispose() {
+    _parpadeoController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFEF4444).withValues(alpha: 0.6),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.timer_outlined, size: 12, color: Color(0xFFFCA5A5)),
+          const SizedBox(width: 4),
+          Text(
+            _horas,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          // 🔥 ":" que aparece y desaparece
+          FadeTransition(
+            opacity: _parpadeoController,
+            child: const Text(
+              ':',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Text(
+            _minutos,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

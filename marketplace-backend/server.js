@@ -7007,6 +7007,113 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
 });
 
 // ============================================================
+// ✅ CONFIRMACIÓN DE ASISTENCIA (1 hora antes)
+// ============================================================
+
+app.post('/api/encuentro/:id/confirmar-asistencia', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
+
+        const enc = await pool.query(
+            'SELECT usuario1_id, usuario2_id, lugar_nombre, fecha_encuentro FROM encuentros_agendados WHERE id = $1',
+            [id]
+        );
+        if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
+        const e = enc.rows[0];
+        if (e.usuario1_id !== usuarioId && e.usuario2_id !== usuarioId) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        await pool.query(
+            `INSERT INTO asistencias_encuentro (encuentro_id, usuario_id, confirmado, fecha_confirmacion)
+             VALUES ($1, $2, TRUE, NOW())
+             ON CONFLICT (encuentro_id, usuario_id) 
+             DO UPDATE SET confirmado = TRUE, fecha_confirmacion = NOW()`,
+            [id, usuarioId]
+        );
+
+        const otroId = e.usuario1_id === usuarioId ? e.usuario2_id : e.usuario1_id;
+
+        const quien = await pool.query('SELECT nombre FROM usuarios WHERE uid = $1', [usuarioId]);
+        const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
+        const fechaTxt = new Date(e.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
+
+        await pool.query(
+            `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+             VALUES ($1, 0, $2, $3, 'confirmacion_asistencia', NOW())`,
+            [
+                otroId,
+                id,
+                `✅ ${nombreQuien} confirmó que asistirá al encuentro.\n📍 ${e.lugar_nombre}\n🕐 ${fechaTxt}\n\nConfirmá tu asistencia también.`
+            ]
+        );
+
+        try {
+            const tk = await pool.query('SELECT fcm_token FROM usuarios WHERE uid = $1', [otroId]);
+            const token = tk.rows[0]?.fcm_token;
+            if (token) {
+                const { getMessaging } = require('firebase-admin/messaging');
+                await getMessaging().send({
+                    token,
+                    notification: {
+                        title: '✅ Confirmación de asistencia',
+                        body: `${nombreQuien} confirmó. Confirmá vos también.`,
+                    },
+                    data: { tipo: 'confirmacion_asistencia', encuentro_id: id.toString() },
+                });
+            }
+        } catch (err) { console.error('Error push:', err.message); }
+
+        const confirmaciones = await pool.query(
+            'SELECT usuario_id FROM asistencias_encuentro WHERE encuentro_id = $1 AND confirmado = TRUE',
+            [id]
+        );
+        const ambos = confirmaciones.rows.length >= 2;
+
+        res.json({ success: true, ambos_confirmaron: ambos });
+    } catch (err) {
+        console.error('Error al confirmar asistencia:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/encuentro/:id/asistencia', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
+
+        const enc = await pool.query(
+            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            [id]
+        );
+        if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
+        const e = enc.rows[0];
+        if (e.usuario1_id !== usuarioId && e.usuario2_id !== usuarioId) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        const otroId = e.usuario1_id === usuarioId ? e.usuario2_id : e.usuario1_id;
+
+        const r = await pool.query(
+            'SELECT usuario_id, confirmado FROM asistencias_encuentro WHERE encuentro_id = $1',
+            [id]
+        );
+        const yo = r.rows.find(x => x.usuario_id === usuarioId);
+        const otro = r.rows.find(x => x.usuario_id === otroId);
+
+        res.json({
+            yo_confirmado: yo?.confirmado === true,
+            otro_confirmado: otro?.confirmado === true,
+            ambos_confirmaron: yo?.confirmado === true && otro?.confirmado === true,
+        });
+    } catch (err) {
+        console.error('Error al consultar asistencia:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================================
 // 🔐 VERIFICACIÓN FACIAL
 // ============================================================
 

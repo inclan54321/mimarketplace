@@ -140,6 +140,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _mostrarModalEscudo = false; // 🔥 Para no abrir el modal dos veces
   bool _escudoYoViModal = false;    // 🔥 Ya vio el modal, no volver a mostrarlo
   bool _escudoResuelto = false;     // 🔥 Ya no hay que consultar más
+  bool _estadoEscudoCargado = false; // 🔥 Ya sabemos el estado del escudo (para no pintar apagado)
 
    // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -472,9 +473,19 @@ class _ChatScreenState extends State<ChatScreen>
           });
         }
         print('>>> 🛡️ Escudo backend: activo=$activoBackend, activadoPor=$activadoPor, yoAcepte=$yoAcepte, otroRechazo=$otroRechazo, confirmado=$escudoConfirmado');
+        if (mounted) {
+          setState(() {
+            _estadoEscudoCargado = true; // 🔥 ya sabemos el estado
+          });
+        }
       }
     } catch (e) {
       print('Error al cargar escudo: $e');
+      if (mounted) {
+        setState(() {
+          _estadoEscudoCargado = true; // 🔥 aunque falle, salimos del placeholder
+        });
+      }
     }
   }
 
@@ -1001,6 +1012,10 @@ void dispose() {
     return;
   }
 
+  // 🔥 PRIMERO: cargar el estado del escudo para que _escudoActivadoPor
+  // 🔥 tenga valor antes de evaluar la condición del modal.
+  await _cargarEstadoEscudo();
+
   // 🔥 PRIMERO: consultar el estado de bloqueo y la verificación del encuentro.
   // 🔥 Se hace ANTES de _cargarEstadoEscudo para que el AppBar se pinte
   // 🔥 una sola vez con el botón correcto (escudo o emergencia).
@@ -1061,16 +1076,19 @@ void dispose() {
 
   // 🔥 MOSTRAR MODAL DEL ESCUDO SI EL OTRO LO ACTIVÓ Y YO NO HE RESPONDIDO
   // 🔥 Y SOLO si todavía no lo vi (para no mostrarlo cada vez que entra al chat)
+  print('>>> 🛡️ MODAL CHECK: yoAcepte=$_escudoYoAcepte, otroRechazo=$_escudoOtroRechazo, activadoPor=$_escudoActivadoPor, user.uid=${user.uid}, mostrarModal=$_mostrarModalEscudo, yoViModal=$_escudoYoViModal, bloqueado=$_chatBloqueado');
+
+  // 🔥 El modal se muestra mientras YO no haya respondido (aceptar/rechazar).
+  // 🔥 modal_visto ya NO bloquea: se marca solo al responder (aceptar/rechazar).
   if (!_escudoYoAcepte &&
       !_escudoOtroRechazo &&
       _escudoActivadoPor != null &&
       _escudoActivadoPor != user.uid &&
       !_mostrarModalEscudo &&
-      !_escudoYoViModal &&
       mounted &&
       !_chatBloqueado) {
     _mostrarModalEscudo = true;
-    _marcarModalVisto(); // 🔥 Marcar en backend que ya se mostró
+    // 🔥 NO llamar _marcarModalVisto() acá: se marca al aceptar/rechazar.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _mostrarModalEscudoActivado();
     });
@@ -6540,6 +6558,9 @@ ListTile(
                     offset: const Offset(0, 7), // 🔥 baja solo 4px
                     child: _buildBotonEmergencias(),
                   )
+                else if (!_estadoEscudoCargado)
+                  // 🔥 Placeholder del mismo tamaño para que no salte el layout
+                  const SizedBox(width: 52, height: 52)
                 else
                   EscudoSeguridadWidget(
                     estado: _conversationStatus,

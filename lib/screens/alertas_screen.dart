@@ -140,11 +140,31 @@ class _AlertasScreenState extends State<AlertasScreen> {
         debugPrint('>>> mi-estado-verificacion [$eid] status: ${r.statusCode} body: ${r.body}');
         if (r.statusCode == 200) {
           final data = jsonDecode(r.body) as Map<String, dynamic>;
+
+          bool yoAsist = false;
+          bool otroAsist = false;
+          bool ambosAsist = false;
+          try {
+            final rAsist = await http.get(
+              Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/$eid/asistencia'),
+              headers: {if (idToken != null) 'Authorization': 'Bearer $idToken'},
+            );
+            if (rAsist.statusCode == 200) {
+              final a = jsonDecode(rAsist.body) as Map<String, dynamic>;
+              yoAsist = a['yo_confirmado'] == true;
+              otroAsist = a['otro_confirmado'] == true;
+              ambosAsist = a['ambos_confirmaron'] == true;
+            }
+          } catch (_) {}
+
           _estadosVerificacion[eid] = {
             'mi_selfie': data['mi_selfie_existe'] == true,
             'otro_selfie': data['otro_selfie_existe'] == true,
             'confirmado': data['mi_confirmacion_cruzada'] == true,
             'rechazado': data['mi_rechazo_cruzado'] == true,
+            'yo_asist': yoAsist,
+            'otro_asist': otroAsist,
+            'ambos_asist': ambosAsist,
           };
         }
       } catch (e) {
@@ -153,6 +173,84 @@ class _AlertasScreenState extends State<AlertasScreen> {
     }
     _estadosCache = Map.from(_estadosVerificacion);
     if (mounted && !silencioso) setState(() {});
+  }
+
+  Future<void> _confirmarAsistencia(int encuentroId) async {
+    try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final r = await http.post(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/$encuentroId/confirmar-asistencia'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        final ambos = data['ambos_confirmaron'] == true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(ambos
+                  ? '✅ Ambos confirmaron. ¡Nos vemos!'
+                  : '✅ Confirmaste tu asistencia. Esperando al otro.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        await _cargarEstadosVerificacion();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _buildBotonConfirmarAsistencia({required int encuentroId}) {
+    final estado = _estadosVerificacion[encuentroId];
+    final yoAsist = estado?['yo_asist'] == true;
+    final otroAsist = estado?['otro_asist'] == true;
+
+    if (yoAsist && otroAsist) {
+      return ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.check_circle, size: 16, color: Colors.green),
+        label: const Text('Ambos confirmaron', style: TextStyle(color: Colors.green)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green.shade50,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    if (yoAsist && !otroAsist) {
+      return ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.hourglass_top, size: 16, color: Colors.grey),
+        label: const Text('Esperando al otro', style: TextStyle(color: Colors.grey)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey.shade200,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    return ElevatedButton.icon(
+      onPressed: () => _confirmarAsistencia(encuentroId),
+      icon: const Icon(Icons.check_circle_outline, size: 16),
+      label: const Text('Confirmar encuentro'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF0A5BE0),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        textStyle: const TextStyle(fontSize: 12),
+      ),
+    );
   }
 
   Widget _buildBotonVerificacion({required int encuentroId}) {
@@ -569,6 +667,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
                       rayaColor = Colors.orange;
                       icono = Icons.alarm;
                       iconoColor = Colors.orange;
+                    } else if (tipo == 'confirmacion_asistencia') {
+                      rayaColor = Colors.green;
+                      icono = Icons.check_circle_outline;
+                      iconoColor = Colors.green;
                     } else if (tipo == 'esperando_verificacion') {
                       rayaColor = Colors.orange;
                       icono = Icons.hourglass_top;
@@ -700,9 +802,18 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                               ),
                                             ),
                                           ),
-                                        // 🔥 BOTÓN DE VERIFICACIÓN (cambia según el avance)
+                                        // 🔥 BOTÓN DE CONFIRMAR ASISTENCIA (1 hora antes / aviso al otro)
                                         if ((tipo == 'recordatorio_encuentro' ||
-                                                tipo == 'encuentro' ||
+                                                tipo == 'confirmacion_asistencia') &&
+                                            (alerta['encuentro_id'] ?? 0) > 0)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 8),
+                                            child: _buildBotonConfirmarAsistencia(
+                                              encuentroId: (alerta['encuentro_id'] as num).toInt(),
+                                            ),
+                                          ),
+                                        // 🔥 BOTÓN DE VERIFICACIÓN (para las otras alertas)
+                                        if ((tipo == 'encuentro' ||
                                                 tipo == 'esperando_verificacion' ||
                                                 tipo == 'verificar_identidad') &&
                                             (alerta['encuentro_id'] ?? 0) > 0)
