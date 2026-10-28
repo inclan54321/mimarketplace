@@ -20,7 +20,8 @@ class EscudoSeguridadWidget extends StatefulWidget {
   final VoidCallback? onCerrarTrato;        // 🔥 NUEVO
   final VoidCallback? onProponerEncuentro;  // 🔥 NUEVO
   final VoidCallback? onCancelarTrato;      // 🔥 NUEVO: cancelar el encuentro ya cerrado
-  final bool hayPropuestaAceptada;          // 🔥 NUEVO: oculta "Proponer encuentro"
+  final bool hayPropuestaAceptada;
+  final bool hayPropuestaPendiente;          // 🔥 NUEVO: oculta "Proponer encuentro"
   final bool tratoCerrado;                  // 🔥 NUEVO: si el trato ya está cerrado
 
   const EscudoSeguridadWidget({
@@ -35,7 +36,8 @@ class EscudoSeguridadWidget extends StatefulWidget {
     this.onCerrarTrato,        // 🔥 NUEVO
     this.onProponerEncuentro,  // 🔥 NUEVO
     this.onCancelarTrato,      // 🔥 NUEVO
-    this.hayPropuestaAceptada = false, // 🔥 NUEVO
+    this.hayPropuestaAceptada = false,
+    this.hayPropuestaPendiente = false, // 🔥 NUEVO
     this.tratoCerrado = false,         // 🔥 NUEVO
   });
 
@@ -702,40 +704,83 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
             // 🔥 SI EL TRATO NO ESTÁ CERRADO: flujo normal (cerrar / proponer)
             else ...[
               ListTile(
-                leading: Image.asset(
-                  'assets/icon/icon.png',
-                  width: 28,
-                  height: 28,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.sell, color: Colors.green, size: 28),
+                enabled: !widget.hayPropuestaPendiente,
+                leading: Opacity(
+                  opacity: widget.hayPropuestaPendiente ? 0.4 : 1.0,
+                  child: Image.asset(
+                    'assets/icon/icon.png',
+                    width: 28,
+                    height: 28,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.sell, color: Colors.green, size: 28),
+                  ),
                 ),
                 title: const Text('Cerrar trato', style: TextStyle(fontSize: 16)),
-                subtitle: const Text(
-                  'Confirmar que el trato está cerrado',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                subtitle: Text(
+                  widget.hayPropuestaPendiente
+                      ? 'Esperá a que se resuelva la propuesta de encuentro'
+                      : 'Confirmar que el trato está cerrado',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
+                  if (widget.hayPropuestaPendiente) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Esperá a que se resuelva la propuesta de encuentro pendiente.'),
+                        backgroundColor: Colors.orange,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                    return;
+                  }
                   widget.onCerrarTrato?.call();
                 },
               ),
-              // 🔥 Ocultar "Proponer encuentro" si ya hay una propuesta aceptada
-              if (!widget.hayPropuestaAceptada) ...[
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.event, color: Colors.blue, size: 28),
-                  title: const Text('Proponer encuentro', style: TextStyle(fontSize: 16)),
-                  subtitle: const Text(
-                    'Elegir lugar y fecha para verse',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+              // 🔥 Mostrar "Proponer encuentro" SIEMPRE, pero si ya hay una
+              // propuesta pendiente/aceptada, avisar en vez de abrir el formulario.
+              const Divider(height: 1),
+              Builder(builder: (context) {
+                final bloqueado = widget.hayPropuestaAceptada || widget.hayPropuestaPendiente;
+                return ListTile(
+                  enabled: !bloqueado,
+                  leading: Icon(
+                    Icons.event,
+                    color: bloqueado ? Colors.grey : Colors.blue,
+                    size: 28,
+                  ),
+                  title: Text(
+                    'Proponer encuentro',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: bloqueado ? Colors.grey : null,
+                    ),
+                  ),
+                  subtitle: Text(
+                    bloqueado
+                        ? 'Ya hay una propuesta de encuentro pendiente o aceptada'
+                        : 'Elegir lugar y fecha para verse',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
+                    if (bloqueado) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Ya hay una propuesta de encuentro pendiente por decidir. Esperá a que se resuelva.',
+                          ),
+                          backgroundColor: Colors.orange,
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                      return;
+                    }
                     widget.onProponerEncuentro?.call();
                   },
-                ),
-              ],
+                );
+              }),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.menu_book, color: Colors.blue, size: 28),

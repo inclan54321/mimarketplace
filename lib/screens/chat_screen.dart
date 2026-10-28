@@ -447,7 +447,8 @@ class _ChatScreenState extends State<ChatScreen>
         }
         if (mounted) {
           setState(() {
-            _iaActiva = activoBackend;
+            // 🔥 El escudo solo se ve activo si YO acepté (o si yo lo activé)
+            _iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid);
             _escudoActivadoPor = activadoPor;
             _escudoYoAcepte = yoAcepte;
             _escudoOtroRechazo = otroRechazo;
@@ -752,8 +753,9 @@ void initState() {
       );
     }
   });
-  _restaurarEstadoEscudo(); // 🔥 escudo y verificación desde caché local
-  _restaurarEstadoBloqueo(); // 🔥 estado de bloqueo inmediato desde caché local
+  _restaurarEstadoEscudo();
+  _restaurarEstadoBloqueo();
+  _cargarEstadoEscudo(); // 🔥 CRÍTICO: llena _escudoActivadoPor y dispara el modal
   _cargarPropuestasDesdeCache(); // 🔥 propuestas cerradas inmediatas desde caché local
   _obtenerOCrearConversacion();
   _marcarComoLeida(); // 🔥 NUEVO
@@ -4787,9 +4789,9 @@ ListTile(
       ),
     );
 
-    // 🔥 Solo las pendientes llevan el borde animado
+    // 🔥 Solo las pendientes llevan el glow celeste neón
     if (estado != 'pendiente') return tarjeta;
-    return BordePunteadoAnimado(controller: _bordeController, child: tarjeta);
+    return _GlowNeonCeleste(controller: _bordeController, child: tarjeta);
   }
   // 🔥 TARJETA DE PROPUESTA: mismo diseño (imagen del asset) desde el primer frame
   Widget _buildTarjetaPropuesta(String propuestaId) {
@@ -6545,6 +6547,7 @@ ListTile(
                     videoVistoInicial: _iaActiva,
                     emojiDesdeEstado: _conversationStatus,
                     hayPropuestaAceptada: _hayPropuestaAceptadaEnCache,
+                    hayPropuestaPendiente: _propuestaEncuentroPendiente,
                     tratoCerrado: _chatBloqueado,
                     onCancelarTrato: _mostrarDialogoCancelarTrato,
                     onCerrarTrato: () {
@@ -8035,72 +8038,53 @@ class _OlaAppBarClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
-// ✨ Borde punteado que gira y "respira" alrededor de un widget
-class BordePunteadoAnimado extends StatelessWidget {
+// ✨ (Eliminado: BordePunteadoAnimado reemplazado por _GlowNeonCeleste)
+
+// ✨ Glow celeste neón que crece y decrece alrededor del widget
+class _GlowNeonCeleste extends StatelessWidget {
   final AnimationController controller;
   final Widget child;
-  final Color color;
-  const BordePunteadoAnimado({
-    super.key,
+
+  const _GlowNeonCeleste({
     required this.controller,
     required this.child,
-    this.color = Colors.orange,
   });
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      foregroundPainter: _BordePunteadoPainter(controller, color),
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        // 🔥 Pulso 0..1 que sube y baja suavemente
+        final pulso = (math.sin(controller.value * 2 * math.pi) + 1) / 2;
+
+        // 🔥 El glow crece y decrece
+        final blur = 10.0 + pulso * 18.0;      // 10 → 28
+        final spread = 1.0 + pulso * 5.0;      // 1 → 6
+        final opacity = 0.35 + pulso * 0.45;   // 0.35 → 0.80
+
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              // Glow exterior fino, celeste puro
+              BoxShadow(
+                color: const Color(0xFF00E5FF).withValues(alpha: opacity * 0.80),
+                blurRadius: blur * 0.20,
+                spreadRadius: spread * 0.06,
+              ),
+              // Núcleo del neón (celeste claro)
+              BoxShadow(
+                color: const Color(0xFF9BF6FF).withValues(alpha: opacity * 0.60),
+                blurRadius: blur * 0.10,
+                spreadRadius: spread * 0.02,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
       child: child,
     );
   }
-}
-
-class _BordePunteadoPainter extends CustomPainter {
-  final AnimationController controller;
-  final Color color;
-  _BordePunteadoPainter(this.controller, this.color) : super(repaint: controller);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final t = controller.value;
-
-    // 🔥 Pulso: se agranda y se encoge (2 veces por vuelta)
-    final pulso = (math.sin(t * 2 * math.pi) + 1) / 2; // 0..1 (1 pulso por ciclo)
-    final inflar = 1 + pulso * 6;
-
-    // 🔥 Rectángulo base = tarjeta sin su margen (16 horizontal, 8 vertical)
-    final rect = Rect.fromLTWH(16, 8, size.width - 32, size.height - 16)
-        .inflate(inflar);
-    final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(rect, const Radius.circular(18)));
-
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.6 + pulso * 0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    const dash = 10.0;
-    const gap = 6.0;
-    const ciclo = dash + gap;
-
-    // 🔥 Las rayas avanzan alrededor de la tarjeta
-    final desplazamiento = (t * ciclo * 20) % ciclo;
-
-    for (final metric in path.computeMetrics()) {
-      double d = desplazamiento - ciclo;
-      while (d < metric.length) {
-        final inicio = d < 0 ? 0.0 : d;
-        final fin = (d + dash) > metric.length ? metric.length : (d + dash);
-        if (fin > inicio) {
-          canvas.drawPath(metric.extractPath(inicio, fin), paint);
-        }
-        d += ciclo;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BordePunteadoPainter old) => false;
 }

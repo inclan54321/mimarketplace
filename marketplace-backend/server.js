@@ -5407,24 +5407,26 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
         const results = [];
         for (const uid of usuarios) {
             const soyYo = uid === usuario_id;
+            // 🔥 SOLO el que activa queda con activo = true.
+            // 🔥 El otro queda con activo = false hasta que acepte.
             const r = await pool.query(
                 `INSERT INTO escudos_conversacion 
                  (conversacion_id, usuario_id, activo, video_visto, 
                   usuario_activo, acepto, rechazo, fecha_respuesta,
                   fecha_activacion, fecha_expiracion)
-                 VALUES ($1, $2, true, true, $3, $4, false, $5, NOW(), NOW() + INTERVAL '30 days')
+                 VALUES ($1, $2, $3, true, $4, $5, false, $6, NOW(), NOW() + INTERVAL '30 days')
                  ON CONFLICT (conversacion_id, usuario_id) 
                  DO UPDATE SET 
-                    activo = true,
+                    activo = CASE WHEN escudos_conversacion.activo = true THEN true ELSE $3 END,
                     video_visto = true,
-                    usuario_activo = $3,
-                    acepto = CASE WHEN escudos_conversacion.acepto = true THEN true ELSE $4 END,
+                    usuario_activo = $4,
+                    acepto = CASE WHEN escudos_conversacion.acepto = true THEN true ELSE $5 END,
                     rechazo = false,
-                    fecha_respuesta = COALESCE(escudos_conversacion.fecha_respuesta, $5),
+                    fecha_respuesta = COALESCE(escudos_conversacion.fecha_respuesta, $6),
                     fecha_activacion = NOW(),
                     fecha_expiracion = NOW() + INTERVAL '30 days'
                  RETURNING *`,
-                [conversacion_id, uid, usuario_id, soyYo, soyYo ? new Date() : null]
+                [conversacion_id, uid, soyYo, usuario_id, soyYo, soyYo ? new Date() : null]
             );
             results.push(r.rows[0]);
         }
@@ -5558,7 +5560,11 @@ app.post('/api/escudo/aceptar', verificarTokenFirebase, async (req, res) => {
 
         await pool.query(
             `UPDATE escudos_conversacion 
-             SET acepto = true, rechazo = false, modal_visto = true, fecha_respuesta = NOW()
+             SET acepto = true, 
+                 activo = true,           -- 🔥 ahora sí se activa para este usuario
+                 rechazo = false, 
+                 modal_visto = true, 
+                 fecha_respuesta = NOW()
              WHERE conversacion_id = $1 AND usuario_id = $2`,
             [conversacion_id, usuario_id]
         );

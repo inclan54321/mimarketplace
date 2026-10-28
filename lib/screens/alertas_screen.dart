@@ -269,7 +269,6 @@ class _AlertasScreenState extends State<AlertasScreen> {
     if (user == null) return;
 
     if (!RewardedAdManager.isAdLoaded) {
-      RewardedAdManager.loadRewardedAd();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -278,7 +277,21 @@ class _AlertasScreenState extends State<AlertasScreen> {
           ),
         );
       }
-      return;
+
+      // 🔥 Esperar a que el anuncio realmente termine de cargar
+      final cargado = await RewardedAdManager.waitForAdLoaded();
+
+      if (!cargado) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ No se pudo cargar el anuncio. Intentá de nuevo.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
     }
 
     RewardedAdManager.showRewardedAd(
