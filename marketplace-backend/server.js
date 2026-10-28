@@ -726,6 +726,40 @@ cron.schedule('* * * * *', async () => {
             const mensaje = `🚫 No llegaste al encuentro.\n\n📍 ${enc.lugar_nombre}\n🕐 ${fechaTxt}\n\nEl encuentro se marcó como "no presentado".`;
             const titulo = '🚫 No llegaste al encuentro';
 
+            // 🔥 LIBERAR EL CHAT, DESACTIVAR EL ESCUDO y dejar un mensaje suave
+            try {
+                await pool.query(
+                    `UPDATE conversaciones_app 
+                     SET chat_bloqueado = false,
+                         cerrado_por_escudo = false,
+                         quiere_cerrar_trato = false
+                     WHERE id = $1`,
+                    [enc.conversacion_id]
+                );
+
+                await pool.query(
+                    `DELETE FROM escudos_conversacion WHERE conversacion_id = $1`,
+                    [enc.conversacion_id]
+                );
+
+                await pool.query(
+                    `DELETE FROM mensajes_app 
+                     WHERE conversacion_id = $1 
+                       AND texto LIKE '||CERRAR_TRATO||%'`,
+                    [enc.conversacion_id]
+                );
+
+                await pool.query(
+                    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                     VALUES ($1, 'SYSTEM', '||ENCUENTRO_NO_PRESENTADO||', '', NOW())`,
+                    [enc.conversacion_id]
+                );
+
+                console.log(`>>> 🔓 Chat ${enc.conversacion_id} liberado y escudo desactivado por no_presentado`);
+            } catch (e) {
+                console.error('>>> ❌ Error liberando chat por no_presentado:', e.message);
+            }
+
             // Alertas en la app para ambos
             try {
                 await pool.query(

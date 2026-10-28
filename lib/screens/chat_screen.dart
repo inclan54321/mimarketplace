@@ -446,6 +446,10 @@ class _ChatScreenState extends State<ChatScreen>
         if (activoBackend != activoLocal) {
           await prefs.setBool(key, activoBackend);
         }
+        // 🔥 Si el backend dice que el escudo no está activo, borrar la caché local
+        if (!activoBackend) {
+          await prefs.remove(key);
+        }
         if (mounted) {
           setState(() {
             // 🔥 El escudo solo se ve activo si YO acepté (o si yo lo activé)
@@ -7367,6 +7371,59 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // 🔥 ENCUENTRO NO PRESENTADO (mensaje suave)
+  if ((mensaje['texto'] ?? '').startsWith('||ENCUENTRO_NO_PRESENTADO||')) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3C7),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.sentiment_dissatisfied, color: Color(0xFF92400E), size: 22),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'El encuentro no se pudo realizar',
+                  style: TextStyle(
+                    color: Color(0xFF92400E),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Lamentamos las molestias. No todos los encuentros se pueden concretar, '
+            'y eso está bien: lo importante es cuidarnos entre todos.\n\n'
+            'El chat queda abierto y el escudo se desactivó. Podés seguir '
+            'conversando con total normalidad.',
+            style: TextStyle(
+              color: Color(0xFF78350F),
+              fontSize: 12.5,
+              height: 1.45,
+            ),
+          ),
+        ],
       ),
     );
   }
