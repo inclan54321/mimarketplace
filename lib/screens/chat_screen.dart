@@ -8094,6 +8094,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
       ),
     );
   }
+
+
 }
 
 // 🌊 Recorte con ola para la parte baja del app bar

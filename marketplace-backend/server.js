@@ -807,6 +807,67 @@ cron.schedule('* * * * *', async () => {
 });
 console.log('>>> ⏰ CRON de recordatorios de encuentro activado (cada 1 minuto)');
 
+// ============================================================
+// 🔥 CRON DE LLAMADA DE VERIFICACIÓN (5 min antes del encuentro)
+// ============================================================
+cron.schedule('* * * * *', async () => {
+    try {
+        const pendientes = await pool.query(`
+            SELECT e.id AS encuentro_id, e.usuario1_id, e.usuario2_id,
+                   e.lugar_nombre,
+                   u1.fcm_token AS token1, u2.fcm_token AS token2
+            FROM encuentros_agendados e
+            LEFT JOIN usuarios u1 ON e.usuario1_id = u1.uid
+            LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
+            WHERE e.estado = 'agendado'
+              AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '4 minutes'
+                                        AND NOW() + INTERVAL '6 minutes'
+        `);
+
+        for (const enc of pendientes.rows) {
+            const usuarios = [
+                [enc.usuario1_id, enc.token1],
+                [enc.usuario2_id, enc.token2],
+            ];
+
+            for (const [uid, token] of usuarios) {
+                if (!token) continue;
+
+                // ¿Ya verificó identidad?
+                const v = await pool.query(
+                    `SELECT id FROM verificaciones_faciales
+                     WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE
+                     LIMIT 1`,
+                    [enc.encuentro_id, uid]
+                );
+                if (v.rows.length > 0) {
+                    console.log(`>>> ✅ Usuario ${uid} ya verificó, sin llamada`);
+                    continue;
+                }
+
+                try {
+                    const { getMessaging } = require('firebase-admin/messaging');
+                    await getMessaging().send({
+                        token,
+                        data: {
+                            tipo: 'llamada_verificacion',
+                            encuentro_id: enc.encuentro_id.toString(),
+                            caller_name: 'Verificación de identidad',
+                        },
+                        android: { priority: 'high' },
+                    });
+                    console.log(`>>> 📞 Push "llamada_verificacion" enviada a ${uid} (encuentro ${enc.encuentro_id})`);
+                } catch (e) {
+                    console.error('>>> ❌ Error push llamada_verificacion:', e.message);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error en cron de llamada de verificación:', error);
+    }
+});
+console.log('>>> ⏰ CRON de llamada de verificación activado (cada 1 minuto)');
+
 // ===== FUNCIÓN DE MODERACIÓN CON DEEPSEEK =====
 async function moderarProducto(nombre, descripcion, categoria, imagenUrl) {
     try {

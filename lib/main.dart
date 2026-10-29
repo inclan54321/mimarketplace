@@ -17,12 +17,45 @@ import 'screens/alertas_screen.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
+import 'package:flutter_callkit_incoming/entities/entities.dart';
+import 'package:flutter_callkit_incoming/entities/notification_params.dart';
+import 'package:uuid/uuid.dart';
+import 'screens/pantalla_verificacion_encuentro.dart';
 
 // 🔥 HANDLER PARA MENSAJES EN SEGUNDO PLANO
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   print('>>> 📨 MENSAJE EN SEGUNDO PLANO: ${message.notification?.title}');
+
+  // 🔥 Si es una llamada de verificación, mostrar CallKit aunque la app esté cerrada
+  if (message.data['tipo'] == 'llamada_verificacion') {
+    await _mostrarLlamadaCallkit(message.data);
+  }
+}
+
+// 🔥 Mostrar pantalla de llamada entrante (CallKit)
+Future<void> _mostrarLlamadaCallkit(Map<String, dynamic> data) async {
+  final encuentroId = data['encuentro_id']?.toString() ?? '0';
+  final params = CallKitParams(
+    id: const Uuid().v4(),
+    nameCaller: data['caller_name']?.toString() ?? 'Verificación de identidad',
+    appName: 'MiMarketplace',
+    type: 0,
+    duration: 30000,
+    extra: {'encuentro_id': encuentroId},
+    android: const AndroidParams(
+      isCustomNotification: true,
+      isShowLogo: true,
+      ringtonePath: 'system_ringtone_default',
+      backgroundColor: '#0A5BE0',
+      actionColor: '#22C55E',
+      textAccept: 'Aceptar',
+      textDecline: 'Rechazar',
+    ),
+  );
+  await FlutterCallkitIncoming.showCallkitIncoming(params);
 }
 
 void main() async {
@@ -44,7 +77,27 @@ void main() async {
 
   // 🔥 INICIALIZAR NOTIFICACIONES
   await NotificationService.init();
-  
+
+  // 🔥 Pedir permiso de full-screen intent (Android 14+)
+  await FlutterCallkitIncoming.requestFullIntentPermission();
+
+  // 🔥 Escuchar cuando el usuario acepta la llamada
+  FlutterCallkitIncoming.onEvent.listen((event) {
+    if (event == null) return;
+    if (event is CallEventActionCallAccept) {
+      final extra = event.callKitParams.extra;
+      final encuentroId =
+          int.tryParse(extra?['encuentro_id']?.toString() ?? '0') ?? 0;
+      if (encuentroId > 0) {
+        NotificationService.navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => PantallaVerificacionEncuentro(encuentroId: encuentroId),
+          ),
+        );
+      }
+    }
+  });
+
   runApp(
     Phoenix(
       child: const MyApp(),
@@ -339,8 +392,15 @@ class _MainScreenState extends State<MainScreen> {
 
   // 🔥 Escuchar notificaciones en primer plano
   void _escucharNotificaciones() {
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       print('>>> 📨 Notificación en primer plano: ${message.notification?.title}');
+
+      // 🔥 Si es una llamada de verificación, mostrar CallKit
+      if (message.data['tipo'] == 'llamada_verificacion') {
+        await _mostrarLlamadaCallkit(message.data);
+        return;
+      }
+
       if (mounted) {
         // 🔥 Detectar si es un mensaje de chat
         final tipo = message.data['tipo']?.toString() ?? '';
