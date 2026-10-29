@@ -868,6 +868,57 @@ cron.schedule('* * * * *', async () => {
 });
 console.log('>>> ⏰ CRON de llamada de verificación activado (cada 1 minuto)');
 
+// ============================================================
+// 🔥 CRON DE LLAMADAS DE VERIFICACIÓN CRUZADA (1 min después de selfie)
+// ============================================================
+cron.schedule('* * * * *', async () => {
+    try {
+        const vencidas = await pool.query(`
+            SELECT l.id, l.encuentro_id, l.usuario_a_llamar,
+                   u.fcm_token AS token
+            FROM llamadas_verificacion_pendientes l
+            LEFT JOIN usuarios u ON l.usuario_a_llamar = u.uid
+            WHERE l.enviada = FALSE
+              AND l.cancelada = FALSE
+              AND l.fecha_programada <= NOW()
+        `);
+
+        for (const l of vencidas.rows) {
+            if (!l.token) {
+                await pool.query(
+                    'UPDATE llamadas_verificacion_pendientes SET enviada = TRUE WHERE id = $1',
+                    [l.id]
+                );
+                continue;
+            }
+
+            try {
+                const { getMessaging } = require('firebase-admin/messaging');
+                await getMessaging().send({
+                    token: l.token,
+                    data: {
+                        tipo: 'llamada_verificacion',
+                        encuentro_id: l.encuentro_id.toString(),
+                        caller_name: 'Verificar identidad del otro',
+                    },
+                    android: { priority: 'high' },
+                });
+                console.log(`>>> 📞 Push llamada_verificacion enviada a ${l.usuario_a_llamar} (encuentro ${l.encuentro_id})`);
+            } catch (e) {
+                console.error('>>> ❌ Error push llamada_verificacion:', e.message);
+            }
+
+            await pool.query(
+                'UPDATE llamadas_verificacion_pendientes SET enviada = TRUE WHERE id = $1',
+                [l.id]
+            );
+        }
+    } catch (error) {
+        console.error('Error en cron de llamadas de verificación cruzada:', error);
+    }
+});
+console.log('>>> ⏰ CRON de llamadas de verificación cruzada activado (cada 1 minuto)');
+
 // ===== FUNCIÓN DE MODERACIÓN CON DEEPSEEK =====
 async function moderarProducto(nombre, descripcion, categoria, imagenUrl) {
     try {
@@ -7438,6 +7489,36 @@ app.post('/api/encuentro/verificar-facial', verificarTokenFirebase, async (req, 
                             `🔍 Verificá la identidad de ${nombreYo}.\n\nTocá el botón para comparar la foto de perfil con la selfie que se tomó.`
                         ]
                     );
+
+                    // 🔥 PROGRAMAR LLAMADA AL OTRO (1 min después) si todavía no comparó
+                    try {
+                        const otroCruzada = await pool.query(
+                            `SELECT confirmado, rechazado FROM verificaciones_cruzadas
+                             WHERE encuentro_id = $1 AND usuario_verifica_id = $2 AND usuario_verificado_id = $3
+                             LIMIT 1`,
+                            [encuentro_id, otroId, usuario_id]
+                        );
+                        const filaOtro = otroCruzada.rows[0];
+                        const otroYaComparo = filaOtro && (filaOtro.confirmado === true || filaOtro.rechazado === true);
+
+                        if (!otroYaComparo) {
+                            await pool.query(
+                                `INSERT INTO llamadas_verificacion_pendientes
+                                 (encuentro_id, usuario_a_llamar, fecha_programada, enviada, cancelada)
+                                 VALUES ($1, $2, NOW() + INTERVAL '1 minute', FALSE, FALSE)
+                                 ON CONFLICT (encuentro_id, usuario_a_llamar)
+                                 DO UPDATE SET fecha_programada = NOW() + INTERVAL '1 minute',
+                                               enviada = FALSE,
+                                               cancelada = FALSE`,
+                                [encuentro_id, otroId]
+                            );
+                            console.log(`>>> 📞 Llamada programada a ${otroId} en 1 min (encuentro ${encuentro_id})`);
+                        } else {
+                            console.log(`>>> ⏭️ ${otroId} ya comparó, no se programa llamada (encuentro ${encuentro_id})`);
+                        }
+                    } catch (e) {
+                        console.error('>>> ❌ Error programando llamada:', e.message);
+                    }
                 }
             }
         } catch (e) {
@@ -7899,6 +7980,14 @@ app.post('/api/encuentro/:id/confirmar-identidad', verificarTokenFirebase, async
         }
         const otroId = e.usuario1_id === req.usuarioAutenticado ? e.usuario2_id : e.usuario1_id;
 
+        // 🔥 Cancelar cualquier llamada pendiente para este usuario en este encuentro
+        await pool.query(
+            `UPDATE llamadas_verificacion_pendientes
+             SET cancelada = TRUE
+             WHERE encuentro_id = $1 AND usuario_a_llamar = $2 AND enviada = FALSE`,
+            [id, req.usuarioAutenticado]
+        );
+
         await pool.query(
             `UPDATE verificaciones_cruzadas
              SET confirmado = TRUE, rechazado = FALSE, fecha = NOW()
@@ -7957,6 +8046,14 @@ app.post('/api/encuentro/:id/rechazar-identidad', verificarTokenFirebase, async 
             return res.status(403).json({ error: 'No autorizado' });
         }
         const otroId = e.usuario1_id === req.usuarioAutenticado ? e.usuario2_id : e.usuario1_id;
+
+        // 🔥 Cancelar TODAS las llamadas pendientes del encuentro al rechazar
+        await pool.query(
+            `UPDATE llamadas_verificacion_pendientes
+             SET cancelada = TRUE
+             WHERE encuentro_id = $1 AND enviada = FALSE`,
+            [id]
+        );
 
         // Marcar rechazo
         await pool.query(

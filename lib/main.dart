@@ -22,6 +22,7 @@ import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/entities/notification_params.dart';
 import 'package:uuid/uuid.dart';
 import 'screens/pantalla_verificacion_encuentro.dart';
+import 'screens/pantalla_verificar_identidad_otro.dart';
 
 // 🔥 HANDLER PARA MENSAJES EN SEGUNDO PLANO
 @pragma('vm:entry-point')
@@ -44,7 +45,10 @@ Future<void> _mostrarLlamadaCallkit(Map<String, dynamic> data) async {
     appName: 'MiMarketplace',
     type: 0,
     duration: 30000,
-    extra: {'encuentro_id': encuentroId},
+    extra: {
+      'encuentro_id': encuentroId,
+      'caller_name': data['caller_name']?.toString() ?? '',
+    },
     android: const AndroidParams(
       isCustomNotification: true,
       isShowLogo: true,
@@ -82,18 +86,39 @@ void main() async {
   await FlutterCallkitIncoming.requestFullIntentPermission();
 
   // 🔥 Escuchar cuando el usuario acepta la llamada
-  FlutterCallkitIncoming.onEvent.listen((event) {
+  FlutterCallkitIncoming.onEvent.listen((event) async {
     if (event == null) return;
+
+    // 🔥 LIBERAR AUDIO AL COLGAR O RECHAZAR
+    if (event is CallEventActionCallEnded || event is CallEventActionCallDecline) {
+      // Forzar la liberación del audio focus de Android
+      try {
+        await FlutterCallkitIncoming.endAllCalls();
+      } catch (e) {
+        debugPrint('Error liberando audio CallKit: $e');
+      }
+      return;
+    }
+
     if (event is CallEventActionCallAccept) {
       final extra = event.callKitParams.extra;
       final encuentroId =
           int.tryParse(extra?['encuentro_id']?.toString() ?? '0') ?? 0;
       if (encuentroId > 0) {
-        NotificationService.navigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (_) => PantallaVerificacionEncuentro(encuentroId: encuentroId),
-          ),
-        );
+        final callerName = extra?['caller_name']?.toString() ?? '';
+        if (callerName.contains('Verificar identidad del otro')) {
+          NotificationService.navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => PantallaVerificarIdentidadOtro(encuentroId: encuentroId),
+            ),
+          );
+        } else {
+          NotificationService.navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => PantallaVerificacionEncuentro(encuentroId: encuentroId),
+            ),
+          );
+        }
       }
     }
   });
