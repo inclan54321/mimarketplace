@@ -873,6 +873,56 @@ cron.schedule('* * * * *', async () => {
 console.log('>>> ⏰ CRON de llamada de verificación activado (cada 1 minuto)');
 
 // ============================================================
+// 🔥 CRON DE DETECCIÓN DE LLEGADA TARDÍA (cada 1 minuto)
+// Regla: si faltan 5 min o menos para el encuentro y el usuario NO se verificó, es tardanza.
+// ============================================================
+cron.schedule('* * * * *', async () => {
+    try {
+        // Encuentros que están a 5 min o menos de empezar (y no han pasado 15 min todavía,
+        // porque a los 15 min ya es ausencia, no tardanza)
+        const enVentana = await pool.query(`
+            SELECT e.id AS encuentro_id, e.usuario1_id, e.usuario2_id, e.fecha_encuentro
+            FROM encuentros_agendados e
+            WHERE e.estado = 'agendado'
+              AND e.fecha_encuentro BETWEEN NOW() AND NOW() + INTERVAL '5 minutes'
+        `);
+
+        for (const enc of enVentana.rows) {
+            const usuarios = [enc.usuario1_id, enc.usuario2_id];
+
+            for (const uid of usuarios) {
+                // ¿Ya se verificó facialmente?
+                const v = await pool.query(
+                    `SELECT id FROM verificaciones_faciales
+                     WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE
+                     LIMIT 1`,
+                    [enc.encuentro_id, uid]
+                );
+                if (v.rows.length > 0) continue; // ya se verificó → no es tardanza
+
+                // Registrar evento (ON CONFLICT para no duplicar)
+                const minutosAntes = Math.round(
+                    (new Date(enc.fecha_encuentro) - new Date()) / 60000
+                );
+                const insert = await pool.query(
+                    `INSERT INTO eventos_tardanza (encuentro_id, usuario_id, minutos_antes)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (encuentro_id, usuario_id) DO NOTHING
+                     RETURNING id`,
+                    [enc.encuentro_id, uid, minutosAntes]
+                );
+                if (insert.rows.length > 0) {
+                    console.log(`>>> ⏰ Tardanza detectada: usuario ${uid} en encuentro ${enc.encuentro_id} (faltaban ${minutosAntes} min y no se verificó)`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error en cron de detección de tardanza:', error);
+    }
+});
+console.log('>>> ⏰ CRON de detección de llegada tardía activado (cada 1 minuto)');
+
+// ============================================================
 // 🔥 CRON DE LLAMADAS DE VERIFICACIÓN CRUZADA (1 min después de selfie)
 // ============================================================
 cron.schedule('* * * * *', async () => {
@@ -1012,73 +1062,88 @@ cron.schedule('0 9 * * *', async () => {
             } catch (e) { /* ignore */ }
         }
 
-        // ── PASO 1: contabilidad de asistencia de las últimas 24h ──
-        const encuentros = await pool.query(`
-            SELECT e.id, e.usuario1_id, e.usuario2_id, e.fecha_encuentro
-            FROM encuentros_agendados e
-            WHERE e.fecha_encuentro >= NOW() - INTERVAL '24 hours'
-              AND e.fecha_encuentro < NOW()
-              AND e.estado IN ('agendado', 'tarde', 'no_presentado', 'completado')
+        // ── PASO 1a: contabilizar TARDANZAS (eventos detectados al momento) ──
+        const tardanzas = await pool.query(`
+            SELECT et.id, et.encuentro_id, et.usuario_id, et.minutos_antes
+            FROM eventos_tardanza et
+            WHERE et.contabilizado = FALSE
         `);
 
-        console.log(`>>> 📊 Encuentros a contabilizar: ${encuentros.rows.length}`);
+        console.log(`>>> 📊 Eventos de tardanza a contabilizar: ${tardanzas.rows.length}`);
 
-        for (const enc of encuentros.rows) {
-            const usuarios = [enc.usuario1_id, enc.usuario2_id];
+        for (const t of tardanzas.rows) {
+            // Sumar a contabilidad_asistencia
+            await pool.query(`
+                INSERT INTO contabilidad_asistencia 
+                    (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_actualizacion)
+                VALUES ($1, 1, 1, 0, $2, NOW())
+                ON CONFLICT (usuario_id) DO UPDATE SET
+                    total_encuentros = contabilidad_asistencia.total_encuentros + 1,
+                    llegadas_tarde = contabilidad_asistencia.llegadas_tarde + 1,
+                    minutos_tarde_acumulados = contabilidad_asistencia.minutos_tarde_acumulados + $2,
+                    ultima_actualizacion = NOW()
+            `, [t.usuario_id, Math.max(0, t.minutos_antes)]);
 
-            for (const uid of usuarios) {
+            // Marcar como contabilizado
+            await pool.query(
+                `UPDATE eventos_tardanza SET contabilizado = TRUE WHERE id = $1`,
+                [t.id]
+            );
+
+            console.log(`>>> 📊 [tardanza enc ${t.encuentro_id}] ${t.usuario_id} → +1 tardanza (${t.minutos_antes} min antes)`);
+        }
+
+        // ── PASO 1b: contabilizar AUSENCIAS (encuentros no_presentado donde NO se verificó) ──
+        const ausencias = await pool.query(`
+            SELECT e.id AS encuentro_id, e.usuario1_id, e.usuario2_id
+            FROM encuentros_agendados e
+            WHERE e.estado = 'no_presentado'
+              AND e.fecha_encuentro >= NOW() - INTERVAL '24 hours'
+              AND e.fecha_encuentro < NOW()
+        `);
+
+        console.log(`>>> 📊 Encuentros no_presentado a contabilizar: ${ausencias.rows.length}`);
+
+        for (const enc of ausencias.rows) {
+            for (const uid of [enc.usuario1_id, enc.usuario2_id]) {
+                // ¿Ya está contado?
                 const yaContado = await pool.query(
                     `SELECT 1 FROM asistencia_contada WHERE encuentro_id = $1 AND usuario_id = $2`,
-                    [enc.id, uid]
+                    [enc.encuentro_id, uid]
                 );
                 if (yaContado.rows.length > 0) continue;
 
-                const asist = await pool.query(
-                    `SELECT confirmado, fecha_confirmacion FROM asistencias_encuentro
-                     WHERE encuentro_id = $1 AND usuario_id = $2`,
-                    [enc.id, uid]
+                // ¿Se verificó facialmente? (si se verificó, no es ausencia)
+                const v = await pool.query(
+                    `SELECT id FROM verificaciones_faciales
+                     WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE LIMIT 1`,
+                    [enc.encuentro_id, uid]
                 );
-                const fila = asist.rows[0];
 
-                let estado = 'ausente';
-                let minutosTarde = 0;
-
-                if (fila?.confirmado === true && fila.fecha_confirmacion) {
-                    const diffMin = (new Date(fila.fecha_confirmacion) - new Date(enc.fecha_encuentro)) / 60000;
-                    if (diffMin <= 0) {
-                        estado = 'a_tiempo';
-                    } else if (diffMin <= 15) {
-                        estado = 'tarde';
-                        minutosTarde = Math.round(diffMin);
-                    } else {
-                        estado = 'ausente';
-                    }
-                }
+                // Si se verificó → a_tiempo (no suma ausencia)
+                // Si NO se verificó → ausente (+1 ausencia)
+                const estado = v.rows.length > 0 ? 'a_tiempo' : 'ausente';
 
                 await pool.query(
                     `INSERT INTO asistencia_contada (encuentro_id, usuario_id, estado, minutos_tarde)
-                     VALUES ($1, $2, $3, $4)
+                     VALUES ($1, $2, $3, 0)
                      ON CONFLICT DO NOTHING`,
-                    [enc.id, uid, estado, minutosTarde]
+                    [enc.encuentro_id, uid, estado]
                 );
 
-                await pool.query(`
-                    INSERT INTO contabilidad_asistencia 
-                        (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_actualizacion)
-                    VALUES ($1, 1,
-                        CASE WHEN $2 = 'tarde' THEN 1 ELSE 0 END,
-                        CASE WHEN $2 = 'ausente' THEN 1 ELSE 0 END,
-                        $3,
-                        NOW())
-                    ON CONFLICT (usuario_id) DO UPDATE SET
-                        total_encuentros = contabilidad_asistencia.total_encuentros + 1,
-                        llegadas_tarde = contabilidad_asistencia.llegadas_tarde + CASE WHEN $2 = 'tarde' THEN 1 ELSE 0 END,
-                        ausencias = contabilidad_asistencia.ausencias + CASE WHEN $2 = 'ausente' THEN 1 ELSE 0 END,
-                        minutos_tarde_acumulados = contabilidad_asistencia.minutos_tarde_acumulados + $3,
-                        ultima_actualizacion = NOW()
-                `, [uid, estado, minutosTarde]);
+                if (estado === 'ausente') {
+                    await pool.query(`
+                        INSERT INTO contabilidad_asistencia 
+                            (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_actualizacion)
+                        VALUES ($1, 1, 0, 1, 0, NOW())
+                        ON CONFLICT (usuario_id) DO UPDATE SET
+                            total_encuentros = contabilidad_asistencia.total_encuentros + 1,
+                            ausencias = contabilidad_asistencia.ausencias + 1,
+                            ultima_actualizacion = NOW()
+                    `, [uid]);
+                }
 
-                console.log(`>>> 📊 [enc ${enc.id}] ${uid} → ${estado}${minutosTarde > 0 ? ` (${minutosTarde} min tarde)` : ''}`);
+                console.log(`>>> 📊 [enc ${enc.encuentro_id}] ${uid} → ${estado}`);
             }
         }
 
