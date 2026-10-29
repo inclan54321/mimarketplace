@@ -23,6 +23,12 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   static const int _maxAdvertencias = 3;
   static const int _maxSuspensiones = 3;
 
+  // 🔥 CONTABILIDAD DE ASISTENCIA
+  int _llegadasTarde = 0;
+  int _ausencias = 0;
+  int _minutosTardeAcumulados = 0;
+  int _totalEncuentros = 0;
+
   // 🔥 CONTACTOS DE EMERGENCIA
   List<Map<String, String>> _contactosEmergencia = [];
 
@@ -120,9 +126,14 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final cont = data['contabilidad_asistencia'] as Map<String, dynamic>? ?? {};
         setState(() {
           _advertencias = int.tryParse(data['advertencias']?.toString() ?? '0') ?? 0;
           _suspensiones = int.tryParse(data['suspensiones']?.toString() ?? '0') ?? 0;
+          _llegadasTarde = int.tryParse(cont['llegadas_tarde']?.toString() ?? '0') ?? 0;
+          _ausencias = int.tryParse(cont['ausencias']?.toString() ?? '0') ?? 0;
+          _minutosTardeAcumulados = int.tryParse(cont['minutos_tarde_acumulados']?.toString() ?? '0') ?? 0;
+          _totalEncuentros = int.tryParse(cont['total_encuentros']?.toString() ?? '0') ?? 0;
         });
       }
     } catch (e) {
@@ -645,7 +656,152 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
               ),
             ),
 
-            // 🔥 BOTÓN: INFORMACIÓN
+            // 🔥 NUEVA SECCIÓN: CONTABILIDAD DE ASISTENCIA
+            const SizedBox(height: 20),
+            const Text(
+              'Asistencia a encuentros',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Tardanzas
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.amber.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.schedule,
+                      color: Colors.amber,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Llegadas tardías',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'No verificaste a 5 min o menos del encuentro',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '$_llegadasTarde',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Ausencias
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.red.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.event_busy,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ausencias',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'No llegaste al encuentro',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '$_ausencias',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Minutos tarde acumulados (informativo, solo si hay)
+            if (_minutosTardeAcumulados > 0)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12, top: 4),
+                child: Text(
+                  '⏱️ Minutos tarde acumulados: $_minutosTardeAcumulados',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade700,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+
+            // BOTÓN: INFORMACIÓN
             SizedBox(
               width: double.infinity,
               height: 48,
