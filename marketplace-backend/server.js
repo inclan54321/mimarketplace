@@ -697,10 +697,10 @@ cron.schedule('* * * * *', async () => {
         // ============================================================
         const marcadosTarde = await pool.query(
             `UPDATE encuentros_agendados 
-             SET estado = 'tarde'
+             SET estado = 'tarde', tarde_procesado = TRUE
              WHERE estado = 'agendado'
+               AND tarde_procesado = FALSE
                AND fecha_encuentro < NOW() - INTERVAL '5 minutes'
-               AND fecha_encuentro > NOW() - INTERVAL '6 minutes'
              RETURNING id`
         );
         if (marcadosTarde.rowCount > 0) {
@@ -712,10 +712,14 @@ cron.schedule('* * * * *', async () => {
         // ============================================================
         const marcadosNoPresentado = await pool.query(
             `UPDATE encuentros_agendados 
-             SET estado = 'no_presentado'
+             SET estado = 'no_presentado', no_presentado_procesado = TRUE
              WHERE estado IN ('agendado', 'tarde')
+               AND no_presentado_procesado = FALSE
                AND fecha_encuentro < NOW() - INTERVAL '15 minutes'
-               AND fecha_encuentro > NOW() - INTERVAL '16 minutes'
+               AND NOT EXISTS (
+                 SELECT 1 FROM verificaciones_faciales v
+                 WHERE v.encuentro_id = encuentros_agendados.id AND v.aprobado = TRUE
+               )
              RETURNING id, conversacion_id, usuario1_id, usuario2_id, lugar_nombre, fecha_encuentro`
         );
 
@@ -918,6 +922,172 @@ cron.schedule('* * * * *', async () => {
     }
 });
 console.log('>>> ⏰ CRON de llamadas de verificación cruzada activado (cada 1 minuto)');
+
+// ============================================================
+// 🔥 CRON DIARIO: recuperar huérfanos + contabilidad de asistencia
+// Corre a las 3:00 AM Costa Rica (9:00 UTC)
+// ============================================================
+cron.schedule('0 9 * * *', async () => {
+    try {
+        console.log('>>> 📊 CRON diario de asistencia INICIO');
+
+        // ── PASO 0: recuperar encuentros huérfanos ──
+        const huerfanos = await pool.query(`
+            UPDATE encuentros_agendados 
+            SET estado = 'no_presentado', no_presentado_procesado = TRUE
+            WHERE estado IN ('agendado', 'tarde')
+              AND no_presentado_procesado = FALSE
+              AND fecha_encuentro < NOW() - INTERVAL '30 minutes'
+              AND fecha_encuentro > NOW() - INTERVAL '7 days'
+              AND NOT EXISTS (
+                SELECT 1 FROM verificaciones_faciales v
+                WHERE v.encuentro_id = encuentros_agendados.id AND v.aprobado = TRUE
+              )
+            RETURNING id, conversacion_id, usuario1_id, usuario2_id, lugar_nombre, fecha_encuentro
+        `);
+
+        for (const enc of huerfanos.rows) {
+            console.log(`>>> 🔧 Recuperando encuentro huérfano ${enc.id}`);
+
+            const fechaTxt = new Date(enc.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
+            const mensaje = `🚫 No llegaste al encuentro.\n\n📍 ${enc.lugar_nombre}\n🕐 ${fechaTxt}\n\nEl encuentro se marcó como "no presentado".`;
+            const titulo = '🚫 No llegaste al encuentro';
+
+            try {
+                await pool.query(
+                    `UPDATE conversaciones_app 
+                     SET chat_bloqueado = false,
+                         cerrado_por_escudo = false,
+                         quiere_cerrar_trato = false
+                     WHERE id = $1`,
+                    [enc.conversacion_id]
+                );
+                await pool.query(
+                    `DELETE FROM escudos_conversacion WHERE conversacion_id = $1`,
+                    [enc.conversacion_id]
+                );
+                await pool.query(
+                    `DELETE FROM mensajes_app 
+                     WHERE conversacion_id = $1 
+                       AND texto LIKE '||CERRAR_TRATO||%'`,
+                    [enc.conversacion_id]
+                );
+                await pool.query(
+                    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                     VALUES ($1, 'SYSTEM', '||ENCUENTRO_NO_PRESENTADO||', '', NOW())`,
+                    [enc.conversacion_id]
+                );
+            } catch (e) {
+                console.error(`>>> ❌ Error liberando chat huérfano ${enc.id}:`, e.message);
+            }
+
+            try {
+                await pool.query(
+                    `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                     VALUES ($1, 0, $3, $4, 'no_presentado', NOW()),
+                            ($2, 0, $3, $4, 'no_presentado', NOW())`,
+                    [enc.usuario1_id, enc.usuario2_id, enc.id, mensaje]
+                );
+            } catch (e) {
+                console.error(`>>> ❌ Error alertas huérfano ${enc.id}:`, e.message);
+            }
+
+            try {
+                const tokensRes = await pool.query(
+                    'SELECT fcm_token FROM usuarios WHERE uid IN ($1, $2) AND fcm_token IS NOT NULL',
+                    [enc.usuario1_id, enc.usuario2_id]
+                );
+                const { getMessaging } = require('firebase-admin/messaging');
+                for (const row of tokensRes.rows) {
+                    if (row.fcm_token) {
+                        try {
+                            await getMessaging().send({
+                                token: row.fcm_token,
+                                notification: { title: titulo, body: `📍 ${enc.lugar_nombre}\n🕐 ${fechaTxt}` },
+                                data: { tipo: 'no_presentado', encuentro_id: enc.id.toString() },
+                            });
+                        } catch (e) { /* ignore */ }
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // ── PASO 1: contabilidad de asistencia de las últimas 24h ──
+        const encuentros = await pool.query(`
+            SELECT e.id, e.usuario1_id, e.usuario2_id, e.fecha_encuentro
+            FROM encuentros_agendados e
+            WHERE e.fecha_encuentro >= NOW() - INTERVAL '24 hours'
+              AND e.fecha_encuentro < NOW()
+              AND e.estado IN ('agendado', 'tarde', 'no_presentado', 'completado')
+        `);
+
+        console.log(`>>> 📊 Encuentros a contabilizar: ${encuentros.rows.length}`);
+
+        for (const enc of encuentros.rows) {
+            const usuarios = [enc.usuario1_id, enc.usuario2_id];
+
+            for (const uid of usuarios) {
+                const yaContado = await pool.query(
+                    `SELECT 1 FROM asistencia_contada WHERE encuentro_id = $1 AND usuario_id = $2`,
+                    [enc.id, uid]
+                );
+                if (yaContado.rows.length > 0) continue;
+
+                const asist = await pool.query(
+                    `SELECT confirmado, fecha_confirmacion FROM asistencias_encuentro
+                     WHERE encuentro_id = $1 AND usuario_id = $2`,
+                    [enc.id, uid]
+                );
+                const fila = asist.rows[0];
+
+                let estado = 'ausente';
+                let minutosTarde = 0;
+
+                if (fila?.confirmado === true && fila.fecha_confirmacion) {
+                    const diffMin = (new Date(fila.fecha_confirmacion) - new Date(enc.fecha_encuentro)) / 60000;
+                    if (diffMin <= 0) {
+                        estado = 'a_tiempo';
+                    } else if (diffMin <= 15) {
+                        estado = 'tarde';
+                        minutosTarde = Math.round(diffMin);
+                    } else {
+                        estado = 'ausente';
+                    }
+                }
+
+                await pool.query(
+                    `INSERT INTO asistencia_contada (encuentro_id, usuario_id, estado, minutos_tarde)
+                     VALUES ($1, $2, $3, $4)
+                     ON CONFLICT DO NOTHING`,
+                    [enc.id, uid, estado, minutosTarde]
+                );
+
+                await pool.query(`
+                    INSERT INTO contabilidad_asistencia 
+                        (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_actualizacion)
+                    VALUES ($1, 1,
+                        CASE WHEN $2 = 'tarde' THEN 1 ELSE 0 END,
+                        CASE WHEN $2 = 'ausente' THEN 1 ELSE 0 END,
+                        $3,
+                        NOW())
+                    ON CONFLICT (usuario_id) DO UPDATE SET
+                        total_encuentros = contabilidad_asistencia.total_encuentros + 1,
+                        llegadas_tarde = contabilidad_asistencia.llegadas_tarde + CASE WHEN $2 = 'tarde' THEN 1 ELSE 0 END,
+                        ausencias = contabilidad_asistencia.ausencias + CASE WHEN $2 = 'ausente' THEN 1 ELSE 0 END,
+                        minutos_tarde_acumulados = contabilidad_asistencia.minutos_tarde_acumulados + $3,
+                        ultima_actualizacion = NOW()
+                `, [uid, estado, minutosTarde]);
+
+                console.log(`>>> 📊 [enc ${enc.id}] ${uid} → ${estado}${minutosTarde > 0 ? ` (${minutosTarde} min tarde)` : ''}`);
+            }
+        }
+
+        console.log('>>> 📊 CRON diario de asistencia FIN');
+    } catch (e) {
+        console.error('>>> ❌ Error en cron diario de asistencia:', e.message);
+    }
+});
+console.log('>>> ⏰ CRON diario de asistencia activado (9:00 UTC = 3:00 AM Costa Rica)');
 
 // ===== FUNCIÓN DE MODERACIÓN CON DEEPSEEK =====
 async function moderarProducto(nombre, descripcion, categoria, imagenUrl) {
@@ -5303,8 +5473,26 @@ app.get('/api/usuarios/:uid/estado-cuenta', verificarTokenFirebase, async (req, 
             console.log('>>> ⚠️ Tabla suspensiones_usuarios no existe o error:', e.message);
         }
 
-        console.log(`>>> 📋 Estado de cuenta ${uid}: advertencias=${advertencias}, suspensiones=${suspensiones}`);
-        res.json({ advertencias, suspensiones });
+        // 🔥 Contabilidad de asistencia
+        let contabilidad = {
+            total_encuentros: 0,
+            llegadas_tarde: 0,
+            ausencias: 0,
+            minutos_tarde_acumulados: 0,
+        };
+        try {
+            const cont = await pool.query(
+                `SELECT total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados
+                 FROM contabilidad_asistencia WHERE usuario_id = $1`,
+                [uid]
+            );
+            if (cont.rows.length > 0) contabilidad = cont.rows[0];
+        } catch (e) {
+            console.log('>>> ⚠️ Tabla contabilidad_asistencia no existe o error:', e.message);
+        }
+
+        console.log(`>>> 📋 Estado de cuenta ${uid}: advertencias=${advertencias}, suspensiones=${suspensiones}, tardanzas=${contabilidad.llegadas_tarde}, ausencias=${contabilidad.ausencias}`);
+        res.json({ advertencias, suspensiones, contabilidad_asistencia: contabilidad });
     } catch (error) {
         console.error('Error al obtener estado de cuenta:', error);
         res.status(500).json({ error: error.message });
