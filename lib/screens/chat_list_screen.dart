@@ -17,6 +17,7 @@ class _ChatListScreenState extends State<ChatListScreen>
     with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _conversaciones = [];
   List<Map<String, dynamic>> _agenda = [];
+  List<Map<String, dynamic>> _encuentrosSemana = [];
   bool _isLoading = true;
   List<String> _bloqueados = [];
   late TabController _tabController;
@@ -29,12 +30,13 @@ class _ChatListScreenState extends State<ChatListScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.animation!.addListener(() {
       if (mounted) setState(() {});
     });
     _cargarDatos();
     _cargarAgenda();
+    _cargarEncuentrosSemana();
   }
 
   @override
@@ -547,7 +549,7 @@ class _ChatListScreenState extends State<ChatListScreen>
       backgroundColor: const Color(0xFF0A1628),
       extendBodyBehindAppBar: true,
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(140),
+        preferredSize: const Size.fromHeight(190),
         child: ClipPath(
           clipper: _BottomWaveClipper(),
           child: Container(
@@ -626,6 +628,17 @@ class _ChatListScreenState extends State<ChatListScreen>
                         _buildTabChip('AGENDA', 1),
                       ],
                     ),
+
+                    Transform.translate(
+                      offset: const Offset(0, -8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          _buildTabChip('ENCUENTROS', 2),
+                          const SizedBox(width: 30),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -660,7 +673,7 @@ class _ChatListScreenState extends State<ChatListScreen>
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(top: 140),
+            padding: const EdgeInsets.only(top: 190),
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(color: Colors.white),
@@ -670,6 +683,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                     children: [
                       _buildTabChats(user),
                       _buildTabAgenda(),
+                      _buildTabEncuentros(),
                     ],
                   ),
           ),
@@ -685,6 +699,9 @@ class _ChatListScreenState extends State<ChatListScreen>
     return GestureDetector(
       onTap: () {
         _tabController.animateTo(index);
+        if (index == 2) {
+          _cargarEncuentrosSemana();
+        }
         setState(() {});
       },
       child: AnimatedContainer(
@@ -1519,6 +1536,205 @@ class _ChatListScreenState extends State<ChatListScreen>
                 ),
         ),
       ],
+    );
+  }
+
+  Future<void> _cargarEncuentrosSemana() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final response = await http.get(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/encuentros/semana/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _encuentrosSemana = data
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList();
+          });
+        }
+        print('>>> 📅 Encuentros semana cargados: ${data.length}');
+      }
+    } catch (e) {
+      print('Error al cargar encuentros de la semana: $e');
+    }
+  }
+
+  // ===== TAB ENCUENTROS (SEMANARIO) =====
+  Widget _buildTabEncuentros() {
+    final dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+    final horas = List.generate(11, (i) => 7 + i);
+
+    // Calcular el lunes de la semana actual
+    final ahora = DateTime.now();
+    final offsetLunes = ahora.weekday == 7 ? -6 : 1 - ahora.weekday;
+    final lunes = DateTime(ahora.year, ahora.month, ahora.day)
+        .add(Duration(days: offsetLunes));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1A56DB),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.access_time,
+                        color: Colors.white, size: 18),
+                  ),
+                ),
+                ...List.generate(5, (i) {
+                  return Expanded(
+                    child: Container(
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1A56DB),
+                      ),
+                      child: Center(
+                        child: Text(
+                          dias[i],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1A56DB),
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            ...horas.map((h) {
+              return Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      border: Border(
+                        top: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${h.toString().padLeft(2, '0')}:00',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ...List.generate(5, (i) {
+                    final diaCelda = lunes.add(Duration(days: i));
+                    // Buscar si hay un encuentro en esta celda (día + hora)
+                    final encuentroEnCelda = _encuentrosSemana.where((e) {
+                      final fechaStr = e['fecha_encuentro']?.toString();
+                      if (fechaStr == null) return false;
+                      final fecha = DateTime.tryParse(fechaStr)?.toLocal();
+                      if (fecha == null) return false;
+                      return fecha.year == diaCelda.year &&
+                          fecha.month == diaCelda.month &&
+                          fecha.day == diaCelda.day &&
+                          fecha.hour == h;
+                    }).toList();
+
+                    final hayEncuentro = encuentroEnCelda.isNotEmpty;
+
+                    return Expanded(
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: hayEncuentro
+                              ? const Color(0xFFEF4444).withValues(alpha: 0.7)
+                              : null,
+                          border: Border(
+                            top: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.1),
+                            ),
+                            left: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.1),
+                            ),
+                          ),
+                        ),
+                        child: hayEncuentro
+                            ? Center(
+                                child: Icon(
+                                  Icons.event_available,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              )
+                            : null,
+                      ),
+                    );
+                  }),
+                  Container(
+                    width: 40,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      border: Border(
+                        top: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.edit,
+                        color: Colors.white.withValues(alpha: 0.4),
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 

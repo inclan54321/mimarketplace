@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/swipe_indicator.dart';
 import '../services/producto_service.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'productos_screen.dart';
 import '../models/producto.dart';
 import 'package:http/http.dart' as http;
@@ -394,15 +395,15 @@ Future<void> _cargarProductosDestacados() async {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Row(
                         children: [
-                          Icon(Icons.filter_list, color: Color(0xFF087FE8)),
-                          SizedBox(width: 8),
+                          const Icon(Icons.filter_list, color: Color(0xFF087FE8)),
+                          const SizedBox(width: 8),
                           Text(
-                            'Filtrar productos',
-                            style: TextStyle(
+                            AppLocalizations.of(context)!.filtrarProductos,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -413,11 +414,11 @@ Future<void> _cargarProductosDestacados() async {
                     const SizedBox(height: 20),
 
                     // CANTÓN
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
-                        '📍 Cantón',
-                        style: TextStyle(
+                        AppLocalizations.of(context)!.canton,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -457,11 +458,11 @@ Future<void> _cargarProductosDestacados() async {
                     const SizedBox(height: 20),
 
                     // PRECIO
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Text(
-                        '💰 Rango de precio (₡)',
-                        style: TextStyle(
+                        AppLocalizations.of(context)!.rangoPrecio,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -533,7 +534,7 @@ Future<void> _cargarProductosDestacados() async {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text('Limpiar'),
+                              child: Text(AppLocalizations.of(context)!.limpiar),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -559,8 +560,8 @@ Future<void> _cargarProductosDestacados() async {
                                   SnackBar(
                                     content: Text(
                                       _hayFiltros
-                                          ? '✅ Filtros aplicados'
-                                          : 'Sin filtros aplicados',
+                                          ? AppLocalizations.of(context)!.filtrosAplicados
+                                          : AppLocalizations.of(context)!.sinFiltrosAplicados,
                                     ),
                                     backgroundColor: _hayFiltros
                                         ? Colors.green
@@ -578,9 +579,9 @@ Future<void> _cargarProductosDestacados() async {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text(
-                                'Aplicar filtros',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                              child: Text(
+                                AppLocalizations.of(context)!.aplicarFiltros,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
                           ),
@@ -754,12 +755,12 @@ Future<void> _cargarProductosDestacados() async {
                               child: TextField(
                                 controller: _busquedaController,
                                 style: const TextStyle(color: Colors.black87),
-                                decoration: const InputDecoration(
-                                  hintText: 'Buscar productos...',
-                                  hintStyle: TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+                                decoration: InputDecoration(
+                                  hintText: AppLocalizations.of(context)!.buscarProductos,
+                                  hintStyle: const TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
                                   border: InputBorder.none,
                                   isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
                                 ),
                               onChanged: (value) async {
   setState(() {
@@ -976,10 +977,10 @@ Future<void> _cargarProductosDestacados() async {
             // 🔥 CONTENIDO PRINCIPAL
             _modoBusqueda
                 ? _resultadosBusqueda.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          'No hay resultados',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                          AppLocalizations.of(context)!.noHayResultados,
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                       )
                     : Builder(
@@ -996,8 +997,8 @@ Future<void> _cargarProductosDestacados() async {
                                     const SizedBox(height: 12),
                                     Text(
                                       _hayFiltros
-                                          ? 'No hay productos con esos filtros'
-                                          : 'No hay resultados',
+                                          ? AppLocalizations.of(context)!.noHayProductosConFiltros
+                                          : AppLocalizations.of(context)!.noHayResultados,
                                       style: const TextStyle(fontSize: 16, color: Colors.grey),
                                       textAlign: TextAlign.center,
                                     ),
@@ -1006,7 +1007,7 @@ Future<void> _cargarProductosDestacados() async {
                                       OutlinedButton.icon(
                                         onPressed: _limpiarFiltros,
                                         icon: const Icon(Icons.clear),
-                                        label: const Text('Quitar filtros'),
+                                        label: Text(AppLocalizations.of(context)!.quitarFiltros),
                                       ),
                                     ],
                                   ],
@@ -1201,9 +1202,9 @@ Future<void> _cargarProductosDestacados() async {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'Categorías',
-                                style: TextStyle(
+                              Text(
+                                AppLocalizations.of(context)!.categorias,
+                                style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black87,
@@ -1225,18 +1226,18 @@ Future<void> _cargarProductosDestacados() async {
                                       horizontal: 8, vertical: 4),
                                   foregroundColor: const Color(0xFF087FE8),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      'Ver todas',
-                                      style: TextStyle(
+                                      AppLocalizations.of(context)!.verTodas,
+                                      style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    SizedBox(width: 4),
-                                    Icon(Icons.arrow_forward_ios, size: 14),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.arrow_forward_ios, size: 14),
                                   ],
                                 ),
                               ),
@@ -1281,11 +1282,11 @@ Future<void> _cargarProductosDestacados() async {
                         ),
                         Container(
                           margin: const EdgeInsets.only(top: 20),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
-                              'Productos Destacados',
-                              style: TextStyle(
+                              AppLocalizations.of(context)!.productosDestacados,
+                              style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black87,
@@ -1297,12 +1298,12 @@ Future<void> _cargarProductosDestacados() async {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: _productosDestacados.isEmpty
-                              ? const Center(
+                              ? Center(
                                   child: Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 20),
+                                    padding: const EdgeInsets.symmetric(vertical: 20),
                                     child: Text(
-                                      'No hay productos destacados',
-                                      style: TextStyle(color: Colors.grey),
+                                      AppLocalizations.of(context)!.noHayProductosDestacados,
+                                      style: const TextStyle(color: Colors.grey),
                                     ),
                                   ),
                                 )

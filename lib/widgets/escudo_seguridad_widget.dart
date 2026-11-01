@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:animated_emoji/animated_emoji.dart';
 import 'conversation_status_indicator.dart';

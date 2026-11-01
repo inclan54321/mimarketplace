@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui'; // 🔥 BackdropFilter + ImageFilter para efecto cristal
 import 'package:firebase_core/firebase_core.dart';
@@ -19,7 +20,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
-import 'package:flutter_callkit_incoming/entities/notification_params.dart';
 import 'package:uuid/uuid.dart';
 import 'screens/pantalla_verificacion_encuentro.dart';
 import 'screens/pantalla_verificar_identidad_otro.dart';
@@ -73,17 +73,17 @@ void main() async {
   // 🔥 Inicializar Firebase
   await Firebase.initializeApp();
   
-  // 🔥 Inicializar Google Mobile Ads (con App ID de PRUEBA)
-  await MobileAds.instance.initialize();
+  // 🔥 Estos NO se esperan: corren en segundo plano para que el splash salga al instante
+  MobileAds.instance.initialize();
 
   // 🔥 REGISTRAR HANDLER DE MENSAJES EN SEGUNDO PLANO
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // 🔥 INICIALIZAR NOTIFICACIONES
-  await NotificationService.init();
+  // 🔥 INICIALIZAR NOTIFICACIONES (sin bloquear el arranque)
+  NotificationService.init();
 
-  // 🔥 Pedir permiso de full-screen intent (Android 14+)
-  await FlutterCallkitIncoming.requestFullIntentPermission();
+  // 🔥 Pedir permiso de full-screen intent (Android 14+), sin bloquear
+  FlutterCallkitIncoming.requestFullIntentPermission();
 
   // 🔥 Escuchar cuando el usuario acepta la llamada
   FlutterCallkitIncoming.onEvent.listen((event) async {
@@ -139,6 +139,8 @@ class MyApp extends StatelessWidget {
       navigatorKey: NotificationService.navigatorKey,
       title: 'Mi Marketplace',
       theme: ThemeData(primarySwatch: Colors.blue),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
@@ -244,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Iniciar Sesión'),
+        title: Text(AppLocalizations.of(context)!.iniciarSesion),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -262,10 +264,10 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 30),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Correo electrónico',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.correoElectronico,
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               ),
               keyboardType: TextInputType.emailAddress,
               style: const TextStyle(fontSize: 18),
@@ -273,10 +275,10 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 20),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Contraseña',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.contrasena,
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
               ),
               obscureText: true,
               style: const TextStyle(fontSize: 18),
@@ -294,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Iniciar Sesión'),
+                        child: Text(AppLocalizations.of(context)!.iniciarSesion),
                       ),
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
@@ -310,7 +312,7 @@ class _LoginScreenState extends State<LoginScreen> {
   size: 28,
   color: Colors.blue,
 ),
-                        label: const Text('Continuar con Google'),
+                        label: Text(AppLocalizations.of(context)!.continuarConGoogle),
                       ),
                     ],
                   ),
@@ -325,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen> {
               style: TextButton.styleFrom(
                 textStyle: const TextStyle(fontSize: 16),
               ),
-              child: const Text('¿No tienes cuenta? Regístrate'),
+              child: Text(AppLocalizations.of(context)!.noTienesCuenta),
             ),
           ],
         ),
@@ -528,7 +530,10 @@ class _MainScreenState extends State<MainScreen> {
       showSelectedLabels: true,
       showUnselectedLabels: true,
       items: [
-        const BottomNavigationBarItem(icon: Icon(Icons.shop), label: 'Inicio'),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.shop),
+          label: AppLocalizations.of(context)!.inicio,
+        ),
         BottomNavigationBarItem(
           icon: Stack(
             clipBehavior: Clip.none,
@@ -550,11 +555,11 @@ class _MainScreenState extends State<MainScreen> {
                 ),
             ],
           ),
-          label: 'Avisos',
+          label: AppLocalizations.of(context)!.avisos,
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.add_circle, size: 50, color: _getVenderIconColor()),
-          label: 'Vender',
+          label: AppLocalizations.of(context)!.vender,
         ),
         BottomNavigationBarItem(
           icon: Stack(
@@ -577,7 +582,7 @@ class _MainScreenState extends State<MainScreen> {
                 ),
             ],
           ),
-          label: 'Mensajes',
+          label: AppLocalizations.of(context)!.mensajes,
         ),
         BottomNavigationBarItem(
           icon: Icon(
@@ -591,7 +596,7 @@ class _MainScreenState extends State<MainScreen> {
                   ]
                 : null,
           ),
-          label: 'Perfil',
+          label: AppLocalizations.of(context)!.perfil,
         ),
       ],
     );

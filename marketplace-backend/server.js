@@ -7395,6 +7395,49 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
     }
 });
 
+// OBTENER ENCUENTROS AGENDADOS DE LA SEMANA ACTUAL DE UN USUARIO
+app.get('/api/encuentros/semana/:usuario_id', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+
+        if (usuario_id !== req.usuarioAutenticado) {
+            return res.status(403).json({
+                error: 'No autorizado',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // Semana actual: lunes 00:00 hasta domingo 23:59
+        const hoy = new Date();
+        const diaSemana = hoy.getDay(); // 0=domingo, 1=lunes...
+        const offsetLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+        const lunes = new Date(hoy);
+        lunes.setDate(hoy.getDate() + offsetLunes);
+        lunes.setHours(0, 0, 0, 0);
+        const domingo = new Date(lunes);
+        domingo.setDate(lunes.getDate() + 6);
+        domingo.setHours(23, 59, 59, 999);
+
+        const result = await pool.query(
+            `SELECT e.id, e.conversacion_id, e.fecha_encuentro,
+                    e.lugar_nombre, e.estado,
+                    e.usuario1_id, e.usuario2_id
+             FROM encuentros_agendados e
+             WHERE (e.usuario1_id = $1 OR e.usuario2_id = $1)
+               AND e.estado IN ('agendado', 'tarde')
+               AND e.fecha_encuentro BETWEEN $2 AND $3
+             ORDER BY e.fecha_encuentro ASC`,
+            [usuario_id, lunes.toISOString(), domingo.toISOString()]
+        );
+
+        console.log(`>>> 📅 Encuentros de la semana para ${usuario_id}: ${result.rows.length}`);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener encuentros de la semana:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // OBTENER ENCUENTRO AGENDADO POR CONVERSACIÓN
 app.get('/api/encuentro/agendado/:conversacion_id', async (req, res) => {
     try {

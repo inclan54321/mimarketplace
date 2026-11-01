@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'mapa_entrega_screen.dart';
 
@@ -147,7 +148,7 @@ class _SellScreenState extends State<SellScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A1929),
       appBar: AppBar(
-        title: const Text('Vender'),
+        title: Text(AppLocalizations.of(context)!.vender),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -211,9 +212,9 @@ class _SellScreenState extends State<SellScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // ===== TÍTULO =====
-                const Text(
-                  '¿Qué vas a vender?',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.queVasAVender,
+                  style: const TextStyle(
                     fontFamily: 'Roboto',
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -225,7 +226,7 @@ class _SellScreenState extends State<SellScreen> {
 
                 // ===== SUBTÍTULO =====
                 Text(
-                  'Selecciona la categoría que mejor describe tu artículo',
+                  AppLocalizations.of(context)!.seleccionaCategoria,
                   style: TextStyle(
                     fontFamily: 'Roboto',
                     fontSize: 13,
@@ -271,7 +272,7 @@ class _SellScreenState extends State<SellScreen> {
                             });
                           },
                           decoration: InputDecoration(
-                            hintText: 'Buscar categoría...',
+                            hintText: AppLocalizations.of(context)!.buscarCategoria,
                             hintStyle: TextStyle(
                               color: Colors.white.withValues(alpha: 0.5),
                               fontSize: 14,
@@ -320,7 +321,7 @@ class _SellScreenState extends State<SellScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 40),
                     child: Center(
                       child: Text(
-                        'No se encontraron categorías',
+                        AppLocalizations.of(context)!.noSeEncontraronCategorias,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 14,
@@ -352,9 +353,9 @@ class _SellScreenState extends State<SellScreen> {
                         side: BorderSide(color: Colors.grey.shade300, width: 1.5),
                       ),
                     ),
-                    child: const Text(
-                      'Todas las categorías',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context)!.todasLasCategorias,
+                      style: const TextStyle(
                         fontFamily: 'Roboto',
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -542,19 +543,19 @@ class _SellScreenState extends State<SellScreen> {
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Seleccionar',
-                        style: TextStyle(
+                        AppLocalizations.of(context)!.seleccionar,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(width: 4),
-                      Icon(
+                      const SizedBox(width: 4),
+                      const Icon(
                         Icons.arrow_forward,
                         color: Colors.white,
                         size: 16,

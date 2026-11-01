@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:camera/camera.dart';
 import 'package:smart_liveliness_detection/smart_liveliness_detection.dart';
@@ -452,7 +453,7 @@ Future<void> _cargarMasVistos() async {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
+              child: Text(AppLocalizations.of(context)!.cancelar),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
@@ -460,7 +461,7 @@ Future<void> _cargarMasVistos() async {
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Eliminar'),
+              child: Text(AppLocalizations.of(context)!.eliminar),
             ),
           ],
         );
@@ -586,10 +587,10 @@ Future<void> _cargarMasVistos() async {
                   const Divider(),
                   Expanded(
                     child: _calificaciones.isEmpty
-                        ? const Center(
+                        ? Center(
                             child: Text(
-                              'No hay calificaciones aún',
-                              style: TextStyle(color: Colors.grey),
+                              AppLocalizations.of(context)!.noHayCalificacionesAun,
+                              style: const TextStyle(color: Colors.grey),
                             ),
                           )
                         : ListView.builder(
@@ -607,8 +608,8 @@ Future<void> _cargarMasVistos() async {
       ? Text(calif.calificadorNombre?.isNotEmpty == true ? calif.calificadorNombre![0].toUpperCase() : '?')
       : null,
 ),
-                                title: Text(calif.calificadorNombre ?? 'Usuario'),
-                                subtitle: Text(calif.comentario.isNotEmpty ? calif.comentario : 'Sin comentario'),
+                                title: Text(calif.calificadorNombre ?? AppLocalizations.of(context)!.usuario),
+                                subtitle: Text(calif.comentario.isNotEmpty ? calif.comentario : AppLocalizations.of(context)!.sinComentario),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: List.generate(5, (i) {
@@ -709,9 +710,9 @@ Future<void> _precargarImagenPerfil() async {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                '🎨 Estilo visual del perfil',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.estiloVisualDelPerfil,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -719,7 +720,7 @@ Future<void> _precargarImagenPerfil() async {
               ),
               const SizedBox(height: 4),
               Text(
-                'Elige el fondo que más te guste',
+                AppLocalizations.of(context)!.eligeElFondoQueMasTeGuste,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 13,
@@ -729,28 +730,28 @@ Future<void> _precargarImagenPerfil() async {
               // Opciones
               _buildOpcionEstilo(
                 EstiloPerfil.atardecer,
-                'Atardecer',
+                AppLocalizations.of(context)!.atardecer,
                 'Sol y montañas con rayos',
                 Icons.wb_twilight,
                 const Color(0xFFFFB347),
               ),
               _buildOpcionEstilo(
                 EstiloPerfil.galaxia,
-                'Galaxia',
+                AppLocalizations.of(context)!.galaxia,
                 'Estrellas y nebulosas',
                 Icons.auto_awesome,
                 const Color(0xFF8B5CF6),
               ),
               _buildOpcionEstilo(
                 EstiloPerfil.oceano,
-                'Océano',
+                AppLocalizations.of(context)!.oceano,
                 'Olas y luna llena',
                 Icons.water,
                 const Color(0xFF3B82F6),
               ),
               _buildOpcionEstilo(
                 EstiloPerfil.volcan,
-                'Volcán',
+                AppLocalizations.of(context)!.volcan,
                 'Lava y humo ardiente',
                 Icons.local_fire_department,
                 const Color(0xFFEF4444),
@@ -872,7 +873,7 @@ Future<void> _precargarImagenPerfil() async {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(
-        title: const Text('Perfil'),
+        title: Text(AppLocalizations.of(context)!.perfil),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -945,7 +946,7 @@ Future<void> _precargarImagenPerfil() async {
             ),
             ListTile(
               leading: const Icon(Icons.edit),
-              title: const Text('Editar Perfil'),
+              title: Text(AppLocalizations.of(context)!.editarPerfil),
               onTap: () async {
                 Navigator.pop(context);
                 final result = await Navigator.push(
@@ -964,7 +965,7 @@ Future<void> _precargarImagenPerfil() async {
             // 🔥 NUEVO: IMPULSAR PUBLICACIONES
             ListTile(
               leading: const Icon(Icons.rocket_launch, color: Color(0xFFFFB300)),
-              title: const Text('Impulsar'),
+              title: Text(AppLocalizations.of(context)!.impulsar),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -978,7 +979,7 @@ Future<void> _precargarImagenPerfil() async {
             // 🔥 NUEVO: ELIMINAR PUBLICIDAD
             ListTile(
               leading: const Icon(Icons.block, color: Color(0xFFEF5350)),
-              title: const Text('Eliminar publicidad'),
+              title: Text(AppLocalizations.of(context)!.eliminarPublicidad),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -991,7 +992,7 @@ Future<void> _precargarImagenPerfil() async {
             ),
             ListTile(
               leading: const Icon(Icons.logout),
-              title: const Text('Cerrar Sesión'),
+              title: Text(AppLocalizations.of(context)!.cerrarSesion),
               onTap: () async {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('foto_perfil');
@@ -999,14 +1000,14 @@ Future<void> _precargarImagenPerfil() async {
                 await FirebaseAuth.instance.signOut();
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sesión cerrada')),
+                  SnackBar(content: Text(AppLocalizations.of(context)!.cerrarSesionExitoso)),
                 );
               },
             ),
             const Divider(),
             ListTile(
   leading: const Icon(Icons.lock),
-  title: const Text('Privacidad y Seguridad'),
+  title: Text(AppLocalizations.of(context)!.privacidadYSeguridad),
   onTap: () {
     Navigator.pop(context);
     Navigator.push(
@@ -1019,7 +1020,7 @@ Future<void> _precargarImagenPerfil() async {
 ),
             ListTile(
               leading: const Icon(Icons.help),
-              title: const Text('Soporte'),
+              title: Text(AppLocalizations.of(context)!.soporte),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -1032,7 +1033,7 @@ Future<void> _precargarImagenPerfil() async {
             ),
             ListTile(
               leading: const Icon(Icons.description),
-              title: const Text('Términos de Servicio'),
+              title: Text(AppLocalizations.of(context)!.terminosDeServicio),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -1258,9 +1259,9 @@ Future<void> _precargarImagenPerfil() async {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildTabButton('Mis artículos', 0),
-                _buildTabButton('Más vistos', 1),
-                _buildTabButton('Favoritos', 2, onTap: () {
+                _buildTabButton(AppLocalizations.of(context)!.misArticulos, 0),
+                _buildTabButton(AppLocalizations.of(context)!.masVistos, 1),
+                _buildTabButton(AppLocalizations.of(context)!.favoritos, 2, onTap: () {
                   setState(() {
                     _selectedTab = 2;
                   });
@@ -1378,10 +1379,10 @@ Future<void> _precargarImagenPerfil() async {
 
   Widget _buildMisArticulos() {
     if (_misProductos.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'No has publicado ningún artículo',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
+          AppLocalizations.of(context)!.noHasPublicadoNingunArticulo,
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
         ),
       );
     }
@@ -1538,7 +1539,7 @@ Future<void> _precargarImagenPerfil() async {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(AppLocalizations.of(context)!.cancelar),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -1546,7 +1547,7 @@ Future<void> _precargarImagenPerfil() async {
               backgroundColor: const Color(0xFF087FE8),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Confirmar'),
+            child: Text(AppLocalizations.of(context)!.confirmar),
           ),
         ],
       ),
@@ -1604,10 +1605,10 @@ Future<void> _precargarImagenPerfil() async {
 
    Widget _buildFavoritos() {
     if (_favoritosProductos.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'No tienes productos favoritos',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
+          AppLocalizations.of(context)!.noTienesProductosFavoritos,
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
         ),
       );
     }
@@ -1787,7 +1788,7 @@ Future<void> _precargarImagenPerfil() async {
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Reintentar'),
+              child: Text(AppLocalizations.of(context)!.reintentar),
             ),
           ],
         ),

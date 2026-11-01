@@ -113,7 +113,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   // 🔥 CACHÉ DE PROPUESTAS DE ENCUENTRO
   final Map<String, Map<String, dynamic>> _cachePropuestas = {};
-  bool _escudoCargado = false; // 🔥 NUEVO
+  final bool _escudoCargado = false; // 🔥 NUEVO
   bool _interfazEncuentroMostrada = false; // 🔥 NUEVO: para no mostrar dos veces
   bool _ultimoQuiereEncuentroProcesado = false; // 🔥 Para no disparar con análisis viejo
   String? _ultimoMensajeEncuentroId; // 🔥 Último mensaje que ya abrió el formulario
@@ -5379,9 +5379,7 @@ ListTile(
     if (fechaStr != null) {
       fecha = DateTime.tryParse(fechaStr)?.toLocal();
     }
-    final minutosRestantes = fecha != null
-        ? fecha.difference(DateTime.now()).inMinutes
-        : null;
+    final minutosRestantes = fecha?.difference(DateTime.now()).inMinutes;
     final puedeCancelar = minutosRestantes == null || minutosRestantes >= 60;
 
     if (!mounted) return;
