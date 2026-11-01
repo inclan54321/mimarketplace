@@ -8272,6 +8272,8 @@ app.get('/api/encuentro/:id/datos', verificarTokenFirebase, async (req, res) => 
         res.json({
             encuentro_id: enc.id,
             lugar_nombre: enc.lugar_nombre || '',
+            lugar_lat: enc.lugar_lat,
+            lugar_lng: enc.lugar_lng,
             fecha_encuentro: enc.fecha_encuentro,
             estado: enc.estado,
             otro_usuario_id: otroUsuarioId,

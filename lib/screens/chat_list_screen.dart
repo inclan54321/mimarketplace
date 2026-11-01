@@ -31,9 +31,6 @@ class _ChatListScreenState extends State<ChatListScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.animation!.addListener(() {
-      if (mounted) setState(() {});
-    });
     _cargarDatos();
     _cargarAgenda();
     _cargarEncuentrosSemana();
@@ -649,11 +646,14 @@ class _ChatListScreenState extends State<ChatListScreen>
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/fondo_montanas.jpg',
-              fit: BoxFit.cover,
-              opacity: const AlwaysStoppedAnimation(0.35),
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            child: RepaintBoundary(
+              child: Image.asset(
+                'assets/images/fondo_montanas.jpg',
+                fit: BoxFit.cover,
+                cacheWidth: 800,
+                opacity: const AlwaysStoppedAnimation(0.35),
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
             ),
           ),
           Positioned.fill(
@@ -681,9 +681,9 @@ class _ChatListScreenState extends State<ChatListScreen>
                 : TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildTabChats(user),
-                      _buildTabAgenda(),
-                      _buildTabEncuentros(),
+                      RepaintBoundary(child: _buildTabChats(user)),
+                      RepaintBoundary(child: _buildTabAgenda()),
+                      RepaintBoundary(child: _buildTabEncuentros()),
                     ],
                   ),
           ),
@@ -694,6 +694,13 @@ class _ChatListScreenState extends State<ChatListScreen>
 
   // ===== TAB CHIP =====
   Widget _buildTabChip(String label, int index) {
+    return AnimatedBuilder(
+      animation: _tabController.animation!,
+      builder: (context, _) => _buildTabChipInterno(label, index),
+    );
+  }
+
+  Widget _buildTabChipInterno(String label, int index) {
     final animValue = _tabController.animation?.value ?? 0.0;
     final isActive = animValue.round() == index;
     return GestureDetector(
@@ -702,7 +709,6 @@ class _ChatListScreenState extends State<ChatListScreen>
         if (index == 2) {
           _cargarEncuentrosSemana();
         }
-        setState(() {});
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1571,7 +1577,7 @@ class _ChatListScreenState extends State<ChatListScreen>
 
   // ===== TAB ENCUENTROS (SEMANARIO) =====
   Widget _buildTabEncuentros() {
-    final dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+    final dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     final horas = List.generate(11, (i) => 7 + i);
 
     // Calcular el lunes de la semana actual
@@ -1609,7 +1615,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                         color: Colors.white, size: 18),
                   ),
                 ),
-                ...List.generate(5, (i) {
+                ...List.generate(6, (i) {
                   return Expanded(
                     child: Container(
                       height: 40,
@@ -1666,13 +1672,13 @@ class _ChatListScreenState extends State<ChatListScreen>
                       ),
                     ),
                   ),
-                  ...List.generate(5, (i) {
+                  ...List.generate(6, (i) {
                     final diaCelda = lunes.add(Duration(days: i));
                     // Buscar si hay un encuentro en esta celda (día + hora)
                     final encuentroEnCelda = _encuentrosSemana.where((e) {
                       final fechaStr = e['fecha_encuentro']?.toString();
                       if (fechaStr == null) return false;
-                      final fecha = DateTime.tryParse(fechaStr)?.toLocal();
+                      final fecha = DateTime.tryParse(fechaStr);
                       if (fecha == null) return false;
                       return fecha.year == diaCelda.year &&
                           fecha.month == diaCelda.month &&

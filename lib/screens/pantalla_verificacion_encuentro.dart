@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:camera/camera.dart';
 import 'package:smart_liveliness_detection/smart_liveliness_detection.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart' as mlkit;
@@ -35,6 +37,10 @@ class _PantallaVerificacionEncuentroState
   Map<String, dynamic>? _encuentro;
   bool _enLugar = false;
   int _distanciaMetros = 0;
+  double? _userLat;
+  double? _userLng;
+  double? _lugarLat;
+  double? _lugarLng;
   final bool _verificadoFacial = false;
   bool _ambosPresentes = false;
 
@@ -70,6 +76,8 @@ class _PantallaVerificacionEncuentroState
         return;
       }
       _encuentro = enc;
+      _lugarLat = (enc['lugar_lat'] as num?)?.toDouble();
+      _lugarLng = (enc['lugar_lng'] as num?)?.toDouble();
 
       // 2. Verificar ubicación
       setState(() => _mensajeEstado = 'Verificando ubicación...');
@@ -173,6 +181,13 @@ class _PantallaVerificacionEncuentroState
       );
 
       if (r.statusCode == 200) {
+        // 🔥 Guardar coordenadas del usuario para el mapa
+        if (mounted) {
+          setState(() {
+            _userLat = pos.latitude;
+            _userLng = pos.longitude;
+          });
+        }
         return jsonDecode(r.body) as Map<String, dynamic>;
       }
     } catch (e) {
@@ -575,28 +590,117 @@ class _PantallaVerificacionEncuentroState
       );
     }
 
-    // Si no estoy en el lugar
+    // Si no estoy en el lugar → mostrar mapa con la distancia superpuesta
     if (!_enLugar) {
       return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.location_off, color: Colors.orange, size: 96),
-          const SizedBox(height: 16),
-          Text(
-            'Estás a $_distanciaMetros m del lugar',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          Expanded(
+            child: Stack(
+              children: [
+                // 🔥 Mapa de fondo
+                if (_userLat != null && _userLng != null &&
+                    _lugarLat != null && _lugarLng != null)
+                  FlutterMap(
+                    options: MapOptions(
+                      initialCenter: LatLng(_lugarLat!, _lugarLng!),
+                      initialZoom: 16,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.mimarketplace',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: LatLng(_lugarLat!, _lugarLng!),
+                            width: 44,
+                            height: 44,
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Colors.red,
+                              size: 44,
+                            ),
+                          ),
+                          Marker(
+                            point: LatLng(_userLat!, _userLng!),
+                            width: 44,
+                            height: 44,
+                            child: const Icon(
+                              Icons.person_pin_circle,
+                              color: Colors.blue,
+                              size: 44,
+                            ),
+                          ),
+                        ],
+                      ),
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: [
+                              LatLng(_userLat!, _userLng!),
+                              LatLng(_lugarLat!, _lugarLng!),
+                            ],
+                            strokeWidth: 3,
+                            color: Colors.blueAccent,
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                else
+                  const Center(child: CircularProgressIndicator()),
+
+                // 🔥 Tarjeta superpuesta con la distancia
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.78),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Estás a $_distanciaMetros m del lugar',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Acercate al punto de encuentro para continuar.',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Acercate al punto de encuentro para continuar.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _iniciar,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Volver a verificar'),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: _iniciar,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Volver a verificar'),
+            ),
           ),
         ],
       );
