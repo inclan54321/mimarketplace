@@ -45,6 +45,7 @@ class _PantallaVerificacionEncuentroState
   bool _ambosPresentes = false;
 
   Timer? _polling;
+  StreamSubscription<Position>? _posicionStream;
 
   @override
   void initState() {
@@ -55,6 +56,7 @@ class _PantallaVerificacionEncuentroState
   @override
   void dispose() {
     _polling?.cancel();
+    _posicionStream?.cancel();
     super.dispose();
   }
 
@@ -79,7 +81,7 @@ class _PantallaVerificacionEncuentroState
       _lugarLat = (enc['lugar_lat'] as num?)?.toDouble();
       _lugarLng = (enc['lugar_lng'] as num?)?.toDouble();
 
-      // 2. Verificar ubicación
+      // 2. Verificar ubicación (primera vez)
       setState(() => _mensajeEstado = 'Verificando ubicación...');
       final ubicacion = await _verificarUbicacion();
       if (ubicacion == null) {
@@ -98,6 +100,8 @@ class _PantallaVerificacionEncuentroState
           _mensajeEstado = 'Estás a $_distanciaMetros metros del lugar';
           _cargando = false;
         });
+        // 🔥 Arrancar el stream para actualizar en tiempo real
+        _iniciarStreamUbicacion();
         return;
       }
 
@@ -194,6 +198,69 @@ class _PantallaVerificacionEncuentroState
       print('>>> Error verificando ubicación: $e');
     }
     return null;
+  }
+
+  /// 🔥 Stream que actualiza la distancia y el mapa en tiempo real
+  void _iniciarStreamUbicacion() {
+    _posicionStream?.cancel();
+    const settings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10, // Actualiza cada 10 metros de movimiento
+    );
+    _posicionStream = Geolocator.getPositionStream(
+      locationSettings: settings,
+    ).listen((Position pos) async {
+      if (!mounted) return;
+      await _procesarPosicionStream(pos);
+    }, onError: (e) {
+      debugPrint('>>> Error en stream de ubicación: $e');
+    });
+  }
+
+  Future<void> _procesarPosicionStream(Position pos) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final r = await http.post(
+        Uri.parse(
+            '$_baseUrl/api/encuentro/${widget.encuentroId}/verificar-ubicacion'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'usuario_id': user.uid,
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+        }),
+      );
+
+      if (r.statusCode == 200 && mounted) {
+        final data = jsonDecode(r.body) as Map<String, dynamic>;
+        final enLugarNuevo = data['en_lugar'] == true;
+        final distanciaNueva = (data['distancia_metros'] ?? 0) as int;
+
+        setState(() {
+          _userLat = pos.latitude;
+          _userLng = pos.longitude;
+          _enLugar = enLugarNuevo;
+          _distanciaMetros = distanciaNueva;
+          _mensajeEstado = enLugarNuevo
+              ? 'Estás en el lugar. Iniciá el reconocimiento facial.'
+              : 'Estás a $distanciaNueva metros del lugar';
+        });
+
+        // Si llegó al lugar, cancelar el stream
+        if (enLugarNuevo) {
+          _posicionStream?.cancel();
+          _posicionStream = null;
+        }
+      }
+    } catch (e) {
+      debugPrint('>>> Error procesando posición del stream: $e');
+    }
   }
 
   Future<void> _verificarFacial() async {
@@ -697,7 +764,10 @@ class _PantallaVerificacionEncuentroState
           Padding(
             padding: const EdgeInsets.all(16),
             child: ElevatedButton.icon(
-              onPressed: _iniciar,
+              onPressed: () {
+                _iniciarStreamUbicacion();
+                _iniciar();
+              },
               icon: const Icon(Icons.refresh),
               label: const Text('Volver a verificar'),
             ),
