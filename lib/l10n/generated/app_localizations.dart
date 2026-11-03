@@ -477,6 +477,642 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Seleccionar'**
   String get seleccionar;
+
+  /// No description provided for @chateaConCompradoresVendedores.
+  ///
+  /// In es, this message translates to:
+  /// **'Chatea con compradores y vendedores'**
+  String get chateaConCompradoresVendedores;
+
+  /// No description provided for @tabChats.
+  ///
+  /// In es, this message translates to:
+  /// **'CHATS'**
+  String get tabChats;
+
+  /// No description provided for @tabAgenda.
+  ///
+  /// In es, this message translates to:
+  /// **'AGENDA'**
+  String get tabAgenda;
+
+  /// No description provided for @tabEncuentros.
+  ///
+  /// In es, this message translates to:
+  /// **'ENCUENTROS'**
+  String get tabEncuentros;
+
+  /// No description provided for @noTienesConversaciones.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes conversaciones'**
+  String get noTienesConversaciones;
+
+  /// No description provided for @encuentroAceptado.
+  ///
+  /// In es, this message translates to:
+  /// **'ENCUENTRO ACEPTADO'**
+  String get encuentroAceptado;
+
+  /// No description provided for @articuloVendido.
+  ///
+  /// In es, this message translates to:
+  /// **'ARTÍCULO VENDIDO'**
+  String get articuloVendido;
+
+  /// No description provided for @nuevoMensaje.
+  ///
+  /// In es, this message translates to:
+  /// **'NUEVO MENSAJE'**
+  String get nuevoMensaje;
+
+  /// No description provided for @fijarChat.
+  ///
+  /// In es, this message translates to:
+  /// **'Fijar chat'**
+  String get fijarChat;
+
+  /// No description provided for @desfijarChat.
+  ///
+  /// In es, this message translates to:
+  /// **'Desfijar chat'**
+  String get desfijarChat;
+
+  /// No description provided for @quitarDeLaParteSuperior.
+  ///
+  /// In es, this message translates to:
+  /// **'Quitar de la parte superior'**
+  String get quitarDeLaParteSuperior;
+
+  /// No description provided for @mantenerEnLaParteSuperior.
+  ///
+  /// In es, this message translates to:
+  /// **'Mantener en la parte superior'**
+  String get mantenerEnLaParteSuperior;
+
+  /// No description provided for @chatFijado.
+  ///
+  /// In es, this message translates to:
+  /// **'📌 Chat fijado'**
+  String get chatFijado;
+
+  /// No description provided for @chatDesfijado.
+  ///
+  /// In es, this message translates to:
+  /// **'📌 Chat desfijado'**
+  String get chatDesfijado;
+
+  /// No description provided for @errorAlFijar.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al fijar: {codigo}'**
+  String errorAlFijar(String codigo);
+
+  /// No description provided for @eliminarChat.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar chat'**
+  String get eliminarChat;
+
+  /// No description provided for @confirmarEliminarChat.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Estás seguro de borrar la conversación con {nombre}?'**
+  String confirmarEliminarChat(String nombre);
+
+  /// No description provided for @chatEliminado.
+  ///
+  /// In es, this message translates to:
+  /// **'🗑️ Chat eliminado'**
+  String get chatEliminado;
+
+  /// No description provided for @guardadoConProductos.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Guardado ({cantidad} productos)'**
+  String guardadoConProductos(int cantidad);
+
+  /// No description provided for @eliminado.
+  ///
+  /// In es, this message translates to:
+  /// **'🗑️ Eliminado'**
+  String get eliminado;
+
+  /// No description provided for @buscarContactosProductos.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar contactos o productos...'**
+  String get buscarContactosProductos;
+
+  /// No description provided for @noHayContactosGuardados.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay contactos guardados'**
+  String get noHayContactosGuardados;
+
+  /// No description provided for @noHayResultadosPara.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay resultados para \"{busqueda}\"'**
+  String noHayResultadosPara(String busqueda);
+
+  /// No description provided for @tocaBotonParaGuardarContacto.
+  ///
+  /// In es, this message translates to:
+  /// **'Toca el botón en un chat para guardar el contacto en tu agenda'**
+  String get tocaBotonParaGuardarContacto;
+
+  /// No description provided for @producto.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto'**
+  String get producto;
+
+  /// No description provided for @sinMensajes.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin mensajes'**
+  String get sinMensajes;
+
+  /// No description provided for @fechaDesconocida.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha desconocida'**
+  String get fechaDesconocida;
+
+  /// No description provided for @haceDias.
+  ///
+  /// In es, this message translates to:
+  /// **'hace {cantidad} días'**
+  String haceDias(int cantidad);
+
+  /// No description provided for @haceHoras.
+  ///
+  /// In es, this message translates to:
+  /// **'hace {cantidad} horas'**
+  String haceHoras(int cantidad);
+
+  /// No description provided for @haceMinutos.
+  ///
+  /// In es, this message translates to:
+  /// **'hace {cantidad} minutos'**
+  String haceMinutos(int cantidad);
+
+  /// No description provided for @haceUnosSegundos.
+  ///
+  /// In es, this message translates to:
+  /// **'hace unos segundos'**
+  String get haceUnosSegundos;
+
+  /// No description provided for @lun.
+  ///
+  /// In es, this message translates to:
+  /// **'Lun'**
+  String get lun;
+
+  /// No description provided for @mar.
+  ///
+  /// In es, this message translates to:
+  /// **'Mar'**
+  String get mar;
+
+  /// No description provided for @mie.
+  ///
+  /// In es, this message translates to:
+  /// **'Mié'**
+  String get mie;
+
+  /// No description provided for @jue.
+  ///
+  /// In es, this message translates to:
+  /// **'Jue'**
+  String get jue;
+
+  /// No description provided for @vie.
+  ///
+  /// In es, this message translates to:
+  /// **'Vie'**
+  String get vie;
+
+  /// No description provided for @sab.
+  ///
+  /// In es, this message translates to:
+  /// **'Sáb'**
+  String get sab;
+
+  /// No description provided for @errorGenerico.
+  ///
+  /// In es, this message translates to:
+  /// **'Error: {error}'**
+  String errorGenerico(String error);
+
+  /// No description provided for @catElectronicos.
+  ///
+  /// In es, this message translates to:
+  /// **'Electrónicos'**
+  String get catElectronicos;
+
+  /// No description provided for @catDeportes.
+  ///
+  /// In es, this message translates to:
+  /// **'Deportes'**
+  String get catDeportes;
+
+  /// No description provided for @catHogar.
+  ///
+  /// In es, this message translates to:
+  /// **'Hogar'**
+  String get catHogar;
+
+  /// No description provided for @catMusica.
+  ///
+  /// In es, this message translates to:
+  /// **'Música'**
+  String get catMusica;
+
+  /// No description provided for @catCocina.
+  ///
+  /// In es, this message translates to:
+  /// **'Cocina'**
+  String get catCocina;
+
+  /// No description provided for @catPeliculas.
+  ///
+  /// In es, this message translates to:
+  /// **'Películas'**
+  String get catPeliculas;
+
+  /// No description provided for @catFotografia.
+  ///
+  /// In es, this message translates to:
+  /// **'Fotografía'**
+  String get catFotografia;
+
+  /// No description provided for @catVideojuegos.
+  ///
+  /// In es, this message translates to:
+  /// **'Videojuegos'**
+  String get catVideojuegos;
+
+  /// No description provided for @catJuegosDeMesa.
+  ///
+  /// In es, this message translates to:
+  /// **'Juegos de Mesa'**
+  String get catJuegosDeMesa;
+
+  /// No description provided for @catJuguetes.
+  ///
+  /// In es, this message translates to:
+  /// **'Juguetes'**
+  String get catJuguetes;
+
+  /// No description provided for @catFiguras.
+  ///
+  /// In es, this message translates to:
+  /// **'Figuras'**
+  String get catFiguras;
+
+  /// No description provided for @subElectronicos.
+  ///
+  /// In es, this message translates to:
+  /// **'Móviles, Laptops, Audio'**
+  String get subElectronicos;
+
+  /// No description provided for @subDeportes.
+  ///
+  /// In es, this message translates to:
+  /// **'Fútbol, Tenis, Running'**
+  String get subDeportes;
+
+  /// No description provided for @subHogar.
+  ///
+  /// In es, this message translates to:
+  /// **'Muebles, Decoración, Cocina'**
+  String get subHogar;
+
+  /// No description provided for @subMusica.
+  ///
+  /// In es, this message translates to:
+  /// **'Guitarras, Pianos, Audio'**
+  String get subMusica;
+
+  /// No description provided for @subCocina.
+  ///
+  /// In es, this message translates to:
+  /// **'Ollas, Utensilios, Vajilla'**
+  String get subCocina;
+
+  /// No description provided for @subPeliculas.
+  ///
+  /// In es, this message translates to:
+  /// **'Acción, Comedia, Drama'**
+  String get subPeliculas;
+
+  /// No description provided for @subFotografia.
+  ///
+  /// In es, this message translates to:
+  /// **'Cámaras, Lentes, Accesorios'**
+  String get subFotografia;
+
+  /// No description provided for @subVideojuegos.
+  ///
+  /// In es, this message translates to:
+  /// **'Consolas, Juegos, Controles'**
+  String get subVideojuegos;
+
+  /// No description provided for @subJuegosDeMesa.
+  ///
+  /// In es, this message translates to:
+  /// **'Cartas, Tableros, Estrategia'**
+  String get subJuegosDeMesa;
+
+  /// No description provided for @subJuguetes.
+  ///
+  /// In es, this message translates to:
+  /// **'Peluches, Bloques, Carros'**
+  String get subJuguetes;
+
+  /// No description provided for @subFiguras.
+  ///
+  /// In es, this message translates to:
+  /// **'Acción, Coleccionables, Anime'**
+  String get subFiguras;
+
+  /// No description provided for @alertasTitulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Alertas'**
+  String get alertasTitulo;
+
+  /// No description provided for @recargar.
+  ///
+  /// In es, this message translates to:
+  /// **'Recargar'**
+  String get recargar;
+
+  /// No description provided for @limpiarTodasLasAlertas.
+  ///
+  /// In es, this message translates to:
+  /// **'Limpiar todas las alertas'**
+  String get limpiarTodasLasAlertas;
+
+  /// No description provided for @noTienesAlertas.
+  ///
+  /// In es, this message translates to:
+  /// **'No tienes alertas'**
+  String get noTienesAlertas;
+
+  /// No description provided for @aquiApareceranAvisos.
+  ///
+  /// In es, this message translates to:
+  /// **'Aquí aparecerán tus avisos y encuentros.'**
+  String get aquiApareceranAvisos;
+
+  /// No description provided for @noHayAlertasParaLimpiar.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay alertas para limpiar'**
+  String get noHayAlertasParaLimpiar;
+
+  /// No description provided for @limpiarAlertas.
+  ///
+  /// In es, this message translates to:
+  /// **'🗑️ Limpiar alertas'**
+  String get limpiarAlertas;
+
+  /// No description provided for @confirmarLimpiarAlertas.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Estás seguro de que quieres eliminar todas las alertas?'**
+  String get confirmarLimpiarAlertas;
+
+  /// No description provided for @eliminarTodo.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar todo'**
+  String get eliminarTodo;
+
+  /// No description provided for @todasLasAlertasEliminadas.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Todas las alertas han sido eliminadas'**
+  String get todasLasAlertasEliminadas;
+
+  /// No description provided for @errorAlLimpiarAlertas.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al limpiar alertas: {error}'**
+  String errorAlLimpiarAlertas(String error);
+
+  /// No description provided for @cargandoAnuncio.
+  ///
+  /// In es, this message translates to:
+  /// **'⏳ Cargando anuncio... espera un momento'**
+  String get cargandoAnuncio;
+
+  /// No description provided for @noSePudoCargarAnuncio.
+  ///
+  /// In es, this message translates to:
+  /// **'❌ No se pudo cargar el anuncio. Intentá de nuevo.'**
+  String get noSePudoCargarAnuncio;
+
+  /// No description provided for @productoRenovado.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Producto renovado por 30 días más'**
+  String get productoRenovado;
+
+  /// No description provided for @errorAlRenovar.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al renovar: {error}'**
+  String errorAlRenovar(String error);
+
+  /// No description provided for @debesVerAnuncioCompleto.
+  ///
+  /// In es, this message translates to:
+  /// **'❌ Debes ver el anuncio completo para renovar'**
+  String get debesVerAnuncioCompleto;
+
+  /// No description provided for @renovarPor30Dias.
+  ///
+  /// In es, this message translates to:
+  /// **'Renovar por 30 días'**
+  String get renovarPor30Dias;
+
+  /// No description provided for @ambosConfirmaron.
+  ///
+  /// In es, this message translates to:
+  /// **'Ambos confirmaron'**
+  String get ambosConfirmaron;
+
+  /// No description provided for @esperandoAlOtro.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperando al otro'**
+  String get esperandoAlOtro;
+
+  /// No description provided for @confirmarEncuentro.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar encuentro'**
+  String get confirmarEncuentro;
+
+  /// No description provided for @verificarIdentidad.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificar identidad'**
+  String get verificarIdentidad;
+
+  /// No description provided for @verificarIdentidadDelOtro.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificar identidad del otro'**
+  String get verificarIdentidadDelOtro;
+
+  /// No description provided for @identidadRechazada.
+  ///
+  /// In es, this message translates to:
+  /// **'Identidad rechazada'**
+  String get identidadRechazada;
+
+  /// No description provided for @revisarComparacion.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisar comparación'**
+  String get revisarComparacion;
+
+  /// No description provided for @ambosConfirmaronExito.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Ambos confirmaron. ¡Nos vemos!'**
+  String get ambosConfirmaronExito;
+
+  /// No description provided for @confirmasteAsistencia.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Confirmaste tu asistencia. Esperando al otro.'**
+  String get confirmasteAsistencia;
+
+  /// No description provided for @errorGenericoAlerta.
+  ///
+  /// In es, this message translates to:
+  /// **'Error: {error}'**
+  String errorGenericoAlerta(String error);
+
+  /// No description provided for @eliminarPublicidadTitulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar publicidad'**
+  String get eliminarPublicidadTitulo;
+
+  /// No description provided for @eliminaLosAnuncios.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminá los anuncios'**
+  String get eliminaLosAnuncios;
+
+  /// No description provided for @descripcionEliminarPublicidad.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagá un plan y navegá sin publicidad en toda la app. Sin anuncios, sin interrupciones.'**
+  String get descripcionEliminarPublicidad;
+
+  /// No description provided for @beneficioSinAnuncios.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin anuncios en toda la app'**
+  String get beneficioSinAnuncios;
+
+  /// No description provided for @beneficioNavegacionRapida.
+  ///
+  /// In es, this message translates to:
+  /// **'Navegación más rápida'**
+  String get beneficioNavegacionRapida;
+
+  /// No description provided for @beneficioSinInterrupciones.
+  ///
+  /// In es, this message translates to:
+  /// **'Experiencia sin interrupciones'**
+  String get beneficioSinInterrupciones;
+
+  /// No description provided for @elegiTuPlan.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegí tu plan'**
+  String get elegiTuPlan;
+
+  /// No description provided for @plan1Mes.
+  ///
+  /// In es, this message translates to:
+  /// **'1 mes'**
+  String get plan1Mes;
+
+  /// No description provided for @plan6Meses.
+  ///
+  /// In es, this message translates to:
+  /// **'6 meses'**
+  String get plan6Meses;
+
+  /// No description provided for @sinAnunciosPor30Dias.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin anuncios por 30 días'**
+  String get sinAnunciosPor30Dias;
+
+  /// No description provided for @sinAnunciosPor180Dias.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin anuncios por 180 días'**
+  String get sinAnunciosPor180Dias;
+
+  /// No description provided for @ahorrasMonto.
+  ///
+  /// In es, this message translates to:
+  /// **'Ahorrás {monto}'**
+  String ahorrasMonto(String monto);
+
+  /// No description provided for @elegiUnPlan.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegí un plan'**
+  String get elegiUnPlan;
+
+  /// No description provided for @pagarMonto.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar {monto}'**
+  String pagarMonto(String monto);
+
+  /// No description provided for @pagoSeguro.
+  ///
+  /// In es, this message translates to:
+  /// **'El pago se procesa de forma segura'**
+  String get pagoSeguro;
+
+  /// No description provided for @confirmarCompra.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar compra'**
+  String get confirmarCompra;
+
+  /// No description provided for @confirmarCompraPregunta.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Querés pagar {precio} por {duracion} sin anuncios?'**
+  String confirmarCompraPregunta(String precio, String duracion);
+
+  /// No description provided for @pagar.
+  ///
+  /// In es, this message translates to:
+  /// **'Pagar'**
+  String get pagar;
+
+  /// No description provided for @integracionPagoEnDesarrollo.
+  ///
+  /// In es, this message translates to:
+  /// **'🚧 Integración de pago en desarrollo'**
+  String get integracionPagoEnDesarrollo;
 }
 
 class _AppLocalizationsDelegate

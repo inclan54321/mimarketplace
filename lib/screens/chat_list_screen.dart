@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'chat_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:mimarketplace/l10n/generated/app_localizations.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -289,7 +290,8 @@ class _ChatListScreenState extends State<ChatListScreen>
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Guardado (${productos.length} productos)'),
+            content: Text(AppLocalizations.of(context)!
+                .guardadoConProductos(productos.length)),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 1),
           ),
@@ -300,7 +302,11 @@ class _ChatListScreenState extends State<ChatListScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(
+              AppLocalizations.of(context)!.errorGenerico(e.toString())),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -323,10 +329,10 @@ class _ChatListScreenState extends State<ChatListScreen>
             _agenda.removeWhere((item) => item['id'].toString() == id.toString());
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🗑️ Eliminado'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.eliminado),
               backgroundColor: Colors.grey,
-              duration: Duration(seconds: 1),
+              duration: const Duration(seconds: 1),
             ),
           );
         }
@@ -379,13 +385,15 @@ class _ChatListScreenState extends State<ChatListScreen>
                   size: 28,
                 ),
                 title: Text(
-                  estaFijada ? 'Desfijar chat' : 'Fijar chat',
+                  estaFijada
+                      ? AppLocalizations.of(context)!.desfijarChat
+                      : AppLocalizations.of(context)!.fijarChat,
                   style: const TextStyle(fontSize: 16),
                 ),
                 subtitle: Text(
                   estaFijada
-                      ? 'Quitar de la parte superior'
-                      : 'Mantener en la parte superior',
+                      ? AppLocalizations.of(context)!.quitarDeLaParteSuperior
+                      : AppLocalizations.of(context)!.mantenerEnLaParteSuperior,
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 onTap: () {
@@ -441,7 +449,9 @@ class _ChatListScreenState extends State<ChatListScreen>
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(fijar ? '📌 Chat fijado' : '📌 Chat desfijado'),
+              content: Text(fijar
+                  ? AppLocalizations.of(context)!.chatFijado
+                  : AppLocalizations.of(context)!.chatDesfijado),
               backgroundColor: Colors.blue,
               duration: const Duration(seconds: 1),
             ),
@@ -451,7 +461,8 @@ class _ChatListScreenState extends State<ChatListScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al fijar: ${response.statusCode}'),
+              content: Text(AppLocalizations.of(context)!
+                  .errorAlFijar(response.statusCode.toString())),
               backgroundColor: Colors.red,
             ),
           );
@@ -473,16 +484,20 @@ class _ChatListScreenState extends State<ChatListScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar chat'),
-        content: Text('¿Estás seguro de borrar la conversación con $nombreUsuario?'),
+        title: Text(AppLocalizations.of(context)!.eliminarChat),
+        content: Text(AppLocalizations.of(context)!
+            .confirmarEliminarChat(nombreUsuario)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(AppLocalizations.of(context)!.cancelar),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            child: Text(
+              AppLocalizations.of(context)!.eliminar,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -524,15 +539,20 @@ class _ChatListScreenState extends State<ChatListScreen>
           print('>>> 🗑️ Caché local borrada para chat $conversacionId');
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('🗑️ Chat eliminado'),
+            SnackBar(
+                content:
+                    Text(AppLocalizations.of(context)!.chatEliminado),
                 backgroundColor: Colors.grey),
           );
         }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+                AppLocalizations.of(context)!.errorGenerico(e.toString())),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -602,16 +622,17 @@ class _ChatListScreenState extends State<ChatListScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text(
-                                'Mensajes',
-                                style: TextStyle(
+                              Text(
+                                AppLocalizations.of(context)!.mensajes,
+                                style: const TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
                               Text(
-                                'Chatea con compradores y vendedores',
+                                AppLocalizations.of(context)!
+                                    .chateaConCompradoresVendedores,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.white.withValues(alpha: 0.6),
@@ -620,9 +641,11 @@ class _ChatListScreenState extends State<ChatListScreen>
                             ],
                           ),
                         ),
-                        _buildTabChip('CHATS', 0),
+                        _buildTabChip(
+                            AppLocalizations.of(context)!.tabChats, 0),
                         const SizedBox(width: 6),
-                        _buildTabChip('AGENDA', 1),
+                        _buildTabChip(
+                            AppLocalizations.of(context)!.tabAgenda, 1),
                       ],
                     ),
 
@@ -631,7 +654,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          _buildTabChip('ENCUENTROS', 2),
+                          _buildTabChip(
+                              AppLocalizations.of(context)!.tabEncuentros, 2),
                           const SizedBox(width: 30),
                         ],
                       ),
@@ -757,7 +781,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                 size: 80, color: Colors.white.withValues(alpha: 0.3)),
             const SizedBox(height: 16),
             Text(
-              'No tienes conversaciones',
+              AppLocalizations.of(context)!.noTienesConversaciones,
               style: TextStyle(
                   fontSize: 16, color: Colors.white.withValues(alpha: 0.6)),
             ),
@@ -923,10 +947,13 @@ class _ChatListScreenState extends State<ChatListScreen>
                             ),
                             child: Text(
                               hayEncuentroPendiente
-                                  ? 'ENCUENTRO ACEPTADO'
+                                  ? AppLocalizations.of(context)!
+                                      .encuentroAceptado
                                   : esArticuloVendido
-                                      ? 'ARTÍCULO VENDIDO'
-                                      : 'NUEVO MENSAJE',
+                                      ? AppLocalizations.of(context)!
+                                          .articuloVendido
+                                      : AppLocalizations.of(context)!
+                                          .nuevoMensaje,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
@@ -1241,7 +1268,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                     style: const TextStyle(
                         color: Colors.white, fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Buscar contactos o productos...',
+                      hintText: AppLocalizations.of(context)!
+                          .buscarContactosProductos,
                       hintStyle: TextStyle(
                         color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 14,
@@ -1289,8 +1317,10 @@ class _ChatListScreenState extends State<ChatListScreen>
                       const SizedBox(height: 16),
                       Text(
                         _busquedaAgenda.isEmpty
-                            ? 'No hay contactos guardados'
-                            : 'No hay resultados para "$_busquedaAgenda"',
+                            ? AppLocalizations.of(context)!
+                                .noHayContactosGuardados
+                            : AppLocalizations.of(context)!
+                                .noHayResultadosPara(_busquedaAgenda),
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.white.withValues(alpha: 0.6),
@@ -1300,7 +1330,8 @@ class _ChatListScreenState extends State<ChatListScreen>
                       if (_busquedaAgenda.isEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
-                          'Toca el botón en un chat para guardar el contacto en tu agenda',
+                          AppLocalizations.of(context)!
+                              .tocaBotonParaGuardarContacto,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.white.withValues(alpha: 0.4),
@@ -1318,8 +1349,10 @@ class _ChatListScreenState extends State<ChatListScreen>
                     final item = agendaFiltrada[index];
                     
                     // 🔥 LEER CAMPOS CON SNAKE_CASE (como los devuelve el backend)
-                    final otroUsuario = item['otro_usuario'] ?? 'Usuario';
-                    final ultimoMensaje = item['ultimo_mensaje'] ?? 'Sin mensajes';
+                    final otroUsuario = item['otro_usuario'] ??
+                        AppLocalizations.of(context)!.usuario;
+                    final ultimoMensaje = item['ultimo_mensaje'] ??
+                        AppLocalizations.of(context)!.sinMensajes;
                     final fotoPerfil = item['foto_perfil'] ?? '';
                     final conversacionId = item['conversacion_id']?.toString() ?? '';
                     final fechaGuardado = item['fecha_guardado']?.toString();
@@ -1475,7 +1508,9 @@ class _ChatListScreenState extends State<ChatListScreen>
                                             productos
                                                 .map((p) =>
                                                     p['productoNombre'] ??
-                                                    'Producto')
+                                                    AppLocalizations.of(
+                                                            context)!
+                                                        .producto)
                                                 .join(' · '),
                                             style: const TextStyle(
                                               fontSize: 13,
@@ -1577,7 +1612,15 @@ class _ChatListScreenState extends State<ChatListScreen>
 
   // ===== TAB ENCUENTROS (SEMANARIO) =====
   Widget _buildTabEncuentros() {
-    final dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    final l10n = AppLocalizations.of(context)!;
+    final dias = [
+      l10n.lun,
+      l10n.mar,
+      l10n.mie,
+      l10n.jue,
+      l10n.vie,
+      l10n.sab,
+    ];
     final horas = List.generate(11, (i) => 7 + i);
 
     // Calcular el lunes de la semana actual
@@ -1745,22 +1788,23 @@ class _ChatListScreenState extends State<ChatListScreen>
   }
 
   String _formatearFecha(String? fecha) {
-    if (fecha == null) return 'Fecha desconocida';
+    final l10n = AppLocalizations.of(context)!;
+    if (fecha == null) return l10n.fechaDesconocida;
     try {
       final date = DateTime.parse(fecha);
       final now = DateTime.now();
       final diff = now.difference(date);
       if (diff.inDays > 0) {
-        return 'hace ${diff.inDays} días';
+        return l10n.haceDias(diff.inDays);
       } else if (diff.inHours > 0) {
-        return 'hace ${diff.inHours} horas';
+        return l10n.haceHoras(diff.inHours);
       } else if (diff.inMinutes > 0) {
-        return 'hace ${diff.inMinutes} minutos';
+        return l10n.haceMinutos(diff.inMinutes);
       } else {
-        return 'hace unos segundos';
+        return l10n.haceUnosSegundos;
       }
     } catch (e) {
-      return 'Fecha desconocida';
+      return l10n.fechaDesconocida;
     }
   }
 }

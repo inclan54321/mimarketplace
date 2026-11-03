@@ -70,5 +70,184 @@
   "buscarCategoria": "Buscar categoría...",
   "noSeEncontraronCategorias": "No se encontraron categorías",
   "todasLasCategorias": "Todas las categorías",
-  "seleccionar": "Seleccionar"
+  "seleccionar": "Seleccionar",
+  "chateaConCompradoresVendedores": "Chatea con compradores y vendedores",
+  "tabChats": "CHATS",
+  "tabAgenda": "AGENDA",
+  "tabEncuentros": "ENCUENTROS",
+  "noTienesConversaciones": "No tienes conversaciones",
+  "encuentroAceptado": "ENCUENTRO ACEPTADO",
+  "articuloVendido": "ARTÍCULO VENDIDO",
+  "nuevoMensaje": "NUEVO MENSAJE",
+  "fijarChat": "Fijar chat",
+  "desfijarChat": "Desfijar chat",
+  "quitarDeLaParteSuperior": "Quitar de la parte superior",
+  "mantenerEnLaParteSuperior": "Mantener en la parte superior",
+  "chatFijado": "📌 Chat fijado",
+  "chatDesfijado": "📌 Chat desfijado",
+  "errorAlFijar": "Error al fijar: {codigo}",
+  "@errorAlFijar": {
+    "placeholders": {
+      "codigo": { "type": "String" }
+    }
+  },
+  "eliminarChat": "Eliminar chat",
+  "confirmarEliminarChat": "¿Estás seguro de borrar la conversación con {nombre}?",
+  "@confirmarEliminarChat": {
+    "placeholders": {
+      "nombre": { "type": "String" }
+    }
+  },
+  "chatEliminado": "🗑️ Chat eliminado",
+  "guardadoConProductos": "✅ Guardado ({cantidad} productos)",
+  "@guardadoConProductos": {
+    "placeholders": {
+      "cantidad": { "type": "int" }
+    }
+  },
+  "eliminado": "🗑️ Eliminado",
+  "buscarContactosProductos": "Buscar contactos o productos...",
+  "noHayContactosGuardados": "No hay contactos guardados",
+  "noHayResultadosPara": "No hay resultados para \"{busqueda}\"",
+  "@noHayResultadosPara": {
+    "placeholders": {
+      "busqueda": { "type": "String" }
+    }
+  },
+  "tocaBotonParaGuardarContacto": "Toca el botón en un chat para guardar el contacto en tu agenda",
+  "producto": "Producto",
+  "sinMensajes": "Sin mensajes",
+  "fechaDesconocida": "Fecha desconocida",
+  "haceDias": "hace {cantidad} días",
+  "@haceDias": {
+    "placeholders": {
+      "cantidad": { "type": "int" }
+    }
+  },
+  "haceHoras": "hace {cantidad} horas",
+  "@haceHoras": {
+    "placeholders": {
+      "cantidad": { "type": "int" }
+    }
+  },
+  "haceMinutos": "hace {cantidad} minutos",
+  "@haceMinutos": {
+    "placeholders": {
+      "cantidad": { "type": "int" }
+    }
+  },
+  "haceUnosSegundos": "hace unos segundos",
+  "lun": "Lun",
+  "mar": "Mar",
+  "mie": "Mié",
+  "jue": "Jue",
+  "vie": "Vie",
+  "sab": "Sáb",
+  "errorGenerico": "Error: {error}",
+  "@errorGenerico": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "catElectronicos": "Electrónicos",
+  "catDeportes": "Deportes",
+  "catHogar": "Hogar",
+  "catMusica": "Música",
+  "catCocina": "Cocina",
+  "catPeliculas": "Películas",
+  "catFotografia": "Fotografía",
+  "catVideojuegos": "Videojuegos",
+  "catJuegosDeMesa": "Juegos de Mesa",
+  "catJuguetes": "Juguetes",
+  "catFiguras": "Figuras",
+  "subElectronicos": "Móviles, Laptops, Audio",
+  "subDeportes": "Fútbol, Tenis, Running",
+  "subHogar": "Muebles, Decoración, Cocina",
+  "subMusica": "Guitarras, Pianos, Audio",
+  "subCocina": "Ollas, Utensilios, Vajilla",
+  "subPeliculas": "Acción, Comedia, Drama",
+  "subFotografia": "Cámaras, Lentes, Accesorios",
+  "subVideojuegos": "Consolas, Juegos, Controles",
+  "subJuegosDeMesa": "Cartas, Tableros, Estrategia",
+  "subJuguetes": "Peluches, Bloques, Carros",
+  "subFiguras": "Acción, Coleccionables, Anime",
+  "alertasTitulo": "Alertas",
+  "recargar": "Recargar",
+  "limpiarTodasLasAlertas": "Limpiar todas las alertas",
+  "noTienesAlertas": "No tienes alertas",
+  "aquiApareceranAvisos": "Aquí aparecerán tus avisos y encuentros.",
+  "noHayAlertasParaLimpiar": "No hay alertas para limpiar",
+  "limpiarAlertas": "🗑️ Limpiar alertas",
+  "confirmarLimpiarAlertas": "¿Estás seguro de que quieres eliminar todas las alertas?",
+  "eliminarTodo": "Eliminar todo",
+  "todasLasAlertasEliminadas": "✅ Todas las alertas han sido eliminadas",
+  "errorAlLimpiarAlertas": "Error al limpiar alertas: {error}",
+  "@errorAlLimpiarAlertas": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "cargandoAnuncio": "⏳ Cargando anuncio... espera un momento",
+  "noSePudoCargarAnuncio": "❌ No se pudo cargar el anuncio. Intentá de nuevo.",
+  "productoRenovado": "✅ Producto renovado por 30 días más",
+  "errorAlRenovar": "Error al renovar: {error}",
+  "@errorAlRenovar": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "debesVerAnuncioCompleto": "❌ Debes ver el anuncio completo para renovar",
+  "renovarPor30Dias": "Renovar por 30 días",
+  "ambosConfirmaron": "Ambos confirmaron",
+  "esperandoAlOtro": "Esperando al otro",
+  "confirmarEncuentro": "Confirmar encuentro",
+  "verificarIdentidad": "Verificar identidad",
+  "verificarIdentidadDelOtro": "Verificar identidad del otro",
+  "identidadRechazada": "Identidad rechazada",
+  "revisarComparacion": "Revisar comparación",
+  "ambosConfirmaronExito": "✅ Ambos confirmaron. ¡Nos vemos!",
+  "confirmasteAsistencia": "✅ Confirmaste tu asistencia. Esperando al otro.",
+  "errorGenericoAlerta": "Error: {error}",
+  "@errorGenericoAlerta": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "eliminarPublicidadTitulo": "Eliminar publicidad",
+  "eliminaLosAnuncios": "Eliminá los anuncios",
+  "descripcionEliminarPublicidad": "Pagá un plan y navegá sin publicidad en toda la app. Sin anuncios, sin interrupciones.",
+  "beneficioSinAnuncios": "Sin anuncios en toda la app",
+  "beneficioNavegacionRapida": "Navegación más rápida",
+  "beneficioSinInterrupciones": "Experiencia sin interrupciones",
+  "elegiTuPlan": "Elegí tu plan",
+  "plan1Mes": "1 mes",
+  "plan6Meses": "6 meses",
+  "sinAnunciosPor30Dias": "Sin anuncios por 30 días",
+  "sinAnunciosPor180Dias": "Sin anuncios por 180 días",
+  "ahorrasMonto": "Ahorrás {monto}",
+  "@ahorrasMonto": {
+    "placeholders": {
+      "monto": { "type": "String" }
+    }
+  },
+  "elegiUnPlan": "Elegí un plan",
+  "pagarMonto": "Pagar {monto}",
+  "@pagarMonto": {
+    "placeholders": {
+      "monto": { "type": "String" }
+    }
+  },
+  "pagoSeguro": "El pago se procesa de forma segura",
+  "confirmarCompra": "Confirmar compra",
+  "confirmarCompraPregunta": "¿Querés pagar {precio} por {duracion} sin anuncios?",
+  "@confirmarCompraPregunta": {
+    "placeholders": {
+      "precio": { "type": "String" },
+      "duracion": { "type": "String" }
+    }
+  },
+  "pagar": "Pagar",
+  "integracionPagoEnDesarrollo": "🚧 Integración de pago en desarrollo"
 }

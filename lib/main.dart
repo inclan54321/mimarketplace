@@ -23,6 +23,9 @@ import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:uuid/uuid.dart';
 import 'screens/pantalla_verificacion_encuentro.dart';
 import 'screens/pantalla_verificar_identidad_otro.dart';
+import 'package:currency_sdk/currency_sdk.dart';
+
+final CurrencyClient currencyClient = CurrencyClient();
 
 // 🔥 HANDLER PARA MENSAJES EN SEGUNDO PLANO
 @pragma('vm:entry-point')
@@ -69,6 +72,21 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // 🔥 Inicializar SDK de monedas (tipos de cambio)
+  try {
+    await currencyClient.initialize();
+    debugPrint('>>> 💱 currency_sdk inicializado OK');
+  } catch (e) {
+    debugPrint('>>> ❌ Error inicializando currency_sdk: $e');
+  }
+
+  // 🔥 Inicializar SDK de monedas (tipos de cambio)
+  try {
+    await currencyClient.initialize();
+  } catch (e) {
+    debugPrint('>>> Error inicializando currency_sdk: $e');
+  }
   
   // 🔥 Inicializar Firebase
   await Firebase.initializeApp();

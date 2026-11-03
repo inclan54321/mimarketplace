@@ -4019,30 +4019,46 @@ app.post('/api/productos/:id/vista', verificarTokenFirebase, async (req, res) =>
             });
         }
 
-        // 1. Insertar vista individual
-        await pool.query(
-            `INSERT INTO vistas_producto (producto_id, usuario_id, ip, fecha)
-             VALUES ($1, $2, $3, NOW())`,
-            [id, usuario_id || null, ip]
-        );
+        // 🔥 Verificar si ya hay un clic reciente (últimas 24 horas)
+        let clicReciente = { rows: [] };
+        if (usuario_id) {
+            clicReciente = await pool.query(
+                `SELECT id FROM vistas_producto 
+                 WHERE producto_id = $1 AND usuario_id = $2 
+                   AND fecha > NOW() - INTERVAL '24 hours'
+                 LIMIT 1`,
+                [id, usuario_id]
+            );
+        }
 
-        // 2. Actualizar contador en productos_app
-        await pool.query(
-            `UPDATE productos_app SET vistas = COALESCE(vistas, 0) + 1 WHERE id = $1`,
-            [id]
-        );
+        // 🔥 Solo insertar y contar si NO hay clic reciente (o si es anónimo)
+        if (clicReciente.rows.length === 0) {
+            await pool.query(
+                `INSERT INTO vistas_producto (producto_id, usuario_id, ip, fecha)
+                 VALUES ($1, $2, $3, NOW())
+                 ON CONFLICT (usuario_id, producto_id) 
+                 DO UPDATE SET fecha = NOW(), ip = EXCLUDED.ip`,
+                [id, usuario_id || null, ip]
+            );
 
-        // 3. Actualizar resumen diario
-        const today = new Date().toISOString().split('T')[0];
-        await pool.query(
-            `INSERT INTO vistas_resumen_diario (producto_id, fecha, total_vistas)
-             VALUES ($1, $2, 1)
-             ON CONFLICT (producto_id, fecha) 
-             DO UPDATE SET total_vistas = vistas_resumen_diario.total_vistas + 1`,
-            [id, today]
-        );
+            // Sumar al contador solo si es vista nueva
+            await pool.query(
+                `UPDATE productos_app SET vistas = COALESCE(vistas, 0) + 1 WHERE id = $1`,
+                [id]
+            );
 
-        res.json({ success: true });
+            // Resumen diario
+            const today = new Date().toISOString().split('T')[0];
+            await pool.query(
+                `INSERT INTO vistas_resumen_diario (producto_id, fecha, total_vistas)
+                 VALUES ($1, $2, 1)
+                 ON CONFLICT (producto_id, fecha) 
+                 DO UPDATE SET total_vistas = vistas_resumen_diario.total_vistas + 1`,
+                [id, today]
+            );
+        }
+
+        res.json({ success: true, contada: clicReciente.rows.length === 0 });
     } catch (error) {
         console.error('Error al registrar vista:', error);
         res.status(500).json({ error: error.message });

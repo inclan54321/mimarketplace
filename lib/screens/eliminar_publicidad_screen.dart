@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
+import 'package:intl/intl.dart';
+import 'package:currency_sdk/currency_sdk.dart';
+import '../l10n/generated/app_localizations.dart';
+import '../main.dart' show currencyClient;
 
 class EliminarPublicidadScreen extends StatefulWidget {
   const EliminarPublicidadScreen({super.key});
@@ -11,12 +16,84 @@ class EliminarPublicidadScreen extends StatefulWidget {
 class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
   String? _planSeleccionado; // 'mensual' o 'semestral'
 
+  double? _precioMensualConvertido;
+  double? _precioSemestralConvertido;
+  String _monedaDestino = 'CRC';
+  bool _cargandoPrecios = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _convertirPrecios();
+  }
+
+  Future<void> _convertirPrecios() async {
+    final locale = ui.PlatformDispatcher.instance.locale;
+    debugPrint('>>> 🌍 locale del sistema: ${locale.languageCode}');
+    debugPrint('>>> 🌍 locale completo: $locale');
+
+    String destino = 'CRC';
+    if (locale.languageCode == 'en') destino = 'USD';
+    if (locale.languageCode == 'de') destino = 'EUR';
+    debugPrint('>>> 🌍 moneda destino: $destino');
+
+    if (destino == 'CRC') {
+      setState(() {
+        _precioMensualConvertido = 1000.0;
+        _precioSemestralConvertido = 3000.0;
+        _monedaDestino = 'CRC';
+        _cargandoPrecios = false;
+      });
+      return;
+    }
+
+    try {
+      final mensual = await currencyClient.convert(
+        amount: 1000.0,
+        from: 'CRC',
+        to: destino,
+      );
+      final semestral = await currencyClient.convert(
+        amount: 3000.0,
+        from: 'CRC',
+        to: destino,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _precioMensualConvertido = mensual;
+        _precioSemestralConvertido = semestral;
+        _monedaDestino = destino;
+        _cargandoPrecios = false;
+      });
+    } catch (e) {
+      debugPrint('>>> ❌ Error convirtiendo moneda: $e');
+      if (!mounted) return;
+      setState(() {
+        _precioMensualConvertido = 1000.0;
+        _precioSemestralConvertido = 3000.0;
+        _monedaDestino = 'CRC';
+        _cargandoPrecios = false;
+      });
+    }
+  }
+
+  String _formatearPrecio(double monto) {
+    final locale = _monedaDestino == 'USD'
+        ? 'en_US'
+        : _monedaDestino == 'EUR'
+            ? 'de_DE'
+            : 'es_CR';
+    return NumberFormat.simpleCurrency(locale: locale, name: _monedaDestino)
+        .format(monto);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(
-        title: const Text('Eliminar publicidad'),
+        title: Text(AppLocalizations.of(context)!.eliminarPublicidadTitulo),
         backgroundColor: const Color(0xFF087FE8),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -54,9 +131,9 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
             const SizedBox(height: 24),
 
             // 🔥 TÍTULO
-            const Text(
-              'Eliminá los anuncios',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.eliminaLosAnuncios,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
@@ -66,8 +143,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
 
             // 🔥 DESCRIPCIÓN
             Text(
-              'Pagá un plan y navegá sin publicidad en toda la app. '
-              'Sin anuncios, sin interrupciones.',
+              AppLocalizations.of(context)!.descripcionEliminarPublicidad,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 15,
@@ -77,14 +153,16 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
             const SizedBox(height: 32),
 
             // 🔥 BENEFICIOS
-            _buildBeneficio('Sin anuncios en toda la app'),
-            _buildBeneficio('Navegación más rápida'),
-            _buildBeneficio('Experiencia sin interrupciones'),
+            _buildBeneficio(AppLocalizations.of(context)!.beneficioSinAnuncios),
+            _buildBeneficio(
+                AppLocalizations.of(context)!.beneficioNavegacionRapida),
+            _buildBeneficio(
+                AppLocalizations.of(context)!.beneficioSinInterrupciones),
             const SizedBox(height: 32),
 
-            const Text(
-              'Elegí tu plan',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.elegiTuPlan,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -95,9 +173,11 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
             // 🔥 PLAN MENSUAL
             _buildPlanCard(
               id: 'mensual',
-              titulo: '1 mes',
-              precio: '₡1.000',
-              subtitulo: 'Sin anuncios por 30 días',
+              titulo: AppLocalizations.of(context)!.plan1Mes,
+              precio: _cargandoPrecios
+                  ? '...'
+                  : _formatearPrecio(_precioMensualConvertido ?? 1000.0),
+              subtitulo: AppLocalizations.of(context)!.sinAnunciosPor30Dias,
               ahorro: null,
             ),
             const SizedBox(height: 12),
@@ -105,10 +185,15 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
             // 🔥 PLAN SEMESTRAL
             _buildPlanCard(
               id: 'semestral',
-              titulo: '6 meses',
-              precio: '₡3.000',
-              subtitulo: 'Sin anuncios por 180 días',
-              ahorro: 'Ahorrás ₡3.000',
+              titulo: AppLocalizations.of(context)!.plan6Meses,
+              precio: _cargandoPrecios
+                  ? '...'
+                  : _formatearPrecio(_precioSemestralConvertido ?? 3000.0),
+              subtitulo: AppLocalizations.of(context)!.sinAnunciosPor180Dias,
+              ahorro: _cargandoPrecios
+                  ? null
+                  : AppLocalizations.of(context)!
+                      .ahorrasMonto(_formatearPrecio(3000.0)),
             ),
             const SizedBox(height: 32),
 
@@ -131,8 +216,13 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
                 ),
                 child: Text(
                   _planSeleccionado == null
-                      ? 'Elegí un plan'
-                      : 'Pagar ${_planSeleccionado == 'mensual' ? '₡1.000' : '₡3.000'}',
+                      ? AppLocalizations.of(context)!.elegiUnPlan
+                      : AppLocalizations.of(context)!.pagarMonto(
+                          _planSeleccionado == 'mensual'
+                              ? _formatearPrecio(
+                                  _precioMensualConvertido ?? 1000.0)
+                              : _formatearPrecio(
+                                  _precioSemestralConvertido ?? 3000.0)),
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -145,7 +235,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
             // 🔥 AVISO
             Center(
               child: Text(
-                'El pago se procesa de forma segura',
+                AppLocalizations.of(context)!.pagoSeguro,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.4),
                   fontSize: 12,
@@ -236,30 +326,36 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        titulo,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Text(
+                          titulo,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (ahorro != null) ...[
                         const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF00E676)
-                                .withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            ahorro,
-                            style: const TextStyle(
-                              color: Color(0xFF00E676),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E676)
+                                  .withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              ahorro,
+                              style: const TextStyle(
+                                color: Color(0xFF00E676),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
@@ -279,12 +375,15 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
             ),
 
             // 🔥 PRECIO
-            Text(
-              precio,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+            Flexible(
+              child: Text(
+                precio,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -294,25 +393,30 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
   }
 
   Future<void> _confirmarCompra(String plan) async {
-    final precio = plan == 'mensual' ? '₡1.000' : '₡3.000';
-    final duracion = plan == 'mensual' ? '1 mes' : '6 meses';
+    final precio = plan == 'mensual'
+        ? _formatearPrecio(_precioMensualConvertido ?? 1000.0)
+        : _formatearPrecio(_precioSemestralConvertido ?? 3000.0);
+    final duracion = plan == 'mensual'
+        ? AppLocalizations.of(context)!.plan1Mes
+        : AppLocalizations.of(context)!.plan6Meses;
 
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF161B22),
-        title: const Text(
-          'Confirmar compra',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          AppLocalizations.of(ctx)!.confirmarCompra,
+          style: const TextStyle(color: Colors.white),
         ),
         content: Text(
-          '¿Querés pagar $precio por $duracion sin anuncios?',
+          AppLocalizations.of(ctx)!
+              .confirmarCompraPregunta(precio, duracion),
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text(AppLocalizations.of(ctx)!.cancelar),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -320,7 +424,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
               backgroundColor: const Color(0xFF087FE8),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Pagar'),
+            child: Text(AppLocalizations.of(ctx)!.pagar),
           ),
         ],
       ),
@@ -331,8 +435,9 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
     // TODO: integrar pasarela de pago real (Stripe, PayPal, SINPE, etc.)
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🚧 Integración de pago en desarrollo'),
+        SnackBar(
+          content: Text(
+              AppLocalizations.of(context)!.integracionPagoEnDesarrollo),
           backgroundColor: Colors.orange,
         ),
       );

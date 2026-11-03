@@ -138,6 +138,40 @@ class _SellScreenState extends State<SellScreen> {
     },
   };
 
+  String _nombreCategoria(AppLocalizations l10n, String categoria) {
+    switch (categoria) {
+      case 'Electrónicos': return l10n.catElectronicos;
+      case 'Deportes': return l10n.catDeportes;
+      case 'Hogar': return l10n.catHogar;
+      case 'Música': return l10n.catMusica;
+      case 'Cocina': return l10n.catCocina;
+      case 'Películas': return l10n.catPeliculas;
+      case 'Fotografía': return l10n.catFotografia;
+      case 'Videojuegos': return l10n.catVideojuegos;
+      case 'Juegos de Mesa': return l10n.catJuegosDeMesa;
+      case 'Juguetes': return l10n.catJuguetes;
+      case 'Figuras': return l10n.catFiguras;
+      default: return categoria;
+    }
+  }
+
+  String _subtituloCategoria(AppLocalizations l10n, String categoria) {
+    switch (categoria) {
+      case 'Electrónicos': return l10n.subElectronicos;
+      case 'Deportes': return l10n.subDeportes;
+      case 'Hogar': return l10n.subHogar;
+      case 'Música': return l10n.subMusica;
+      case 'Cocina': return l10n.subCocina;
+      case 'Películas': return l10n.subPeliculas;
+      case 'Fotografía': return l10n.subFotografia;
+      case 'Videojuegos': return l10n.subVideojuegos;
+      case 'Juegos de Mesa': return l10n.subJuegosDeMesa;
+      case 'Juguetes': return l10n.subJuguetes;
+      case 'Figuras': return l10n.subFiguras;
+      default: return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // 🔥 Filtrar categorías según lo que el usuario escribió
@@ -492,7 +526,8 @@ class _SellScreenState extends State<SellScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          categoria,
+                          _nombreCategoria(
+                              AppLocalizations.of(context)!, categoria),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 22,
@@ -508,7 +543,8 @@ class _SellScreenState extends State<SellScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          data['subtitulo'] as String,
+                          _subtituloCategoria(
+                              AppLocalizations.of(context)!, categoria),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 13,

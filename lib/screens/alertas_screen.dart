@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import '../widgets/rewarded_ad_prueba.dart';
 import 'pantalla_verificacion_encuentro.dart';
 import 'pantalla_verificar_identidad_otro.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class AlertasScreen extends StatefulWidget {
   const AlertasScreen({super.key});
@@ -192,8 +193,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(ambos
-                  ? '✅ Ambos confirmaron. ¡Nos vemos!'
-                  : '✅ Confirmaste tu asistencia. Esperando al otro.'),
+                  ? AppLocalizations.of(context)!.ambosConfirmaronExito
+                  : AppLocalizations.of(context)!.confirmasteAsistencia),
               backgroundColor: Colors.green,
             ),
           );
@@ -203,7 +204,11 @@ class _AlertasScreenState extends State<AlertasScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+                AppLocalizations.of(context)!.errorGenericoAlerta(e.toString())),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -218,7 +223,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
       return ElevatedButton.icon(
         onPressed: null,
         icon: const Icon(Icons.check_circle, size: 16, color: Colors.green),
-        label: const Text('Ambos confirmaron', style: TextStyle(color: Colors.green)),
+        label: Text(
+            AppLocalizations.of(context)!.ambosConfirmaron,
+            style: const TextStyle(color: Colors.green)),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green.shade50,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -231,7 +238,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
       return ElevatedButton.icon(
         onPressed: null,
         icon: const Icon(Icons.hourglass_top, size: 16, color: Colors.grey),
-        label: const Text('Esperando al otro', style: TextStyle(color: Colors.grey)),
+        label: Text(
+            AppLocalizations.of(context)!.esperandoAlOtro,
+            style: const TextStyle(color: Colors.grey)),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.grey.shade200,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -243,7 +252,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
     return ElevatedButton.icon(
       onPressed: () => _confirmarAsistencia(encuentroId),
       icon: const Icon(Icons.check_circle_outline, size: 16),
-      label: const Text('Confirmar encuentro'),
+      label: Text(AppLocalizations.of(context)!.confirmarEncuentro),
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF0A5BE0),
         foregroundColor: Colors.white,
@@ -274,7 +283,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
           });
         },
         icon: const Icon(Icons.verified_user, size: 16),
-        label: const Text('Verificar identidad'),
+        label: Text(AppLocalizations.of(context)!.verificarIdentidad),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0A5BE0),
           foregroundColor: Colors.white,
@@ -289,7 +298,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
       return ElevatedButton.icon(
         onPressed: null,
         icon: const Icon(Icons.hourglass_top, size: 16, color: Colors.grey),
-        label: const Text('Esperando al otro', style: TextStyle(color: Colors.grey)),
+        label: Text(
+            AppLocalizations.of(context)!.esperandoAlOtro,
+            style: const TextStyle(color: Colors.grey)),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.grey.shade200,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -312,7 +323,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
           });
         },
         icon: const Icon(Icons.face_retouching_natural, size: 16),
-        label: const Text('Verificar identidad del otro'),
+        label: Text(AppLocalizations.of(context)!.verificarIdentidadDelOtro),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0A5BE0),
           foregroundColor: Colors.white,
@@ -327,7 +338,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
       return ElevatedButton.icon(
         onPressed: null,
         icon: const Icon(Icons.cancel, size: 16, color: Colors.grey),
-        label: const Text('Identidad rechazada', style: TextStyle(color: Colors.grey)),
+        label: Text(
+            AppLocalizations.of(context)!.identidadRechazada,
+            style: const TextStyle(color: Colors.grey)),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.grey.shade200,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -349,7 +362,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
         });
       },
       icon: const Icon(Icons.search, size: 16),
-      label: const Text('Revisar comparación'),
+      label: Text(AppLocalizations.of(context)!.revisarComparacion),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.grey.shade700,
         foregroundColor: Colors.white,
@@ -369,8 +382,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
     if (!RewardedAdManager.isAdLoaded) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⏳ Cargando anuncio... espera un momento'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.cargandoAnuncio),
             backgroundColor: Colors.orange,
           ),
         );
@@ -382,8 +395,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
       if (!cargado) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ No se pudo cargar el anuncio. Intentá de nuevo.'),
+            SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)!.noSePudoCargarAnuncio),
               backgroundColor: Colors.red,
             ),
           );
@@ -408,8 +422,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
           if (response.statusCode == 200) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('✅ Producto renovado por 30 días más'),
+                SnackBar(
+                  content:
+                      Text(AppLocalizations.of(context)!.productoRenovado),
                   backgroundColor: Colors.green,
                 ),
               );
@@ -422,7 +437,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error al renovar: $e'),
+                content: Text(AppLocalizations.of(context)!
+                    .errorAlRenovar(e.toString())),
                 backgroundColor: Colors.red,
               ),
             );
@@ -432,8 +448,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
       onDismissed: () {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ Debes ver el anuncio completo para renovar'),
+            SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)!.debesVerAnuncioCompleto),
               backgroundColor: Colors.red,
             ),
           );
@@ -460,10 +477,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
   Future<void> _limpiarAlertas() async {
     if (_alertas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No hay alertas para limpiar'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.noHayAlertasParaLimpiar),
           backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -473,20 +490,20 @@ class _AlertasScreenState extends State<AlertasScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('🗑️ Limpiar alertas'),
-          content: const Text(
-            '¿Estás seguro de que quieres eliminar todas las alertas?',
-            style: TextStyle(fontSize: 16),
+          title: Text(AppLocalizations.of(context)!.limpiarAlertas),
+          content: Text(
+            AppLocalizations.of(context)!.confirmarLimpiarAlertas,
+            style: const TextStyle(fontSize: 16),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
+              child: Text(AppLocalizations.of(context)!.cancelar),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Eliminar todo'),
+              child: Text(AppLocalizations.of(context)!.eliminarTodo),
             ),
           ],
         );
@@ -515,10 +532,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
         _estadosCache = {};
         _estadosVerificacion.clear();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Todas las alertas han sido eliminadas'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.todasLasAlertasEliminadas),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       } else {
@@ -527,7 +544,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al limpiar alertas: $e'),
+          content: Text(AppLocalizations.of(context)!
+              .errorAlLimpiarAlertas(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -540,9 +558,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text(
-          'Alertas',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
+        title: Text(
+          AppLocalizations.of(context)!.alertasTitulo,
+          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
         ),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
@@ -566,12 +584,12 @@ class _AlertasScreenState extends State<AlertasScreen> {
               });
               await _cargarAlertas();
             },
-            tooltip: 'Recargar',
+            tooltip: AppLocalizations.of(context)!.recargar,
           ),
           IconButton(
             icon: const Icon(Icons.delete_sweep, color: Colors.white),
             onPressed: _limpiarAlertas,
-            tooltip: 'Limpiar todas las alertas',
+            tooltip: AppLocalizations.of(context)!.limpiarTodasLasAlertas,
           ),
         ],
       ),
@@ -610,18 +628,18 @@ class _AlertasScreenState extends State<AlertasScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'No tienes alertas',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context)!.noTienesAlertas,
+                        style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF0A3D91),
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'Aquí aparecerán tus avisos y encuentros.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      Text(
+                        AppLocalizations.of(context)!.aquiApareceranAvisos,
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -798,7 +816,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                             child: ElevatedButton.icon(
                                               onPressed: () => _renovarProducto(alerta),
                                               icon: const Icon(Icons.refresh, size: 16),
-                                              label: const Text('Renovar por 30 días'),
+                                              label: Text(
+                                                  AppLocalizations.of(context)!
+                                                      .renovarPor30Dias),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: Colors.orange,
                                                 foregroundColor: Colors.white,
