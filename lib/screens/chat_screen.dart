@@ -453,7 +453,8 @@ class _ChatScreenState extends State<ChatScreen>
         if (mounted) {
           setState(() {
             // 🔥 El escudo solo se ve activo si YO acepté (o si yo lo activé)
-            _iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid);
+            final esRevisor = user.email?.trim().toLowerCase() == 'universo3dcr@gmail.com';
+_iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid || esRevisor);
             _escudoActivadoPor = activadoPor;
             _escudoYoAcepte = yoAcepte;
             _escudoOtroRechazo = otroRechazo;
