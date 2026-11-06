@@ -37,6 +37,13 @@
             {
               "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "763073770103-va2jerhrq9gnj7sj317gr3hmp49rvtp4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.mimarketplace"
+              }
             }
           ]
         }
@@ -47,6 +54,50 @@
         "mobilesdk_app_id": "1:763073770103:android:78764195a0b07b0854cc72",
         "android_client_info": {
           "package_name": "com.example.mimarketplace"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "763073770103-v3rbpphi7d2t4k1vngcipm2q1sjjienh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mimarketplace",
+            "certificate_hash": "5f9a5be88a1ea1c048aa12f73f86f8b93dfce652"
+          }
+        },
+        {
+          "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBhxcVtdAeZ0rORtju6pavz4jQblhj8tU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "763073770103-va2jerhrq9gnj7sj317gr3hmp49rvtp4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.mimarketplace"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:763073770103:android:1c2c1a46ba9037ca54cc72",
+        "android_client_info": {
+          "package_name": "com.inclan.mimarketplace"
         }
       },
       "oauth_client": [
@@ -66,6 +117,13 @@
             {
               "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "763073770103-va2jerhrq9gnj7sj317gr3hmp49rvtp4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.mimarketplace"
+              }
             }
           ]
         }

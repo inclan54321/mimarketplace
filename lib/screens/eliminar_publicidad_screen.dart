@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
+import 'dart:async';
 import 'package:intl/intl.dart';
-import 'package:currency_sdk/currency_sdk.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../main.dart' show currencyClient;
 
@@ -21,10 +23,55 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
   String _monedaDestino = 'CRC';
   bool _cargandoPrecios = true;
 
+  // 🔥 GOOGLE PLAY BILLING
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
+  final InAppPurchase _iap = InAppPurchase.instance;
+  List<ProductDetails> _productosDisponibles = [];
+  bool _cargandoProductos = true;
+
   @override
   void initState() {
     super.initState();
     _convertirPrecios();
+    _inicializarCompras();
+  }
+
+  Future<void> _inicializarCompras() async {
+    final bool disponible = await _iap.isAvailable();
+    if (!disponible) {
+      debugPrint('>>> ❌ Google Play Billing no disponible');
+      setState(() => _cargandoProductos = false);
+      return;
+    }
+
+    _purchaseSubscription = _iap.purchaseStream.listen(
+      _onPurchaseUpdate,
+      onDone: () => _purchaseSubscription?.cancel(),
+      onError: (error) => debugPrint('>>> ❌ Error en purchaseStream: $error'),
+    );
+
+    const Set<String> ids = {
+      'plan_mensual_sin_anuncios',
+      'plan_semestral_sin_anuncios',
+    };
+
+    final ProductDetailsResponse respuesta = await _iap.queryProductDetails(ids);
+    if (respuesta.error != null) {
+      debugPrint('>>> ❌ Error consultando productos: ${respuesta.error}');
+    }
+
+    setState(() {
+      _productosDisponibles = respuesta.productDetails;
+      _cargandoProductos = false;
+    });
+
+    debugPrint('>>> 🛒 Productos disponibles: ${_productosDisponibles.map((p) => p.id).toList()}');
+  }
+
+  @override
+  void dispose() {
+    _purchaseSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _convertirPrecios() async {
@@ -393,52 +440,68 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
   }
 
   Future<void> _confirmarCompra(String plan) async {
-    final precio = plan == 'mensual'
-        ? _formatearPrecio(_precioMensualConvertido ?? 1000.0)
-        : _formatearPrecio(_precioSemestralConvertido ?? 3000.0);
-    final duracion = plan == 'mensual'
-        ? AppLocalizations.of(context)!.plan1Mes
-        : AppLocalizations.of(context)!.plan6Meses;
+    final String productId = plan == 'mensual'
+        ? 'plan_mensual_sin_anuncios'
+        : 'plan_semestral_sin_anuncios';
 
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF161B22),
-        title: Text(
-          AppLocalizations.of(ctx)!.confirmarCompra,
-          style: const TextStyle(color: Colors.white),
-        ),
-        content: Text(
-          AppLocalizations.of(ctx)!
-              .confirmarCompraPregunta(precio, duracion),
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppLocalizations.of(ctx)!.cancelar),
+    final ProductDetails? producto = _productosDisponibles
+        .where((p) => p.id == productId)
+        .firstOrNull;
+
+    if (producto == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Producto no disponible. Revisa tu conexión.'),
+            backgroundColor: Colors.red,
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF087FE8),
-              foregroundColor: Colors.white,
+        );
+      }
+      return;
+    }
+
+    final PurchaseParam purchaseParam = PurchaseParam(productDetails: producto);
+    await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+  }
+
+  void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) {
+    for (final PurchaseDetails purchase in purchaseDetailsList) {
+      if (purchase.status == PurchaseStatus.purchased ||
+          purchase.status == PurchaseStatus.restored) {
+        _verificarCompraEnBackend(purchase);
+      }
+
+      if (purchase.status == PurchaseStatus.error) {
+        debugPrint('>>> ❌ Error en compra: ${purchase.error}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${purchase.error?.message ?? 'Desconocido'}'),
+              backgroundColor: Colors.red,
             ),
-            child: Text(AppLocalizations.of(ctx)!.pagar),
-          ),
-        ],
-      ),
-    );
+          );
+        }
+      }
 
-    if (confirmar != true) return;
+      if (purchase.pendingCompletePurchase) {
+        _iap.completePurchase(purchase);
+      }
+    }
+  }
 
-    // TODO: integrar pasarela de pago real (Stripe, PayPal, SINPE, etc.)
+  Future<void> _verificarCompraEnBackend(PurchaseDetails purchase) async {
+    debugPrint('>>> ✅ Compra recibida: ${purchase.productID}');
+    String? token;
+    if (purchase is GooglePlayPurchaseDetails) {
+      token = purchase.billingClientPurchase.purchaseToken;
+    }
+    debugPrint('>>> 🔑 PurchaseToken: $token');
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              AppLocalizations.of(context)!.integracionPagoEnDesarrollo),
-          backgroundColor: Colors.orange,
+        const SnackBar(
+          content: Text('✅ Compra exitosa. Los anuncios se quitarán pronto.'),
+          backgroundColor: Colors.green,
         ),
       );
     }

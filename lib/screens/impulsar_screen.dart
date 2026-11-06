@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
+import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import '../services/producto_service.dart';
 import '../models/producto.dart';
 
@@ -16,6 +19,55 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
   // 🔥 Estado de la pantalla
   bool _modoSeleccion = false; // false = intro, true = configuración
   Producto? _productoSeleccionado;
+
+  // 🔥 GOOGLE PLAY BILLING
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
+  final InAppPurchase _iap = InAppPurchase.instance;
+  ProductDetails? _productoImpulso;
+  bool _cargandoProducto = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _inicializarCompras();
+  }
+
+  Future<void> _inicializarCompras() async {
+    final bool disponible = await _iap.isAvailable();
+    if (!disponible) {
+      debugPrint('>>> ❌ Google Play Billing no disponible');
+      setState(() => _cargandoProducto = false);
+      return;
+    }
+
+    _purchaseSubscription = _iap.purchaseStream.listen(
+      _onPurchaseUpdate,
+      onDone: () => _purchaseSubscription?.cancel(),
+      onError: (error) => debugPrint('>>> ❌ Error en purchaseStream: $error'),
+    );
+
+    const Set<String> ids = {'impulso_500'};
+
+    final ProductDetailsResponse respuesta = await _iap.queryProductDetails(ids);
+    if (respuesta.error != null) {
+      debugPrint('>>> ❌ Error consultando producto: ${respuesta.error}');
+    }
+
+    setState(() {
+      _productoImpulso = respuesta.productDetails.isNotEmpty
+          ? respuesta.productDetails.first
+          : null;
+      _cargandoProducto = false;
+    });
+
+    debugPrint('>>> 🛒 Producto impulso disponible: ${_productoImpulso?.id ?? "NINGUNO"}');
+  }
+
+  @override
+  void dispose() {
+    _purchaseSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -562,7 +614,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
     );
   }
 
-  // 🔥 Impulsar
+  // 🔥 Impulsar (pago con Google Play)
   Future<void> _impulsar() async {
     if (_productoSeleccionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -582,7 +634,60 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
       return;
     }
 
+    if (_productoImpulso == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Producto de impulso no disponible. Revisá tu conexión.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // 🔥 Iniciar la compra en Google Play (consumible)
+    final PurchaseParam purchaseParam =
+        PurchaseParam(productDetails: _productoImpulso!);
+    await _iap.buyConsumable(purchaseParam: purchaseParam);
+  }
+
+  void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) {
+    for (final PurchaseDetails purchase in purchaseDetailsList) {
+      if (purchase.status == PurchaseStatus.purchased ||
+          purchase.status == PurchaseStatus.restored) {
+        _verificarPagoImpulso(purchase);
+      }
+
+      if (purchase.status == PurchaseStatus.error) {
+        debugPrint('>>> ❌ Error en compra: ${purchase.error}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${purchase.error?.message ?? 'Desconocido'}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+
+      if (purchase.pendingCompletePurchase) {
+        _iap.completePurchase(purchase);
+      }
+    }
+  }
+
+  Future<void> _verificarPagoImpulso(PurchaseDetails purchase) async {
+    String? token;
+    if (purchase is GooglePlayPurchaseDetails) {
+      token = purchase.billingClientPurchase.purchaseToken;
+    }
+
+    if (token == null) {
+      debugPrint('>>> ❌ No se obtuvo purchaseToken');
+      return;
+    }
+
     // Loading
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -590,18 +695,19 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
     );
 
     try {
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-      print('>>> 🚀 Impulsar. Token: ${idToken != null ? "SÍ" : "NO"}');
+      final user = FirebaseAuth.instance.currentUser;
+      final idToken = await user?.getIdToken();
       final response = await http.post(
-        Uri.parse(
-            'https://mimarketplace-production.up.railway.app/api/productos/${_productoSeleccionado!.id}/impulsar'),
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/${_productoSeleccionado!.id}/impulsar'),
         headers: {
           'Content-Type': 'application/json',
           if (idToken != null) 'Authorization': 'Bearer $idToken',
         },
-        body: jsonEncode({'usuario_id': user.uid}),
+        body: jsonEncode({
+          'usuario_id': user?.uid,
+          'purchase_token': token,
+        }),
       );
-      print('>>> 🚀 Respuesta: ${response.statusCode}');
 
       if (!mounted) return;
       Navigator.pop(context); // cerrar loading
@@ -609,14 +715,11 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                '✅ "${_productoSeleccionado!.nombre}" está primero en el Home'),
+            content: Text('✅ "${_productoSeleccionado!.nombre}" está primero en el Home'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
-
-        // Volver al perfil
         Navigator.pop(context);
       } else {
         final data = jsonDecode(response.body);

@@ -1644,22 +1644,16 @@ app.get('/api/productos/impulsados', verificarTokenOpcional, async (req, res) =>
 app.post('/api/productos/:id/impulsar', verificarTokenFirebase, async (req, res) => {
   try {
     const { id } = req.params;
-    const { usuario_id } = req.body;
+    const { usuario_id, purchase_token } = req.body;
 
     console.log('>>> IMPULSAR: producto', id, 'usuario', usuario_id);
-    console.log('>>> 🔐 Usuario autenticado (token):', req.usuarioAutenticado);
 
-    if (!usuario_id) {
-      return res.status(400).json({ error: 'Falta usuario_id' });
+    if (!usuario_id || !purchase_token) {
+      return res.status(400).json({ error: 'Falta usuario_id o purchase_token' });
     }
 
-    // 🔥 Verificar que el usuario_id del body coincida con el del token
     if (usuario_id !== req.usuarioAutenticado) {
-      console.log('>>> ❌ UID no coincide en impulsar producto');
-      return res.status(403).json({
-        error: 'No autorizado para impulsar este producto',
-        codigo: 'UID_NO_COINCIDE'
-      });
+      return res.status(403).json({ error: 'UID_NO_COINCIDE' });
     }
 
     const producto = await pool.query(
@@ -1671,6 +1665,54 @@ app.post('/api/productos/:id/impulsar', verificarTokenFirebase, async (req, res)
       return res.status(403).json({ error: 'No tenés permiso sobre este producto' });
     }
 
+    // 🔥 VERIFICAR EL PAGO CON GOOGLE PLAY DEVELOPER API
+    const { google } = require('googleapis');
+    let auth;
+    try {
+      const credenciales = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+      auth = new google.auth.GoogleAuth({
+        credentials: credenciales,
+        scopes: ['https://www.googleapis.com/auth/androidpublisher'],
+      });
+    } catch (e) {
+      console.error('>>> ❌ Error parseando GOOGLE_SERVICE_ACCOUNT_JSON:', e.message);
+      return res.status(500).json({ error: 'Error de configuración del servidor' });
+    }
+    const androidpublisher = google.androidpublisher({ version: 'v3', auth });
+
+    let verificacion;
+    try {
+      const respuesta = await androidpublisher.purchases.products.get({
+        packageName: 'com.inclan.mimarketplace',
+        productId: 'impulso_500',
+        token: purchase_token,
+      });
+      verificacion = respuesta.data;
+    } catch (e) {
+      console.log('>>> ❌ Token inválido o error de Google:', e.message);
+      return res.status(400).json({ error: 'Pago no válido', codigo: 'PAGO_INVALIDO' });
+    }
+
+    // 🔥 Verificar que la compra esté en estado "comprado" (purchaseState = 0)
+    if (verificacion.purchaseState !== 0) {
+      return res.status(400).json({ error: 'La compra no está completada', codigo: 'COMPRA_NO_COMPLETADA' });
+    }
+
+    // 🔥 CONSUMIR EL TOKEN (para que no se pueda reutilizar)
+    // Si no lo consumes, el usuario podría reusar el mismo token para impulsar varias veces
+    try {
+      await androidpublisher.purchases.products.consume({
+        packageName: 'com.inclan.mimarketplace',
+        productId: 'impulso_500',
+        token: purchase_token,
+      });
+      console.log('>>> ✅ Token consumido correctamente');
+    } catch (e) {
+      console.log('>>> ⚠️ Error al consumir token (puede que ya estuviera consumido):', e.message);
+      // No bloqueamos el impulso por esto, pero lo registramos
+    }
+
+    // 🔥 AHORA SÍ: DAR EL IMPULSO
     await pool.query(
       'UPDATE productos_impulsados SET activo = FALSE WHERE producto_id = $1',
       [id]
@@ -1682,12 +1724,11 @@ app.post('/api/productos/:id/impulsar', verificarTokenFirebase, async (req, res)
       [id, usuario_id]
     );
 
-    console.log('>>> IMPULSO CREADO:', result.rows[0]);
-
+    console.log('>>> ✅ IMPULSO CREADO CON PAGO VERIFICADO:', result.rows[0]);
     res.json({ success: true, impulso: result.rows[0] });
 
   } catch (error) {
-    console.error('>>> ERROR AL IMPULSAR:', error);
+    console.error('>>> ❌ ERROR AL IMPULSAR:', error);
     res.status(500).json({ error: 'Error al impulsar producto' });
   }
 });
@@ -5919,6 +5960,10 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
             });
         }
 
+        // 🔥 EXCEPCIÓN PARA EL REVISOR DE GOOGLE PLAY
+        const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
+        const esRevisor = usuario_id === UID_REVISOR;
+
         // 🔥 Obtener los dos usuarios de la conversación
         const convResult = await pool.query(
             'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
@@ -5938,6 +5983,8 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
         const results = [];
         for (const uid of usuarios) {
             const soyYo = uid === usuario_id;
+            // 🔥 EXCEPCIÓN REVISOR: si es el revisor, ambos quedan como aceptados.
+            const aceptaAuto = soyYo || esRevisor;
             // 🔥 SOLO el que activa queda con activo = true.
             // 🔥 El otro queda con activo = false hasta que acepte.
             const r = await pool.query(
@@ -5945,19 +5992,19 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
                  (conversacion_id, usuario_id, activo, video_visto, 
                   usuario_activo, acepto, rechazo, fecha_respuesta,
                   fecha_activacion, fecha_expiracion)
-                 VALUES ($1, $2, $3, true, $4, $5, false, $6, NOW(), NOW() + INTERVAL '30 days')
+                 VALUES ($1, $2, $3, true, $4, $7, false, $6, NOW(), NOW() + INTERVAL '30 days')
                  ON CONFLICT (conversacion_id, usuario_id) 
                  DO UPDATE SET 
                     activo = CASE WHEN escudos_conversacion.activo = true THEN true ELSE $3 END,
                     video_visto = true,
                     usuario_activo = $4,
-                    acepto = CASE WHEN escudos_conversacion.acepto = true THEN true ELSE $5 END,
+                    acepto = CASE WHEN escudos_conversacion.acepto = true THEN true ELSE $7 END,
                     rechazo = false,
                     fecha_respuesta = COALESCE(escudos_conversacion.fecha_respuesta, $6),
                     fecha_activacion = NOW(),
                     fecha_expiracion = NOW() + INTERVAL '30 days'
                  RETURNING *`,
-                [conversacion_id, uid, soyYo, usuario_id, soyYo, soyYo ? new Date() : null]
+                [conversacion_id, uid, soyYo, usuario_id, soyYo, soyYo ? new Date() : null, aceptaAuto]
             );
             results.push(r.rows[0]);
         }

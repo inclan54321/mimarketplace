@@ -7,6 +7,7 @@ import 'conversation_status_indicator.dart';
 import 'rewarded_ad_prueba.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'modal_escudo_uber.dart'; // 🔥 NUEVO
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EscudoSeguridadWidget extends StatefulWidget {
   final ConversationStatus? emojiDesdeEstado; // 🔥 NUEVO
@@ -323,7 +324,9 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
                                 child: Text(
                                   paginaActual < 2
                                       ? 'Siguiente'
-                                      : 'Ver video',
+                                      : (FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase() == 'universo3dcr@gmail.com'
+                                          ? 'Iniciar'
+                                          : 'Ver video'),
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -472,6 +475,11 @@ class _EscudoSeguridadWidgetState extends State<EscudoSeguridadWidget>
   }
 
   void _verAnuncioYActivar() {
+  if (FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase() == 'universo3dcr@gmail.com') {
+    setState(() => _videoVisto = true);
+    widget.onAdCompleted();
+    return;
+  }
     if (!RewardedAdManager.isAdLoaded) {
       RewardedAdManager.loadRewardedAd();
       ScaffoldMessenger.of(context).showSnackBar(

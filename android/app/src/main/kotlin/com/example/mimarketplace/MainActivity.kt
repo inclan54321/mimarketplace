@@ -1,4 +1,4 @@
-package com.example.mimarketplace
+package com.inclan.mimarketplace
 
 import io.flutter.embedding.android.FlutterActivity
 

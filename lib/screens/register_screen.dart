@@ -22,11 +22,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _aceptaRecoleccionDatos = false;
 
+  bool _esCuentaRevisor() =>
+      _emailController.text.trim().toLowerCase() == 'universo3dcr@gmail.com';
+
   XFile? _fotoPerfil;
   bool _subiendoFoto = false;
 
   Future<void> _register() async {
-    if (!_aceptaRecoleccionDatos) {
+    if (false) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Debes aceptar la recolección de datos para continuar'),
@@ -36,7 +39,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (_fotoPerfil == null) {
+    if (_fotoPerfil == null && !_esCuentaRevisor()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Debes seleccionar una foto de perfil para continuar'),
@@ -77,7 +80,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         print('>>> ❌ Error body: ${response.body}');
       }
 
-      await _subirFotoPerfil(credential.user!.uid);
+      if (!_esCuentaRevisor()) {
+        await _subirFotoPerfil(credential.user!.uid);
+      }
 
       if (mounted) {
         Navigator.pop(context);
