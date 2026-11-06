@@ -5983,19 +5983,19 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
         const results = [];
         for (const uid of usuarios) {
             const soyYo = uid === usuario_id;
-            // 🔥 EXCEPCIÓN REVISOR: si es el revisor, ambos quedan como aceptados.
-            const aceptaAuto = soyYo || esRevisor;
-            // 🔥 SOLO el que activa queda con activo = true.
-            // 🔥 El otro queda con activo = false hasta que acepte.
+            // 🔥 EXCEPCIÓN REVISOR: el revisor activa el escudo y el OTRO usuario
+            // queda activo y aceptado automáticamente (sin modal).
+            const activoAuto = soyYo || (esRevisor && uid !== usuario_id);
+            const aceptaAuto = soyYo || (esRevisor && uid !== usuario_id);
             const r = await pool.query(
                 `INSERT INTO escudos_conversacion 
                  (conversacion_id, usuario_id, activo, video_visto, 
                   usuario_activo, acepto, rechazo, fecha_respuesta,
                   fecha_activacion, fecha_expiracion)
-                 VALUES ($1, $2, $3, true, $4, $7, false, $6, NOW(), NOW() + INTERVAL '30 days')
+                 VALUES ($1, $2, $8, true, $4, $7, false, $6, NOW(), NOW() + INTERVAL '30 days')
                  ON CONFLICT (conversacion_id, usuario_id) 
                  DO UPDATE SET 
-                    activo = CASE WHEN escudos_conversacion.activo = true THEN true ELSE $3 END,
+                    activo = CASE WHEN escudos_conversacion.activo = true THEN true ELSE $8 END,
                     video_visto = true,
                     usuario_activo = $4,
                     acepto = CASE WHEN escudos_conversacion.acepto = true THEN true ELSE $7 END,
@@ -6004,7 +6004,7 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
                     fecha_activacion = NOW(),
                     fecha_expiracion = NOW() + INTERVAL '30 days'
                  RETURNING *`,
-                [conversacion_id, uid, soyYo, usuario_id, soyYo, soyYo ? new Date() : null, aceptaAuto]
+                [conversacion_id, uid, soyYo, usuario_id, soyYo, soyYo ? new Date() : null, aceptaAuto, activoAuto]
             );
             results.push(r.rows[0]);
         }
