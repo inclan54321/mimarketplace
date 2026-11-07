@@ -6358,7 +6358,7 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
                 conversacion_id, usuario_propone_id, usuario_recibe_id,
                 lugar.provincia, lugar.canton, lugar.distrito || '',
                 lugar.nombre, lugar.lat, lugar.lng,
-                fecha_encuentro
+                new Date(fecha_encuentro).toISOString() // 🔥 Fuerza la conversión a UTC
             ]
         );
 
