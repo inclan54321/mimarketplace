@@ -5961,7 +5961,7 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
         }
 
         // 🔥 EXCEPCIÓN PARA EL REVISOR DE GOOGLE PLAY
-        const UID_REVISOR = 'oJyBfNlBeeeQ4BzfUvGuAuAUQJ43';
+        const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
         const esRevisor = usuario_id === UID_REVISOR;
 
         // 🔥 Obtener los dos usuarios de la conversación
@@ -6375,7 +6375,7 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
         );
 
         // 🔥 EXCEPCIÓN REVISOR: si propone el revisor, se auto-acepta
-        const UID_REVISOR = 'oJyBfNlBeeeQ4BzfUvGuAuAUQJ43';
+        const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
         if (usuario_propone_id === UID_REVISOR) {
             await pool.query(
                 `UPDATE propuestas_encuentro 
@@ -6961,7 +6961,7 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
         let usuarios = result.rows.map(r => r.usuario_id);
 
         // 🔥 EXCEPCIÓN REVISOR: si confirma el revisor, insertar la confirmación del otro
-        const UID_REVISOR = 'oJyBfNlBeeeQ4BzfUvGuAuAUQJ43';
+        const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
         if (usuarios.includes(UID_REVISOR) && usuarios.length < 2) {
             const convR = await pool.query(
                 'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
