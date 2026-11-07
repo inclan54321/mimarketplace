@@ -6500,6 +6500,7 @@ app.put('/api/encuentro/propuesta/:id/aceptar', verificarTokenFirebase, async (r
                 [propuesta.usuario_recibe_id]
             );
             const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
+            console.log('>>> fecha_encuentro RAW:', JSON.stringify(propuesta.fecha_encuentro), '| tipo:', typeof propuesta.fecha_encuentro);
             const fechaTxt = new Date(String(propuesta.fecha_encuentro).replace(' ', 'T') + '-06:00').toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
             const ubicacion = [propuesta.lugar_nombre, propuesta.distrito, propuesta.canton, propuesta.provincia]
                 .filter(x => x && x !== '')
