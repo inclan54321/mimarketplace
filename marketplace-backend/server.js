@@ -7932,6 +7932,38 @@ app.post('/api/encuentro/verificar-facial', verificarTokenFirebase, async (req, 
                         [encuentro_id, usuario_id, otroId]
                     );
 
+                    // 🔥 EXCEPCIÓN REVISOR: simular que el otro usuario ya comparó
+                    //    y aprobó la selfie del revisor. La verificación del revisor
+                    //    hacia el otro queda pendiente (la hace él manualmente).
+                    const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
+                    if (usuario_id === UID_REVISOR) {
+                        // Confirmar SOLO la verificación de B hacia el revisor
+                        await pool.query(
+                            `UPDATE verificaciones_cruzadas
+                             SET confirmado = TRUE, rechazado = FALSE, fecha = NOW()
+                             WHERE encuentro_id = $1 
+                               AND usuario_verifica_id = $2 
+                               AND usuario_verificado_id = $3`,
+                            [encuentro_id, otroId, usuario_id]
+                        );
+                        // Mandar alerta al revisor: su selfie fue aprobada y ahora él debe verificar al otro
+                        const nombreOtro = await pool.query(
+                            'SELECT nombre FROM usuarios WHERE uid = $1',
+                            [otroId]
+                        );
+                        const nombreB = nombreOtro.rows[0]?.nombre || 'El otro usuario';
+                        await pool.query(
+                            `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                             VALUES ($1, 0, $2, $3, 'verificar_identidad', NOW())`,
+                            [
+                                usuario_id,
+                                encuentro_id,
+                                `${nombreB} vio tu selfie y confirmó tu identidad.\n\n🔍 Ahora verificá vos la identidad de ${nombreB}.`
+                            ]
+                        );
+                        console.log(`>>> 🛡️ Revisor se tomó selfie → B simulado confirmó. Alerta enviada al revisor para que verifique a B.`);
+                    }
+
                     // Obtener nombres para el mensaje
                     const nombres = await pool.query(
                         `SELECT uid, nombre, foto_perfil FROM usuarios WHERE uid IN ($1, $2)`,
@@ -8201,7 +8233,10 @@ app.post('/api/encuentro/:id/verificar-ubicacion', verificarTokenFirebase, async
         const distanciaMetros = R * c;
 
         const RADIO_PERMITIDO = 150; // metros
-        const enLugar = distanciaMetros <= RADIO_PERMITIDO;
+        // 🔥 EXCEPCIÓN REVISOR: siempre cuenta como "en lugar" aunque esté lejos
+        const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
+        const esRevisor = usuario_id === UID_REVISOR;
+        const enLugar = esRevisor ? true : distanciaMetros <= RADIO_PERMITIDO;
 
         // Guardar tracking en cualquier caso
         await pool.query(
@@ -8427,6 +8462,18 @@ app.get('/api/encuentro/:id/selfie/:usuarioId', verificarTokenFirebase, async (r
              ORDER BY id DESC LIMIT 1`,
             [id, usuarioId]
         );
+
+        // 🔥 EXCEPCIÓN REVISOR: si el que verifica es el revisor,
+        // devolver la foto de perfil del otro en lugar de su selfie.
+        const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
+        if (req.usuarioAutenticado === UID_REVISOR) {
+            const perfil = await pool.query(
+                'SELECT foto_perfil FROM usuarios WHERE uid = $1',
+                [usuarioId]
+            );
+            return res.json({ selfie_url: perfil.rows[0]?.foto_perfil || null });
+        }
+
         if (selfie.rows.length === 0) {
             return res.json({ selfie_url: null });
         }
@@ -8453,6 +8500,19 @@ app.post('/api/encuentro/:id/confirmar-identidad', verificarTokenFirebase, async
             return res.status(403).json({ error: 'No autorizado' });
         }
         const otroId = e.usuario1_id === req.usuarioAutenticado ? e.usuario2_id : e.usuario1_id;
+
+        // 🔥 EXCEPCIÓN REVISOR: si el otro usuario es el revisor,
+        //    la confirmación de identidad se hace automáticamente.
+        const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
+        if (otroId === UID_REVISOR) {
+            await pool.query(
+                `UPDATE verificaciones_cruzadas
+                 SET confirmado = TRUE, rechazado = FALSE, fecha = NOW()
+                 WHERE encuentro_id = $1 AND usuario_verifica_id = $2 AND usuario_verificado_id = $3`,
+                [id, req.usuarioAutenticado, otroId]
+            );
+            console.log(`>>> 🛡️ Revisor es el verificado → confirmación automática`);
+        }
 
         // 🔥 Cancelar cualquier llamada pendiente para este usuario en este encuentro
         await pool.query(
