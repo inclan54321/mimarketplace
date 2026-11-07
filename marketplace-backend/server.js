@@ -824,8 +824,8 @@ cron.schedule('* * * * *', async () => {
             LEFT JOIN usuarios u1 ON e.usuario1_id = u1.uid
             LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
             WHERE e.estado = 'agendado'
-              AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '4 minutes'
-                                        AND NOW() + INTERVAL '6 minutes'
+              AND e.fecha_encuentro BETWEEN (NOW() AT TIME ZONE 'America/Costa_Rica') + INTERVAL '4 minutes'
+                                        AND (NOW() AT TIME ZONE 'America/Costa_Rica') + INTERVAL '6 minutes'
         `);
 
         for (const enc of pendientes.rows) {
@@ -882,7 +882,8 @@ cron.schedule('* * * * *', async () => {
             SELECT e.id AS encuentro_id, e.usuario1_id, e.usuario2_id, e.fecha_encuentro
             FROM encuentros_agendados e
             WHERE e.estado = 'agendado'
-              AND e.fecha_encuentro BETWEEN NOW() AND NOW() + INTERVAL '5 minutes'
+              AND e.fecha_encuentro BETWEEN (NOW() AT TIME ZONE 'America/Costa_Rica')
+                                        AND (NOW() AT TIME ZONE 'America/Costa_Rica') + INTERVAL '5 minutes'
         `);
 
         for (const enc of enVentana.rows) {
@@ -932,7 +933,8 @@ cron.schedule('* * * * *', async () => {
             SELECT e.id AS encuentro_id, e.usuario1_id, e.usuario2_id, e.fecha_encuentro
             FROM encuentros_agendados e
             WHERE e.estado = 'agendado'
-              AND e.fecha_encuentro BETWEEN NOW() AND NOW() + INTERVAL '5 minutes'
+              AND e.fecha_encuentro BETWEEN (NOW() AT TIME ZONE 'America/Costa_Rica')
+                                        AND (NOW() AT TIME ZONE 'America/Costa_Rica') + INTERVAL '5 minutes'
         `);
 
         for (const enc of enVentana.rows) {
@@ -6651,36 +6653,24 @@ app.post('/api/encuentro/confirmar', verificarTokenFirebase, async (req, res) =>
             });
         }
 
-        // 4. Insertar en encuentros_agendados (si no existe ya)
+        // 4. 🔥 NO insertar en encuentros_agendados acá.
+        //    El encuentro agendado lo crea ÚNICAMENTE /api/conversaciones/:id/cerrar-trato
+        //    cuando AMBOS confirmaron (usuarios.length >= 2).
+        //    Si lo creáramos acá con un solo usuario, arrancarían antes de tiempo
+        //    los crons de recordatorio (1h/10m), llamada de verificación (5m),
+        //    tardanza (≤5m) y no_presentado (15m).
+        //    Solo leemos si ya existe para devolver el id en la respuesta (no crea nada).
         const yaExiste = await pool.query(
             `SELECT id FROM encuentros_agendados 
              WHERE conversacion_id = $1 AND fecha_encuentro = $2`,
             [conversacion_id, propuesta.fecha_encuentro]
         );
 
-        let encuentroId;
-        if (yaExiste.rows.length > 0) {
-            encuentroId = yaExiste.rows[0].id;
-            console.log(`>>> 📅 Encuentro ya agendado: ${encuentroId}`);
+        const encuentroId = yaExiste.rows[0]?.id ?? null;
+        if (encuentroId) {
+            console.log(`>>> 📅 Encuentro ya agendado (creado por cerrar-trato): ${encuentroId}`);
         } else {
-            const insertResult = await pool.query(
-                `INSERT INTO encuentros_agendados 
-                 (conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, 
-                  lugar_nombre, lugar_lat, lugar_lng, estado, escudo_verificado)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'agendado', false)
-                 RETURNING *`,
-                [
-                    conversacion_id,
-                    conv.usuario1_id,
-                    conv.usuario2_id,
-                    propuesta.fecha_encuentro,
-                    propuesta.lugar_nombre || '',
-                    propuesta.lugar_lat || null,
-                    propuesta.lugar_lng || null,
-                ]
-            );
-            encuentroId = insertResult.rows[0].id;
-            console.log(`>>> 📅 Encuentro agendado creado: ${encuentroId}`);
+            console.log(`>>> ⏳ Encuentro aún NO agendado: falta que ambos cierren trato.`);
         }
 
         // 5. Crear alerta para los dos
@@ -7088,7 +7078,9 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
                         `INSERT INTO encuentros_agendados 
                          (conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, 
                           lugar_nombre, lugar_lat, lugar_lng, estado, escudo_verificado)
-                         VALUES ($1, $2, $3, $4, $5, $6, $7, 'agendado', false)
+                         VALUES ($1, $2, $3, 
+                                 ($4::timestamptz AT TIME ZONE 'America/Costa_Rica'),
+                                 $5, $6, $7, 'agendado', false)
                          RETURNING *`,
                         [
                             id,
@@ -7411,7 +7403,7 @@ app.post('/api/encuentro/agendar', verificarTokenFirebase, async (req, res) => {
         const result = await pool.query(
             `INSERT INTO encuentros_agendados 
              (conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, lugar_nombre, lugar_lat, lugar_lng)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             VALUES ($1, $2, $3, ($4::timestamptz AT TIME ZONE 'America/Costa_Rica'), $5, $6, $7)
              RETURNING *`,
             [conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, lugar_nombre || '', lugar_lat || null, lugar_lng || null]
         );
@@ -7587,7 +7579,7 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
 
         // 🔥 REGLA: solo se puede cancelar si faltan al menos 1 hora
         const faltan = await pool.query(
-            `SELECT EXTRACT(EPOCH FROM (fecha_encuentro - NOW())) AS segundos
+            `SELECT EXTRACT(EPOCH FROM (fecha_encuentro - (NOW() AT TIME ZONE 'America/Costa_Rica'))) AS segundos
              FROM encuentros_agendados WHERE id = $1`,
             [id]
         );
