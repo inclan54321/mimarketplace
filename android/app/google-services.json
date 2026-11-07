@@ -102,6 +102,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "763073770103-fv7e1mg5pkqk9jf66dcnecuthkt5j9vv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.inclan.mimarketplace",
+            "certificate_hash": "5f9a5be88a1ea1c048aa12f73f86f8b93dfce652"
+          }
+        },
+        {
           "client_id": "763073770103-em842d9ghs91kh7ihalqoanon0tpepl0.apps.googleusercontent.com",
           "client_type": 3
         }
