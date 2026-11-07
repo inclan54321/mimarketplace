@@ -7907,7 +7907,13 @@ app.post('/api/encuentro/verificar-facial', verificarTokenFirebase, async (req, 
                     [encuentro_id, otroId]
                 );
 
-                if (otroSelfie.rows.length === 0) {
+                // 🔥 EXCEPCIÓN REVISOR: si el que se toma la selfie es el revisor,
+                //    asumir que el otro "ya se la tomó" (simulado).
+                const UID_REVISOR_SELFIE = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
+                const esRevisorSelfie = usuario_id === UID_REVISOR_SELFIE;
+                const otroSelfieExiste = otroSelfie.rows.length > 0 || esRevisorSelfie;
+
+                if (!otroSelfieExiste) {
                     // El otro NO se ha tomado la selfie → alerta de espera
                     estadoCruzado = 'esperando_al_otro';
                     await pool.query(
@@ -7931,6 +7937,49 @@ app.post('/api/encuentro/verificar-facial', verificarTokenFirebase, async (req, 
                          ON CONFLICT DO NOTHING`,
                         [encuentro_id, usuario_id, otroId]
                     );
+
+                    // 🔥 EXCEPCIÓN REVISOR: simular que B ya comparó y aprobó la selfie del revisor.
+                    //    La verificación del revisor hacia B queda PENDIENTE (la hace él).
+                    if (esRevisorSelfie) {
+                        await pool.query(
+                            `UPDATE verificaciones_cruzadas
+                             SET confirmado = TRUE, rechazado = FALSE, fecha = NOW()
+                             WHERE encuentro_id = $1 
+                               AND usuario_verifica_id = $2 
+                               AND usuario_verificado_id = $3`,
+                            [encuentro_id, otroId, usuario_id]
+                        );
+
+                        const nombreOtroRes = await pool.query(
+                            'SELECT nombre FROM usuarios WHERE uid = $1',
+                            [otroId]
+                        );
+                        const nombreB = nombreOtroRes.rows[0]?.nombre || 'El otro usuario';
+
+                        // Alerta 1: B confirmó tu identidad
+                        await pool.query(
+                            `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                             VALUES ($1, 0, $2, $3, 'verificar_identidad', NOW())`,
+                            [
+                                usuario_id,
+                                encuentro_id,
+                                `✅ ${nombreB} vio tu selfie y confirmó tu identidad.`
+                            ]
+                        );
+
+                        // Alerta 2: Ahora verificá vos la identidad de B
+                        await pool.query(
+                            `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)
+                             VALUES ($1, 0, $2, $3, 'verificar_identidad', NOW())`,
+                            [
+                                usuario_id,
+                                encuentro_id,
+                                `🔍 Ahora verificá vos la identidad de ${nombreB}.\n\nTocá el botón para comparar la foto de perfil con la selfie.`
+                            ]
+                        );
+
+                        console.log(`>>> 🛡️ Revisor se tomó selfie → B simulado confirmó. 2 alertas enviadas al revisor.`);
+                    }
 
                     // 🔥 EXCEPCIÓN REVISOR: simular que el otro usuario ya comparó
                     //    y aprobó la selfie del revisor. La verificación del revisor
