@@ -579,8 +579,8 @@ cron.schedule('* * * * *', async () => {
              LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
              WHERE e.estado = 'agendado'
                AND e.recordatorio_1h_enviado = FALSE
-               AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '55 minutes'
-                                          AND NOW() + INTERVAL '61 minutes'`
+               AND e.fecha_encuentro BETWEEN (NOW() AT TIME ZONE 'America/Costa_Rica') + INTERVAL '55 minutes'
+                                          AND (NOW() AT TIME ZONE 'America/Costa_Rica') + INTERVAL '61 minutes'`
         );
 
         for (const enc of enUnaHora.rows) {
@@ -641,8 +641,8 @@ cron.schedule('* * * * *', async () => {
              LEFT JOIN usuarios u2 ON e.usuario2_id = u2.uid
              WHERE e.estado = 'agendado'
                AND e.recordatorio_10m_enviado = FALSE
-               AND e.fecha_encuentro BETWEEN NOW() + INTERVAL '5 minutes'
-                                          AND NOW() + INTERVAL '11 minutes'`
+               AND e.fecha_encuentro BETWEEN (NOW() AT TIME ZONE 'America/Costa_Rica') + INTERVAL '5 minutes'
+                                          AND (NOW() AT TIME ZONE 'America/Costa_Rica') + INTERVAL '11 minutes'`
         );
 
         for (const enc of enDiezMin.rows) {
@@ -700,7 +700,7 @@ cron.schedule('* * * * *', async () => {
              SET estado = 'tarde', tarde_procesado = TRUE
              WHERE estado = 'agendado'
                AND tarde_procesado = FALSE
-               AND fecha_encuentro < NOW() - INTERVAL '5 minutes'
+               AND fecha_encuentro < (NOW() AT TIME ZONE 'America/Costa_Rica') - INTERVAL '5 minutes'
              RETURNING id`
         );
         if (marcadosTarde.rowCount > 0) {
@@ -715,7 +715,7 @@ cron.schedule('* * * * *', async () => {
              SET estado = 'no_presentado', no_presentado_procesado = TRUE
              WHERE estado IN ('agendado', 'tarde')
                AND no_presentado_procesado = FALSE
-               AND fecha_encuentro < NOW() - INTERVAL '15 minutes'
+               AND fecha_encuentro < (NOW() AT TIME ZONE 'America/Costa_Rica') - INTERVAL '15 minutes'
                AND NOT EXISTS (
                  SELECT 1 FROM verificaciones_faciales v
                  WHERE v.encuentro_id = encuentros_agendados.id AND v.aprobado = TRUE
@@ -6358,7 +6358,7 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
                 conversacion_id, usuario_propone_id, usuario_recibe_id,
                 lugar.provincia, lugar.canton, lugar.distrito || '',
                 lugar.nombre, lugar.lat, lugar.lng,
-                new Date(fecha_encuentro).toISOString() // 🔥 Fuerza la conversión a UTC
+                fecha_encuentro // 🔥 Se guarda tal cual viene de la app
             ]
         );
 
