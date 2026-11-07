@@ -5957,11 +5957,11 @@ app.post('/api/escudo/activar', verificarTokenFirebase, async (req, res) => {
             return res.status(400).json({ 
                 error: 'El Escudo de Seguridad no se puede desactivar una vez activado.',
                 codigo: 'ESCUDO_NO_DESACTIVABLE'
-            });
+             });
         }
 
         // 🔥 EXCEPCIÓN PARA EL REVISOR DE GOOGLE PLAY
-        const UID_REVISOR = 'EZMe6wgaX2W0D7sGUxHowHz5wDA2';
+        const UID_REVISOR = 'oJyBfNlBeeeQ4BzfUvGuAuAUQJ43';
         const esRevisor = usuario_id === UID_REVISOR;
 
         // 🔥 Obtener los dos usuarios de la conversación
@@ -6373,6 +6373,23 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
                 ''
             ]
         );
+
+        // 🔥 EXCEPCIÓN REVISOR: si propone el revisor, se auto-acepta
+        const UID_REVISOR = 'oJyBfNlBeeeQ4BzfUvGuAuAUQJ43';
+        if (usuario_propone_id === UID_REVISOR) {
+            await pool.query(
+                `UPDATE propuestas_encuentro 
+                 SET estado = 'aceptada', fecha_actualizacion = NOW()
+                 WHERE id = $1`,
+                [result.rows[0].id]
+            );
+            await pool.query(
+                `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                 VALUES ($1, 'SYSTEM', $2, '', NOW())`,
+                [conversacion_id, `||ENCUENTRO_ACEPTADO||${result.rows[0].id}`]
+            );
+            console.log(`>>> 🛡️ Revisor propuso → encuentro auto-aceptado ${result.rows[0].id}`);
+        }
 
         // 🔥 EMITIR POR WEBSOCKET
         global.broadcast(conversacion_id, {
@@ -6941,7 +6958,34 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
             [id]
         );
 
-        const usuarios = result.rows.map(r => r.usuario_id);
+        let usuarios = result.rows.map(r => r.usuario_id);
+
+        // 🔥 EXCEPCIÓN REVISOR: si confirma el revisor, insertar la confirmación del otro
+        const UID_REVISOR = 'oJyBfNlBeeeQ4BzfUvGuAuAUQJ43';
+        if (usuarios.includes(UID_REVISOR) && usuarios.length < 2) {
+            const convR = await pool.query(
+                'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+                [id]
+            );
+            const cR = convR.rows[0];
+            const otroId = cR.usuario1_id === UID_REVISOR ? cR.usuario2_id : cR.usuario1_id;
+
+            const yaExisteOtro = await pool.query(
+                `SELECT id FROM mensajes_app 
+                 WHERE conversacion_id = $1 AND texto = $2 LIMIT 1`,
+                [id, `||CERRAR_TRATO||${otroId}`]
+            );
+            if (yaExisteOtro.rows.length === 0) {
+                await pool.query(
+                    `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
+                     VALUES ($1, $2, $3, '', NOW())`,
+                    [id, otroId, `||CERRAR_TRATO||${otroId}`]
+                );
+                usuarios.push(otroId);
+                console.log(`>>> 🛡️ Revisor confirmó → se insertó confirmación del otro (${otroId})`);
+            }
+        }
+
         const ambos = usuarios.length >= 2;
 
         console.log(`>>> 🟢 Cerrar trato: conv=${id}, user=${usuario_id}, total=${usuarios.length}, ambos=${ambos}`);

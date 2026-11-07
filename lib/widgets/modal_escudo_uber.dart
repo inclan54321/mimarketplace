@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // 🔥 MODAL DEL ESCUDO ESTILO UBER
 // 🔥 Se usa en dos casos:
@@ -250,7 +251,7 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
                                   return;
                                 }
                                 // 🔥 Modo activar: "Siguiente" hasta el último paso, luego "Ver video"
-                                if (_paginaActual < 5) {
+                                if (_paginaActual < 6) {
                                   _pageController.nextPage(
                                     duration: const Duration(milliseconds: 300),
                                     curve: Curves.easeInOut,
@@ -270,7 +271,11 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
                               child: Text(
                                 _esModoInstrucciones
                                     ? 'Cerrar'
-                                    : (_paginaActual < 6 ? 'Siguiente' : 'Ver video'),
+                                    : (_paginaActual < 6
+                                        ? 'Siguiente'
+                                        : (FirebaseAuth.instance.currentUser?.email?.trim().toLowerCase() == 'universo3dcr@gmail.com'
+                                            ? 'Iniciar'
+                                            : 'Ver video')),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
