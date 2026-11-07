@@ -6800,6 +6800,7 @@ ListTile(
 
                               try {
                                 final idTokenCerrar2 = await FirebaseAuth.instance.currentUser?.getIdToken();
+                                print('>>> 🔵 cerrar-trato: conv=$_conversacionIdActual uid=${user.uid} token=${idTokenCerrar2 != null}');
                                 final r = await http.post(
                                   Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
                                   headers: {
@@ -6809,6 +6810,7 @@ ListTile(
                                   body: jsonEncode({'usuario_id': user.uid}),
                                 );
 
+                                print('>>> 🟢 cerrar-trato respuesta: ${r.statusCode} body=${r.body}');
                                 if (r.statusCode == 200) {
                                   final data = jsonDecode(r.body);
                                   final ambos = data['ambos_confirmaron'] == true;
@@ -6839,8 +6841,9 @@ ListTile(
 
                                   await _cargarMensajes(_conversacionIdActual);
                                 }
-                              } catch (e) {
-                                print('Error al cerrar trato: $e');
+                              } catch (e, st) {
+                                print('>>> 🔴 cerrar-trato EXCEPCIÓN: $e');
+                                print('>>> 🔴 STACK: $st');
                               }
                             },
                             child: Container(

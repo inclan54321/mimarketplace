@@ -7087,9 +7087,7 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
                         `INSERT INTO encuentros_agendados 
                          (conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, 
                           lugar_nombre, lugar_lat, lugar_lng, estado, escudo_verificado)
-                         VALUES ($1, $2, $3, 
-                                 ($4::timestamptz AT TIME ZONE 'America/Costa_Rica'),
-                                 $5, $6, $7, 'agendado', false)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, 'agendado', false)
                          RETURNING *`,
                         [
                             id,
@@ -7412,7 +7410,7 @@ app.post('/api/encuentro/agendar', verificarTokenFirebase, async (req, res) => {
         const result = await pool.query(
             `INSERT INTO encuentros_agendados 
              (conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, lugar_nombre, lugar_lat, lugar_lng)
-             VALUES ($1, $2, $3, ($4::timestamptz AT TIME ZONE 'America/Costa_Rica'), $5, $6, $7)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
             [conversacion_id, usuario1_id, usuario2_id, fecha_encuentro, lugar_nombre || '', lugar_lat || null, lugar_lng || null]
         );

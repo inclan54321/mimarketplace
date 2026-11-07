@@ -111,12 +111,22 @@ class _ChatListScreenState extends State<ChatListScreen>
               final encuentro = data['encuentro'];
               if (encuentro != null) {
                 final estado = (encuentro['estado'] ?? '').toString();
-                // 🔥 El estado que dispara el aviso es "aceptada".
-                chat['encuentroPendiente'] = estado == 'aceptada';
-                chat['encuentroAceptado'] = estado == 'aceptada';
-                // 🔥 Guardar la fecha del encuentro para el temporizador
-                chat['fechaEncuentro'] =
-                    encuentro['fecha_encuentro']?.toString();
+                // 🔥 OJO: este endpoint devuelve la propuesta (estado "aceptada")
+                //    cuando todavía NO hay encuentro agendado. Eso NO debe
+                //    disparar el contador. Solo debe dispararse cuando la fila
+                //    viene de encuentros_agendados (que solo existe cuando
+                //    ambos cierran trato).
+                //    El backend marca las agendadas con estado distinto a la
+                //    propuesta: 'agendado'/'tarde'/'no_presentado'/etc.
+                final esEncuentroAgendado = estado == 'agendado' ||
+                    estado == 'tarde' ||
+                    estado == 'cancelado' ||
+                    estado == 'no_presentado';
+                chat['encuentroPendiente'] = esEncuentroAgendado;
+                chat['encuentroAceptado'] = esEncuentroAgendado;
+                chat['fechaEncuentro'] = esEncuentroAgendado
+                    ? encuentro['fecha_encuentro']?.toString()
+                    : null;
               } else {
                 chat['encuentroPendiente'] = false;
                 chat['encuentroAceptado'] = false;
