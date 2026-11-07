@@ -6500,8 +6500,16 @@ app.put('/api/encuentro/propuesta/:id/aceptar', verificarTokenFirebase, async (r
                 [propuesta.usuario_recibe_id]
             );
             const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
-            console.log('>>> fecha_encuentro RAW:', JSON.stringify(propuesta.fecha_encuentro), '| tipo:', typeof propuesta.fecha_encuentro);
-            const fechaTxt = new Date(String(propuesta.fecha_encuentro).replace(' ', 'T') + '-06:00').toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
+            // pg devuelve fecha_encuentro como Date (lo parsea como UTC, pero en realidad es hora CR).
+            // Usamos los componentes UTC del Date directamente para mostrarla como CR.
+            let fechaTxt;
+            if (propuesta.fecha_encuentro instanceof Date) {
+                const d = propuesta.fecha_encuentro;
+                const p = n => String(n).padStart(2, '0');
+                fechaTxt = `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+            } else {
+                fechaTxt = String(propuesta.fecha_encuentro).replace('T', ' ').substring(0, 16);
+            }
             const ubicacion = [propuesta.lugar_nombre, propuesta.distrito, propuesta.canton, propuesta.provincia]
                 .filter(x => x && x !== '')
                 .join(', ');
