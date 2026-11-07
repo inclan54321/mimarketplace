@@ -6490,7 +6490,7 @@ app.put('/api/encuentro/propuesta/:id/aceptar', verificarTokenFirebase, async (r
         // 🔥 EMITIR POR WEBSOCKET
         global.broadcast(conversacionId, {
             tipo: 'estado_cambio',
-            estado: 'encuentro_aceptado',
+            estado: 'propuesta_aceptada',
         });
 
         // 🔥 ALERTA PARA QUIEN PROPUSO: su propuesta fue aceptada
