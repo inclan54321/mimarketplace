@@ -5469,7 +5469,118 @@ app.post('/api/productos/renovar/:id', verificarTokenFirebase, async (req, res) 
         res.status(500).json({ error: error.message });
     }
 });
+// ============================================================
+// 🔥 RECOMENDACIONES PERSONALIZADAS CON FALLBACK
+// ============================================================
+app.get('/api/recomendaciones/:usuario_id', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
 
+        // Verificación de seguridad
+        if (usuario_id !== req.usuarioAutenticado) {
+            return res.status(403).json({
+                error: 'No autorizado',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        const userResult = await pool.query(
+            'SELECT pais FROM usuarios WHERE uid = $1',
+            [usuario_id]
+        );
+        const paisUsuario = userResult.rows[0]?.pais || null;
+
+        // 1. Intentar personalizadas
+        const personalizadas = await pool.query(
+            `SELECT p.*, r.score AS score_recomendacion
+             FROM recomendaciones_usuario r
+             INNER JOIN productos_app p ON p.id = r.producto_id
+             WHERE r.usuario_id = $1
+               AND p.estado_moderacion = 'aprobado'
+               AND p.estado = 'activo'
+               AND COALESCE(p.vendido, FALSE) = FALSE
+               AND ($2::text IS NULL OR p.pais = $2 OR p.pais IS NULL)
+             ORDER BY r.score DESC
+             LIMIT 20`,
+            [usuario_id, paisUsuario]
+        );
+
+        // 2. Si tiene menos de 10, rellenar con populares
+        if (personalizadas.rows.length < 10) {
+            const ids = personalizadas.rows.map(r => r.id);
+            const cantidadFaltante = 10 - personalizadas.rows.length;
+
+            const populares = await pool.query(
+                `SELECT p.*, 0 AS score_recomendacion
+                 FROM productos_app p
+                 WHERE p.estado_moderacion = 'aprobado'
+                   AND p.estado = 'activo'
+                   AND COALESCE(p.vendido, FALSE) = FALSE
+                   AND ($1::text IS NULL OR p.pais = $1 OR p.pais IS NULL)
+                   AND p.id NOT IN (SELECT unnest($2::int[]))
+                 ORDER BY COALESCE(p.vistas, 0) DESC, p.id DESC
+                 LIMIT $3`,
+                [paisUsuario, ids.length > 0 ? ids : [0], cantidadFaltante]
+            );
+
+            return res.json({
+                tipo: 'mixto',
+                personalizadas: personalizadas.rows,
+                populares: populares.rows,
+                productos: [...personalizadas.rows, ...populares.rows],
+            });
+        }
+
+        // 3. Todo personalizado
+        return res.json({
+            tipo: 'personalizado',
+            productos: personalizadas.rows,
+        });
+
+    } catch (error) {
+        console.error('Error en recomendaciones:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// 🔥 PRODUCTOS SIMILARES (item-to-item rápido desde factores)
+// ============================================================
+app.get('/api/productos/:id/similares', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Traer el producto base
+        const base = await pool.query(
+            'SELECT categoria, precio FROM productos_app WHERE id = $1',
+            [id]
+        );
+
+        if (base.rows.length === 0) {
+            return res.status(404).json({ error: 'Producto no encontrado' });
+        }
+
+        const { categoria } = base.rows[0];
+
+        // Productos similares: misma categoría, aprobados, no vendidos
+        const similares = await pool.query(
+            `SELECT * FROM productos_app
+             WHERE categoria = $1
+               AND id != $2
+               AND estado_moderacion = 'aprobado'
+               AND estado = 'activo'
+               AND COALESCE(vendido, FALSE) = FALSE
+             ORDER BY COALESCE(vistas, 0) DESC
+             LIMIT 10`,
+            [categoria, id]
+        );
+
+        res.json(similares.rows);
+    } catch (error) {
+        console.error('Error en similares:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // ============================================================
 // 🔥 GUARDAR FCM TOKEN DE UN USUARIO
 // ============================================================
@@ -8730,7 +8841,176 @@ app.get('/api/encuentro/:id/mi-estado-verificacion', verificarTokenFirebase, asy
         res.status(500).json({ error: err.message });
     }
 });
+// ============================================================
+// 🔥 RECOMENDACIONES - FACTORIZACIÓN DE MATRICES (ALS simple)
+// ============================================================
 
+// Construye la matriz usuario × producto desde los eventos reales
+async function construirMatrizInteracciones() {
+    // Traer vistas (peso 1)
+    const vistas = await pool.query(`
+        SELECT usuario_id, producto_id::int AS producto_id, 1.0 AS peso
+        FROM vistas_producto
+        WHERE usuario_id IS NOT NULL
+          AND fecha > NOW() - INTERVAL '90 days'
+    `);
+
+    // Traer favoritos (peso 3, más fuerte)
+    const favoritos = await pool.query(`
+        SELECT usuario_id, producto_id::int AS producto_id, 3.0 AS peso
+        FROM productos_favoritos
+        WHERE fecha > NOW() - INTERVAL '90 days'
+    `);
+
+    // Traer chats iniciados (peso 2)
+    const chats = await pool.query(`
+        SELECT usuario1_id AS usuario_id, producto_id AS producto_id, 2.0 AS peso
+        FROM conversaciones_app
+        WHERE producto_id IS NOT NULL AND fecha_creacion > NOW() - INTERVAL '90 days'
+        UNION ALL
+        SELECT usuario2_id AS usuario_id, producto_id AS producto_id, 2.0 AS peso
+        FROM conversaciones_app
+        WHERE producto_id IS NOT NULL AND fecha_creacion > NOW() - INTERVAL '90 days'
+    `);
+
+    // Juntar todo
+    const interacciones = [...vistas.rows, ...favoritos.rows, ...chats.rows];
+
+    // Agrupar por usuario → producto → peso (sumado)
+    const matriz = new Map(); // usuario -> Map(producto -> peso)
+    for (const { usuario_id, producto_id, peso } of interacciones) {
+        if (!usuario_id || !producto_id) continue;
+        if (!matriz.has(usuario_id)) matriz.set(usuario_id, new Map());
+        const userMap = matriz.get(usuario_id);
+        userMap.set(producto_id, (userMap.get(producto_id) || 0) + parseFloat(peso));
+    }
+
+    return matriz;
+}
+
+// Factorización simple tipo SGD
+// K = cantidad de factores latentes (30 es un buen balance)
+async function factorizar(K = 30, iteraciones = 15, learningRate = 0.01, regularizacion = 0.02) {
+    console.log('>>> 🧠 Iniciando factorización de matrices...');
+    const inicio = Date.now();
+
+    // 1. Construir matriz
+    const matriz = await construirMatrizInteracciones();
+    const usuarios = Array.from(matriz.keys());
+    console.log(`>>> 🧠 Usuarios con interacciones: ${usuarios.length}`);
+
+    if (usuarios.length < 3) {
+        console.log('>>> ⚠️ Muy pocos usuarios, saltando factorización');
+        return;
+    }
+
+    // 2. Recolectar todos los productos únicos
+    const productosSet = new Set();
+    for (const userMap of matriz.values()) {
+        for (const prodId of userMap.keys()) productosSet.add(prodId);
+    }
+    const productos = Array.from(productosSet);
+    console.log(`>>> 🧠 Productos únicos: ${productos.length}`);
+
+    // 3. Inicializar factores aleatorios
+    const userFactors = new Map(); // usuario -> array de K números
+    const itemFactors = new Map(); // producto -> array de K números
+
+    const randomFactor = () => Array.from({ length: K }, () => (Math.random() - 0.5) * 0.1);
+
+    for (const u of usuarios) userFactors.set(u, randomFactor());
+    for (const p of productos) itemFactors.set(p, randomFactor());
+
+    // 4. SGD (Stochastic Gradient Descent)
+    for (let iter = 0; iter < iteraciones; iter++) {
+        let errorTotal = 0;
+        let count = 0;
+
+        for (const [usuarioId, userMap] of matriz) {
+            const uf = userFactors.get(usuarioId);
+
+            for (const [productoId, pesoReal] of userMap) {
+                const pif = itemFactors.get(productoId);
+                if (!pif) continue;
+
+                // Predicción: producto punto de factores
+                let prediccion = 0;
+                for (let k = 0; k < K; k++) prediccion += uf[k] * pif[k];
+
+                const error = pesoReal - prediccion;
+                errorTotal += error * error;
+                count++;
+
+                // Actualizar factores con gradiente descendente
+                for (let k = 0; k < K; k++) {
+                    const ufViejo = uf[k];
+                    uf[k] += learningRate * (error * pif[k] - regularizacion * uf[k]);
+                    pif[k] += learningRate * (error * ufViejo - regularizacion * pif[k]);
+                }
+            }
+        }
+
+        const rmse = count > 0 ? Math.sqrt(errorTotal / count) : 0;
+        console.log(`>>> 🧠 Iteración ${iter + 1}/${iteraciones} - RMSE: ${rmse.toFixed(4)}`);
+    }
+
+    // 5. Guardar top 20 recomendaciones por usuario
+    console.log('>>> 🧠 Guardando recomendaciones...');
+    await pool.query('DELETE FROM recomendaciones_usuario');
+
+    let insertados = 0;
+    for (const [usuarioId, userMap] of matriz) {
+        const uf = userFactors.get(usuarioId);
+
+        // Calcular score para todos los productos que NO interactuó
+        const scores = [];
+        for (const p of productos) {
+            if (userMap.has(p)) continue; // ya lo conoce
+
+            const pif = itemFactors.get(p);
+            if (!pif) continue;
+
+            let score = 0;
+            for (let k = 0; k < K; k++) score += uf[k] * pif[k];
+            scores.push({ productoId: p, score });
+        }
+
+        // Ordenar por score y tomar top 20
+        scores.sort((a, b) => b.score - a.score);
+        const top20 = scores.slice(0, 20);
+
+        // Insertar en lote
+        for (const { productoId, score } of top20) {
+            try {
+                await pool.query(
+                    `INSERT INTO recomendaciones_usuario (usuario_id, producto_id, score, actualizado_en)
+                     VALUES ($1, $2, $3, NOW())
+                     ON CONFLICT (usuario_id, producto_id) DO UPDATE SET score = EXCLUDED.score, actualizado_en = NOW()`,
+                    [usuarioId, productoId, score]
+                );
+                insertados++;
+            } catch (e) {
+                // Ignorar si el producto ya no existe
+            }
+        }
+    }
+
+    const duracion = ((Date.now() - inicio) / 1000).toFixed(1);
+    console.log(`>>> ✅ Factorización completa: ${insertados} recomendaciones en ${duracion}s`);
+}
+// ============================================================
+// 🔥 CRON NOCTURNO: recalcular recomendaciones (3:30 AM CR = 9:30 UTC)
+// ============================================================
+cron.schedule('30 9 * * *', async () => {
+    try {
+        console.log('>>> 🧠 CRON de recomendaciones INICIO');
+        await factorizar(30, 15, 0.01, 0.02);
+        console.log('>>> 🧠 CRON de recomendaciones FIN');
+    } catch (e) {
+        console.error('>>> ❌ Error en cron de recomendaciones:', e.message);
+    }
+});
+console.log('>>> ⏰ CRON de recomendaciones activado (9:30 UTC = 3:30 AM Costa Rica)');
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
     console.log('>>> 🔌 WebSocket disponible en ws://0.0.0.0:3000/ws/chat');

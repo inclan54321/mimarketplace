@@ -110,7 +110,7 @@ class _ChatListScreenState extends State<ChatListScreen>
             if (r.statusCode == 200) {
               final data = jsonDecode(r.body);
               final encuentro = data['encuentro'];
-              print('>>> 🟢 conv=$convId encuentro=$encuentro estado=${encuentro?['estado']} fecha=${encuentro?['fecha_encuentro']}');
+              print('>>> 🟢 conv=$convId encuentro=$encuentro estado=${encuentro?['estado']} fechaRaw=${encuentro?['fecha_encuentro']}');
               if (encuentro != null) {
                 final estado = (encuentro['estado'] ?? '').toString();
                 // 🔥 OJO: este endpoint devuelve la propuesta (estado "aceptada")
@@ -120,15 +120,15 @@ class _ChatListScreenState extends State<ChatListScreen>
                 //    ambos cierran trato).
                 //    El backend marca las agendadas con estado distinto a la
                 //    propuesta: 'agendado'/'tarde'/'no_presentado'/etc.
-                final esEncuentroAgendado = estado == 'agendado' ||
-                    estado == 'tarde' ||
-                    estado == 'cancelado' ||
-                    estado == 'no_presentado';
+                // Solo 'agendado' y 'tarde' son encuentros reales con temporizador.
+                // 'cancelado' y 'no_presentado' NO deben mostrar cuenta regresiva.
+                final esEncuentroAgendado = estado == 'agendado' || estado == 'tarde';
                 chat['encuentroPendiente'] = esEncuentroAgendado;
                 chat['encuentroAceptado'] = esEncuentroAgendado;
                 chat['fechaEncuentro'] = esEncuentroAgendado
                     ? encuentro['fecha_encuentro']?.toString()
                     : null;
+                print('>>> 🔥 RESULTADO conv=$convId → pendiente=$esEncuentroAgendado fechaEncuentro=${chat['fechaEncuentro']}');
               } else {
                 chat['encuentroPendiente'] = false;
                 chat['encuentroAceptado'] = false;
@@ -980,9 +980,17 @@ class _ChatListScreenState extends State<ChatListScreen>
                             Builder(builder: (context) {
                               final fechaStr =
                                   chat['fechaEncuentro']?.toString();
-                              final fecha = fechaStr != null
-                                  ? DateTime.tryParse(fechaStr)?.toLocal()
-                                  : null;
+                              // fechaEncuentro viene como "2026-11-08T07:00:00.000Z"
+                              // (UTC, pero en realidad es hora CR naive).
+                              // Le quitamos la Z y normalizamos el espacio para
+                              // que tryParse no falle si viene como "2026-11-08 07:00:00".
+                              DateTime? fecha;
+                              if (fechaStr != null && fechaStr.isNotEmpty) {
+                                final limpio = fechaStr
+                                    .replaceAll('Z', '')
+                                    .replaceFirst(' ', 'T');
+                                fecha = DateTime.tryParse(limpio);
+                              }
                               if (fecha == null) return const SizedBox.shrink();
                               return _TemporizadorEncuentro(
                                   fechaEncuentro: fecha);
@@ -1632,11 +1640,15 @@ class _ChatListScreenState extends State<ChatListScreen>
       l10n.jue,
       l10n.vie,
       l10n.sab,
+      'Dom',
     ];
     final horas = List.generate(11, (i) => 7 + i);
 
     // Calcular el lunes de la semana actual
     final ahora = DateTime.now();
+    // weekday: 1=lunes ... 7=domingo
+    // Queremos el lunes de ESTA semana. Si hoy es domingo (7),
+    // el lunes de esta semana fue hace 6 días.
     final offsetLunes = ahora.weekday == 7 ? -6 : 1 - ahora.weekday;
     final lunes = DateTime(ahora.year, ahora.month, ahora.day)
         .add(Duration(days: offsetLunes));
@@ -1670,7 +1682,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                         color: Colors.white, size: 18),
                   ),
                 ),
-                ...List.generate(6, (i) {
+                ...List.generate(7, (i) {
                   return Expanded(
                     child: Container(
                       height: 40,
@@ -1727,7 +1739,7 @@ class _ChatListScreenState extends State<ChatListScreen>
                       ),
                     ),
                   ),
-                  ...List.generate(6, (i) {
+                  ...List.generate(7, (i) {
                     final diaCelda = lunes.add(Duration(days: i));
                     // Buscar si hay un encuentro en esta celda (día + hora)
                     final encuentroEnCelda = _encuentrosSemana.where((e) {

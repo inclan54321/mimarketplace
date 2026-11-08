@@ -328,8 +328,10 @@ class _ChatScreenState extends State<ChatScreen>
         setState(() {
           _escudoYoAcepte = true;
           _escudoYoViModal = true;
+          _iaActiva = true;   // 🔥 activa YA en local
           if (confirmado) _escudoResuelto = true;
         });
+        await _cargarEstadoEscudo();   // 🔥 sincroniza con el backend
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1439,7 +1441,7 @@ void dispose() {
                         !_esperandoConfirmacionCerrarTrato;
       print('>>> 🔥 _verificarBotonConfirmar: resultado=$resultado (mostrar=$mostrar, bloqueado=$_chatBloqueado, decidioSeguir=$_usuarioDecidioSeguirConversando, confirmoCerrar=$_usuarioConfirmoCerrarTrato, mostrarCerrar=$_mostrarBotonesCerrarTrato, esperandoConfirmacion=$_esperandoConfirmacionCerrarTrato)');
       setState(() {
-        _mostrarBotonesConfirmar = resultado;
+        _mostrarBotonesConfirmar = false;
       });
     }
     // 🔥 Persistir el caché de propuestas
@@ -7653,150 +7655,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   child: Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      // 🔥 BOTONES DE CONFIRMAR / SEGUIR CONVERSANDO
-      // 🔥 NO se muestran si el modal azul de "¿Ya está todo listo?" está visible.
-      if (_mostrarBotonesConfirmar && !_chatBloqueado && !_mostrarBotonesCerrarTrato)
-        Builder(builder: (context) {
 
-          return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final user = FirebaseAuth.instance.currentUser;
-                    if (user == null) return;
-
-                    try {
-                      // 🔥 1. Agendar el encuentro
-                      final idTokenConf = await FirebaseAuth.instance.currentUser?.getIdToken();
-                      await http.post(
-                        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/confirmar'),
-                        headers: {
-                          'Content-Type': 'application/json',
-                          if (idTokenConf != null) 'Authorization': 'Bearer $idTokenConf',
-                        },
-                        body: jsonEncode({
-                          'conversacion_id': _conversacionIdActual,
-                          'usuario_confirma_id': user.uid,
-                        }),
-                      );
-
-                      // 🔥 2. Cerrar trato (inserta ||CERRAR_TRATO|| en la BD)
-                      final idTokenCerrar1 = await FirebaseAuth.instance.currentUser?.getIdToken();
-                      final r = await http.post(
-                        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/cerrar-trato'),
-                        headers: {
-                          'Content-Type': 'application/json',
-                          if (idTokenCerrar1 != null) 'Authorization': 'Bearer $idTokenCerrar1',
-                        },
-                        body: jsonEncode({'usuario_id': user.uid}),
-                      );
-
-                      if (r.statusCode == 200) {
-                        final data = jsonDecode(r.body);
-                        final ambos = data['ambos_confirmaron'] == true;
-
-                        if (mounted) {
-                          setState(() {
-                            _mostrarBotonesConfirmar = false;
-                            _usuarioConfirmoCerrarTrato = true;
-                            if (ambos) {
-                              _esperandoConfirmacionCerrarTrato = false;
-                              _chatBloqueado = true;
-                            } else {
-                              _esperandoConfirmacionCerrarTrato = true;
-                            }
-                          });
-                          _guardarEstadoBloqueo();
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(ambos
-                                  ? '✅ Trato cerrado. ¡Nos vemos!'
-                                  : '⏳ Confirmaste cerrar el trato. Esperando al otro...'),
-                              backgroundColor: ambos ? Colors.green : Colors.blue,
-                            ),
-                          );
-                        }
-                        await _cargarMensajes(_conversacionIdActual);
-                      }
-                    } catch (e) {
-                      print('Error al confirmar encuentro: $e');
-                    }
-                  },
-                  icon: const Icon(Icons.check_circle, size: 18),
-                  label: const Text('Confirmar encuentro'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    // 🔥 UNO SOLO BASTA: ocultar botones para ambos inmediatamente
-                    setState(() {
-                      _mostrarBotonesConfirmar = false;
-                      _esperandoRespuestaOtro = false;
-                      _usuarioDecidioSeguirConversando = true;
-                      _mostrarBotonesCerrarTrato = false;
-                      _quiereCerrarTrato = false;
-                    });
-                    _guardarEstadoBloqueo();
-
-                    final user = FirebaseAuth.instance.currentUser;
-                    if (user == null) return;
-
-                    try {
-                      // 🔥 PASO 1: ENVIAR MENSAJE AL CHAT (el backend lo va a interpretar
-                      // como "alguien quiere seguir", y va a ocultar los botones para los 2)
-                      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-                      await http.post(
-                        Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes'),
-                        headers: {
-                          'Content-Type': 'application/json',
-                          if (idToken != null) 'Authorization': 'Bearer $idToken',
-                        },
-                        body: jsonEncode({
-                          'conversacion_id': int.parse(_conversacionIdActual),
-                          'usuario_id': user.uid,
-                          'texto': '||SEGUIR_CONVERSANDO||${user.uid}',
-                        }),
-                      );
-
-                      // 🔥 PASO 2: CONSULTAR ENDPOINT (por si el backend necesita marcar algo)
-                      final idTokenSeguir = await FirebaseAuth.instance.currentUser?.getIdToken();
-                      await http.post(
-                        Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/seguir-conversando'),
-                        headers: {
-                          'Content-Type': 'application/json',
-                          if (idTokenSeguir != null) 'Authorization': 'Bearer $idTokenSeguir',
-                        },
-                        body: jsonEncode({'usuario_id': user.uid}),
-                      );
-
-                      // 🔥 PASO 3: RECARGAR MENSAJES
-                      await _cargarMensajes(_conversacionIdActual);
-                    } catch (e) {
-                      print('>>> 🟠 ERROR: $e');
-                    }
-                  },
-                  icon: const Icon(Icons.chat, size: 18),
-                  label: const Text('Seguir conversando'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-        }),
 
       // 🔥 CARTEL: YO CONFIRMÉ CERRAR TRATO, ESPERANDO AL OTRO
       if (_usuarioConfirmoCerrarTrato &&
@@ -7850,8 +7709,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
 
       // 🔥 INPUT (solo si NO hay botones de cerrar trato ni espera)
       // 🔥 El input se muestra si NO hay modal de decisión pendiente
-      if ((!_mostrarBotonesConfirmar &&
-           !_esperandoRespuestaOtro &&
+      if ((!_esperandoRespuestaOtro &&
            (!_mostrarBotonesCerrarTrato || _usuarioConfirmoCerrarTrato) &&
            !_esperandoConfirmacionCerrarTrato) || _chatBloqueado)
       Row(
