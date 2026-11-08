@@ -7039,7 +7039,14 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
                     const encuentroId = encAlerta.rows[0]?.id ?? 0;
 
                     if (p && c) {
-                        const fechaTxt = new Date(p.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
+                        let fechaTxt;
+                        if (p.fecha_encuentro instanceof Date) {
+                            const d = p.fecha_encuentro;
+                            const pp = n => String(n).padStart(2, '0');
+                            fechaTxt = `${pp(d.getUTCDate())}/${pp(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${pp(d.getUTCHours())}:${pp(d.getUTCMinutes())}`;
+                        } else {
+                            fechaTxt = String(p.fecha_encuentro).replace('T', ' ').substring(0, 16);
+                        }
                         const ubicacion = [p.lugar_nombre, p.distrito, p.canton, p.provincia]
                             .filter(x => x && x !== '')
                             .join(', ');
@@ -7470,7 +7477,9 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
                     id: enc.id,
                     conversacion_id: enc.conversacion_id,
                     fecha_encuentro: enc.fecha_encuentro,
-                    estado: enc.estado === 'agendado' ? 'aceptada' : enc.estado,
+                    // 🔥 Devolver el estado real de encuentros_agendados ('agendado', 'tarde', etc.)
+                    //    para que ChatListScreen pueda decidir si muestra el temporizador.
+                    estado: enc.estado,
                     lugar_nombre: enc.lugar_nombre,
                     lugar_lat: enc.lugar_lat,
                     lugar_lng: enc.lugar_lng,
