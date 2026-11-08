@@ -2946,11 +2946,10 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
         
         const provincia = address.state || address.region || address.province || '';
         const canton = address.county || address.city || address.town || address.municipality || '';
-        // 🔥 Distrito / barrio / suburb (varía por país)
-        const distrito = address.suburb || address.neighbourhood
-                      || address.quarter || address.village
-                      || address.hamlet || address.district
-                      || address.city_district || address.borough || '';
+        // 🔥 En Costa Rica OSM no distingue distrito de barrio,
+        // así que NO usamos suburb/neighbourhood (confunde barrios con distritos).
+        // Solo provincia + cantón, que sí son confiables.
+        const distrito = '';
         // 🔥 Nombre corto del lugar más preciso (para mostrar)
         const lugarCorto = address.road || address.pedestrian
                         || address.suburb || address.neighbourhood
@@ -6466,7 +6465,7 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             return res.status(400).json({ error: 'Falta el lugar (nombre, lat, lng)' });
         }
 
-        // 🔥 Reverse geocoding para obtener provincia/cantón/distrito reales
+        // 🔥 Reverse geocoding para obtener provincia/cantón reales
         let provincia = '';
         let canton = '';
         let distrito = '';
@@ -6479,9 +6478,8 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             const address = geo.data?.address || {};
             provincia = address.state || address.region || address.province || '';
             canton = address.county || address.city || address.town || address.municipality || '';
-            distrito = address.suburb || address.neighbourhood
-                    || address.quarter || address.village
-                    || address.hamlet || address.district || '';
+            // 🔥 NO usar suburb en CR (confunde barrio con distrito)
+            distrito = '';
             lugarCorto = address.road || address.pedestrian
                       || address.suburb || address.neighbourhood
                       || address.village || address.town
