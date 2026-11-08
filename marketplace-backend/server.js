@@ -6412,11 +6412,13 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             conversacion_id,
             usuario_propone_id,
             usuario_recibe_id,
-            lugar_id,
+            lugar_nombre,
+            lugar_lat,
+            lugar_lng,
             fecha_encuentro,
         } = req.body;
 
-        if (!conversacion_id || !usuario_propone_id || !usuario_recibe_id || !lugar_id || !fecha_encuentro) {
+        if (!conversacion_id || !usuario_propone_id || !usuario_recibe_id || !fecha_encuentro) {
             return res.status(400).json({ error: 'Faltan datos obligatorios' });
         }
 
@@ -6449,16 +6451,10 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             });
         }
 
-        const lugarResult = await pool.query(
-            'SELECT * FROM lugares_seguros WHERE id = $1 AND activo = TRUE',
-            [lugar_id]
-        );
-
-        if (lugarResult.rows.length === 0) {
-            return res.status(400).json({ error: 'Lugar no válido' });
+        // 🔥 NUEVO: aceptar lugar_nombre + lat/lng directos (sin tabla lugares_seguros)
+        if (!lugar_nombre || lugar_lat === undefined || lugar_lng === undefined) {
+            return res.status(400).json({ error: 'Falta el lugar (nombre, lat, lng)' });
         }
-
-        const lugar = lugarResult.rows[0];
 
         const result = await pool.query(
             `INSERT INTO propuestas_encuentro 
@@ -6469,9 +6465,9 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
              RETURNING *`,
             [
                 conversacion_id, usuario_propone_id, usuario_recibe_id,
-                lugar.provincia, lugar.canton, lugar.distrito || '',
-                lugar.nombre, lugar.lat, lugar.lng,
-                fecha_encuentro // 🔥 Se guarda tal cual viene de la app
+                '', '', '',
+                lugar_nombre, lugar_lat, lugar_lng,
+                fecha_encuentro
             ]
         );
 

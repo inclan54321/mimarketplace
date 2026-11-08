@@ -18,6 +18,8 @@ import 'portafolio_vendedor_screen.dart'; // 🔥 NUEVO
 import '../widgets/conversation_status_indicator.dart';
 import 'image_viewer_screen.dart';
 import 'pantalla_verificacion_encuentro.dart';
+import 'seleccionar_lugar_mapa_screen.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -3991,18 +3993,11 @@ ListTile(
     List<Map<String, dynamic>> propuestasTemporales = [];
     String paso = 'formulario'; // 'formulario' | 'resumen'
 
-    List<String> provincias = [];
-    List<String> cantones = [];
-    List<String> distritos = [];
-    List<dynamic> lugaresSeguros = [];
-    String? provinciaSeleccionada;
-    String? cantonSeleccionado;
-    String? distritoSeleccionado;
     DateTime? fechaSeleccionada;
-    int? lugarSeleccionadoId;
-    String? lugarSeleccionadoNombre;
-    bool cargando = true;
-    bool provinciasYaCargadas = false;
+    double? lugarLat;
+    double? lugarLng;
+    bool cargando = false;
+    bool provinciasYaCargadas = true;
 
     showModalBottomSheet(
       context: context,
@@ -4011,109 +4006,12 @@ ListTile(
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
-          Future<void> cargarProvincias() async {
-            try {
-              final r = await http.get(Uri.parse(
-                'https://mimarketplace-production.up.railway.app/api/lugares-seguros/provincias',
-              ));
-              if (r.statusCode == 200) {
-                final List data = jsonDecode(r.body);
-                setModalState(() {
-                  provincias = data.map((e) => e.toString()).toList();
-                  cargando = false;
-                });
-              } else {
-                setModalState(() => cargando = false);
-              }
-            } catch (e) {
-              setModalState(() => cargando = false);
-            }
-          }
-
-          Future<void> cargarCantones(String prov) async {
-            setModalState(() {
-              cantones = [];
-              distritos = [];
-              lugaresSeguros = [];
-              cantonSeleccionado = null;
-              distritoSeleccionado = null;
-              lugarSeleccionadoId = null;
-            });
-            try {
-              final r = await http.get(Uri.parse(
-                'https://mimarketplace-production.up.railway.app/api/lugares-seguros/cantones?provincia=${Uri.encodeComponent(prov)}',
-              ));
-              if (r.statusCode == 200) {
-                final List data = jsonDecode(r.body);
-                setModalState(() {
-                  cantones = data.map((e) => e.toString()).toList();
-                });
-              }
-            } catch (e) {}
-          }
-
-          Future<void> cargarDistritos(String prov, String cant) async {
-            setModalState(() {
-              distritos = [];
-              lugaresSeguros = [];
-              distritoSeleccionado = null;
-              lugarSeleccionadoId = null;
-            });
-            try {
-              final r = await http.get(Uri.parse(
-                'https://mimarketplace-production.up.railway.app/api/lugares-seguros/distritos?provincia=${Uri.encodeComponent(prov)}&canton=${Uri.encodeComponent(cant)}',
-              ));
-              if (r.statusCode == 200) {
-                final List data = jsonDecode(r.body);
-                setModalState(() {
-                  distritos = data.map((e) => e.toString()).toList();
-                });
-              }
-            } catch (e) {}
-          }
-
-          Future<void> cargarLugares(String prov, String cant, String dist) async {
-            setModalState(() {
-              lugaresSeguros = [];
-              lugarSeleccionadoId = null;
-            });
-            try {
-              final url = dist.isEmpty
-                  ? 'https://mimarketplace-production.up.railway.app/api/lugares-seguros'
-                    '?provincia=${Uri.encodeComponent(prov)}'
-                    '&canton=${Uri.encodeComponent(cant)}'
-                  : 'https://mimarketplace-production.up.railway.app/api/lugares-seguros'
-                    '?provincia=${Uri.encodeComponent(prov)}'
-                    '&canton=${Uri.encodeComponent(cant)}'
-                    '&distrito=${Uri.encodeComponent(dist)}';
-              final r = await http.get(Uri.parse(url));
-              if (r.statusCode == 200) {
-                final List data = jsonDecode(r.body);
-                setModalState(() {
-                  lugaresSeguros = data;
-                });
-              }
-            } catch (e) {}
-          }
-
-          if (!provinciasYaCargadas) {
-            provinciasYaCargadas = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              cargarProvincias();
-            });
-          }
 
           // 🔥 RESET del formulario (para cuando agrega otra propuesta)
           void resetFormulario() {
-            provinciaSeleccionada = null;
-            cantonSeleccionado = null;
-            distritoSeleccionado = null;
             fechaSeleccionada = null;
-            lugarSeleccionadoId = null;
-            lugarSeleccionadoNombre = null;
-            cantones = [];
-            distritos = [];
-            lugaresSeguros = [];
+            lugarLat = null;
+            lugarLng = null;
           }
 
           return Align(
@@ -4173,7 +4071,9 @@ ListTile(
                                     'conversacion_id': int.parse(_conversacionIdActual),
                                     'usuario_propone_id': user?.uid ?? '',
                                     'usuario_recibe_id': widget.otroUsuarioId,
-                                    'lugar_id': prop['lugar_id'],
+                                    'lugar_nombre': prop['lugar_nombre'],
+                                    'lugar_lat': prop['lugar_lat'],
+                                    'lugar_lng': prop['lugar_lng'],
                                     'fecha_encuentro': prop['fecha_encuentro'],
                                   }),
                                 );
@@ -4239,126 +4139,91 @@ ListTile(
                               ),
                               const SizedBox(height: 20),
 
-                              // PROVINCIA
-                              DropdownButtonFormField<String>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Provincia',
-                                  border: OutlineInputBorder(),
-                                ),
-                                initialValue: provinciaSeleccionada,
-                                items: provincias.map((p) {
-                                  return DropdownMenuItem(value: p, child: Text(p));
-                                }).toList(),
-                                onChanged: (value) {
-                                  setModalState(() => provinciaSeleccionada = value);
-                                  if (value != null) cargarCantones(value);
-                                },
-                              ),
-                              const SizedBox(height: 12),
-
-                              // CANTÓN
-                              if (provinciaSeleccionada != null)
-                                DropdownButtonFormField<String>(
-                                  decoration: const InputDecoration(
-                                    labelText: 'Cantón',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  initialValue: cantonSeleccionado,
-                                  items: cantones.map((c) {
-                                    return DropdownMenuItem(value: c, child: Text(c));
-                                  }).toList(),
-                                  onChanged: (value) {
-                                    setModalState(() {
-                                      cantonSeleccionado = value;
-                                      distritoSeleccionado = null;
-                                      lugaresSeguros = [];
-                                      lugarSeleccionadoId = null;
-                                    });
-                                    if (value != null) {
-                                      cargarDistritos(provinciaSeleccionada!, value)
-                                          .then((_) {
-                                        if (distritos.isEmpty) {
-                                          cargarLugares(provinciaSeleccionada!, value, '');
-                                        }
-                                      });
-                                    }
-                                  },
-                                ),
-                              if (provinciaSeleccionada != null) const SizedBox(height: 12),
-
-                              // DISTRITO
-                              if (cantonSeleccionado != null && distritos.isNotEmpty) ...[
-                                DropdownButtonFormField<String>(
-                                  decoration: const InputDecoration(
-                                    labelText: 'Distrito',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  initialValue: distritoSeleccionado,
-                                  items: distritos.map((d) {
-                                    return DropdownMenuItem(value: d, child: Text(d));
-                                  }).toList(),
-                                  onChanged: (value) {
-                                    setModalState(() => distritoSeleccionado = value);
-                                    if (value != null) {
-                                      cargarLugares(
-                                        provinciaSeleccionada!,
-                                        cantonSeleccionado!,
-                                        value,
-                                      );
-                                    }
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // LISTA DE LUGARES
-                              if (lugaresSeguros.isNotEmpty) ...[
-                                const Text(
-                                  'Lugares seguros:',
-                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 8),
-                                ...lugaresSeguros.map<Widget>((lugar) {
-                                  final seleccionado = lugarSeleccionadoId == lugar['id'];
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    decoration: BoxDecoration(
-                                      color: seleccionado ? Colors.blue.shade50 : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: seleccionado ? Colors.blue : Colors.grey.shade300,
-                                        width: seleccionado ? 2 : 1,
-                                      ),
-                                    ),
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: ListTile(
-                                        leading: Icon(
-                                          Icons.place,
-                                          color: seleccionado ? Colors.blue : Colors.grey,
-                                        ),
-                                        title: Text(
-                                          lugar['nombre'] ?? '',
-                                          style: TextStyle(
-                                            fontWeight: seleccionado ? FontWeight.bold : FontWeight.normal,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          '${lugar['canton'] ?? ''}, ${lugar['provincia'] ?? ''}',
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                        onTap: () {
-                                          setModalState(() {
-                                            lugarSeleccionadoId = lugar['id'];
-                                            lugarSeleccionadoNombre = lugar['nombre'];
-                                          });
-                                        },
+                              // 🔥 BOTÓN PARA ELEGIR LUGAR EN EL MAPA
+                              InkWell(
+                                onTap: () async {
+                                  final LatLng? inicial =
+                                      (lugarLat != null && lugarLng != null)
+                                          ? LatLng(lugarLat!, lugarLng!)
+                                          : null;
+                                  final result = await Navigator.push<Map<String, double>>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => SeleccionarLugarMapaScreen(
+                                        inicial: inicial,
                                       ),
                                     ),
                                   );
-                                }),
-                                const SizedBox(height: 12),
-                              ],
+                                  if (result != null) {
+                                    setModalState(() {
+                                      lugarLat = result['lat'];
+                                      lugarLng = result['lng'];
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: lugarLat == null
+                                        ? Colors.grey.shade50
+                                        : Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: lugarLat == null
+                                          ? Colors.grey.shade400
+                                          : Colors.blue,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.map,
+                                        color: lugarLat == null
+                                            ? Colors.grey
+                                            : Colors.blue,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              lugarLat == null
+                                                  ? 'Elegir lugar en el mapa'
+                                                  : 'Lugar seleccionado',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: lugarLat == null
+                                                    ? Colors.black87
+                                                    : Colors.blue.shade700,
+                                              ),
+                                            ),
+                                            if (lugarLat != null)
+                                              Text(
+                                                'Lat: ${lugarLat!.toStringAsFixed(5)}, Lng: ${lugarLng!.toStringAsFixed(5)}',
+                                                style: const TextStyle(
+                                                    fontSize: 12),
+                                              )
+                                            else
+                                              const Text(
+                                                'Tocá para abrir el mapa',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(Icons.chevron_right,
+                                          color: Colors.grey),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
 
                               // FECHA Y HORA
                               InkWell(
@@ -4517,10 +4382,13 @@ ListTile(
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    if (lugarSeleccionadoId == null || fechaSeleccionada == null) {
+                                    if (lugarLat == null ||
+                                        lugarLng == null ||
+                                        fechaSeleccionada == null) {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
-                                          content: Text('⚠️ Elegí un lugar y una fecha'),
+                                          content: Text(
+                                              '⚠️ Elegí un lugar en el mapa y una fecha'),
                                           backgroundColor: Colors.orange,
                                         ),
                                       );
@@ -4529,11 +4397,9 @@ ListTile(
 
                                     setModalState(() {
                                       propuestasTemporales.add({
-                                        'lugar_id': lugarSeleccionadoId,
-                                        'lugar_nombre': lugarSeleccionadoNombre ?? '',
-                                        'distrito': distritoSeleccionado ?? '',
-                                        'canton': cantonSeleccionado ?? '',
-                                        'provincia': provinciaSeleccionada ?? '',
+                                        'lugar_nombre': 'Punto en el mapa',
+                                        'lugar_lat': lugarLat,
+                                        'lugar_lng': lugarLng,
                                         'fecha_encuentro': fechaSeleccionada!.toIso8601String(),
                                       });
                                       paso = 'resumen';
@@ -4661,7 +4527,7 @@ ListTile(
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${prop['distrito'] ?? ''}, ${prop['canton'] ?? ''}, ${prop['provincia'] ?? ''}',
+                            'Lat: ${(prop['lugar_lat'] as double?)?.toStringAsFixed(5) ?? ''}, Lng: ${(prop['lugar_lng'] as double?)?.toStringAsFixed(5) ?? ''}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade700,
