@@ -7483,7 +7483,7 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
                     lugar_nombre: enc.lugar_nombre,
                     lugar_lat: enc.lugar_lat,
                     lugar_lng: enc.lugar_lng,
-                }
+                 }
             });
         }
 

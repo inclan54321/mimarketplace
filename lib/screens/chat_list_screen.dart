@@ -106,9 +106,11 @@ class _ChatListScreenState extends State<ChatListScreen>
                 if (idToken != null) 'Authorization': 'Bearer $idToken',
               },
             );
+            print('>>> 🟢 conv=$convId status=${r.statusCode} body=${r.body}');
             if (r.statusCode == 200) {
               final data = jsonDecode(r.body);
               final encuentro = data['encuentro'];
+              print('>>> 🟢 conv=$convId encuentro=$encuentro estado=${encuentro?['estado']} fecha=${encuentro?['fecha_encuentro']}');
               if (encuentro != null) {
                 final estado = (encuentro['estado'] ?? '').toString();
                 // 🔥 OJO: este endpoint devuelve la propuesta (estado "aceptada")
