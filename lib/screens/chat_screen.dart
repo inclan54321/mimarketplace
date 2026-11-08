@@ -3996,6 +3996,10 @@ ListTile(
     DateTime? fechaSeleccionada;
     double? lugarLat;
     double? lugarLng;
+    String lugarProvincia = '';
+    String lugarCanton = '';
+    String lugarDistrito = '';
+    String lugarCorto = '';
     bool cargando = false;
     bool provinciasYaCargadas = true;
 
@@ -4012,6 +4016,10 @@ ListTile(
             fechaSeleccionada = null;
             lugarLat = null;
             lugarLng = null;
+            lugarProvincia = '';
+            lugarCanton = '';
+            lugarDistrito = '';
+            lugarCorto = '';
           }
 
           return Align(
@@ -4146,7 +4154,7 @@ ListTile(
                                       (lugarLat != null && lugarLng != null)
                                           ? LatLng(lugarLat!, lugarLng!)
                                           : null;
-                                  final result = await Navigator.push<Map<String, double>>(
+                                  final result = await Navigator.push<Map<String, dynamic>>(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => SeleccionarLugarMapaScreen(
@@ -4158,6 +4166,10 @@ ListTile(
                                     setModalState(() {
                                       lugarLat = result['lat'];
                                       lugarLng = result['lng'];
+                                      lugarProvincia = (result['provincia'] ?? '').toString();
+                                      lugarCanton = (result['canton'] ?? '').toString();
+                                      lugarDistrito = (result['distrito'] ?? '').toString();
+                                      lugarCorto = (result['lugarCorto'] ?? '').toString();
                                     });
                                   }
                                 },
@@ -4397,9 +4409,14 @@ ListTile(
 
                                     setModalState(() {
                                       propuestasTemporales.add({
-                                        'lugar_nombre': 'Punto en el mapa',
+                                        'lugar_nombre': lugarCorto.isNotEmpty
+                                            ? lugarCorto
+                                            : 'Punto en el mapa',
                                         'lugar_lat': lugarLat,
                                         'lugar_lng': lugarLng,
+                                        'provincia': lugarProvincia,
+                                        'canton': lugarCanton,
+                                        'distrito': lugarDistrito,
                                         'fecha_encuentro': fechaSeleccionada!.toIso8601String(),
                                       });
                                       paso = 'resumen';
@@ -4527,7 +4544,20 @@ ListTile(
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Lat: ${(prop['lugar_lat'] as double?)?.toStringAsFixed(5) ?? ''}, Lng: ${(prop['lugar_lng'] as double?)?.toStringAsFixed(5) ?? ''}',
+                            (() {
+                              final partes = <String>[
+                                if ((prop['distrito'] ?? '').toString().isNotEmpty)
+                                  prop['distrito'].toString(),
+                                if ((prop['canton'] ?? '').toString().isNotEmpty)
+                                  prop['canton'].toString(),
+                                if ((prop['provincia'] ?? '').toString().isNotEmpty)
+                                  prop['provincia'].toString(),
+                              ];
+                              if (partes.isEmpty) {
+                                return 'Lat: ${(prop['lugar_lat'] as double?)?.toStringAsFixed(5) ?? ''}, Lng: ${(prop['lugar_lng'] as double?)?.toStringAsFixed(5) ?? ''}';
+                              }
+                              return partes.join(', ');
+                            })(),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade700,

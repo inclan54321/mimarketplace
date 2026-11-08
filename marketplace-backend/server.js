@@ -2946,8 +2946,18 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
         
         const provincia = address.state || address.region || address.province || '';
         const canton = address.county || address.city || address.town || address.municipality || '';
+        // 🔥 Distrito / barrio / suburb (varía por país)
+        const distrito = address.suburb || address.neighbourhood
+                      || address.quarter || address.village
+                      || address.hamlet || address.district
+                      || address.city_district || address.borough || '';
+        // 🔥 Nombre corto del lugar más preciso (para mostrar)
+        const lugarCorto = address.road || address.pedestrian
+                        || address.suburb || address.neighbourhood
+                        || address.village || address.town
+                        || address.city_district || address.city || '';
         
-        const resultado = { provincia, canton };
+        const resultado = { provincia, canton, distrito, lugarCorto };
         _cacheGeocode[key] = resultado;
         res.json(resultado);
     } catch (error) {
@@ -6456,6 +6466,30 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             return res.status(400).json({ error: 'Falta el lugar (nombre, lat, lng)' });
         }
 
+        // 🔥 Reverse geocoding para obtener provincia/cantón/distrito reales
+        let provincia = '';
+        let canton = '';
+        let distrito = '';
+        let lugarCorto = lugar_nombre;
+        try {
+            const geo = await axios.get(
+                `https://nominatim.openstreetmap.org/reverse?lat=${lugar_lat}&lon=${lugar_lng}&format=json&addressdetails=1&zoom=18`,
+                { headers: { 'User-Agent': 'MiMarketplaceCR/1.0 (https://mimarketplace.com)' }, timeout: 5000 }
+            );
+            const address = geo.data?.address || {};
+            provincia = address.state || address.region || address.province || '';
+            canton = address.county || address.city || address.town || address.municipality || '';
+            distrito = address.suburb || address.neighbourhood
+                    || address.quarter || address.village
+                    || address.hamlet || address.district || '';
+            lugarCorto = address.road || address.pedestrian
+                      || address.suburb || address.neighbourhood
+                      || address.village || address.town
+                      || address.city_district || address.city || lugar_nombre;
+        } catch (e) {
+            console.log('>>> ⚠️ Geocode falló en proponer:', e.message);
+        }
+
         const result = await pool.query(
             `INSERT INTO propuestas_encuentro 
              (conversacion_id, usuario_propone_id, usuario_recibe_id, 
@@ -6465,8 +6499,8 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
              RETURNING *`,
             [
                 conversacion_id, usuario_propone_id, usuario_recibe_id,
-                '', '', '',
-                lugar_nombre, lugar_lat, lugar_lng,
+                provincia, canton, distrito,
+                lugarCorto, lugar_lat, lugar_lng,
                 fecha_encuentro
             ]
         );

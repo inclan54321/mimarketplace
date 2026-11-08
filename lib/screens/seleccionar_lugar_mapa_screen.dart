@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 class SeleccionarLugarMapaScreen extends StatefulWidget {
@@ -35,10 +37,36 @@ class _SeleccionarLugarMapaScreenState
         foregroundColor: Colors.white,
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              // 🔥 Pedir geocode al backend antes de volver
+              String provincia = '';
+              String canton = '';
+              String distrito = '';
+              String lugarCorto = '';
+              try {
+                final r = await http.get(Uri.parse(
+                  'https://mimarketplace-production.up.railway.app/api/geocode/'
+                  '${_posicion.latitude}/${_posicion.longitude}',
+                ));
+                if (r.statusCode == 200) {
+                  final data = jsonDecode(r.body);
+                  provincia = (data['provincia'] ?? '').toString();
+                  canton = (data['canton'] ?? '').toString();
+                  distrito = (data['distrito'] ?? '').toString();
+                  lugarCorto = (data['lugarCorto'] ?? '').toString();
+                }
+              } catch (e) {
+                debugPrint('Geocode falló: $e');
+              }
+
+              if (!mounted) return;
               Navigator.pop(context, {
                 'lat': _posicion.latitude,
                 'lng': _posicion.longitude,
+                'provincia': provincia,
+                'canton': canton,
+                'distrito': distrito,
+                'lugarCorto': lugarCorto,
               });
             },
             child: const Text(
