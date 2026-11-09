@@ -7850,14 +7850,46 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             });
         }
 
-        // 🔥 REGLA: solo se puede cancelar si faltan al menos 1 hora
+        // 🔥 REGLAS DE CANCELACIÓN (3 casos)
+        //   1) Nadie confirmó asistencia    → hasta 1 hora antes
+        //   2) Solo YO confirmé, el otro no → hasta 10 minutos antes
+        //   3) Ambos confirmaron            → NO se puede cancelar
+        const asist = await pool.query(
+            `SELECT usuario_id, confirmado FROM asistencias_encuentro WHERE encuentro_id = $1`,
+            [id]
+        );
+        const yoConfirmado = asist.rows.some(
+            r => r.usuario_id === req.usuarioAutenticado && r.confirmado === true
+        );
+        const otroConfirmado = asist.rows.some(
+            r => r.usuario_id !== req.usuarioAutenticado && r.confirmado === true
+        );
+
         const faltan = await pool.query(
             `SELECT EXTRACT(EPOCH FROM (fecha_encuentro - (NOW() AT TIME ZONE 'America/Costa_Rica'))) AS segundos
              FROM encuentros_agendados WHERE id = $1`,
             [id]
         );
         const segundos = parseFloat(faltan.rows[0]?.segundos || '0');
-        if (segundos < 3600) {
+
+        if (yoConfirmado && otroConfirmado) {
+            console.log(`>>> 🚫 Cancelación bloqueada: ambos confirmaron asistencia`);
+            return res.status(400).json({
+                error: 'Ambos ya confirmaron asistencia. El encuentro no se puede cancelar.',
+                codigo: 'CANCELACION_BLOQUEADA_AMBOS_CONFIRMARON',
+            });
+        }
+
+        if (yoConfirmado && !otroConfirmado) {
+            if (segundos < 600) {
+                console.log(`>>> 🚫 Cancelación rechazada (confirmé asistencia): faltan ${Math.round(segundos/60)} min`);
+                return res.status(400).json({
+                    error: 'Confirmaste asistencia. Solo podés cancelar hasta 10 minutos antes del encuentro.',
+                    codigo: 'CANCELACION_TARDE_CONFIRMADO',
+                    minutos_restantes: Math.round(segundos / 60),
+                });
+            }
+        } else if (segundos < 3600) {
             console.log(`>>> 🚫 Cancelación rechazada: faltan ${Math.round(segundos/60)} min`);
             return res.status(400).json({
                 error: 'Solo podés cancelar hasta 1 hora antes del encuentro.',
