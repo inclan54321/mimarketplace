@@ -4411,21 +4411,23 @@ ListTile(
                                                       final p = (int n) => n.toString().padLeft(2, '0');
                                                       final keyHora =
                                                           '${fecha.year}-${p(fecha.month)}-${p(fecha.day)}T${p(o.hour)}:${p(o.minute)}';
-                                                      final estaOcupada = false;
+                                                      final ahora = DateTime.now();
+final esHoy = fecha.year == ahora.year &&
+              fecha.month == ahora.month &&
+              fecha.day == ahora.day;
+final horaYaPaso = esHoy &&
+    (o.hour < ahora.hour ||
+     (o.hour == ahora.hour && o.minute <= ahora.minute));
+final estaOcupada = false;
 
                                                       return Center(
                                                         child: Text(
-                                                          estaOcupada
-                                                              ? '$textoHora  ⛔'
-                                                              : textoHora,
+                                                          horaYaPaso ? '—' : textoHora,
                                                           style: TextStyle(
                                                             fontSize: 20,
-                                                            color: estaOcupada
-                                                                ? Colors.grey
+                                                            color: horaYaPaso
+                                                                ? Colors.grey.shade300
                                                                 : Colors.black,
-                                                            decoration: estaOcupada
-                                                                ? TextDecoration.lineThrough
-                                                                : null,
                                                           ),
                                                         ),
                                                       );
@@ -4446,7 +4448,16 @@ ListTile(
                                                       Expanded(
                                                         child: ElevatedButton(
                                                           onPressed: () {
-                                                            Navigator.pop(ctx, opciones[indiceActual]);
+                                                            final sel = opciones[indiceActual];
+                                                            final ah = DateTime.now();
+                                                            final esHoySel = fecha.year == ah.year &&
+                                                                fecha.month == ah.month &&
+                                                                fecha.day == ah.day;
+                                                            final yaPaso = esHoySel &&
+                                                                (sel.hour < ah.hour ||
+                                                                 (sel.hour == ah.hour && sel.minute <= ah.minute));
+                                                            if (yaPaso) return;
+                                                            Navigator.pop(ctx, sel);
                                                           },
                                                           style: ElevatedButton.styleFrom(
                                                             backgroundColor: Colors.blue,
