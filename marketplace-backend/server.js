@@ -6491,6 +6491,67 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             console.log('>>> ⚠️ Geocode falló en proponer:', e.message);
         }
 
+        // ============================================================
+        // 🔥 VERIFICAR CHOQUES DE HORARIO
+        // Ninguno de los dos usuarios debe tener ya un encuentro agendado
+        // (o en 'tarde') en la misma fecha/hora.
+        // ============================================================
+        const choque = await pool.query(
+            `SELECT e.id, e.usuario1_id, e.usuario2_id, e.fecha_encuentro
+             FROM encuentros_agendados e
+             WHERE e.estado IN ('agendado', 'tarde')
+               AND e.fecha_encuentro = $1
+               AND (
+                 e.usuario1_id IN ($2, $3)
+                 OR e.usuario2_id IN ($2, $3)
+               )
+             LIMIT 1`,
+            [fecha_encuentro, usuario_propone_id, usuario_recibe_id]
+        );
+
+        if (choque.rows.length > 0) {
+            const c = choque.rows[0];
+            const quienTieneElChoque =
+                (c.usuario1_id === usuario_propone_id || c.usuario2_id === usuario_propone_id)
+                    ? usuario_propone_id
+                    : usuario_recibe_id;
+            console.log(`>>> 🚫 Choque de horario: ya hay encuentro el ${fecha_encuentro} para ${quienTieneElChoque}`);
+            return res.status(409).json({
+                error: 'Ese día y hora ya está ocupado. Elegí otro horario.',
+                codigo: 'HORARIO_OCUPADO',
+                fecha_ocupada: c.fecha_encuentro,
+                usuario_con_choque: quienTieneElChoque,
+            });
+        }
+
+        // ============================================================
+        // 🔥 VERIFICAR CHOQUES CON PROPUESTAS PENDIENTES
+        // Si alguno de los dos ya tiene una propuesta PENDIENTE
+        // (aún no aceptada/rechazada) en la misma fecha/hora, también
+        // bloqueamos para evitar dos propuestas solapadas.
+        // ============================================================
+        const choquePropuesta = await pool.query(
+            `SELECT p.id, p.usuario_propone_id, p.usuario_recibe_id, p.fecha_encuentro
+             FROM propuestas_encuentro p
+             WHERE p.estado = 'pendiente'
+               AND p.fecha_encuentro = $1
+               AND (
+                 p.usuario_propone_id IN ($2, $3)
+                 OR p.usuario_recibe_id IN ($2, $3)
+               )
+             LIMIT 1`,
+            [fecha_encuentro, usuario_propone_id, usuario_recibe_id]
+        );
+
+        if (choquePropuesta.rows.length > 0) {
+            console.log(`>>> 🚫 Choque con propuesta pendiente el ${fecha_encuentro}`);
+            return res.status(409).json({
+                error: 'Ese día y hora ya tiene una propuesta pendiente. Elegí otro horario.',
+                codigo: 'HORARIO_OCUPADO',
+                fecha_ocupada: choquePropuesta.rows[0].fecha_encuentro,
+            });
+        }
+
         const result = await pool.query(
             `INSERT INTO propuestas_encuentro 
              (conversacion_id, usuario_propone_id, usuario_recibe_id, 
@@ -6548,7 +6609,59 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
         res.status(500).json({ error: error.message });
     }
 });
+// ============================================================
+// 🔥 HORARIOS OCUPADOS ENTRE DOS USUARIOS
+// Devuelve los días/horas que ya tienen encuentro agendado o propuesta pendiente.
+// Flutter lo usa para deshabilitar esos slots en el selector.
+// ============================================================
+app.get('/api/encuentro/horarios-ocupados/:usuario1/:usuario2', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { usuario1, usuario2 } = req.params;
 
+        if (usuario1 !== req.usuarioAutenticado && usuario2 !== req.usuarioAutenticado) {
+            return res.status(403).json({
+                error: 'No autorizado',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // Encuentros agendados de cualquiera de los dos
+        const agendados = await pool.query(
+            `SELECT fecha_encuentro
+             FROM encuentros_agendados
+             WHERE estado IN ('agendado', 'tarde')
+               AND (usuario1_id IN ($1, $2) OR usuario2_id IN ($1, $2))`,
+            [usuario1, usuario2]
+        );
+
+        // Propuestas pendientes de cualquiera de los dos
+        const pendientes = await pool.query(
+            `SELECT fecha_encuentro
+             FROM propuestas_encuentro
+             WHERE estado = 'pendiente'
+               AND (usuario_propone_id IN ($1, $2) OR usuario_recibe_id IN ($1, $2))`,
+            [usuario1, usuario2]
+        );
+
+        // Devolver como ISO string, sin la 'Z' (hora CR naive)
+        const fechas = [
+            ...agendados.rows.map(r => r.fecha_encuentro),
+            ...pendientes.rows.map(r => r.fecha_encuentro),
+        ].map(f => {
+            if (f instanceof Date) {
+                const p = n => String(n).padStart(2, '0');
+                return `${f.getUTCFullYear()}-${p(f.getUTCMonth()+1)}-${p(f.getUTCDate())}T${p(f.getUTCHours())}:${p(f.getUTCMinutes())}:00`;
+            }
+            return String(f);
+        });
+
+        console.log(`>>> 📅 Horarios ocupados entre ${usuario1} y ${usuario2}: ${fechas.length}`);
+        res.json({ fechas });
+    } catch (error) {
+        console.error('Error al obtener horarios ocupados:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 // 🔥 OBTENER PROPUESTA POR ID
 app.get('/api/encuentro/propuesta/:id', async (req, res) => {
     try {

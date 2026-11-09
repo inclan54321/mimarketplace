@@ -4033,6 +4033,35 @@ ListTile(
     List<Map<String, dynamic>> propuestasTemporales = [];
     String paso = 'formulario'; // 'formulario' | 'resumen'
 
+    // 🔥 HORARIOS OCUPADOS (entre los dos usuarios)
+    Set<String> horariosOcupados = {};
+
+    // 🔥 Cargar horarios ocupados al abrir el modal
+    Future<void> cargarHorariosOcupados() async {
+      try {
+        final otroId = widget.otroUsuarioId;
+        final miId = FirebaseAuth.instance.currentUser?.uid ?? '';
+        if (otroId.isEmpty || miId.isEmpty) return;
+
+        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+        final r = await http.get(
+          Uri.parse(
+              'https://mimarketplace-production.up.railway.app/api/encuentro/horarios-ocupados/$miId/$otroId'),
+          headers: {
+            if (idToken != null) 'Authorization': 'Bearer $idToken',
+          },
+        );
+        if (r.statusCode == 200) {
+          final data = jsonDecode(r.body);
+          final List fechas = data['fechas'] ?? [];
+          horariosOcupados = fechas.map((f) => _normalizarFechaKey(f.toString())).toSet();
+          print('>>> 📅 Horarios ocupados cargados: ${horariosOcupados.length}');
+        }
+      } catch (e) {
+        print('Error al cargar horarios ocupados: $e');
+      }
+    }
+
     DateTime? fechaSeleccionada;
     double? lugarLat;
     double? lugarLng;
@@ -4050,6 +4079,11 @@ ListTile(
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
+          // 🔥 Cargar horarios ocupados una sola vez al abrir
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await cargarHorariosOcupados();
+            if (context.mounted) setModalState(() {});
+          });
 
           // 🔥 RESET del formulario (para cuando agrega otra propuesta)
           void resetFormulario() {
@@ -4108,6 +4142,7 @@ ListTile(
                               int enviadas = 0;
 
                               final idTokenProp = await FirebaseAuth.instance.currentUser?.getIdToken();
+                              String? errorHorarioOcupado;
                               for (final prop in propuestasTemporales) {
                                 final response = await http.post(
                                   Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/proponer'),
@@ -4128,7 +4163,22 @@ ListTile(
 
                                 if (response.statusCode == 201) {
                                   enviadas++;
+                                } else if (response.statusCode == 409) {
+                                  // 🔥 Horario ocupado detectado por el backend
+                                  final err = jsonDecode(response.body);
+                                  errorHorarioOcupado = err['error'] ??
+                                      'Ese día y hora ya está ocupado.';
                                 }
+                              }
+
+                              if (errorHorarioOcupado != null && mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('⛔ $errorHorarioOcupado'),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 4),
+                                  ),
+                                );
                               }
 
                               if (mounted) Navigator.pop(context); // cerrar loading
@@ -4354,10 +4404,29 @@ ListTile(
                                                     children: opciones.map((o) {
                                                       final hora12 = o.hourOfPeriod == 0 ? 12 : o.hourOfPeriod;
                                                       final ampm = o.period == DayPeriod.am ? 'AM' : 'PM';
+                                                      final textoHora =
+                                                          '${hora12.toString().padLeft(2, '0')}:${o.minute.toString().padLeft(2, '0')} $ampm';
+
+                                                      // 🔥 Ver si esta hora ya está ocupada ese día
+                                                      final p = (int n) => n.toString().padLeft(2, '0');
+                                                      final keyHora =
+                                                          '${fecha.year}-${p(fecha.month)}-${p(fecha.day)}T${p(o.hour)}:${p(o.minute)}';
+                                                      final estaOcupada = horariosOcupados.contains(keyHora);
+
                                                       return Center(
                                                         child: Text(
-                                                          '${hora12.toString().padLeft(2, '0')}:${o.minute.toString().padLeft(2, '0')} $ampm',
-                                                          style: const TextStyle(fontSize: 20),
+                                                          estaOcupada
+                                                              ? '$textoHora  ⛔'
+                                                              : textoHora,
+                                                          style: TextStyle(
+                                                            fontSize: 20,
+                                                            color: estaOcupada
+                                                                ? Colors.grey
+                                                                : Colors.black,
+                                                            decoration: estaOcupada
+                                                                ? TextDecoration.lineThrough
+                                                                : null,
+                                                          ),
                                                         ),
                                                       );
                                                     }).toList(),
@@ -4442,6 +4511,21 @@ ListTile(
                                           content: Text(
                                               '⚠️ Elegí un lugar en el mapa y una fecha'),
                                           backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    // 🔥 Verificar que el día/hora elegido no esté ocupado
+                                    final p = (int n) => n.toString().padLeft(2, '0');
+                                    final keyElegida =
+                                        '${fechaSeleccionada!.year}-${p(fechaSeleccionada!.month)}-${p(fechaSeleccionada!.day)}T${p(fechaSeleccionada!.hour)}:${p(fechaSeleccionada!.minute)}';
+                                    if (horariosOcupados.contains(keyElegida)) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              '⛔ Ese día y hora ya está ocupado. Elegí otro horario.'),
+                                          backgroundColor: Colors.red,
                                         ),
                                       );
                                       return;
@@ -5049,6 +5133,19 @@ ListTile(
         );
       },
     );
+  }
+
+  // 🔥 Convierte una fecha (String ISO o Date) a "yyyy-MM-ddTHH:mm" para comparar horarios.
+  String _normalizarFechaKey(String fecha) {
+    try {
+      final limpio = fecha.replaceAll('Z', '').replaceFirst(' ', 'T');
+      final dt = DateTime.tryParse(limpio);
+      if (dt == null) return limpio;
+      final p = (int n) => n.toString().padLeft(2, '0');
+      return '${dt.year}-${p(dt.month)}-${p(dt.day)}T${p(dt.hour)}:${p(dt.minute)}';
+    } catch (_) {
+      return fecha;
+    }
   }
 
   // 🔥 FORMATEAR FECHA DE PROPUESTA
