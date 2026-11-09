@@ -9246,7 +9246,7 @@ cron.schedule('* * * * *', async () => {
     } catch (e) {
         console.error('Error marcando encuentros completados:', e.message);
     }
-});s
+});
 console.log('>>> ⏰ CRON de recomendaciones activado (9:30 UTC = 3:30 AM Costa Rica)');
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
