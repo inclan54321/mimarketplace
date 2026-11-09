@@ -6500,7 +6500,7 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             `SELECT e.id, e.usuario1_id, e.usuario2_id, e.fecha_encuentro
              FROM encuentros_agendados e
              WHERE e.estado IN ('agendado', 'tarde')
-               AND e.fecha_encuentro = $1
+               AND date_trunc('minute', e.fecha_encuentro) = date_trunc('minute', $1::timestamptz)
                AND (
                  e.usuario1_id IN ($2, $3)
                  OR e.usuario2_id IN ($2, $3)
@@ -6534,7 +6534,7 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             `SELECT p.id, p.usuario_propone_id, p.usuario_recibe_id, p.fecha_encuentro
              FROM propuestas_encuentro p
              WHERE p.estado = 'pendiente'
-               AND p.fecha_encuentro = $1
+               AND date_trunc('minute', p.fecha_encuentro) = date_trunc('minute', $1::timestamptz)
                AND (
                  p.usuario_propone_id IN ($2, $3)
                  OR p.usuario_recibe_id IN ($2, $3)
@@ -6650,7 +6650,7 @@ app.get('/api/encuentro/horarios-ocupados/:usuario1/:usuario2', verificarTokenFi
         ].map(f => {
             if (f instanceof Date) {
                 const p = n => String(n).padStart(2, '0');
-                return `${f.getUTCFullYear()}-${p(f.getUTCMonth()+1)}-${p(f.getUTCDate())}T${p(f.getUTCHours())}:${p(f.getUTCMinutes())}:00`;
+                return `${f.getUTCFullYear()}-${p(f.getUTCMonth()+1)}-${p(f.getUTCDate())}T${p(f.getUTCHours())}:${p(f.getUTCMinutes())}`;
             }
             return String(f);
         });

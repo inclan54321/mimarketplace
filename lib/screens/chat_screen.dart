@@ -4426,7 +4426,7 @@ final estaOcupada = false;
                                                           style: TextStyle(
                                                             fontSize: 20,
                                                             color: horaYaPaso
-                                                                ? Colors.grey.shade300
+                                                                ? Colors.black54
                                                                 : Colors.black,
                                                           ),
                                                         ),
