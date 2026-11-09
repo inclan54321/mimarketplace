@@ -78,41 +78,38 @@ class _AlertasScreenState extends State<AlertasScreen> {
 
         debugPrint('>>> 🔔 Alertas recibidas: ${nuevas.length} para ${user.uid}');
 
-        // 🔥 Usar la lista NUEVA para cargar los estados de verificación
-        // (sin asignar todavía a _alertas, para que el setState detecte el cambio)
+        // 🔥 PINTAR PRIMERO (rápido), sin esperar verificaciones
         final listaAnterior = _alertas;
         _alertas = nuevas;
-        await _cargarEstadosVerificacion(silencioso: true);
 
-        // 🔥 Solo repintar si cambió algo o si estamos cargando
         final cambio = _isLoading ||
             listaAnterior.length != nuevas.length ||
             (nuevas.isNotEmpty &&
                 (listaAnterior.isEmpty || listaAnterior.first['id'] != nuevas.first['id']));
 
-        if (mounted && cambio) {
+        if (mounted) {
           setState(() {
             _alertas = nuevas;
             _isLoading = false;
           });
-        } else if (mounted && !cambio) {
-          // Igual actualizar por si acaso el widget no estaba reconstruido
-          _alertas = nuevas;
-          _isLoading = false;
         }
+
+        // 🔥 Verificaciones en segundo plano: no bloquean el pintado
+        _cargarEstadosVerificacion(silencioso: false);
 
         _alertasCache = List.from(_alertas);
         _estadosCache = Map.from(_estadosVerificacion);
 
-        // 🔥 Marcar todas como leídas
-        final idTokenMarcar = await FirebaseAuth.instance.currentUser?.getIdToken();
-        await http.put(
-          Uri.parse(
-              'https://mimarketplace-production.up.railway.app/api/alertas/marcar-leidas/${user.uid}'),
-          headers: {
-            if (idTokenMarcar != null) 'Authorization': 'Bearer $idTokenMarcar',
-          },
-        );
+        // 🔥 Marcar todas como leídas (fire and forget: no bloquea la UI)
+        FirebaseAuth.instance.currentUser?.getIdToken().then((idTokenMarcar) {
+          http.put(
+            Uri.parse(
+                'https://mimarketplace-production.up.railway.app/api/alertas/marcar-leidas/${user.uid}'),
+            headers: {
+              if (idTokenMarcar != null) 'Authorization': 'Bearer $idTokenMarcar',
+            },
+          );
+        });
       } else {
         debugPrint('>>> ❌ Alertas status ${response.statusCode}: ${response.body}');
         if (mounted) setState(() => _isLoading = false);
@@ -131,32 +128,35 @@ class _AlertasScreenState extends State<AlertasScreen> {
     }
     if (idsUnicos.isEmpty) return;
 
-    for (final eid in idsUnicos) {
-      try {
-        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-        final r = await http.get(
-          Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/$eid/mi-estado-verificacion'),
-          headers: {if (idToken != null) 'Authorization': 'Bearer $idToken'},
-        );
-        debugPrint('>>> mi-estado-verificacion [$eid] status: ${r.statusCode} body: ${r.body}');
-        if (r.statusCode == 200) {
-          final data = jsonDecode(r.body) as Map<String, dynamic>;
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    final headers = {if (idToken != null) 'Authorization': 'Bearer $idToken'};
 
-          bool yoAsist = false;
-          bool otroAsist = false;
-          bool ambosAsist = false;
-          try {
-            final rAsist = await http.get(
-              Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/$eid/asistencia'),
-              headers: {if (idToken != null) 'Authorization': 'Bearer $idToken'},
-            );
-            if (rAsist.statusCode == 200) {
-              final a = jsonDecode(rAsist.body) as Map<String, dynamic>;
-              yoAsist = a['yo_confirmado'] == true;
-              otroAsist = a['otro_confirmado'] == true;
-              ambosAsist = a['ambos_confirmaron'] == true;
-            }
-          } catch (_) {}
+    // 🔥 Paralelo: 2 requests por encuentro, todos a la vez
+    await Future.wait(idsUnicos.map((eid) async {
+      try {
+        final resultados = await Future.wait([
+          http.get(
+            Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/$eid/mi-estado-verificacion'),
+            headers: headers,
+          ),
+          http.get(
+            Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/$eid/asistencia'),
+            headers: headers,
+          ),
+        ]);
+
+        final rVerif = resultados[0];
+        final rAsist = resultados[1];
+
+        if (rVerif.statusCode == 200) {
+          final data = jsonDecode(rVerif.body) as Map<String, dynamic>;
+          bool yoAsist = false, otroAsist = false, ambosAsist = false;
+          if (rAsist.statusCode == 200) {
+            final a = jsonDecode(rAsist.body) as Map<String, dynamic>;
+            yoAsist = a['yo_confirmado'] == true;
+            otroAsist = a['otro_confirmado'] == true;
+            ambosAsist = a['ambos_confirmaron'] == true;
+          }
 
           _estadosVerificacion[eid] = {
             'mi_selfie': data['mi_selfie_existe'] == true,
@@ -171,7 +171,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
       } catch (e) {
         debugPrint('>>> Error cargando estado [$eid]: $e');
       }
-    }
+    }));
+
     _estadosCache = Map.from(_estadosVerificacion);
     if (mounted && !silencioso) setState(() {});
   }
@@ -648,7 +649,6 @@ class _AlertasScreenState extends State<AlertasScreen> {
                   itemCount: _alertas.length,
                   itemBuilder: (context, index) {
                     final alerta = _alertas[index];
-                    print('>>> 🎨 DIBUJANDO ALERTA $index: id=${alerta['id']} tipo=${alerta['tipo']} producto_id=${alerta['producto_id']}');
                     final esLeida = alerta['leida'] ?? false;
                     final tipo = alerta['tipo'] ?? 'info';
                     final mensaje = alerta['mensaje'] ?? '';

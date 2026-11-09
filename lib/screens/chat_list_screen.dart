@@ -1773,10 +1773,22 @@ class _ChatListScreenState extends State<ChatListScreen>
                         ),
                         child: hayEncuentro
                             ? Center(
-                                child: Icon(
-                                  Icons.event_available,
-                                  color: Colors.white,
-                                  size: 18,
+                                child: Text(
+                                  () {
+                                    final f = DateTime.tryParse(
+                                      encuentroEnCelda.first['fecha_encuentro'].toString(),
+                                    )?.toLocal();
+                                    if (f == null) return '--:--';
+                                    final hh = f.hour.toString().padLeft(2, '0');
+                                    final mm = f.minute.toString().padLeft(2, '0');
+                                    return '$hh:$mm';
+                                  }(),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               )
                             : null,

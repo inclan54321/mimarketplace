@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/cupertino.dart';
 import '../widgets/boton_grabacion.dart';
 import '../services/chat_websocket_service.dart';
@@ -19,6 +21,7 @@ import '../widgets/conversation_status_indicator.dart';
 import 'image_viewer_screen.dart';
 import 'pantalla_verificacion_encuentro.dart';
 import 'seleccionar_lugar_mapa_screen.dart';
+import 'ver_mapa_propuesta_screen.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:geolocator/geolocator.dart';
@@ -32,7 +35,8 @@ import '../widgets/calificacion_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';       // 🔥 NUEVO
 // 🔥 NUEVO
 import 'package:intl/intl.dart';                                    // 🔥 NUEVO
-
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 
 class ChatScreen extends StatefulWidget {
@@ -178,6 +182,36 @@ class _ChatScreenState extends State<ChatScreen>
 
   // 🔥 ANIMACIÓN DEL BORDE PUNTEADO DE LA PROPUESTA
   late AnimationController _bordeController;
+
+  Future<Uint8List> _crearIconoPin(Color color, {double size = 128}) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final painter = TextPainter(textDirection: ui.TextDirection.ltr);
+    painter.text = TextSpan(
+      text: String.fromCharCode(Icons.place.codePoint),
+      style: TextStyle(
+        fontSize: size,
+        fontFamily: Icons.place.fontFamily,
+        package: Icons.place.fontPackage,
+        color: color,
+        shadows: const [
+          Shadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+        ],
+      ),
+    );
+    painter.layout();
+    painter.paint(
+      canvas,
+      Offset((size - painter.width) / 2, (size - painter.height) / 2),
+    );
+    final image =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  // 🔥 CONTROLLER DE LA MINIATURA DEL MAPA (para el pin)
+  MapLibreMapController? _miniMapaController;
 
   // 🚨 ANIMACIÓN DE REBOTE DEL BOTÓN DE EMERGENCIA
   late AnimationController _emergencyReboteController;
@@ -4545,18 +4579,17 @@ ListTile(
                           const SizedBox(height: 2),
                           Text(
                             (() {
+                              final nombre = (prop['lugar_nombre'] ?? '').toString().trim();
+                              final provincia = (prop['provincia'] ?? '').toString().trim();
+                              final nombreValido = nombre.isNotEmpty && nombre != 'Punto en el mapa';
                               final partes = <String>[
-                                if ((prop['distrito'] ?? '').toString().isNotEmpty)
-                                  prop['distrito'].toString(),
-                                if ((prop['canton'] ?? '').toString().isNotEmpty)
-                                  prop['canton'].toString(),
-                                if ((prop['provincia'] ?? '').toString().isNotEmpty)
-                                  prop['provincia'].toString(),
+                                if (nombreValido) nombre,
+                                if (provincia.isNotEmpty) provincia,
                               ];
-                              if (partes.isEmpty) {
-                                return 'Lat: ${(prop['lugar_lat'] as double?)?.toStringAsFixed(5) ?? ''}, Lng: ${(prop['lugar_lng'] as double?)?.toStringAsFixed(5) ?? ''}';
-                              }
-                              return partes.join(', ');
+                              if (partes.isNotEmpty) return partes.join(', ');
+                              final lat = double.tryParse(prop['lugar_lat']?.toString() ?? '');
+                              final lng = double.tryParse(prop['lugar_lng']?.toString() ?? '');
+                              return 'Lat: ${lat?.toStringAsFixed(5) ?? ''}, Lng: ${lng?.toStringAsFixed(5) ?? ''}';
                             })(),
                             style: TextStyle(
                               fontSize: 12,
@@ -4670,7 +4703,19 @@ ListTile(
                 Padding(
                   padding: const EdgeInsets.only(top: 12), // 👈 BAJA "universidad..."
                   child: Text(
-                    '${propuesta['lugar_nombre'] ?? ''}, ${propuesta['provincia'] ?? ''}',
+                    (() {
+                      final nombre = (propuesta['lugar_nombre'] ?? '').toString().trim();
+                      final provincia = (propuesta['provincia'] ?? '').toString().trim();
+                      final nombreValido = nombre.isNotEmpty && nombre != 'Punto en el mapa';
+                      final partes = <String>[
+                        if (nombreValido) nombre,
+                        if (provincia.isNotEmpty) provincia,
+                      ];
+                      if (partes.isNotEmpty) return partes.join(', ');
+                      final lat = double.tryParse(propuesta['lugar_lat']?.toString() ?? '');
+                      final lng = double.tryParse(propuesta['lugar_lng']?.toString() ?? '');
+                      return 'Lat: ${lat?.toStringAsFixed(5) ?? ''}, Lng: ${lng?.toStringAsFixed(5) ?? ''}';
+                    })(),
                     style: const TextStyle(fontSize: 13, color: Colors.white),
                   ),
                 ),
@@ -4710,9 +4755,111 @@ ListTile(
       ),
     );
 
-    // 🔥 Solo las pendientes llevan el glow celeste neón
-    if (estado != 'pendiente') return tarjeta;
-    return _GlowNeonCeleste(controller: _bordeController, child: tarjeta);
+    // 🔥 Miniatura del mapa debajo de la tarjeta
+    Widget? miniaturaMapa;
+    final latP = double.tryParse(propuesta['lugar_lat']?.toString() ?? '');
+    final lngP = double.tryParse(propuesta['lugar_lng']?.toString() ?? '');
+    if (latP != null && lngP != null) {
+      miniaturaMapa = GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VerMapaPropuestaScreen(
+                lat: latP,
+                lng: lngP,
+                titulo: (propuesta['lugar_nombre'] ?? 'Ubicación').toString(),
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              height: 140,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 🔥 Mapa de fondo (se ve la miniatura)
+                  IgnorePointer(
+                    child: MapLibreMap(
+                      styleString: 'https://tiles.openfreemap.org/styles/liberty',
+                      initialCameraPosition: CameraPosition(
+                        target: LatLng(latP, lngP),
+                        zoom: 15,
+                      ),
+                      gestureRecognizers:
+                          const <Factory<OneSequenceGestureRecognizer>>{},
+                      onMapCreated: (c) => _miniMapaController = c,
+                      onStyleLoadedCallback: () async {
+                        try {
+                          final bytes = await _crearIconoPin(Colors.red);
+                          await _miniMapaController?.addImage('pin_mini', bytes);
+                        } catch (e) {
+                          debugPrint('Error pin miniatura: $e');
+                        }
+                        await _miniMapaController?.addSymbol(
+                          SymbolOptions(
+                            geometry: LatLng(latP, lngP),
+                            iconImage: 'pin_mini',
+                            iconSize: 0.35,
+                            iconAnchor: 'bottom',
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // 🔥 Capa transparente ENCIMA que recibe el toque
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => VerMapaPropuestaScreen(
+                              lat: latP,
+                              lng: lngP,
+                              titulo: (propuesta['lugar_nombre'] ?? 'Ubicación')
+                                  .toString(),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final tarjetaConMapa = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        tarjeta,
+        ?miniaturaMapa,
+      ],
+    );
+
+    // 🔥 Fondo del color elegido alrededor de la tarjeta + miniatura
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0A5BE0), Color(0xFF1E9BF0), Color(0xFF0A5BE0)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: tarjetaConMapa,
+    );
   }
   // 🔥 TARJETA DE PROPUESTA: mismo diseño (imagen del asset) desde el primer frame
   Widget _buildTarjetaPropuesta(String propuestaId) {
@@ -4973,11 +5120,12 @@ ListTile(
                   ],
                 ),
                 const SizedBox(height: 16),
-                // 🔥 LUGAR
-                _buildInfoRow(Icons.location_on, 'Lugar',
+                // 🔥 DISTRITO (primero) — ahora muestra el nombre del lugar
+                _buildInfoRow(Icons.map, 'Distrito',
                     propuesta['lugar_nombre'] ?? ''),
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.map, 'Distrito',
+                // 🔥 LUGAR (después) — ahora muestra distrito, cantón, provincia
+                _buildInfoRow(Icons.location_on, 'Lugar',
                     '${propuesta['distrito'] ?? ''}, ${propuesta['canton'] ?? ''}, ${propuesta['provincia'] ?? ''}'),
                 const SizedBox(height: 8),
                 _buildInfoRow(Icons.access_time, 'Fecha y hora',
@@ -7903,15 +8051,15 @@ class _GlowNeonCeleste extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
-              // Glow exterior fino, celeste puro
+              // Glow exterior fino, celeste del AppBar
               BoxShadow(
-                color: const Color(0xFF00E5FF).withValues(alpha: opacity * 0.80),
+                color: const Color.fromARGB(255, 56, 111, 222).withValues(alpha: opacity * 0.80),
                 blurRadius: blur * 0.20,
                 spreadRadius: spread * 0.06,
               ),
-              // Núcleo del neón (celeste claro)
+              // Núcleo del neón (celeste claro del AppBar)
               BoxShadow(
-                color: const Color(0xFF9BF6FF).withValues(alpha: opacity * 0.60),
+                color: const Color.fromARGB(255, 65, 108, 196).withValues(alpha: opacity * 0.60),
                 blurRadius: blur * 0.10,
                 spreadRadius: spread * 0.02,
               ),

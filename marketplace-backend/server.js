@@ -7659,16 +7659,26 @@ app.get('/api/encuentros/semana/:usuario_id', verificarTokenFirebase, async (req
             });
         }
 
-        // Semana actual: lunes 00:00 hasta domingo 23:59
-        const hoy = new Date();
-        const diaSemana = hoy.getDay(); // 0=domingo, 1=lunes...
-        const offsetLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
-        const lunes = new Date(hoy);
-        lunes.setDate(hoy.getDate() + offsetLunes);
-        lunes.setHours(0, 0, 0, 0);
-        const domingo = new Date(lunes);
-        domingo.setDate(lunes.getDate() + 6);
-        domingo.setHours(23, 59, 59, 999);
+        // 🔥 Calcular la semana en hora de Costa Rica, no en la del servidor.
+        //    Traemos los componentes de "ahora" tal como los ve el usuario en CR.
+        const ahoraCR = await pool.query(
+            `SELECT 
+               EXTRACT(DOW  FROM (NOW() AT TIME ZONE 'America/Costa_Rica'))::int AS dow,
+               (NOW() AT TIME ZONE 'America/Costa_Rica')::date AS hoy_cr`
+        );
+        const dow = ahoraCR.rows[0].dow;        // 0=domingo, 1=lunes...
+        const hoyCR = ahoraCR.rows[0].hoy_cr;   // 'YYYY-MM-DD'
+        const offsetLunes = dow === 0 ? -6 : 1 - dow;
+
+        // 🔥 Calcular lunes y domingo como strings 'YYYY-MM-DD' (sin TZ),
+        //    porque la columna fecha_encuentro es timestamp SIN zona.
+        const lunesRes = await pool.query(
+            `SELECT ($1::date + ($2 || ' days')::interval)::date AS lunes,
+                    ($1::date + ($2 || ' days')::interval + INTERVAL '6 days')::date AS domingo`,
+            [hoyCR, offsetLunes]
+        );
+        const lunes = lunesRes.rows[0].lunes;     // 'YYYY-MM-DD'
+        const domingo = lunesRes.rows[0].domingo; // 'YYYY-MM-DD'
 
         const result = await pool.query(
             `SELECT e.id, e.conversacion_id, e.fecha_encuentro,
@@ -7677,10 +7687,15 @@ app.get('/api/encuentros/semana/:usuario_id', verificarTokenFirebase, async (req
              FROM encuentros_agendados e
              WHERE (e.usuario1_id = $1 OR e.usuario2_id = $1)
                AND e.estado IN ('agendado', 'tarde')
-               AND e.fecha_encuentro BETWEEN $2 AND $3
+               AND e.fecha_encuentro >= $2::date
+               AND e.fecha_encuentro <  ($3::date + INTERVAL '1 day')
              ORDER BY e.fecha_encuentro ASC`,
-            [usuario_id, lunes.toISOString(), domingo.toISOString()]
+            [usuario_id, lunes, domingo]
         );
+        console.log(`>>> 📅 Semana CR: ${lunes} → ${domingo} | encontrados: ${result.rows.length}`);
+        for (const r of result.rows) {
+            console.log(`>>> 📅   id=${r.id} fecha=${r.fecha_encuentro}`);
+        }
 
         console.log(`>>> 📅 Encuentros de la semana para ${usuario_id}: ${result.rows.length}`);
         res.json(result.rows);
