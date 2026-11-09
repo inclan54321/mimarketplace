@@ -636,6 +636,9 @@ _iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid || esRevisor);
       onEstadoCambio: (data) {
         print('>>> 🔄 WS cambio de estado: ${data['estado']}');
         if (!mounted) return;
+        if (data['estado'] == 'trato_cancelado') {
+          _cachePropuestas.clear();
+        }
         if (data['estado'] == 'analisis_listo') {
           // 🔥 El servidor terminó de analizar: consultar al instante
           final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -5871,6 +5874,7 @@ ListTile(
             _mostrarBotonesCerrarTrato = false;
             _quiereCerrarTrato = false;
           });
+          _cachePropuestas.clear();
           _guardarEstadoBloqueo();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -5879,7 +5883,7 @@ ListTile(
             ),
           );
         }
-        await _cargarMensajes(_conversacionIdActual);
+        await _cargarMensajes(_conversacionIdActual, forzar: true);
       } else {
         final err = jsonDecode(r.body);
         if (mounted) {

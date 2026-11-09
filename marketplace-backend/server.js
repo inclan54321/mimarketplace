@@ -7757,6 +7757,15 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             [id]
         );
 
+        // 🔥 Anular la propuesta de encuentro aceptada
+        await pool.query(
+            `UPDATE propuestas_encuentro
+             SET estado = 'rechazada', fecha_actualizacion = NOW()
+             WHERE conversacion_id = $1
+               AND estado IN ('aceptada', 'confirmada')`,
+            [enc.conversacion_id]
+        );
+
         // 🔥 Desbloquear el chat
         await pool.query(
             `UPDATE conversaciones_app 
