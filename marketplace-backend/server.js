@@ -9192,6 +9192,29 @@ cron.schedule('30 9 * * *', async () => {
         console.error('>>> ❌ Error en cron de recomendaciones:', e.message);
     }
 });
+// ============================================================
+// 🔥 CRON: liberar la hora de encuentros exitosos ya pasados
+// ============================================================
+cron.schedule('* * * * *', async () => {
+    try {
+        const completadas = await pool.query(
+            `UPDATE encuentros_agendados 
+             SET estado = 'completado'
+             WHERE estado IN ('agendado', 'tarde')
+               AND fecha_encuentro < (NOW() AT TIME ZONE 'America/Costa_Rica') - INTERVAL '30 minutes'
+               AND EXISTS (
+                 SELECT 1 FROM verificaciones_faciales v
+                 WHERE v.encuentro_id = encuentros_agendados.id AND v.aprobado = TRUE
+               )
+             RETURNING id`
+        );
+        if (completadas.rowCount > 0) {
+            console.log(`>>> ✅ ${completadas.rowCount} encuentros exitosos liberados como 'completado'`);
+        }
+    } catch (e) {
+        console.error('Error marcando encuentros completados:', e.message);
+    }
+});
 console.log('>>> ⏰ CRON de recomendaciones activado (9:30 UTC = 3:30 AM Costa Rica)');
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
