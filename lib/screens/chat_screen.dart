@@ -4347,15 +4347,54 @@ ListTile(
                                       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                                     ),
                                     builder: (ctx) {
-                                      // 🔥 Generar las opciones: 7:00, 7:30, ..., 18:00
-                                      final opciones = <TimeOfDay>[];
+                                      // 🔥 Generar SOLO las horas libres (7:00..18:00, cada 30 min),
+                                      // SACANDO las que ya están ocupadas ese día.
+                                      final todasLasOpciones = <TimeOfDay>[];
                                       for (int h = 7; h <= 18; h++) {
-                                        opciones.add(TimeOfDay(hour: h, minute: 0));
+                                        todasLasOpciones.add(TimeOfDay(hour: h, minute: 0));
                                         if (h < 18) {
-                                          opciones.add(TimeOfDay(hour: h, minute: 30));
+                                          todasLasOpciones.add(TimeOfDay(hour: h, minute: 30));
                                         }
                                       }
-                                      // Índice inicial: 10:00 AM (posición 6 dentro de la lista)
+
+                                      final pp = (int n) => n.toString().padLeft(2, '0');
+                                      final opciones = todasLasOpciones.where((o) {
+                                        final keyHora =
+                                            '${fecha.year}-${pp(fecha.month)}-${pp(fecha.day)}T${pp(o.hour)}:${pp(o.minute)}';
+                                        return !horariosOcupados.contains(keyHora);
+                                      }).toList();
+
+                                      // 🔥 Si no queda ninguna hora libre, mostrar mensaje y salir
+                                      if (opciones.isEmpty) {
+                                        return SafeArea(
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(24),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.event_busy,
+                                                    color: Colors.red, size: 44),
+                                                const SizedBox(height: 16),
+                                                const Text(
+                                                  'No quedan horarios libres ese día.\nProbá con otra fecha.',
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 20),
+                                                ElevatedButton(
+                                                  onPressed: () => Navigator.pop(ctx),
+                                                  child: const Text('Entendido'),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }
+
+                                      // Índice inicial: 10:00 AM si existe, sino el primero
                                       int indiceInicial = opciones.indexWhere(
                                         (o) => o.hour == 10 && o.minute == 0,
                                       );
@@ -4406,26 +4445,12 @@ ListTile(
                                                       final ampm = o.period == DayPeriod.am ? 'AM' : 'PM';
                                                       final textoHora =
                                                           '${hora12.toString().padLeft(2, '0')}:${o.minute.toString().padLeft(2, '0')} $ampm';
-
-                                                      // 🔥 Ver si esta hora ya está ocupada ese día
-                                                      final p = (int n) => n.toString().padLeft(2, '0');
-                                                      final keyHora =
-                                                          '${fecha.year}-${p(fecha.month)}-${p(fecha.day)}T${p(o.hour)}:${p(o.minute)}';
-                                                      final estaOcupada = horariosOcupados.contains(keyHora);
-
                                                       return Center(
                                                         child: Text(
-                                                          estaOcupada
-                                                              ? '$textoHora  ⛔'
-                                                              : textoHora,
-                                                          style: TextStyle(
+                                                          textoHora,
+                                                          style: const TextStyle(
                                                             fontSize: 20,
-                                                            color: estaOcupada
-                                                                ? Colors.grey
-                                                                : Colors.black,
-                                                            decoration: estaOcupada
-                                                                ? TextDecoration.lineThrough
-                                                                : null,
+                                                            color: Colors.black,
                                                           ),
                                                         ),
                                                       );

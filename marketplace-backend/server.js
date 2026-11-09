@@ -6625,20 +6625,26 @@ app.get('/api/encuentro/horarios-ocupados/:usuario1/:usuario2', verificarTokenFi
             });
         }
 
-        // Encuentros agendados de cualquiera de los dos
+        // Encuentros agendados de cualquiera de los dos.
+        // 🔥 Solo los FUTUROS: una cita pasada ya no debe bloquear el horario,
+        // sin importar el estado ('agendado', 'tarde', 'no_presentado', etc.).
         const agendados = await pool.query(
             `SELECT fecha_encuentro
              FROM encuentros_agendados
              WHERE estado IN ('agendado', 'tarde')
+               AND fecha_encuentro > NOW()
                AND (usuario1_id IN ($1, $2) OR usuario2_id IN ($1, $2))`,
             [usuario1, usuario2]
         );
 
-        // Propuestas pendientes de cualquiera de los dos
+        // Propuestas pendientes de cualquiera de los dos.
+        // 🔥 Solo las futuras: una propuesta pendiente con fecha pasada
+        // ya no tiene sentido bloquear.
         const pendientes = await pool.query(
             `SELECT fecha_encuentro
              FROM propuestas_encuentro
              WHERE estado = 'pendiente'
+               AND fecha_encuentro > NOW()
                AND (usuario_propone_id IN ($1, $2) OR usuario_recibe_id IN ($1, $2))`,
             [usuario1, usuario2]
         );
