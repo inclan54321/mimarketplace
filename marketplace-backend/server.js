@@ -7775,6 +7775,33 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             [enc.conversacion_id]
         );
 
+        // 🔥 RESET: la propuesta aceptada vuelve a 'rechazada' para que no
+        //    siga apareciendo como trato en pie al reabrir el chat.
+        await pool.query(
+            `UPDATE propuestas_encuentro 
+             SET estado = 'rechazada', fecha_actualizacion = NOW()
+             WHERE conversacion_id = $1 
+               AND estado IN ('aceptada', 'confirmada')`,
+            [enc.conversacion_id]
+        );
+
+        // 🔥 Borrar el mensaje de "encuentro aceptado" del chat
+        await pool.query(
+            `DELETE FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||ENCUENTRO_ACEPTADO||%'`,
+            [enc.conversacion_id]
+        );
+
+        // 🔥 Borrar también los "seguir conversando" viejos para que no
+        //    quede rastro del flujo anterior
+        await pool.query(
+            `DELETE FROM mensajes_app 
+             WHERE conversacion_id = $1 
+               AND texto LIKE '||SEGUIR_CONVERSANDO||%'`,
+            [enc.conversacion_id]
+        );
+
         // 🔥 Insertar mensaje de sistema en el chat
         await pool.query(
             `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 

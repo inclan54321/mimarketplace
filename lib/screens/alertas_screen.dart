@@ -653,7 +653,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
                     final tipo = alerta['tipo'] ?? 'info';
                     final mensaje = alerta['mensaje'] ?? '';
                     final fecha = alerta['fecha'] != null
-                        ? DateTime.parse(alerta['fecha']).toString().substring(0, 16)
+                        ? DateTime.parse(alerta['fecha'])
+                            .toLocal()
+                            .toString()
+                            .substring(0, 16)
                         : '';
                     final productoId = alerta['producto_id'];
 
