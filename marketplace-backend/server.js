@@ -7872,6 +7872,7 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
         );
         const segundos = parseFloat(faltan.rows[0]?.segundos || '0');
 
+        // 1) Ambos confirmaron → NO se puede cancelar
         if (yoConfirmado && otroConfirmado) {
             console.log(`>>> 🚫 Cancelación bloqueada: ambos confirmaron asistencia`);
             return res.status(400).json({
@@ -7880,6 +7881,16 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             });
         }
 
+        // 2) El otro confirmó y YO no → yo no puedo cancelar
+        if (!yoConfirmado && otroConfirmado) {
+            console.log(`>>> 🚫 Cancelación bloqueada: el otro confirmó y yo no`);
+            return res.status(400).json({
+                error: 'El otro usuario confirmó asistencia. Solo él puede cancelar hasta 10 minutos antes.',
+                codigo: 'CANCELACION_PERDIDA_POR_NO_CONFIRMAR',
+            });
+        }
+
+        // 3) Yo confirmé y el otro no → hasta 10 min antes
         if (yoConfirmado && !otroConfirmado) {
             if (segundos < 600) {
                 console.log(`>>> 🚫 Cancelación rechazada (confirmé asistencia): faltan ${Math.round(segundos/60)} min`);
@@ -7889,13 +7900,18 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
                     minutos_restantes: Math.round(segundos / 60),
                 });
             }
-        } else if (segundos < 3600) {
-            console.log(`>>> 🚫 Cancelación rechazada: faltan ${Math.round(segundos/60)} min`);
-            return res.status(400).json({
-                error: 'Solo podés cancelar hasta 1 hora antes del encuentro.',
-                codigo: 'CANCELACION_TARDE',
-                minutos_restantes: Math.round(segundos / 60),
-            });
+        }
+
+        // 4) Nadie confirmó → hasta 1 hora antes
+        if (!yoConfirmado && !otroConfirmado) {
+            if (segundos < 3600) {
+                console.log(`>>> 🚫 Cancelación rechazada: faltan ${Math.round(segundos/60)} min`);
+                return res.status(400).json({
+                    error: 'Solo podés cancelar hasta 1 hora antes del encuentro.',
+                    codigo: 'CANCELACION_TARDE',
+                    minutos_restantes: Math.round(segundos / 60),
+                });
+            }
         }
 
         // 🔥 Marcar encuentro como cancelado
@@ -8105,7 +8121,7 @@ app.get('/api/encuentro/:id/asistencia', verificarTokenFirebase, async (req, res
         const usuarioId = req.usuarioAutenticado;
 
         const enc = await pool.query(
-            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            'SELECT usuario1_id, usuario2_id, fecha_encuentro FROM encuentros_agendados WHERE id = $1',
             [id]
         );
         if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
@@ -8123,10 +8139,16 @@ app.get('/api/encuentro/:id/asistencia', verificarTokenFirebase, async (req, res
         const yo = r.rows.find(x => x.usuario_id === usuarioId);
         const otro = r.rows.find(x => x.usuario_id === otroId);
 
+        // 🔥 Minutos restantes calculados en el server (misma zona horaria que la regla)
+        const minutosRestantes = e.fecha_encuentro
+            ? Math.round((new Date(e.fecha_encuentro) - new Date()) / 60000)
+            : null;
+
         res.json({
             yo_confirmado: yo?.confirmado === true,
             otro_confirmado: otro?.confirmado === true,
             ambos_confirmaron: yo?.confirmado === true && otro?.confirmado === true,
+            minutos_restantes: minutosRestantes,
         });
     } catch (err) {
         console.error('Error al consultar asistencia:', err);

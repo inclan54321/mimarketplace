@@ -4418,14 +4418,14 @@ final esHoy = fecha.year == ahora.year &&
 final horaYaPaso = esHoy &&
     (o.hour < ahora.hour ||
      (o.hour == ahora.hour && o.minute <= ahora.minute));
-final estaOcupada = false;
+final estaOcupada = horariosOcupados.contains(keyHora);
 
                                                       return Center(
                                                         child: Text(
-                                                          horaYaPaso ? '—' : textoHora,
+                                                          (estaOcupada || horaYaPaso) ? '—' : textoHora,
                                                           style: TextStyle(
                                                             fontSize: 20,
-                                                            color: horaYaPaso
+                                                            color: (estaOcupada || horaYaPaso)
                                                                 ? Colors.black54
                                                                 : Colors.black,
                                                           ),
@@ -5543,6 +5543,7 @@ final estaOcupada = false;
     // Consultar asistencia para aplicar la regla correcta
     bool yoConfirmado = false;
     bool otroConfirmado = false;
+    int? minutosRestantesServer;
     try {
       final idTokenAsist = await FirebaseAuth.instance.currentUser?.getIdToken();
       final rAsist = await http.get(
@@ -5555,23 +5556,38 @@ final estaOcupada = false;
         final d = jsonDecode(rAsist.body);
         yoConfirmado   = d['yo_confirmado']   == true;
         otroConfirmado = d['otro_confirmado'] == true;
+        final mr = d['minutos_restantes'];
+        if (mr is int) minutosRestantesServer = mr;
       }
     } catch (e) {
       debugPrint('Error consultando asistencia: $e');
     }
 
-    final minutosRestantes = fecha?.difference(DateTime.now()).inMinutes;
+    // 🔥 Preferir el valor del server; fallback al cálculo local
+    final minutosRestantes = minutosRestantesServer
+        ?? fecha?.difference(DateTime.now()).inMinutes;
+
+    debugPrint('>>> CANCELAR DEBUG: yoConfirmado=$yoConfirmado, otroConfirmado=$otroConfirmado, '
+        'minutosRestantes=$minutosRestantes (server=$minutosRestantesServer), fecha=$fecha');
 
     final bool puedeCancelar;
     final String textoRegla;
+    final bool otroConfirmoYNoYo;
     if (yoConfirmado && otroConfirmado) {
       puedeCancelar = false;
+      otroConfirmoYNoYo = false;
       textoRegla = 'Ambos ya confirmaron asistencia. El encuentro no se puede cancelar.';
+    } else if (!yoConfirmado && otroConfirmado) {
+      puedeCancelar = false;
+      otroConfirmoYNoYo = true;
+      textoRegla = 'El otro usuario confirmó asistencia. Solo él puede cancelar hasta 10 minutos antes.';
     } else if (yoConfirmado && !otroConfirmado) {
       puedeCancelar = minutosRestantes == null || minutosRestantes >= 10;
+      otroConfirmoYNoYo = false;
       textoRegla = 'Confirmaste asistencia. Podés cancelar hasta 10 minutos antes del encuentro.';
     } else {
       puedeCancelar = minutosRestantes == null || minutosRestantes >= 60;
+      otroConfirmoYNoYo = false;
       textoRegla = 'Solo podés cancelar el trato hasta 1 hora antes del encuentro. '
           'Si falta menos de 1 hora, ya no se permite cancelar y deben '
           'presentarse en el lugar acordado.';
@@ -5861,8 +5877,10 @@ final estaOcupada = false;
                           puedeCancelar
                               ? 'Al cancelar, el encuentro se anula para los dos y el chat vuelve a abrirse. '
                                 'El otro usuario recibirá una notificación.'
-                              : 'Ya no podés cancelar este encuentro porque falta menos de 1 hora. '
-                                'Deben presentarse en el lugar acordado.',
+                              : otroConfirmoYNoYo
+                                  ? 'El otro usuario confirmó asistencia. Ya no podés cancelar este encuentro.'
+                                  : 'Ya no podés cancelar este encuentro porque falta menos de 1 hora. '
+                                    'Deben presentarse en el lugar acordado.',
                           style: TextStyle(
                             fontSize: 12,
                             height: 1.45,
