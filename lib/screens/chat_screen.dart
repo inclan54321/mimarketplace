@@ -4347,54 +4347,15 @@ ListTile(
                                       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                                     ),
                                     builder: (ctx) {
-                                      // 🔥 Generar SOLO las horas libres (7:00..18:00, cada 30 min),
-                                      // SACANDO las que ya están ocupadas ese día.
-                                      final todasLasOpciones = <TimeOfDay>[];
+                                      // 🔥 Generar las opciones: 7:00, 7:30, ..., 18:00
+                                      final opciones = <TimeOfDay>[];
                                       for (int h = 7; h <= 18; h++) {
-                                        todasLasOpciones.add(TimeOfDay(hour: h, minute: 0));
+                                        opciones.add(TimeOfDay(hour: h, minute: 0));
                                         if (h < 18) {
-                                          todasLasOpciones.add(TimeOfDay(hour: h, minute: 30));
+                                          opciones.add(TimeOfDay(hour: h, minute: 30));
                                         }
                                       }
-
-                                      final pp = (int n) => n.toString().padLeft(2, '0');
-                                      final opciones = todasLasOpciones.where((o) {
-                                        final keyHora =
-                                            '${fecha.year}-${pp(fecha.month)}-${pp(fecha.day)}T${pp(o.hour)}:${pp(o.minute)}';
-                                        return !horariosOcupados.contains(keyHora);
-                                      }).toList();
-
-                                      // 🔥 Si no queda ninguna hora libre, mostrar mensaje y salir
-                                      if (opciones.isEmpty) {
-                                        return SafeArea(
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(24),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(Icons.event_busy,
-                                                    color: Colors.red, size: 44),
-                                                const SizedBox(height: 16),
-                                                const Text(
-                                                  'No quedan horarios libres ese día.\nProbá con otra fecha.',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 20),
-                                                ElevatedButton(
-                                                  onPressed: () => Navigator.pop(ctx),
-                                                  child: const Text('Entendido'),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }
-
-                                      // Índice inicial: 10:00 AM si existe, sino el primero
+                                      // Índice inicial: 10:00 AM (posición 6 dentro de la lista)
                                       int indiceInicial = opciones.indexWhere(
                                         (o) => o.hour == 10 && o.minute == 0,
                                       );
@@ -4445,12 +4406,26 @@ ListTile(
                                                       final ampm = o.period == DayPeriod.am ? 'AM' : 'PM';
                                                       final textoHora =
                                                           '${hora12.toString().padLeft(2, '0')}:${o.minute.toString().padLeft(2, '0')} $ampm';
+
+                                                      // 🔥 Ver si esta hora ya está ocupada ese día
+                                                      final p = (int n) => n.toString().padLeft(2, '0');
+                                                      final keyHora =
+                                                          '${fecha.year}-${p(fecha.month)}-${p(fecha.day)}T${p(o.hour)}:${p(o.minute)}';
+                                                      final estaOcupada = false;
+
                                                       return Center(
                                                         child: Text(
-                                                          textoHora,
-                                                          style: const TextStyle(
+                                                          estaOcupada
+                                                              ? '$textoHora  ⛔'
+                                                              : textoHora,
+                                                          style: TextStyle(
                                                             fontSize: 20,
-                                                            color: Colors.black,
+                                                            color: estaOcupada
+                                                                ? Colors.grey
+                                                                : Colors.black,
+                                                            decoration: estaOcupada
+                                                                ? TextDecoration.lineThrough
+                                                                : null,
                                                           ),
                                                         ),
                                                       );
@@ -5554,8 +5529,42 @@ ListTile(
     if (fechaStr != null) {
       fecha = DateTime.tryParse(fechaStr)?.toLocal();
     }
+    // Consultar asistencia para aplicar la regla correcta
+    bool yoConfirmado = false;
+    bool otroConfirmado = false;
+    try {
+      final idTokenAsist = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final rAsist = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/${encuentro['id']}/asistencia'),
+        headers: {
+          if (idTokenAsist != null) 'Authorization': 'Bearer $idTokenAsist',
+        },
+      );
+      if (rAsist.statusCode == 200) {
+        final d = jsonDecode(rAsist.body);
+        yoConfirmado   = d['yo_confirmado']   == true;
+        otroConfirmado = d['otro_confirmado'] == true;
+      }
+    } catch (e) {
+      debugPrint('Error consultando asistencia: $e');
+    }
+
     final minutosRestantes = fecha?.difference(DateTime.now()).inMinutes;
-    final puedeCancelar = minutosRestantes == null || minutosRestantes >= 60;
+
+    final bool puedeCancelar;
+    final String textoRegla;
+    if (yoConfirmado && otroConfirmado) {
+      puedeCancelar = false;
+      textoRegla = 'Ambos ya confirmaron asistencia. El encuentro no se puede cancelar.';
+    } else if (yoConfirmado && !otroConfirmado) {
+      puedeCancelar = minutosRestantes == null || minutosRestantes >= 10;
+      textoRegla = 'Confirmaste asistencia. Podés cancelar hasta 10 minutos antes del encuentro.';
+    } else {
+      puedeCancelar = minutosRestantes == null || minutosRestantes >= 60;
+      textoRegla = 'Solo podés cancelar el trato hasta 1 hora antes del encuentro. '
+          'Si falta menos de 1 hora, ya no se permite cancelar y deben '
+          'presentarse en el lugar acordado.';
+    }
 
     if (!mounted) return;
 
@@ -5781,10 +5790,8 @@ ListTile(
                         ],
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Solo podés cancelar el trato hasta 1 hora antes del encuentro. '
-                        'Si falta menos de 1 hora, ya no se permite cancelar y deben '
-                        'presentarse en el lugar acordado.',
+                      Text(
+                        textoRegla,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.white,
