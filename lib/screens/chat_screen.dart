@@ -6253,6 +6253,34 @@ ListTile(
             style: TextStyle(fontSize: 14, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
+
+          const SizedBox(height: 24),
+
+          // 🔥 BOTÓN PARA VER LOS MENSAJES DEL CHAT (solo lectura)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _viendoMensajesEnTratoCerrado = true;
+                });
+              },
+              icon: const Icon(Icons.chat_bubble_outline, size: 22),
+              label: const Text(
+                'Ver mensajes del chat',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0A5BE0),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(26),
+                ),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 32),
 
           // 🔥 PASOS DEL PROCESO
@@ -6308,32 +6336,6 @@ ListTile(
             ),
           ),
 
-          const SizedBox(height: 24),
-
-          // 🔥 BOTÓN PARA VER LOS MENSAJES DEL CHAT (solo lectura)
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _viendoMensajesEnTratoCerrado = true;
-                });
-              },
-              icon: const Icon(Icons.chat_bubble_outline, size: 22),
-              label: const Text(
-                'Ver mensajes del chat',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0A5BE0),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(26),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
