@@ -1772,45 +1772,36 @@ class _ChatListScreenState extends State<ChatListScreen>
                           ),
                         ),
                         child: hayEncuentro
-                            ? Center(
-                                child: Text(
-                                  () {
-                                    final f = DateTime.tryParse(
-                                      encuentroEnCelda.first['fecha_encuentro'].toString(),
-                                    )?.toLocal();
-                                    if (f == null) return '--:--';
-                                    final hh = f.hour.toString().padLeft(2, '0');
-                                    final mm = f.minute.toString().padLeft(2, '0');
-                                    return '$hh:$mm';
-                                  }(),
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                            ? const Center(
+                                child: Icon(
+                                  Icons.event,
+                                  color: Colors.white,
+                                  size: 20,
                                 ),
                               )
                             : null,
                       ),
                     );
                   }),
-                  Container(
-                    width: 40,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      border: Border(
-                        top: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.1),
+                  GestureDetector(
+                    onTap: () => _mostrarDetalleEncuentros(h, lunes),
+                    child: Container(
+                      width: 40,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        border: Border(
+                          top: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
                         ),
                       ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.edit,
-                        color: Colors.white.withValues(alpha: 0.4),
-                        size: 16,
+                      child: Center(
+                        child: Icon(
+                          Icons.info_outline,
+                          color: Colors.white.withValues(alpha: 0.7),
+                          size: 18,
+                        ),
                       ),
                     ),
                   ),
@@ -1820,6 +1811,164 @@ class _ChatListScreenState extends State<ChatListScreen>
           ],
         ),
       ),
+    );
+  }
+
+    // 🔥 MODAL DE DETALLE: días de la semana + producto agendado a esa hora
+  void _mostrarDetalleEncuentros(int hora, DateTime lunes) {
+    final l10n = AppLocalizations.of(context)!;
+    final nombresDias = [
+      l10n.lun,
+      l10n.mar,
+      l10n.mie,
+      l10n.jue,
+      l10n.vie,
+      l10n.sab,
+      'Dom',
+    ];
+
+    final List<Map<String, dynamic>?> productoPorDia = List.generate(7, (i) {
+      final dia = lunes.add(Duration(days: i));
+      final enc = _encuentrosSemana.where((e) {
+        final fechaStr = e['fecha_encuentro']?.toString();
+        if (fechaStr == null) return false;
+        final fecha = DateTime.tryParse(fechaStr);
+        if (fecha == null) return false;
+        return fecha.year == dia.year &&
+            fecha.month == dia.month &&
+            fecha.day == dia.day &&
+            fecha.hour == hora;
+      }).toList();
+
+      if (enc.isEmpty) return null;
+
+      final e = enc.first;
+      return {
+        'producto': e['producto_nombre'] ?? 'Producto',
+        'otro_usuario_id': e['usuario1_id'] ==
+                FirebaseAuth.instance.currentUser?.uid
+            ? e['usuario2_id']
+            : e['usuario1_id'],
+      };
+    });
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0A1628),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline,
+                        color: Color(0xFF60A5FA), size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Encuentros a las ${hora.toString().padLeft(2, '0')}:00',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Divider(color: Colors.white24),
+                const SizedBox(height: 8),
+                ...List.generate(7, (i) {
+                  final dia = lunes.add(Duration(days: i));
+                  final producto = productoPorDia[i];
+                  final fechaTxt =
+                      '${dia.day.toString().padLeft(2, '0')}/${dia.month.toString().padLeft(2, '0')}';
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 80,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                nombresDias[i],
+                                style: const TextStyle(
+                                  color: Color(0xFF60A5FA),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                fechaTxt,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: producto != null
+                                  ? const Color(0xFFEF4444)
+                                      .withValues(alpha: 0.25)
+                                  : Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: producto != null
+                                    ? const Color(0xFFEF4444)
+                                    : Colors.white.withValues(alpha: 0.1),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              producto != null
+                                  ? (producto['producto'] ?? 'Producto')
+                                  : '—',
+                              style: TextStyle(
+                                color: producto != null
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.3),
+                                fontSize: 12,
+                                fontWeight: producto != null
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

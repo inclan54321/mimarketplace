@@ -7676,8 +7676,10 @@ app.get('/api/encuentros/semana/:usuario_id', verificarTokenFirebase, async (req
         const result = await pool.query(
             `SELECT e.id, e.conversacion_id, e.fecha_encuentro,
                     e.lugar_nombre, e.estado,
-                    e.usuario1_id, e.usuario2_id
+                    e.usuario1_id, e.usuario2_id,
+                    c.producto_nombre
              FROM encuentros_agendados e
+             LEFT JOIN conversaciones_app c ON c.id = e.conversacion_id
              WHERE (e.usuario1_id = $1 OR e.usuario2_id = $1)
                AND e.estado IN ('agendado', 'tarde')
                AND e.fecha_encuentro BETWEEN $2 AND $3
