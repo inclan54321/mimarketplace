@@ -5570,6 +5570,12 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     debugPrint('>>> CANCELAR DEBUG: yoConfirmado=$yoConfirmado, otroConfirmado=$otroConfirmado, '
         'minutosRestantes=$minutosRestantes (server=$minutosRestantesServer), fecha=$fecha');
 
+    // 🔥 Si minutosRestantes es null o negativo por timezone, tratar como válido
+    // para que el botón aparezca y el backend decida (con su mensaje real).
+    final int minutosParaMostrar = (minutosRestantes == null || minutosRestantes < 0)
+        ? 9999
+        : minutosRestantes;
+
     final bool puedeCancelar;
     final String textoRegla;
     final bool otroConfirmoYNoYo;
@@ -5582,16 +5588,20 @@ final estaOcupada = horariosOcupados.contains(keyHora);
       otroConfirmoYNoYo = true;
       textoRegla = 'El otro usuario confirmó asistencia. Solo él puede cancelar hasta 10 minutos antes.';
     } else if (yoConfirmado && !otroConfirmado) {
-      puedeCancelar = minutosRestantes == null || minutosRestantes >= 10;
+      puedeCancelar = minutosParaMostrar >= 10;
       otroConfirmoYNoYo = false;
       textoRegla = 'Confirmaste asistencia. Podés cancelar hasta 10 minutos antes del encuentro.';
     } else {
-      puedeCancelar = minutosRestantes == null || minutosRestantes >= 60;
+      puedeCancelar = minutosParaMostrar >= 60;
       otroConfirmoYNoYo = false;
       textoRegla = 'Solo podés cancelar el trato hasta 1 hora antes del encuentro. '
           'Si falta menos de 1 hora, ya no se permite cancelar y deben '
           'presentarse en el lugar acordado.';
     }
+
+    debugPrint('>>> CANCELAR: yo=$yoConfirmado otro=$otroConfirmado '
+        'min=$minutosRestantes minParaMostrar=$minutosParaMostrar '
+        'puedeCancelar=$puedeCancelar');
 
     if (!mounted) return;
 

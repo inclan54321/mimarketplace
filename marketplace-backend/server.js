@@ -8139,10 +8139,16 @@ app.get('/api/encuentro/:id/asistencia', verificarTokenFirebase, async (req, res
         const yo = r.rows.find(x => x.usuario_id === usuarioId);
         const otro = r.rows.find(x => x.usuario_id === otroId);
 
-        // 🔥 Minutos restantes calculados en el server (misma zona horaria que la regla)
-        const minutosRestantes = e.fecha_encuentro
-            ? Math.round((new Date(e.fecha_encuentro) - new Date()) / 60000)
-            : null;
+        // 🔥 Minutos restantes calculados en el server.
+        // Se usa EXTRACT de Postgres para respetar la zona horaria de la BD
+        // (fecha_encuentro está en hora CR).
+        const mrRes = await pool.query(
+            `SELECT EXTRACT(EPOCH FROM (fecha_encuentro - (NOW() AT TIME ZONE 'America/Costa_Rica'))) AS segundos
+             FROM encuentros_agendados WHERE id = $1`,
+            [id]
+        );
+        const segundosRestantes = parseFloat(mrRes.rows[0]?.segundos || '0');
+        const minutosRestantes = Math.round(segundosRestantes / 60);
 
         res.json({
             yo_confirmado: yo?.confirmado === true,
