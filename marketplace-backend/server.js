@@ -2989,8 +2989,11 @@ app.get('/api/mensajes/:conversacion_id', verificarTokenFirebase, async (req, re
             });
         }
 
-        // 🔥 SI EL CHAT ESTÁ BLOQUEADO, DEVOLVER LISTA VACÍA
-        if (convResult.rows[0].chat_bloqueado === true) {
+        // 🔥 SI EL CHAT ESTÁ BLOQUEADO Y NO PIDEN EL HISTORIAL, DEVOLVER VACÍO.
+        // Si piden el historial (?ver_historial=1), devolver los mensajes igual
+        // para poder mostrarlos desde "Ver mensajes del chat" en el trato cerrado.
+        const verHistorial = req.query.ver_historial === '1';
+        if (convResult.rows[0].chat_bloqueado === true && !verHistorial) {
             return res.json([]);
         }
 

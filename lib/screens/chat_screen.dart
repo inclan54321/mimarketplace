@@ -137,7 +137,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _estadoCargado = false; // 🔥 El input no se muestra hasta conocer el estado de bloqueo
   bool _cerrarTratoForzado = false; // 🔥 Modal de cerrar trato abierto por el escudo o por el otro usuario (la IA no lo apaga)
   bool _yoAbriCerrarTrato = false;  // 🔥 true SOLO si YO pulsé "Cerrar trato" en el menú del escudo
-
+  bool _viendoMensajesEnTratoCerrado = false; // 🔥 Ver historial cuando el trato está cerrado
   // 🔥 ESCUDO MUTUO (aceptar/rechazar por el otro usuario)
   String? _escudoActivadoPor;
   bool _escudoYoAcepte = false;
@@ -1155,8 +1155,11 @@ void dispose() {
 
   try {
     final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    final urlMsgs = _chatBloqueado
+        ? 'https://mimarketplace-production.up.railway.app/api/mensajes/$conversacionId?usuario_id=${user.uid}&ver_historial=1'
+        : 'https://mimarketplace-production.up.railway.app/api/mensajes/$conversacionId?usuario_id=${user.uid}';
     final response = await http.get(
-      Uri.parse('https://mimarketplace-production.up.railway.app/api/mensajes/$conversacionId?usuario_id=${user.uid}'),
+      Uri.parse(urlMsgs),
       headers: {
         if (idToken != null) 'Authorization': 'Bearer $idToken',
       },
@@ -6304,48 +6307,21 @@ ListTile(
               ],
             ),
           ),
+
           const SizedBox(height: 24),
 
-          // 🔥 BOTÓN PARA IR A VERIFICAR IDENTIDAD Y UBICACIÓN
+          // 🔥 BOTÓN PARA VER LOS MENSAJES DEL CHAT (solo lectura)
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  final r = await http.get(
-                    Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/agendado/$_conversacionIdActual'),
-                  );
-                  if (r.statusCode == 200) {
-                    final data = jsonDecode(r.body);
-                    final encuentro = data['encuentro'];
-                    if (encuentro != null && encuentro['id'] != null && mounted) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PantallaVerificacionEncuentro(
-                            encuentroId: int.parse(encuentro['id'].toString()),
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                  }
-                } catch (e) {
-                  debugPrint('Error al abrir verificación: $e');
-                }
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('No se encontró el encuentro agendado'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                }
+              onPressed: () {
+                setState(() {
+                  _viendoMensajesEnTratoCerrado = true;
+                });
               },
-              icon: const Icon(Icons.verified_user, size: 22),
+              icon: const Icon(Icons.chat_bubble_outline, size: 22),
               label: const Text(
-                'Verificar identidad y ubicación',
+                'Ver mensajes del chat',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               style: ElevatedButton.styleFrom(
@@ -6692,6 +6668,24 @@ ListTile(
 
     return Scaffold(
  appBar: _buildAppBar(context),
+      floatingActionButton: (_chatBloqueado && _viendoMensajesEnTratoCerrado)
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                setState(() {
+                  _viendoMensajesEnTratoCerrado = false;
+                });
+              },
+              backgroundColor: const Color(0xFF0A5BE0),
+              icon: const Icon(Icons.info_outline, color: Colors.white),
+              label: const Text(
+                'Info del trato',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          : null,
       body: Column(
         children: [
           // 🔥 LÍNEA DIVISORIA ARRIBA DEL HEADER DEL PRODUCTO
@@ -7043,18 +7037,18 @@ ListTile(
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _mensajes.isEmpty
-                    ? (_chatBloqueado
-                        ? _buildPantallaTratoCerrado()
-                        : const Center(
+                : (_chatBloqueado && !_viendoMensajesEnTratoCerrado)
+                    ? _buildPantallaTratoCerrado()
+                    : _mensajes.isEmpty
+                        ? const Center(
                             child: Text(
                               'No hay mensajes aún',
                               style: TextStyle(color: Colors.grey),
                             ),
-                          ))
-                    : RepaintBoundary(
-                        child: ListView.builder(
-                        reverse: true,
+                          )
+                        : RepaintBoundary(
+                            child: ListView.builder(
+                            reverse: true,
                         padding: EdgeInsets.only(
                           bottom: (_propuestaEncuentroPendiente || _chatBloqueado)
                               ? MediaQuery.of(context).size.height * 0.25
