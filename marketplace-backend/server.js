@@ -9311,6 +9311,15 @@ app.post('/api/tester/registrar', verificarTokenFirebase, async (req, res) => {
       return res.status(400).json({ error: 'Ya estás registrado como tester' });
     }
 
+    // 🔥 VERIFICAR CUPO DE 20 TESTERS
+    const cupo = await pool.query('SELECT COUNT(*)::int AS total FROM testers');
+    if (cupo.rows[0].total >= 20) {
+      return res.status(403).json({
+        error: 'El cupo de testers está lleno (20 máximo).',
+        codigo: 'CUPO_LLENO',
+      });
+    }
+
     // ¿Algún número ya está tomado?
     const tomados = await pool.query(
       'SELECT numero FROM numeros_tester WHERE numero = ANY($1::int[])',
@@ -9349,6 +9358,23 @@ app.post('/api/tester/registrar', verificarTokenFirebase, async (req, res) => {
     res.status(201).json({ success: true, tester: t.rows[0] });
   } catch (e) {
     console.error('Error al registrar tester:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/tester/cupo — devuelve cuántos testers hay y cuántos quedan
+app.get('/api/tester/cupo', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT COUNT(*)::int AS total FROM testers');
+    const total = r.rows[0].total;
+    const limite = 20;
+    res.json({
+      total: total,
+      limite: limite,
+      disponibles: Math.max(0, limite - total),
+      cerrado: total >= limite,
+    });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
@@ -9410,6 +9436,67 @@ app.get('/api/tester/mi-info', verificarTokenFirebase, async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// ============================================================
+// 🧪 CRON DIARIO: recordar a los testers que prueben la app
+// Corre todos los días a las 6:00 PM Costa Rica (00:00 UTC)
+// ============================================================
+cron.schedule('0 0 * * *', async () => {
+    try {
+        console.log('>>> 🧪 CRON de recordatorio a testers INICIO');
+
+        // Testers que NO se conectaron hoy
+        const pendientes = await pool.query(`
+            SELECT t.usuario_id, u.fcm_token, u.nombre
+            FROM testers t
+            INNER JOIN usuarios u ON u.uid = t.usuario_id
+            WHERE u.fcm_token IS NOT NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM dias_tester d
+                WHERE d.tester_id = t.id
+                  AND d.fecha = CURRENT_DATE
+              )
+        `);
+
+        console.log(`>>> 🧪 Testers sin conectarse hoy: ${pendientes.rows.length}`);
+
+        const { getMessaging } = require('firebase-admin/messaging');
+        for (const t of pendientes.rows) {
+            try {
+                await getMessaging().send({
+                    token: t.fcm_token,
+                    notification: {
+                        title: '🧪 Recordatorio de tester',
+                        body: '¡No olvides probar la app hoy! Tu feedback nos ayuda a mejorar.',
+                    },
+                    data: {
+                        tipo: 'recordatorio_tester',
+                    },
+                });
+                console.log(`>>> 📨 Push recordatorio enviada a ${t.usuario_id}`);
+            } catch (e) {
+                console.error(`>>> ❌ Error push a ${t.usuario_id}:`, e.message);
+            }
+        }
+
+        // También insertar la alerta en la app
+        for (const t of pendientes.rows) {
+            await pool.query(
+                `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha)
+                 VALUES ($1, 0, $2, 'recordatorio_tester', NOW())`,
+                [
+                    t.usuario_id,
+                    '🧪 No olvides entrar hoy a probar la app. Tu feedback es clave para nosotros.'
+                ]
+            );
+        }
+
+        console.log('>>> 🧪 CRON de recordatorio a testers FIN');
+    } catch (e) {
+        console.error('>>> ❌ Error en cron de testers:', e.message);
+    }
+});
+console.log('>>> ⏰ CRON de recordatorio a testers activado (00:00 UTC = 6:00 PM Costa Rica)');
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
     console.log('>>> 🔌 WebSocket disponible en ws://0.0.0.0:3000/ws/chat');
