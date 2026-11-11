@@ -9389,6 +9389,59 @@ app.get('/api/tester/numeros-ocupados', async (req, res) => {
   }
 });
 
+// GET /api/tester/estado-global — cuántos cumplen, cuántos no, días de la prueba
+app.get('/api/tester/estado-global', async (req, res) => {
+  try {
+    const total = await pool.query('SELECT COUNT(*)::int AS total FROM testers');
+    const totalTesters = total.rows[0].total;
+
+    // Testers que se conectaron HOY
+    const hoy = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM dias_tester
+       WHERE fecha = CURRENT_DATE`
+    );
+    const conectadosHoy = hoy.rows[0].total;
+
+    // Testers que cumplen 14 días o más
+    const cumplen = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM (
+         SELECT tester_id FROM dias_tester
+         GROUP BY tester_id
+         HAVING COUNT(*) >= 14
+       ) sub`
+    );
+    const cumplen14 = cumplen.rows[0].total;
+
+    // Días consecutivos máximos de la prueba (desde el primer registro)
+    let diasPrueba = 0;
+    if (totalTesters > 0) {
+      const primera = await pool.query(
+        'SELECT MIN(fecha) AS f FROM dias_tester'
+      );
+      if (primera.rows[0]?.f) {
+        const inicio = new Date(primera.rows[0].f);
+        const hoyD = new Date();
+        inicio.setHours(0, 0, 0, 0);
+        hoyD.setHours(0, 0, 0, 0);
+        diasPrueba = Math.floor((hoyD - inicio) / (1000 * 60 * 60 * 24)) + 1;
+      }
+    }
+
+    res.json({
+      total_testers: totalTesters,
+      conectados_hoy: conectadosHoy,
+      faltan_hoy: Math.max(0, totalTesters - conectadosHoy),
+      cumplen_14_dias: cumplen14,
+      dias_prueba: diasPrueba,
+      minimo_testers: 12,
+      minimo_dias: 14,
+      prueba_completa: diasPrueba >= 14 && cumplen14 >= 12,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/tester/mi-info
 app.get('/api/tester/mi-info', verificarTokenFirebase, async (req, res) => {
   try {
