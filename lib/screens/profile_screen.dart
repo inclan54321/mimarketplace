@@ -19,6 +19,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'editar_perfil_screen.dart';
 import 'privacidad_screen.dart';
 import 'soporte_screen.dart';
+import 'tester_screen.dart';
 import 'impulsar_screen.dart';
 
 
@@ -1027,6 +1028,19 @@ Future<void> _precargarImagenPerfil() async {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const SoporteScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bug_report, color: Color(0xFF8B5CF6)),
+              title: const Text('Tester'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TesterScreen(),
                   ),
                 );
               },

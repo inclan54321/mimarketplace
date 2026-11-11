@@ -9276,6 +9276,140 @@ cron.schedule('* * * * *', async () => {
     }
 });
 console.log('>>> ⏰ CRON de recomendaciones activado (9:30 UTC = 3:30 AM Costa Rica)');
+
+// ============================================================
+// 🧪 SISTEMA DE TESTERS
+// ============================================================
+
+// POST /api/tester/registrar
+app.post('/api/tester/registrar', verificarTokenFirebase, async (req, res) => {
+  try {
+    const { usuario_id, numeros } = req.body;
+
+    if (usuario_id !== req.usuarioAutenticado) {
+      return res.status(403).json({ error: 'UID_NO_COINCIDE' });
+    }
+
+    if (!Array.isArray(numeros) || numeros.length !== 5) {
+      return res.status(400).json({ error: 'Debes elegir exactamente 5 números' });
+    }
+
+    const nums = numeros.map(n => parseInt(n));
+    if (nums.some(n => isNaN(n) || n < 1 || n > 100)) {
+      return res.status(400).json({ error: 'Los números deben estar entre 1 y 100' });
+    }
+    if (new Set(nums).size !== 5) {
+      return res.status(400).json({ error: 'Los números no pueden repetirse' });
+    }
+
+    // ¿Ya es tester?
+    const yaExiste = await pool.query(
+      'SELECT id FROM testers WHERE usuario_id = $1',
+      [usuario_id]
+    );
+    if (yaExiste.rows.length > 0) {
+      return res.status(400).json({ error: 'Ya estás registrado como tester' });
+    }
+
+    // ¿Algún número ya está tomado?
+    const tomados = await pool.query(
+      'SELECT numero FROM numeros_tester WHERE numero = ANY($1::int[])',
+      [nums]
+    );
+    if (tomados.rows.length > 0) {
+      return res.status(409).json({
+        error: 'Algunos números ya están tomados',
+        numeros_tomados: tomados.rows.map(r => r.numero),
+      });
+    }
+
+    // Registrar tester
+    const t = await pool.query(
+      `INSERT INTO testers (usuario_id, fecha_registro, ultima_conexion)
+       VALUES ($1, NOW(), NOW()) RETURNING *`,
+      [usuario_id]
+    );
+
+    // Guardar números
+    for (const n of nums) {
+      await pool.query(
+        'INSERT INTO numeros_tester (numero, tester_id) VALUES ($1, $2)',
+        [n, t.rows[0].id]
+      );
+    }
+
+    // Registrar día de conexión
+    await pool.query(
+      `INSERT INTO dias_tester (tester_id, fecha)
+       VALUES ($1, CURRENT_DATE)
+       ON CONFLICT DO NOTHING`,
+      [t.rows[0].id]
+    );
+
+    res.status(201).json({ success: true, tester: t.rows[0] });
+  } catch (e) {
+    console.error('Error al registrar tester:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/tester/numeros-ocupados
+app.get('/api/tester/numeros-ocupados', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT numero FROM numeros_tester');
+    res.json({ ocupados: r.rows.map(x => x.numero) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/tester/mi-info
+app.get('/api/tester/mi-info', verificarTokenFirebase, async (req, res) => {
+  try {
+    const usuario_id = req.usuarioAutenticado;
+
+    const t = await pool.query(
+      'SELECT * FROM testers WHERE usuario_id = $1',
+      [usuario_id]
+    );
+    if (t.rows.length === 0) {
+      return res.json({ es_tester: false });
+    }
+    const tester = t.rows[0];
+
+    // Registrar día de conexión de hoy (si no existe)
+    await pool.query(
+      `INSERT INTO dias_tester (tester_id, fecha)
+       VALUES ($1, CURRENT_DATE)
+       ON CONFLICT DO NOTHING`,
+      [tester.id]
+    );
+    await pool.query(
+      'UPDATE testers SET ultima_conexion = NOW() WHERE id = $1',
+      [tester.id]
+    );
+
+    // Contar días
+    const dias = await pool.query(
+      'SELECT COUNT(*)::int AS total FROM dias_tester WHERE tester_id = $1',
+      [tester.id]
+    );
+
+    const numeros = await pool.query(
+      'SELECT numero FROM numeros_tester WHERE tester_id = $1 ORDER BY numero',
+      [tester.id]
+    );
+
+    res.json({
+      es_tester: true,
+      dias_conectado: dias.rows[0].total,
+      numeros_elegidos: numeros.rows.map(x => x.numero),
+      fecha_registro: tester.fecha_registro,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
     console.log('>>> 🔌 WebSocket disponible en ws://0.0.0.0:3000/ws/chat');
