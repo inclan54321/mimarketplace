@@ -76,12 +76,13 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
       debugPrint('>>> ❌ Error consultando productos: ${respuesta.error}');
     }
 
+    debugPrint('>>> 🛒 Productos encontrados: ${respuesta.productDetails.map((p) => p.id).toList()}');
+    debugPrint('>>> 🛒 IDs NO encontrados: ${respuesta.notFoundIDs}');
+
     setState(() {
       _productosDisponibles = respuesta.productDetails;
       _cargandoProductos = false;
     });
-
-    debugPrint('>>> 🛒 Productos disponibles: ${_productosDisponibles.map((p) => p.id).toList()}');
   }
 
   Future<void> _consultarEstadoPremium() async {
@@ -534,9 +535,12 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
     if (producto == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Producto no disponible. Revisá tu conexión.'),
+          SnackBar(
+            content: Text(
+              'V4: no disponible. Encontrados: ${_productosDisponibles.map((p) => p.id).toList()} | Buscado: $productId',
+            ),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 8),
           ),
         );
       }
