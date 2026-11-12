@@ -9601,7 +9601,7 @@ app.post('/api/suscripciones/verificar', verificarTokenFirebase, async (req, res
         }
 
         // 🔥 Solo aceptar los dos productos válidos
-        const PRODUCTOS_VALIDOS = ['plan_mensual_sin_anuncios', 'plan_semestral_sin_anuncios'];
+        const PRODUCTOS_VALIDOS = ['plan_mensual_sin_anuncios', 'plan_semanal_sin_anuncios'];
         if (!PRODUCTOS_VALIDOS.includes(producto_id)) {
             return res.status(400).json({
                 error: 'Producto no válido',
@@ -9664,7 +9664,7 @@ app.post('/api/suscripciones/verificar', verificarTokenFirebase, async (req, res
         }
 
         // 🔥 Calcular fecha de expiración según el plan
-        const dias = producto_id === 'plan_mensual_sin_anuncios' ? 30 : 180;
+        const dias = producto_id === 'plan_mensual_sin_anuncios' ? 30 : 7;
         const fechaExpiracion = new Date();
         fechaExpiracion.setDate(fechaExpiracion.getDate() + dias);
 

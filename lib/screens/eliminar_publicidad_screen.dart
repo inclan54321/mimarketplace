@@ -68,7 +68,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
 
     const Set<String> ids = {
       'plan_mensual_sin_anuncios',
-      'plan_semestral_sin_anuncios',
+      'plan_semanal_sin_anuncios',
     };
 
     final ProductDetailsResponse respuesta = await _iap.queryProductDetails(ids);
@@ -126,7 +126,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
     if (destino == 'CRC') {
       setState(() {
         _precioMensualConvertido = 1000.0;
-        _precioSemestralConvertido = 3000.0;
+        _precioSemestralConvertido = 500.0;   // 🔥 precio real del semanal
         _monedaDestino = 'CRC';
         _cargandoPrecios = false;
       });
@@ -525,7 +525,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
 
     final String productId = plan == 'mensual'
         ? 'plan_mensual_sin_anuncios'
-        : 'plan_semestral_sin_anuncios';
+        : 'plan_semanal_sin_anuncios';
 
     final ProductDetails? producto = _productosDisponibles
         .where((p) => p.id == productId)
