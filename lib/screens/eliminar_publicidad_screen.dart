@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
@@ -28,6 +31,9 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
   final InAppPurchase _iap = InAppPurchase.instance;
   List<ProductDetails> _productosDisponibles = [];
   bool _cargandoProductos = true;
+  bool _esPremium = false;
+  bool _procesandoCompra = false;
+  final Set<String> _comprasProcesadas = {};
 
   @override
   void initState() {
@@ -50,6 +56,16 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
       onError: (error) => debugPrint('>>> ❌ Error en purchaseStream: $error'),
     );
 
+    // 🔥 Recuperar compras pendientes (por si cerró la app antes de verificar)
+    try {
+      await _iap.restorePurchases();
+    } catch (e) {
+      debugPrint('>>> ⚠️ Error en restorePurchases: $e');
+    }
+
+    // 🔥 Consultar si ya es premium en el backend
+    await _consultarEstadoPremium();
+
     const Set<String> ids = {
       'plan_mensual_sin_anuncios',
       'plan_semestral_sin_anuncios',
@@ -66,6 +82,29 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
     });
 
     debugPrint('>>> 🛒 Productos disponibles: ${_productosDisponibles.map((p) => p.id).toList()}');
+  }
+
+  Future<void> _consultarEstadoPremium() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final idToken = await user.getIdToken();
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/suscripciones/estado/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        if (mounted) {
+          setState(() => _esPremium = data['premium'] == true);
+        }
+        debugPrint('>>> 👑 Premium: $_esPremium');
+      }
+    } catch (e) {
+      debugPrint('>>> ⚠️ Error consultando premium: $e');
+    }
   }
 
   @override
@@ -207,15 +246,47 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
                 AppLocalizations.of(context)!.beneficioSinInterrupciones),
             const SizedBox(height: 32),
 
-            Text(
-              AppLocalizations.of(context)!.elegiTuPlan,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            if (_esPremium) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00E676), Color(0xFF00C853)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.verified, color: Colors.white, size: 48),
+                    SizedBox(height: 12),
+                    Text(
+                      '¡Ya sos premium!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Los anuncios están eliminados',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 32),
+            ] else ...[
+              Text(
+                AppLocalizations.of(context)!.elegiTuPlan,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
 
             // 🔥 PLAN MENSUAL
             _buildPlanCard(
@@ -279,16 +350,17 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 🔥 AVISO
-            Center(
-              child: Text(
-                AppLocalizations.of(context)!.pagoSeguro,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  fontSize: 12,
+              // 🔥 AVISO
+              Center(
+                child: Text(
+                  AppLocalizations.of(context)!.pagoSeguro,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                    fontSize: 12,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -440,6 +512,17 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
   }
 
   Future<void> _confirmarCompra(String plan) async {
+    if (_esPremium) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ya tenés los anuncios eliminados'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+      return;
+    }
+    if (_procesandoCompra) return;
+
     final String productId = plan == 'mensual'
         ? 'plan_mensual_sin_anuncios'
         : 'plan_semestral_sin_anuncios';
@@ -452,7 +535,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Producto no disponible. Revisa tu conexión.'),
+            content: Text('Producto no disponible. Revisá tu conexión.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -466,8 +549,15 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
 
   void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) {
     for (final PurchaseDetails purchase in purchaseDetailsList) {
-      if (purchase.status == PurchaseStatus.purchased ||
-          purchase.status == PurchaseStatus.restored) {
+      if (purchase.status == PurchaseStatus.purchased) {
+        final pid = purchase.purchaseID ?? '';
+        if (pid.isNotEmpty && _comprasProcesadas.contains(pid)) {
+          if (purchase.pendingCompletePurchase) {
+            _iap.completePurchase(purchase);
+          }
+          continue;
+        }
+        if (pid.isNotEmpty) _comprasProcesadas.add(pid);
         _verificarCompraEnBackend(purchase);
       }
 
@@ -497,13 +587,72 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
     }
     debugPrint('>>> 🔑 PurchaseToken: $token');
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Compra exitosa. Los anuncios se quitarán pronto.'),
-          backgroundColor: Colors.green,
-        ),
+    if (token == null) {
+      debugPrint('>>> ❌ No se obtuvo purchaseToken');
+      return;
+    }
+
+    if (_procesandoCompra) {
+      debugPrint('>>> ⏭️ Ya hay una compra en proceso');
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _procesandoCompra = true);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('No hay usuario logueado');
+      final idToken = await user.getIdToken();
+
+      final response = await http.post(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/suscripciones/verificar'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'usuario_id': user.uid,
+          'purchase_token': token,
+          'producto_id': purchase.productID,
+        }),
       );
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+
+      if (response.statusCode == 200) {
+        setState(() => _esPremium = true);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ ¡Listo! Los anuncios fueron eliminados.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          Navigator.pop(context, true); // devolver true a quien la abrió
+        }
+      } else {
+        final data = jsonDecode(response.body);
+        throw Exception(data['error'] ?? 'Error al verificar compra');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      try {
+        Navigator.of(context, rootNavigator: true).pop();
+      } catch (_) {}
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _procesandoCompra = false);
     }
   }
 }

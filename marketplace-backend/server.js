@@ -382,6 +382,33 @@ const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
+
+// 🔥 TABLA DE SUSCRIPCIONES (sin anuncios)
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS suscripciones_usuarios (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                producto_id TEXT NOT NULL,
+                purchase_token TEXT NOT NULL,
+                order_id TEXT,
+                estado TEXT DEFAULT 'activo',
+                fecha_inicio TIMESTAMPTZ DEFAULT NOW(),
+                fecha_expiracion TIMESTAMPTZ,
+                fecha_actualizacion TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE (usuario_id, producto_id)
+            )
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_suscripciones_usuario
+            ON suscripciones_usuarios(usuario_id)
+        `);
+        console.log('>>> ✅ Tabla suscripciones_usuarios lista');
+    } catch (e) {
+        console.error('>>> ❌ Error creando tabla suscripciones:', e.message);
+    }
+})();
 // ============================================================
 // 🔥 RATE LIMIT PARA RUTAS DE LECTURA (anti-scraping)
 // ============================================================
@@ -9549,7 +9576,159 @@ cron.schedule('0 0 * * *', async () => {
         console.error('>>> ❌ Error en cron de testers:', e.message);
     }
 });
-console.log('>>> ⏰ CRON de recordatorio a testers activado (00:00 UTC = 6:00 PM Costa Rica)');
+console.log('>>> ⏰ CRON de recomendaciones activado (9:30 UTC = 3:30 AM Costa Rica)');
+
+// ============================================================
+// 🔥 SUSCRIPCIONES SIN ANUNCIOS
+// ============================================================
+
+// POST /api/suscripciones/verificar
+// Verifica el purchase_token con Google Play, y guarda/actualiza la suscripción.
+app.post('/api/suscripciones/verificar', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { usuario_id, purchase_token, producto_id } = req.body;
+
+        if (!usuario_id || !purchase_token || !producto_id) {
+            return res.status(400).json({ error: 'Faltan datos' });
+        }
+
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en /api/suscripciones/verificar');
+            return res.status(403).json({
+                error: 'No autorizado para verificar suscripciones de otro usuario',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 Solo aceptar los dos productos válidos
+        const PRODUCTOS_VALIDOS = ['plan_mensual_sin_anuncios', 'plan_semestral_sin_anuncios'];
+        if (!PRODUCTOS_VALIDOS.includes(producto_id)) {
+            return res.status(400).json({
+                error: 'Producto no válido',
+                codigo: 'PRODUCTO_INVALIDO'
+            });
+        }
+
+        // 🔥 Verificar con Google Play
+        const { google } = require('googleapis');
+        let auth;
+        try {
+            const credenciales = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+            auth = new google.auth.GoogleAuth({
+                credentials: credenciales,
+                scopes: ['https://www.googleapis.com/auth/androidpublisher'],
+            });
+        } catch (e) {
+            console.error('>>> ❌ Error parseando GOOGLE_SERVICE_ACCOUNT_JSON:', e.message);
+            return res.status(500).json({ error: 'Error de configuración del servidor' });
+        }
+        const androidpublisher = google.androidpublisher({ version: 'v3', auth });
+
+        let verificacion;
+        try {
+            const respuesta = await androidpublisher.purchases.products.get({
+                packageName: 'com.inclan.mimarketplace',
+                productId: producto_id,
+                token: purchase_token,
+            });
+            verificacion = respuesta.data;
+        } catch (e) {
+            console.log('>>> ❌ Token inválido o error de Google:', e.message);
+            return res.status(400).json({
+                error: 'Pago no válido',
+                codigo: 'PAGO_INVALIDO'
+            });
+        }
+
+        // 🔥 purchaseState 0 = comprado
+        if (verificacion.purchaseState !== 0) {
+            return res.status(400).json({
+                error: 'La compra no está completada',
+                codigo: 'COMPRA_NO_COMPLETADA'
+            });
+        }
+
+        // 🔥 Evitar reuso del mismo orderId
+        if (verificacion.orderId) {
+            const yaUsado = await pool.query(
+                'SELECT 1 FROM suscripciones_usuarios WHERE order_id = $1 AND usuario_id != $2 LIMIT 1',
+                [verificacion.orderId, usuario_id]
+            );
+            if (yaUsado.rows.length > 0) {
+                console.log('>>> ❌ orderId ya usado por otro usuario:', verificacion.orderId);
+                return res.status(400).json({
+                    error: 'Este pago ya fue usado por otra cuenta',
+                    codigo: 'PAGO_YA_USADO'
+                });
+            }
+        }
+
+        // 🔥 Calcular fecha de expiración según el plan
+        const dias = producto_id === 'plan_mensual_sin_anuncios' ? 30 : 180;
+        const fechaExpiracion = new Date();
+        fechaExpiracion.setDate(fechaExpiracion.getDate() + dias);
+
+        // 🔥 Guardar/actualizar
+        const result = await pool.query(
+            `INSERT INTO suscripciones_usuarios
+             (usuario_id, producto_id, purchase_token, order_id, estado, fecha_expiracion, fecha_actualizacion)
+             VALUES ($1, $2, $3, $4, 'activo', $5, NOW())
+             ON CONFLICT (usuario_id, producto_id) DO UPDATE
+             SET purchase_token = EXCLUDED.purchase_token,
+                 order_id = EXCLUDED.order_id,
+                 estado = 'activo',
+                 fecha_expiracion = EXCLUDED.fecha_expiracion,
+                 fecha_actualizacion = NOW()
+             RETURNING *`,
+            [usuario_id, producto_id, purchase_token, verificacion.orderId || null, fechaExpiracion]
+        );
+
+        console.log(`>>> ✅ Suscripción activada: ${producto_id} para ${usuario_id} (vence ${fechaExpiracion.toISOString()})`);
+
+        res.json({ success: true, suscripcion: result.rows[0] });
+    } catch (error) {
+        console.error('>>> ❌ Error en /api/suscripciones/verificar:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/suscripciones/estado/:usuario_id
+// Devuelve si el usuario tiene alguna suscripción activa.
+app.get('/api/suscripciones/estado/:usuario_id', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { usuario_id } = req.params;
+
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.log('>>> ❌ UID no coincide en /api/suscripciones/estado');
+            return res.status(403).json({
+                error: 'No autorizado',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        const r = await pool.query(
+            `SELECT id, usuario_id, producto_id, estado, fecha_inicio, fecha_expiracion
+             FROM suscripciones_usuarios
+             WHERE usuario_id = $1
+               AND estado = 'activo'
+               AND (fecha_expiracion IS NULL OR fecha_expiracion > NOW())
+             ORDER BY fecha_expiracion DESC`,
+            [usuario_id]
+        );
+
+        const premium = r.rows.length > 0;
+        console.log(`>>> 👑 Estado premium para ${usuario_id}: ${premium} (${r.rows.length} suscripciones activas)`);
+
+        res.json({
+            premium: premium,
+            suscripciones: r.rows,
+        });
+    } catch (error) {
+        console.error('>>> ❌ Error en /api/suscripciones/estado:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
     console.log('>>> 🔌 WebSocket disponible en ws://0.0.0.0:3000/ws/chat');

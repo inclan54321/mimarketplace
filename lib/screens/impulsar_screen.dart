@@ -25,6 +25,8 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
   final InAppPurchase _iap = InAppPurchase.instance;
   ProductDetails? _productoImpulso;
   bool _cargandoProducto = true;
+  bool _procesandoCompra = false;
+  final Set<String> _comprasProcesadas = {};
 
   @override
   void initState() {
@@ -45,6 +47,13 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
       onDone: () => _purchaseSubscription?.cancel(),
       onError: (error) => debugPrint('>>> ❌ Error en purchaseStream: $error'),
     );
+
+    // 🔥 Recuperar compras pendientes (por si cerró la app antes de verificar)
+    try {
+      await _iap.restorePurchases();
+    } catch (e) {
+      debugPrint('>>> ⚠️ Error en restorePurchases: $e');
+    }
 
     const Set<String> ids = {'impulso_500'};
 
@@ -337,15 +346,35 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _impulsar,
-              icon: const Icon(Icons.rocket_launch),
-              label: const Text(
-                'Impulsar ahora',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              onPressed: (_productoImpulso == null ||
+                          _cargandoProducto ||
+                          _procesandoCompra)
+                  ? null
+                  : _impulsar,
+              icon: (_cargandoProducto || _procesandoCompra)
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
+                    )
+                  : const Icon(Icons.rocket_launch),
+              label: Text(
+                _procesandoCompra
+                    ? 'Procesando...'
+                    : (_cargandoProducto
+                        ? 'Cargando...'
+                        : 'Impulsar ahora'),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFB300),
                 foregroundColor: Colors.black,
+                disabledBackgroundColor: const Color(0xFFFFB300).withValues(alpha: 0.4),
+                disabledForegroundColor: Colors.black54,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -645,15 +674,29 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
     }
 
     // 🔥 Iniciar la compra en Google Play (consumible)
-    final PurchaseParam purchaseParam =
-        PurchaseParam(productDetails: _productoImpulso!);
-    await _iap.buyConsumable(purchaseParam: purchaseParam);
+    // autoConsume: false → el backend es quien consume el token
+    final PurchaseParam purchaseParam = PurchaseParam(
+      productDetails: _productoImpulso!,
+    );
+    await _iap.buyConsumable(
+      purchaseParam: purchaseParam,
+      autoConsume: false,  // 🔥 acá va, no en PurchaseParam
+    );
   }
 
   void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) {
     for (final PurchaseDetails purchase in purchaseDetailsList) {
-      if (purchase.status == PurchaseStatus.purchased ||
-          purchase.status == PurchaseStatus.restored) {
+      // 🔥 Solo procesar compras "purchased", no "restored"
+      if (purchase.status == PurchaseStatus.purchased) {
+        final pid = purchase.purchaseID ?? '';
+        if (pid.isNotEmpty && _comprasProcesadas.contains(pid)) {
+          // ya procesada → completar y salir
+          if (purchase.pendingCompletePurchase) {
+            _iap.completePurchase(purchase);
+          }
+          continue;
+        }
+        if (pid.isNotEmpty) _comprasProcesadas.add(pid);
         _verificarPagoImpulso(purchase);
       }
 
@@ -686,8 +729,15 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
       return;
     }
 
-    // Loading
+    if (_procesandoCompra) {
+      debugPrint('>>> ⏭️ Ya hay una compra en proceso, ignorando');
+      return;
+    }
+
     if (!mounted) return;
+    setState(() => _procesandoCompra = true);
+
+    // Loading
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -710,7 +760,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context); // cerrar loading
+      Navigator.of(context, rootNavigator: true).pop(); // cerrar loading
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -723,14 +773,31 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
         Navigator.pop(context);
       } else {
         final data = jsonDecode(response.body);
-        throw Exception(data['error'] ?? 'Error al impulsar');
+        final codigo = data['codigo'];
+        String mensaje;
+        switch (codigo) {
+          case 'PAGO_INVALIDO':
+            mensaje = 'El pago no se pudo verificar. Contactá a soporte.';
+            break;
+          case 'COMPRA_NO_COMPLETADA':
+            mensaje = 'La compra quedó pendiente. Intentá de nuevo.';
+            break;
+          default:
+            mensaje = data['error'] ?? 'Error al impulsar';
+        }
+        throw Exception(mensaje);
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context);
+      // Cerrar loading si sigue abierto
+      try {
+        Navigator.of(context, rootNavigator: true).pop();
+      } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
+    } finally {
+      if (mounted) setState(() => _procesandoCompra = false);
     }
   }
 }
