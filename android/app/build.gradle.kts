@@ -18,7 +18,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.inclan.mimarketplace"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -49,6 +49,12 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
+    packaging {
+        resources {
+            pickFirsts += "integrity.properties"
+        }
+    }
 }
 
 kotlin {
@@ -62,6 +68,20 @@ flutter {
 }
 
 // LIBRERÍA DE DESUGARING REQUERIDA
+configurations.all {
+    resolutionStrategy {
+        force("com.google.android.play:integrity:1.3.0")
+    }
+}
+
+
+
+configurations.all {
+    resolutionStrategy {
+        force("com.google.android.play:integrity:1.3.0")
+    }
+}
+
 dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

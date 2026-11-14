@@ -344,6 +344,7 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads/grabaciones', express.static(path.join(__dirname, 'uploads', 'grabaciones')));
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -376,6 +377,32 @@ const audioStorage = multer.diskStorage({
 const uploadAudio = multer({ 
     storage: audioStorage,
     limits: { fileSize: 10 * 1024 * 1024 }
+});
+
+// ============================================================
+// 🔥 STORAGE DE GRABACIONES DE VOZ
+// ============================================================
+const GRABACIONES_DIR = path.join(__dirname, 'uploads', 'grabaciones');
+if (!fs.existsSync(GRABACIONES_DIR)) {
+    fs.mkdirSync(GRABACIONES_DIR, { recursive: true });
+}
+
+const grabacionStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const { conversacion_id, usuario_id } = req.body;
+        const dir = path.join(GRABACIONES_DIR, `conv_${conversacion_id}`, `user_${usuario_id}`);
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const chunk = req.body.chunk_numero || Date.now();
+        cb(null, `chunk_${String(chunk).padStart(4, '0')}.m4a`);
+    }
+});
+
+const uploadGrabacion = multer({
+    storage: grabacionStorage,
+    limits: { fileSize: 2 * 1024 * 1024 }
 });
 
 const pool = new Pool({
@@ -458,6 +485,54 @@ setInterval(() => {
         if (ahora > entrada.reset) rateLimitLecturaMap.delete(key);
     }
 }, 10 * 60 * 1000);
+
+// ============================================================
+// 🔥 RATE LIMIT PARA RUTAS DE ESCRITURA (anti-bots)
+// ============================================================
+const rateLimitEscrituraMap = new Map();
+
+function crearRateLimitEscritura(nombre, maxRequests, ventanaMs = 60 * 1000) {
+    return function rateLimitEscritura(req, res, next) {
+        const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+            || req.socket.remoteAddress
+            || 'desconocida';
+        const key = `${ip}|${nombre}`;
+        const ahora = Date.now();
+        let entrada = rateLimitEscrituraMap.get(key);
+
+        if (!entrada || ahora > entrada.reset) {
+            entrada = { count: 0, reset: ahora + ventanaMs };
+            rateLimitEscrituraMap.set(key, entrada);
+        }
+
+        entrada.count++;
+
+        if (entrada.count > maxRequests) {
+            const segRestantes = Math.ceil((entrada.reset - ahora) / 1000);
+            console.log(`>>> 🚫 Rate limit escritura '${nombre}' excedido para IP ${ip} (${entrada.count} en la ventana, esperar ${segRestantes}s)`);
+            return res.status(429).json({
+                error: 'Demasiadas solicitudes. Esperá un momento.',
+                codigo: 'RATE_LIMIT_ESCRITURA',
+                segundos_restantes: segRestantes
+            });
+        }
+        next();
+    };
+}
+
+// Instancias para las rutas críticas
+const rateLimitRegistroUsuario = crearRateLimitEscritura('registro_usuario', 3, 60 * 60 * 1000); // 3 por hora
+const rateLimitMensajes = crearRateLimitEscritura('mensajes', 30, 60 * 1000); // 30 por minuto
+const rateLimitProductosCrear = crearRateLimitEscritura('crear_producto', 5, 60 * 60 * 1000); // 5 por hora
+const rateLimitDenuncias = crearRateLimitEscritura('denuncias', 5, 60 * 60 * 1000); // 5 por hora
+
+// Limpiar el mapa cada 30 minutos
+setInterval(() => {
+    const ahora = Date.now();
+    for (const [key, entrada] of rateLimitEscrituraMap.entries()) {
+        if (ahora > entrada.reset) rateLimitEscrituraMap.delete(key);
+    }
+}, 30 * 60 * 1000);
 // ============================================================
 // 🔥 CRON PARA CADUCAR PRODUCTOS CADA 1 MINUTO
 // ============================================================
@@ -1890,7 +1965,7 @@ app.get('/api/productos/vendedor/:vendedor_id', rateLimitVendedor, async (req, r
     }
 });
 
-app.post('/api/productos', verificarTokenFirebase, upload.fields([
+app.post('/api/productos', rateLimitProductosCrear, verificarTokenFirebase, upload.fields([
   { name: 'imagen_destacada', maxCount: 1 },
   { name: 'imagen_normal', maxCount: 1 },
   { name: 'imagenes_reales[]', maxCount: 5 }
@@ -2161,7 +2236,7 @@ function contieneNumeroTelefono(texto) {
     return patrones.some(p => p.test(texto));
 }
 
-app.post('/api/mensajes', verificarTokenFirebase, upload.single('imagen'), async (req, res) => {
+app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, upload.single('imagen'), async (req, res) => {
     try {
         console.log('>>> Archivo recibido:', req.file);
         const { conversacion_id, usuario_id, texto } = req.body;
@@ -2173,6 +2248,18 @@ app.post('/api/mensajes', verificarTokenFirebase, upload.single('imagen'), async
             return res.status(403).json({
                 error: 'No autorizado para enviar mensajes con este usuario_id',
                 codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 BLOQUEAR SI HAY RECHAZO DE GRABACIÓN
+        const rechazoGrabMsg = await pool.query(
+            'SELECT cancelada_por_rechazo_grabacion FROM conversaciones_app WHERE id = $1',
+            [conversacion_id]
+        );
+        if (rechazoGrabMsg.rows[0]?.cancelada_por_rechazo_grabacion === true) {
+            return res.status(403).json({
+                error: 'El encuentro fue cancelado porque una de las partes rechazó la grabación por seguridad.',
+                codigo: 'CHAT_CANCELADO_POR_RECHAZO_GRABACION',
             });
         }
 
@@ -3079,7 +3166,7 @@ app.get('/api/mensajes/:conversacion_id', verificarTokenFirebase, async (req, re
 });
 
 // RUTA PARA CREAR USUARIO
-app.post('/api/usuarios', verificarTokenFirebase, async (req, res) => {
+app.post('/api/usuarios', rateLimitRegistroUsuario, verificarTokenFirebase, async (req, res) => {
     try {
         const { uid, email, nombre, telefono, acepta_recoleccion } = req.body;
         console.log('>>> Creando usuario:', { uid, email, nombre, telefono, acepta_recoleccion });
@@ -4654,7 +4741,7 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
     }
 });
 // En tu  server.js
-app.post('/api/denuncias', verificarTokenFirebase, async (req, res) => {
+app.post('/api/denuncias', rateLimitDenuncias, verificarTokenFirebase, async (req, res) => {
     try {
         const { denunciante_id, denunciado_id, producto_id, motivo } = req.body;
         
@@ -6490,6 +6577,19 @@ app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => 
             });
         }
 
+        // 🔥 BLOQUEAR SI HAY RECHAZO DE GRABACIÓN
+        const rechazoGrabProp = await pool.query(
+            `SELECT cancelada_por_rechazo_grabacion
+             FROM conversaciones_app WHERE id = $1`,
+            [conversacion_id]
+        );
+        if (rechazoGrabProp.rows[0]?.cancelada_por_rechazo_grabacion === true) {
+            return res.status(403).json({
+                error: 'No se puede proponer un encuentro: una de las partes rechazó la grabación por seguridad.',
+                codigo: 'ENCUENTRO_BLOQUEADO_POR_RECHAZO_GRABACION',
+            });
+        }
+
         // 🔥 NUEVO: aceptar lugar_nombre + lat/lng directos (sin tabla lugares_seguros)
         if (!lugar_nombre || lugar_lat === undefined || lugar_lng === undefined) {
             return res.status(400).json({ error: 'Falta el lugar (nombre, lat, lng)' });
@@ -6911,6 +7011,19 @@ app.post('/api/encuentro/confirmar', verificarTokenFirebase, async (req, res) =>
             });
         }
 
+        // 🔥 BLOQUEAR SI HAY RECHAZO DE GRABACIÓN
+        const rechazoGrabConf = await pool.query(
+            `SELECT cancelada_por_rechazo_grabacion
+             FROM conversaciones_app WHERE id = $1`,
+            [conversacion_id]
+        );
+        if (rechazoGrabConf.rows[0]?.cancelada_por_rechazo_grabacion === true) {
+            return res.status(403).json({
+                error: 'Encuentro cancelado por rechazo de grabación.',
+                codigo: 'ENCUENTRO_BLOQUEADO_POR_RECHAZO_GRABACION',
+            });
+        }
+
         // 🔥 EL CHAT YA NO SE BLOQUEA ACÁ.
         // Se bloquea solo cuando AMBOS confirman cerrar trato (/api/conversaciones/:id/cerrar-trato).
 
@@ -7152,6 +7265,19 @@ app.post('/api/conversaciones/:id/cerrar-trato', verificarTokenFirebase, async (
             return res.status(403).json({
                 error: 'No autorizado para cerrar trato con este usuario_id',
                 codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 BLOQUEAR SI HAY RECHAZO DE GRABACIÓN
+        const rechazoGrabCerrar = await pool.query(
+            `SELECT cancelada_por_rechazo_grabacion
+             FROM conversaciones_app WHERE id = $1`,
+            [id]
+        );
+        if (rechazoGrabCerrar.rows[0]?.cancelada_por_rechazo_grabacion === true) {
+            return res.status(403).json({
+                error: 'No se puede cerrar trato: el encuentro fue cancelado por rechazo de grabación.',
+                codigo: 'ENCUENTRO_BLOQUEADO_POR_RECHAZO_GRABACION',
             });
         }
 
@@ -9305,6 +9431,31 @@ cron.schedule('* * * * *', async () => {
 console.log('>>> ⏰ CRON de recomendaciones activado (9:30 UTC = 3:30 AM Costa Rica)');
 
 // ============================================================
+// 🧹 CRON: borrar audios viejos (30 días)
+// ============================================================
+cron.schedule('0 3 * * *', async () => {
+    try {
+        const viejos = await pool.query(
+            `DELETE FROM grabaciones_audio
+             WHERE fecha < NOW() - INTERVAL '30 days'
+             RETURNING archivo_url`
+        );
+        for (const row of viejos.rows) {
+            try {
+                const fullPath = path.join(__dirname, row.archivo_url.replace(/^\//, ''));
+                if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+            } catch (_) {}
+        }
+        if (viejos.rowCount > 0) {
+            console.log(`>>> 🧹 ${viejos.rowCount} audios viejos borrados`);
+        }
+    } catch (e) {
+        console.error('Error en cron de limpieza de audios:', e.message);
+    }
+});
+console.log('>>> ⏰ CRON de limpieza de audios activado (3 AM CR)');
+
+// ============================================================
 // 🧪 SISTEMA DE TESTERS
 // ============================================================
 
@@ -9726,6 +9877,393 @@ app.get('/api/suscripciones/estado/:usuario_id', verificarTokenFirebase, async (
     } catch (error) {
         console.error('>>> ❌ Error en /api/suscripciones/estado:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// ============================================================
+// 🎙️ GRABACIÓN DE VOZ POR SEGURIDAD
+// ============================================================
+
+// GET estado de consentimiento
+app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { conversacion_id } = req.params;
+        const usuario_id = req.usuarioAutenticado;
+
+        const conv = await pool.query(
+            'SELECT usuario1_id, usuario2_id, cancelada_por_rechazo_grabacion FROM conversaciones_app WHERE id = $1',
+            [conversacion_id]
+        );
+        if (conv.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const c = conv.rows[0];
+        if (c.usuario1_id !== usuario_id && c.usuario2_id !== usuario_id) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        const otroId = c.usuario1_id === usuario_id ? c.usuario2_id : c.usuario1_id;
+
+        const r = await pool.query(
+            `SELECT usuario_id, acepta, rechaza
+             FROM consentimientos_grabacion
+             WHERE conversacion_id = $1 AND usuario_id = ANY($2)`,
+            [conversacion_id, [usuario_id, otroId]]
+        );
+
+        const yo = r.rows.find(x => x.usuario_id === usuario_id);
+        const otro = r.rows.find(x => x.usuario_id === otroId);
+
+        const yoAcepte = yo?.acepta === true;
+        const yoRechace = yo?.rechaza === true;
+        const otroAcepto = otro?.acepta === true;
+        const otroRechazo = otro?.rechaza === true;
+
+        const grabacionHabilitada = yoAcepte && otroAcepto;
+        const bloqueadaPorRechazo =
+            yoRechace || otroRechazo || c.cancelada_por_rechazo_grabacion === true;
+
+        res.json({
+            yo_acepte: yoAcepte,
+            yo_rechace: yoRechace,
+            otro_acepto: otroAcepto,
+            otro_rechazo: otroRechazo,
+            grabacion_habilitada: grabacionHabilitada,
+            bloqueada_por_rechazo: bloqueadaPorRechazo,
+            encuentro_cancelado: c.cancelada_por_rechazo_grabacion === true,
+            necesita_responder: !yoAcepte && !yoRechace && !bloqueadaPorRechazo,
+        });
+    } catch (e) {
+        console.error('Error en /api/grabacion/estado:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST aceptar/rechazar consentimiento
+app.post('/api/grabacion/consentimiento', verificarTokenFirebase, async (req, res) => {
+    try {
+        const { conversacion_id, acepta } = req.body;
+        const usuario_id = req.usuarioAutenticado;
+
+        if (typeof acepta !== 'boolean') {
+            return res.status(400).json({ error: 'acepta debe ser booleano' });
+        }
+
+        const conv = await pool.query(
+            'SELECT usuario1_id, usuario2_id, cancelada_por_rechazo_grabacion FROM conversaciones_app WHERE id = $1',
+            [conversacion_id]
+        );
+        if (conv.rows.length === 0) {
+            return res.status(404).json({ error: 'Conversación no encontrada' });
+        }
+        const c = conv.rows[0];
+        if (c.usuario1_id !== usuario_id && c.usuario2_id !== usuario_id) {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        if (c.cancelada_por_rechazo_grabacion === true) {
+            return res.status(400).json({
+                error: 'El encuentro ya fue cancelado por rechazo de grabación.',
+                codigo: 'YA_CANCELADO_POR_RECHAZO',
+            });
+        }
+
+        const otroId = c.usuario1_id === usuario_id ? c.usuario2_id : c.usuario1_id;
+        const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+        const userAgent = req.headers['user-agent'] || '';
+
+        await pool.query(
+            `INSERT INTO consentimientos_grabacion
+             (conversacion_id, usuario_id, acepta, rechaza, fecha_respuesta, ip, user_agent)
+             VALUES ($1, $2, $3, $4, NOW(), $5, $6)
+             ON CONFLICT (conversacion_id, usuario_id) DO UPDATE
+             SET acepta = EXCLUDED.acepta,
+                 rechaza = EXCLUDED.rechaza,
+                 fecha_respuesta = NOW(),
+                 ip = EXCLUDED.ip,
+                 user_agent = EXCLUDED.user_agent`,
+            [conversacion_id, usuario_id, acepta, !acepta, ip, userAgent]
+        );
+
+        if (!acepta) {
+            console.log(`>>> ❌ Grabación RECHAZADA por ${usuario_id}. Cancelando encuentro en conv ${conversacion_id}.`);
+
+            await pool.query(
+                `UPDATE conversaciones_app
+                 SET chat_bloqueado = TRUE,
+                     cerrado_por_escudo = FALSE,
+                     cancelada_por_rechazo_grabacion = TRUE,
+                     fecha_cancelacion_grabacion = NOW(),
+                     quiere_cerrar_trato = FALSE,
+                     grabacion_habilitada = FALSE
+                 WHERE id = $1`,
+                [conversacion_id]
+            );
+
+            await pool.query(
+                `UPDATE encuentros_agendados
+                 SET estado = 'cancelado',
+                     cancelado_por_rechazo_grabacion = TRUE
+                 WHERE conversacion_id = $1
+                   AND estado IN ('agendado', 'tarde')`,
+                [conversacion_id]
+            );
+
+            await pool.query(
+                `UPDATE propuestas_encuentro
+                 SET estado = 'rechazada',
+                     cancelada_por_rechazo_grabacion = TRUE,
+                     fecha_actualizacion = NOW()
+                 WHERE conversacion_id = $1
+                   AND estado IN ('pendiente', 'aceptada', 'confirmada')`,
+                [conversacion_id]
+            );
+
+            await pool.query(
+                `DELETE FROM mensajes_app
+                 WHERE conversacion_id = $1
+                   AND (texto LIKE '||CERRAR_TRATO||%'
+                        OR texto LIKE '||SEGUIR_CONVERSANDO||%')`,
+                [conversacion_id]
+            );
+
+            await pool.query(
+                `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha)
+                 VALUES ($1, 'SYSTEM', '||ENCUENTRO_CANCELADO_POR_RECHAZO_GRABACION||', '', NOW())`,
+                [conversacion_id]
+            );
+
+            await pool.query(
+                `INSERT INTO estado_grabacion_conversacion
+                 (conversacion_id, ambos_aceptaron, alguno_rechazo, fecha_actualizacion)
+                 VALUES ($1, FALSE, TRUE, NOW())
+                 ON CONFLICT (conversacion_id) DO UPDATE
+                 SET ambos_aceptaron = FALSE,
+                     alguno_rechazo = TRUE,
+                     fecha_actualizacion = NOW()`,
+                [conversacion_id]
+            );
+
+            try {
+                const quien = await pool.query(
+                    'SELECT nombre FROM usuarios WHERE uid = $1',
+                    [usuario_id]
+                );
+                const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
+                const textoAviso =
+                    `❌ ${nombreQuien} rechazó la grabación de voz por seguridad.\n\n` +
+                    `El encuentro quedó CANCELADO para ambos. Esta es una medida de ` +
+                    `protección obligatoria: sin consentimiento de las dos partes, ` +
+                    `no se permite ningún encuentro presencial a través de la app.`;
+
+                await pool.query(
+                    `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha)
+                     VALUES ($1, 0, $2, 'encuentro_cancelado', NOW())`,
+                    [otroId, textoAviso]
+                );
+
+                const tk = await pool.query(
+                    'SELECT fcm_token FROM usuarios WHERE uid = $1',
+                    [otroId]
+                );
+                const token = tk.rows[0]?.fcm_token;
+                if (token) {
+                    try {
+                        const { getMessaging } = require('firebase-admin/messaging');
+                        await getMessaging().send({
+                            token,
+                            notification: {
+                                title: '❌ Encuentro cancelado',
+                                body: `${nombreQuien} rechazó la grabación por seguridad. El encuentro se canceló.`,
+                            },
+                            data: {
+                                tipo: 'encuentro_cancelado_por_grabacion',
+                                conversacionId: conversacion_id.toString(),
+                            },
+                        });
+                    } catch (e) {
+                        console.error('>>> ❌ Error push cancelación:', e.message);
+                    }
+                }
+            } catch (e) {
+                console.error('>>> ❌ Error avisando cancelación:', e.message);
+            }
+
+            if (typeof broadcast === 'function') {
+                broadcast(conversacion_id, {
+                    tipo: 'estado_cambio',
+                    estado: 'encuentro_cancelado_por_rechazo_grabacion',
+                });
+            }
+
+            return res.json({
+                success: true,
+                grabacion_habilitada: false,
+                bloqueada_por_rechazo: true,
+                encuentro_cancelado: true,
+                mensaje: 'Rechazaste la grabación. El encuentro quedó cancelado para ambos.',
+            });
+        }
+
+        const r = await pool.query(
+            `SELECT usuario_id, acepta, rechaza
+             FROM consentimientos_grabacion
+             WHERE conversacion_id = $1 AND usuario_id = ANY($2)`,
+            [conversacion_id, [usuario_id, otroId]]
+        );
+        const yo = r.rows.find(x => x.usuario_id === usuario_id);
+        const otro = r.rows.find(x => x.usuario_id === otroId);
+
+        const yoAcepte = yo?.acepta === true;
+        const otroAcepto = otro?.acepta === true;
+        const algunRechazo = (yo?.rechaza === true) || (otro?.rechaza === true);
+        const ambosAceptaron = yoAcepte && otroAcepto;
+
+        await pool.query(
+            `INSERT INTO estado_grabacion_conversacion
+             (conversacion_id, ambos_aceptaron, alguno_rechazo, fecha_actualizacion)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (conversacion_id) DO UPDATE
+             SET ambos_aceptaron = EXCLUDED.ambos_aceptaron,
+                 alguno_rechazo = EXCLUDED.alguno_rechazo,
+                 fecha_actualizacion = NOW()`,
+            [conversacion_id, ambosAceptaron, algunRechazo]
+        );
+
+        await pool.query(
+            'UPDATE conversaciones_app SET grabacion_habilitada = $1 WHERE id = $2',
+            [ambosAceptaron, conversacion_id]
+        );
+
+        if (typeof broadcast === 'function') {
+            broadcast(conversacion_id, {
+                tipo: 'estado_cambio',
+                estado: 'consentimiento_grabacion',
+            });
+        }
+
+        console.log(
+            `>>> 🎙️ Consentimiento ACEPTADO: user=${usuario_id} (conv ${conversacion_id}). Ambos: ${ambosAceptaron}`
+        );
+
+        res.json({
+            success: true,
+            grabacion_habilitada: ambosAceptaron,
+            bloqueada_por_rechazo: false,
+            encuentro_cancelado: false,
+        });
+    } catch (e) {
+        console.error('Error en /api/grabacion/consentimiento:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST subir chunk (cada 10 segundos)
+app.post(
+    '/api/grabacion/chunk',
+    rateLimitMensajes,
+    verificarTokenFirebase,
+    uploadGrabacion.single('audio'),
+    async (req, res) => {
+    try {
+        const { conversacion_id, usuario_id, chunk_numero, duracion_ms } = req.body;
+        const authUid = req.usuarioAutenticado;
+
+        if (usuario_id !== authUid) {
+            if (req.file) try { fs.unlinkSync(req.file.path); } catch (_) {}
+            return res.status(403).json({ error: 'UID_NO_COINCIDE' });
+        }
+
+        const estado = await pool.query(
+            `SELECT ambos_aceptaron, alguno_rechazo
+             FROM estado_grabacion_conversacion WHERE conversacion_id = $1`,
+            [conversacion_id]
+        );
+        if (estado.rows.length === 0 || estado.rows[0].ambos_aceptaron !== true) {
+            if (req.file) try { fs.unlinkSync(req.file.path); } catch (_) {}
+            return res.status(403).json({
+                error: 'La grabación no está habilitada (falta consentimiento)',
+                codigo: 'GRABACION_NO_HABILITADA'
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se recibió audio' });
+        }
+
+        const archivo_url = `/uploads/grabaciones/conv_${conversacion_id}/user_${usuario_id}/${path.basename(req.file.path)}`;
+        const result = await pool.query(
+            `INSERT INTO grabaciones_audio
+             (conversacion_id, usuario_id, chunk_numero, archivo_url, duracion_ms, tamano_bytes, ip)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (conversacion_id, usuario_id, chunk_numero) DO NOTHING
+             RETURNING *`,
+            [
+                conversacion_id,
+                usuario_id,
+                parseInt(chunk_numero) || 0,
+                archivo_url,
+                parseInt(duracion_ms) || 0,
+                req.file.size,
+                (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+            ]
+        );
+
+        if (result.rows.length === 0) {
+            try { fs.unlinkSync(req.file.path); } catch (_) {}
+            return res.json({ success: true, duplicado: true });
+        }
+
+        console.log(`>>> 🎙️ Chunk recibido: conv=${conversacion_id} user=${usuario_id} #${chunk_numero} (${req.file.size} bytes)`);
+        res.status(201).json({ success: true, chunk: result.rows[0] });
+    } catch (e) {
+        console.error('Error en /api/grabacion/chunk:', e);
+        if (req.file) try { fs.unlinkSync(req.file.path); } catch (_) {}
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET descarga de audios
+app.get(
+    '/api/grabacion/:conversacion_id/audios',
+    verificarTokenFirebase,
+    async (req, res) => {
+    try {
+        const { conversacion_id } = req.params;
+        const usuario_id = req.usuarioAutenticado;
+
+        const admin = await pool.query(
+            `SELECT email FROM usuarios WHERE uid = $1`,
+            [usuario_id]
+        );
+        const esAdmin = admin.rows[0]?.email?.trim().toLowerCase() === 'universo3dcr@gmail.com';
+
+        if (!esAdmin) {
+            const conv = await pool.query(
+                'SELECT usuario1_id, usuario2_id FROM conversaciones_app WHERE id = $1',
+                [conversacion_id]
+            );
+            if (conv.rows.length === 0) {
+                return res.status(404).json({ error: 'Conversación no encontrada' });
+            }
+            const c = conv.rows[0];
+            if (c.usuario1_id !== usuario_id && c.usuario2_id !== usuario_id) {
+                return res.status(403).json({ error: 'No autorizado' });
+            }
+        }
+
+        const r = await pool.query(
+            `SELECT usuario_id, chunk_numero, archivo_url, duracion_ms, tamano_bytes, fecha
+             FROM grabaciones_audio
+             WHERE conversacion_id = $1
+             ORDER BY usuario_id, chunk_numero ASC`,
+            [conversacion_id]
+        );
+
+        res.json({ audios: r.rows });
+    } catch (e) {
+        console.error('Error en /api/grabacion/:id/audios:', e);
+        res.status(500).json({ error: e.message });
     }
 });
 

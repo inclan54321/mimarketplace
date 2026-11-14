@@ -36,7 +36,9 @@ class NotificationService {
       iOS: iosSettings,
     );
 
-    await _localNotifications.initialize(settings);
+    await _localNotifications.initialize(
+      settings: settings,
+    );
 
     // 🔥 SOLICITAR PERMISOS
     await FirebaseMessaging.instance.requestPermission(
@@ -146,10 +148,10 @@ class NotificationService {
     );
 
     await _localNotifications.show(
-      DateTime.now().millisecond,
-      title,
-      body,
-      details,
+      id: DateTime.now().millisecond,
+      title: title,
+      body: body,
+      notificationDetails: details,
     );
   }
 

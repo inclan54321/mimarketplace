@@ -126,8 +126,8 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
 
     if (destino == 'CRC') {
       setState(() {
-        _precioMensualConvertido = 1000.0;
-        _precioSemestralConvertido = 500.0;   // 🔥 precio real del semanal
+        _precioMensualConvertido = 3000.0;
+        _precioSemestralConvertido = 1000.0; // 🔥 este es el semanal
         _monedaDestino = 'CRC';
         _cargandoPrecios = false;
       });
@@ -136,12 +136,12 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
 
     try {
       final mensual = await currencyClient.convert(
-        amount: 1000.0,
+        amount: 3000.0,
         from: 'CRC',
         to: destino,
       );
-      final semestral = await currencyClient.convert(
-        amount: 3000.0,
+      final semanal = await currencyClient.convert(
+        amount: 1000.0,
         from: 'CRC',
         to: destino,
       );
@@ -149,7 +149,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
       if (!mounted) return;
       setState(() {
         _precioMensualConvertido = mensual;
-        _precioSemestralConvertido = semestral;
+        _precioSemestralConvertido = semanal;
         _monedaDestino = destino;
         _cargandoPrecios = false;
       });
@@ -157,8 +157,8 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
       debugPrint('>>> ❌ Error convirtiendo moneda: $e');
       if (!mounted) return;
       setState(() {
-        _precioMensualConvertido = 1000.0;
-        _precioSemestralConvertido = 3000.0;
+        _precioMensualConvertido = 3000.0;
+        _precioSemestralConvertido = 1000.0;
         _monedaDestino = 'CRC';
         _cargandoPrecios = false;
       });
@@ -295,24 +295,21 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
               titulo: AppLocalizations.of(context)!.plan1Mes,
               precio: _cargandoPrecios
                   ? '...'
-                  : _formatearPrecio(_precioMensualConvertido ?? 1000.0),
+                  : _formatearPrecio(_precioMensualConvertido ?? 3000.0),
               subtitulo: AppLocalizations.of(context)!.sinAnunciosPor30Dias,
               ahorro: null,
             ),
             const SizedBox(height: 12),
 
-            // 🔥 PLAN SEMESTRAL
+            // 🔥 PLAN SEMANAL
             _buildPlanCard(
-              id: 'semestral',
-              titulo: AppLocalizations.of(context)!.plan6Meses,
+              id: 'semanal',
+              titulo: '1 Semana',
               precio: _cargandoPrecios
                   ? '...'
-                  : _formatearPrecio(_precioSemestralConvertido ?? 3000.0),
-              subtitulo: AppLocalizations.of(context)!.sinAnunciosPor180Dias,
-              ahorro: _cargandoPrecios
-                  ? null
-                  : AppLocalizations.of(context)!
-                      .ahorrasMonto(_formatearPrecio(3000.0)),
+                  : _formatearPrecio(_precioSemestralConvertido ?? 1000.0),
+              subtitulo: 'Sin anuncios por 7 días',
+              ahorro: null,
             ),
             const SizedBox(height: 32),
 
@@ -339,9 +336,9 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
                       : AppLocalizations.of(context)!.pagarMonto(
                           _planSeleccionado == 'mensual'
                               ? _formatearPrecio(
-                                  _precioMensualConvertido ?? 1000.0)
+                                  _precioMensualConvertido ?? 3000.0)
                               : _formatearPrecio(
-                                  _precioSemestralConvertido ?? 3000.0)),
+                                  _precioSemestralConvertido ?? 1000.0)),
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,

@@ -3,6 +3,7 @@ import 'l10n/generated/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui'; // 🔥 BackdropFilter + ImageFilter para efecto cristal
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -90,7 +91,13 @@ void main() async {
   
   // 🔥 Inicializar Firebase
   await Firebase.initializeApp();
-  
+
+  // 🔥 APP CHECK (bloquea bots)
+  await FirebaseAppCheck.instance.activate(
+    providerAndroid: AndroidDebugProvider(), // 🔥 SOLO PARA DEBUG
+    providerApple: AppleDeviceCheckProvider(),
+  );
+
   // 🔥 Estos NO se esperan: corren en segundo plano para que el splash salga al instante
   MobileAds.instance.initialize();
 
@@ -229,16 +236,19 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loginWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      // 🔥 google_sign_in 7.x: se usa la instancia y se inicializa antes
+      final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize();
+      
+      final GoogleSignInAccount? googleUser = await googleSignIn.authenticate();
       if (googleUser == null) {
         setState(() => _isLoading = false);
         return;
       }
       
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final auth = googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+        idToken: auth.idToken,
       );
       
       final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);

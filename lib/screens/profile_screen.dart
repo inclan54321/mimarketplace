@@ -19,6 +19,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'editar_perfil_screen.dart';
 import 'privacidad_screen.dart';
 import 'soporte_screen.dart';
+import 'verificados_screen.dart';
 import 'tester_screen.dart';
 import 'impulsar_screen.dart';
 
@@ -1019,6 +1020,24 @@ Future<void> _precargarImagenPerfil() async {
     );
   },
 ),
+            // 🔥 NUEVO: VERIFICADOS
+            ListTile(
+              leading: const Icon(Icons.verified_user, color: Color(0xFF00E676)),
+              title: const Text('Verificados'),
+              subtitle: const Text(
+                'Obtené la insignia de verificado',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const VerificadosScreen(),
+                  ),
+                );
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.help),
               title: Text(AppLocalizations.of(context)!.soporte),
