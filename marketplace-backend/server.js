@@ -9110,6 +9110,14 @@ app.post('/api/encuentro/:id/confirmar-identidad', verificarTokenFirebase, async
                  WHERE id = (SELECT conversacion_id FROM encuentros_agendados WHERE id = $1)`,
                 [id]
             );
+
+            // 🔥 NUEVO: apagar el escudo al desbloquear
+            await pool.query(
+                `UPDATE escudos_conversacion SET activo = FALSE
+                 WHERE conversacion_id = (SELECT conversacion_id FROM encuentros_agendados WHERE id = $1)`,
+                [id]
+            );
+
             // Alerta para ambos
             await pool.query(
                 `INSERT INTO alertas (usuario_id, producto_id, encuentro_id, mensaje, tipo, fecha)

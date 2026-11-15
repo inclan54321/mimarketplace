@@ -19,7 +19,6 @@ import 'perfil_vendedor_screen.dart';
 import 'portafolio_vendedor_screen.dart'; // 🔥 NUEVO
 import '../widgets/conversation_status_indicator.dart';
 import 'image_viewer_screen.dart';
-import 'pantalla_verificacion_encuentro.dart';
 import 'seleccionar_lugar_mapa_screen.dart';
 import 'ver_mapa_propuesta_screen.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -35,7 +34,6 @@ import '../widgets/calificacion_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';       // 🔥 NUEVO
 // 🔥 NUEVO
 import 'package:intl/intl.dart';                                    // 🔥 NUEVO
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:io';
 
