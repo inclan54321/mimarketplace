@@ -9236,11 +9236,21 @@ app.get('/api/encuentro/:id/mi-estado-verificacion', verificarTokenFirebase, asy
             [id, req.usuarioAutenticado, otroId]
         );
 
+        // 🔥 NUEVO: ¿el otro ya me verificó a mí?
+        const otroCruzada = await pool.query(
+            `SELECT confirmado, rechazado FROM verificaciones_cruzadas
+             WHERE encuentro_id = $1 AND usuario_verifica_id = $2 AND usuario_verificado_id = $3
+             LIMIT 1`,
+            [id, otroId, req.usuarioAutenticado]
+        );
+
         res.json({
             mi_selfie_existe: miSelfie.rows.length > 0,
             otro_selfie_existe: otroSelfie.rows.length > 0,
             mi_confirmacion_cruzada: miCruzada.rows[0]?.confirmado === true,
             mi_rechazo_cruzado: miCruzada.rows[0]?.rechazado === true,
+            otro_confirmado: otroCruzada.rows[0]?.confirmado === true,
+            otro_rechazo: otroCruzada.rows[0]?.rechazado === true,
         });
     } catch (err) {
         console.error('Error al obtener estado de verificación:', err);

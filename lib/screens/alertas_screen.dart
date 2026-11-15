@@ -163,6 +163,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
             'otro_selfie': data['otro_selfie_existe'] == true,
             'confirmado': data['mi_confirmacion_cruzada'] == true,
             'rechazado': data['mi_rechazo_cruzado'] == true,
+            'otro_confirmado': data['otro_confirmado'] == true,
+            'otro_rechazo': data['otro_rechazo'] == true,
             'yo_asist': yoAsist,
             'otro_asist': otroAsist,
             'ambos_asist': ambosAsist,
@@ -264,11 +266,19 @@ class _AlertasScreenState extends State<AlertasScreen> {
   }
 
   Widget _buildBotonVerificacion({required int encuentroId}) {
+    // 🔥 Forzar recarga del estado si no está o es viejo
+    if (!_estadosVerificacion.containsKey(encuentroId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _cargarEstadosVerificacion(silencioso: true);
+      });
+    }
+
     final estado = _estadosVerificacion[encuentroId];
     final miSelfie = estado?['mi_selfie'] ?? false;
     final otroSelfie = estado?['otro_selfie'] ?? false;
     final confirmado = estado?['confirmado'] ?? false;
     final rechazado = estado?['rechazado'] ?? false;
+    final otroConfirmado = estado?['otro_confirmado'] ?? false;
 
     // 1. Yo no me tomé la selfie → "Verificar identidad"
     if (!miSelfie) {
@@ -350,23 +360,33 @@ class _AlertasScreenState extends State<AlertasScreen> {
       );
     }
 
-    // 5. Ya confirmé → "Revisar comparación"
+    // 5. Ya confirmé, el otro no → "Esperando que el otro verifique tu selfie"
+    if (confirmado && !otroConfirmado) {
+      return ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.hourglass_top, size: 16, color: Colors.grey),
+        label: const Text(
+          'Esperando que el otro verifique tu selfie',
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey.shade200,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
+    // 6. Ambos verificaron → "Verificación completa"
     return ElevatedButton.icon(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PantallaVerificarIdentidadOtro(encuentroId: encuentroId),
-          ),
-        ).then((_) async {
-          await _cargarEstadosVerificacion();
-        });
-      },
-      icon: const Icon(Icons.search, size: 16),
-      label: Text(AppLocalizations.of(context)!.revisarComparacion),
+      onPressed: null,
+      icon: const Icon(Icons.check_circle, size: 16, color: Colors.green),
+      label: const Text(
+        'Verificación completa',
+        style: TextStyle(color: Colors.green, fontSize: 12),
+      ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.grey.shade700,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.green.shade50,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         textStyle: const TextStyle(fontSize: 12),
       ),

@@ -5,7 +5,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import 'package:mimarketplace/main.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
@@ -81,12 +81,16 @@ class NotificationService {
 
     final tipo = message.data['tipo'];
 
-    // 🔥 Recordatorio de encuentro → abrir pantalla de verificación
+    // 🔥 Recordatorio de encuentro → abrir pestaña de Alertas
     if (tipo == 'recordatorio_1h' || tipo == 'recordatorio_10m') {
-      final encuentroIdStr = message.data['encuentro_id'];
-      final encuentroId = int.tryParse(encuentroIdStr ?? '');
-      if (encuentroId != null) {
-        _navegarAPantallaVerificacion(encuentroId);
+      final navigator = _navigatorKey.currentState;
+      if (navigator != null) {
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const MainScreen(initialIndex: 1),
+          ),
+          (route) => false,
+        );
       }
       return;
     }

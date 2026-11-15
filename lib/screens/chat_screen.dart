@@ -508,6 +508,11 @@ class _ChatScreenState extends State<ChatScreen>
             // 🔥 El escudo solo se ve activo si YO acepté (o si yo lo activé)
             final esRevisor = user.email?.trim().toLowerCase() == 'universo3dcr@gmail.com';
 _iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid || esRevisor);
+            // 🔥 Si el chat se desbloqueó por verificación, apagar el escudo y la grabación
+            if (_chatDesbloqueadoPorVerificacion) {
+              _iaActiva = false;
+              _detenerGrabacionDeChunks();
+            }
             _escudoActivadoPor = activadoPor;
             _escudoYoAcepte = yoAcepte;
             _escudoOtroRechazo = otroRechazo;
@@ -6832,16 +6837,10 @@ final estaOcupada = horariosOcupados.contains(keyHora);
 
                 // 🚨 Si ya pasó la verificación → botón de emergencias
                 // 🛡️ Si no → escudo normal
-                if (_chatDesbloqueadoPorVerificacion)
-                  Transform.translate(
-                    offset: const Offset(0, 7), // 🔥 baja solo 4px
-                    child: _buildBotonEmergencias(),
-                  )
-                else if (!_estadoEscudoCargado)
-                  // 🔥 Placeholder del mismo tamaño para que no salte el layout
-                  const SizedBox(width: 52, height: 52)
-                else
-                  EscudoSeguridadWidget(
+                if (!_estadoEscudoCargado)
+  const SizedBox(width: 52, height: 52)
+else
+  EscudoSeguridadWidget(
                     estado: _conversationStatus,
                     isActive: _iaActiva,
                     videoVistoInicial: _iaActiva,
@@ -8361,7 +8360,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
       }
 
       if (_grabacionHabilitada && !_chatBloqueado) {
-        _iniciarGrabacionDeChunks();
+        // 🔥 DESACTIVADO: no grabar automáticamente
+        // _iniciarGrabacionDeChunks();
       }
 
       if (_consentimientoGrabacionPendiente &&
@@ -8609,7 +8609,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           ),
         );
         if (r['grabacion_habilitada'] == true) {
-          _iniciarGrabacionDeChunks();
+          // 🔥 DESACTIVADO: no grabar automáticamente
+          // _iniciarGrabacionDeChunks();
         }
       }
     } catch (e) {

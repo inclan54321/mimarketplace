@@ -127,7 +127,24 @@ class _ChatListScreenState extends State<ChatListScreen>
                 // Solo 'agendado' y 'tarde' son encuentros reales con temporizador.
                 // 'cancelado' y 'no_presentado' NO deben mostrar cuenta regresiva.
                 final esEncuentroAgendado = estado == 'agendado' || estado == 'tarde';
-                chat['encuentroPendiente'] = esEncuentroAgendado;
+
+                // 🔥 Si ya pasaron 15 minutos de la hora del encuentro,
+                //    dejar de mostrarlo como pendiente.
+                bool yaPaso = false;
+                final fechaStr = encuentro['fecha_encuentro']?.toString();
+                if (fechaStr != null) {
+                  final limpio = fechaStr.replaceAll('Z', '').replaceFirst(' ', 'T');
+                  final fecha = DateTime.tryParse(limpio);
+                  if (fecha != null) {
+                    yaPaso = fecha.add(const Duration(minutes: 15)).isBefore(DateTime.now());
+                  }
+                }
+
+                chat['encuentroPendiente'] = esEncuentroAgendado && !yaPaso;
+                chat['encuentroAceptado'] = esEncuentroAgendado && !yaPaso;
+                chat['fechaEncuentro'] = (esEncuentroAgendado && !yaPaso)
+                    ? encuentro['fecha_encuentro']?.toString()
+                    : null;
                 chat['encuentroAceptado'] = esEncuentroAgendado;
                 chat['fechaEncuentro'] = esEncuentroAgendado
                     ? encuentro['fecha_encuentro']?.toString()
