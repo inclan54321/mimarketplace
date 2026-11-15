@@ -9976,18 +9976,34 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
             console.error('Error verificando ventana de grabación:', e.message);
         }
 
-        // 🔥 Verificar si ambos ya confirmaron identidad (escudo mutuo confirmado)
+        // 🔥 El modal de grabación solo sale si:
+        //   1) Hay un encuentro agendado
+        //   2) Ese encuentro está en curso (dentro de la ventana de 20 min)
+        //   3) Ambos verificaron identidad facial en ese encuentro
         let escudoConfirmado = false;
         try {
-            const esc = await pool.query(
-                `SELECT usuario_id, acepto
-                 FROM escudos_conversacion
-                 WHERE conversacion_id = $1 AND usuario_id = ANY($2)`,
-                [conversacion_id, [usuario_id, otroId]]
+            const encActivo = await pool.query(
+                `SELECT id FROM encuentros_agendados
+                 WHERE conversacion_id = $1
+                   AND estado IN ('agendado', 'tarde')
+                   AND fecha_encuentro <= NOW() AT TIME ZONE 'America/Costa_Rica'
+                   AND fecha_encuentro >= NOW() AT TIME ZONE 'America/Costa_Rica' - INTERVAL '20 minutes'
+                 ORDER BY id DESC LIMIT 1`,
+                [conversacion_id]
             );
-            const yoA = esc.rows.find(x => x.usuario_id === usuario_id)?.acepto === true;
-            const otroA = esc.rows.find(x => x.usuario_id === otroId)?.acepto === true;
-            escudoConfirmado = yoA && otroA;
+            if (encActivo.rows.length > 0) {
+                const encId = encActivo.rows[0].id;
+                const verif = await pool.query(
+                    `SELECT DISTINCT usuario_id
+                     FROM verificaciones_faciales
+                     WHERE encuentro_id = $1 AND aprobado = TRUE`,
+                    [encId]
+                );
+                const usuariosVerif = verif.rows.map(r => r.usuario_id);
+                escudoConfirmado =
+                    usuariosVerif.includes(usuario_id) &&
+                    usuariosVerif.includes(otroId);
+            }
         } catch (e) {
             console.error('Error verificando escudo confirmado:', e.message);
         }
