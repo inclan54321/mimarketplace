@@ -9939,6 +9939,28 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
                 ventanaCerrada = minutosPasados > 20;
                 if (ventanaCerrada) {
                     console.log(`>>> ⏰ Ventana de grabación cerrada (${Math.round(minutosPasados)} min) para conv ${conversacion_id}`);
+
+                    await pool.query(
+                        `UPDATE conversaciones_app
+                         SET grabacion_habilitada = false,
+                             chat_bloqueado = false,
+                             cerrado_por_escudo = false,
+                             quiere_cerrar_trato = false
+                         WHERE id = $1`,
+                        [conversacion_id]
+                    );
+                    await pool.query(
+                        `UPDATE estado_grabacion_conversacion
+                         SET ambos_aceptaron = false,
+                             alguno_rechazo = false,
+                             fecha_actualizacion = NOW()
+                         WHERE conversacion_id = $1`,
+                        [conversacion_id]
+                    );
+                    await pool.query(
+                        `DELETE FROM escudos_conversacion WHERE conversacion_id = $1`,
+                        [conversacion_id]
+                    );
                 }
             }
         } catch (e) {

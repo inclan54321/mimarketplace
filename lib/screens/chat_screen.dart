@@ -8282,6 +8282,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
       // 🔥 Si ya pasó la ventana de 20 min → no grabar
       if (estado['ventana_cerrada'] == true) {
         await _detenerGrabacionDeChunks();
+        // 🔥 Volver el escudo al estado "sin activar"
+        await _cargarEstadoEscudo();
         if (mounted) setState(() {});
         debugPrint('>>> ⏰ Ventana de grabación cerrada, no se arranca');
         return;
