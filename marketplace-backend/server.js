@@ -9976,6 +9976,22 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
             console.error('Error verificando ventana de grabación:', e.message);
         }
 
+        // 🔥 Verificar si ambos ya confirmaron identidad (escudo mutuo confirmado)
+        let escudoConfirmado = false;
+        try {
+            const esc = await pool.query(
+                `SELECT usuario_id, acepto
+                 FROM escudos_conversacion
+                 WHERE conversacion_id = $1 AND usuario_id = ANY($2)`,
+                [conversacion_id, [usuario_id, otroId]]
+            );
+            const yoA = esc.rows.find(x => x.usuario_id === usuario_id)?.acepto === true;
+            const otroA = esc.rows.find(x => x.usuario_id === otroId)?.acepto === true;
+            escudoConfirmado = yoA && otroA;
+        } catch (e) {
+            console.error('Error verificando escudo confirmado:', e.message);
+        }
+
         res.json({
             yo_acepte: yoAcepte,
             yo_rechace: yoRechace,
@@ -9984,7 +10000,7 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
             grabacion_habilitada: grabacionHabilitada && !ventanaCerrada,
             bloqueada_por_rechazo: bloqueadaPorRechazo,
             encuentro_cancelado: c.cancelada_por_rechazo_grabacion === true,
-            necesita_responder: !yoAcepte && !yoRechace && !bloqueadaPorRechazo,
+            necesita_responder: !yoAcepte && !yoRechace && !bloqueadaPorRechazo && escudoConfirmado,
             ventana_cerrada: ventanaCerrada,
         });
     } catch (e) {
