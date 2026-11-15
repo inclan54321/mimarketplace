@@ -121,6 +121,8 @@ class _ChatScreenState extends State<ChatScreen>
   // 🔥 CACHÉ DE PROPUESTAS DE ENCUENTRO
   final Map<String, Map<String, dynamic>> _cachePropuestas = {};
   final bool _escudoCargado = false; // 🔥 NUEVO
+  Timer? _timerVentanaGrabacion; // 🔥 Polling de ventana de grabación (red de seguridad)
+  Timer? _timerCierreVentana;    // 🔥 Timer único que dispara exacto al cierre
   bool _interfazEncuentroMostrada = false; // 🔥 NUEVO: para no mostrar dos veces
   bool _ultimoQuiereEncuentroProcesado = false; // 🔥 Para no disparar con análisis viejo
   String? _ultimoMensajeEncuentroId; // 🔥 Último mensaje que ya abrió el formulario
@@ -838,6 +840,15 @@ void initState() {
   _restaurarEstadoEscudo();
   _restaurarEstadoBloqueo();
   _cargarEstadoEscudo(); // 🔥 CRÍTICO: llena _escudoActivadoPor y dispara el modal
+
+  // 🔥 Al abrir el chat, consultar si la ventana de grabación ya se cerró.
+  // Si pasaron >20 min del encuentro, el backend hará el DELETE del escudo
+  // y el Flutter recargará el estado → escudo vuelve a "sin activar".
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (mounted && _conversacionIdActual.isNotEmpty) {
+      await _verificarConsentimientoGrabacion();
+    }
+  });
   _cargarPropuestasDesdeCache(); // 🔥 propuestas cerradas inmediatas desde caché local
   _obtenerOCrearConversacion();
   _marcarComoLeida(); // 🔥 NUEVO
@@ -849,6 +860,16 @@ void initState() {
   _presenciaTimer = Timer.periodic(
     const Duration(seconds: 30),
     (_) => _consultarPresencia(),
+  );
+
+  // 🔥 Polling cada 60s para detectar si la ventana de grabación se cerró
+  _timerVentanaGrabacion = Timer.periodic(
+    const Duration(seconds: 60),
+    (_) async {
+      if (mounted && _conversacionIdActual.isNotEmpty) {
+        await _verificarConsentimientoGrabacion();
+      }
+    },
   );
   print('>>> DESPUÉS de llamar _obtenerFotoVendedorReal()');
   print('>>> _fotoVendedorReal: $_fotoVendedorReal');
@@ -882,6 +903,8 @@ void dispose() {
   _emergencySoundPlayer.dispose();  // 🚨 LIBERAR REPRODUCTOR DE EMERGENCIA
   _recordingTimer?.cancel();  // 🔥 NUEVO
   _presenciaTimer?.cancel();  // 🔥 NUEVO
+  _timerVentanaGrabacion?.cancel();  // 🔥 NUEVO
+  _timerCierreVentana?.cancel();     // 🔥 NUEVO
   super.dispose();
 }
 
@@ -1113,6 +1136,10 @@ void dispose() {
             final dataEnc = jsonDecode(rEnc.body);
             final enc = dataEnc['encuentro'];
             escudoVerificado = enc != null && enc['escudo_verificado'] == true;
+            // 🔥 Verificar la hora del encuentro contra la DB y programar el cierre
+            if (enc != null && enc['fecha_encuentro'] != null) {
+              _programarCierreVentana(enc['fecha_encuentro'].toString());
+            }
           }
         } catch (e) {
           debugPrint('>>> Error verificando escudo: $e');
@@ -1135,9 +1162,7 @@ void dispose() {
             _escudoOtroRechazo = false;
           }
 
-          if (escudoVerificado && !_chatDesbloqueadoPorVerificacion) {
-            _chatDesbloqueadoPorVerificacion = true;
-          }
+          _chatDesbloqueadoPorVerificacion = escudoVerificado;
         });
       }
     }
@@ -8258,6 +8283,54 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
     return jsonDecode(r.body) as Map<String, dynamic>;
   }
 
+  // 🔥 Lee fecha_encuentro de la DB (ya viene en la respuesta), calcula el
+  // cierre (+20 min) y:
+  //   - Si ya pasó → cierra la ventana YA (caso "volví a entrar horas después")
+  //   - Si falta   → programa UN solo Timer que dispara exacto al cierre
+  void _programarCierreVentana(String fechaEncuentroStr) {
+    _timerCierreVentana?.cancel();
+
+    DateTime? fecha;
+    try {
+      fecha = DateTime.parse(fechaEncuentroStr).toLocal();
+    } catch (e) {
+      debugPrint('>>> ⏰ fecha_encuentro inválida: $fechaEncuentroStr');
+      return;
+    }
+
+    final cierre = fecha.add(const Duration(minutes: 20));
+    final restante = cierre.difference(DateTime.now());
+
+    if (restante <= Duration.zero) {
+      debugPrint('>>> ⏰ Ventana ya cerrada al entrar, actuando de inmediato');
+      _cerrarVentanaGrabacion();
+      return;
+    }
+
+    debugPrint('>>> ⏰ Cierre programado en ${restante.inSeconds}s');
+    _timerCierreVentana = Timer(restante, () {
+      debugPrint('>>> ⏰ Timer de cierre disparado');
+      _cerrarVentanaGrabacion();
+    });
+  }
+
+  Future<void> _cerrarVentanaGrabacion() async {
+    if (!mounted) return;
+    await _detenerGrabacionDeChunks();
+    await _cargarEstadoEscudo();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('escudo_activo_${widget.conversacionId}');
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _iaActiva = false;
+        _grabacionHabilitada = false;
+      });
+    }
+    debugPrint('>>> ⏰ Grabación detenida y escudo reiniciado');
+  }
+
   Future<void> _verificarConsentimientoGrabacion() async {
     if (_conversacionIdActual.isEmpty) return;
     try {
@@ -8668,7 +8741,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             width: 72,
             height: 72,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 const Icon(Icons.mic_off, size: 72, color: Colors.red),
           ),
           const SizedBox(height: 16),

@@ -9961,6 +9961,15 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
                         `DELETE FROM escudos_conversacion WHERE conversacion_id = $1`,
                         [conversacion_id]
                     );
+                    // 🔥 CLAVE: bajar escudo_verificado en la DB para que
+                    // /api/encuentro/agendado/:id devuelva false y Flutter
+                    // deje de mostrar el botón REC.
+                    await pool.query(
+                        `UPDATE encuentros_agendados
+                         SET escudo_verificado = false
+                         WHERE conversacion_id = $1`,
+                        [conversacion_id]
+                    );
                 }
             }
         } catch (e) {
