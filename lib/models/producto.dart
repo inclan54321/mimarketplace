@@ -19,6 +19,7 @@ class Producto {
   final int? vistas;
   final String? imagenMiniatura; // 🔥 NUEVO
   final String? audioUrl; // 🔥 NUEVO
+  final bool vendedorVerificado; // 🔥 NUEVO
 
   Producto({
     required this.id,
@@ -41,6 +42,7 @@ class Producto {
     this.vistas = 0,
     this.imagenMiniatura, // 🔥 NUEVO
     this.audioUrl, // 🔥 NUEVO
+    this.vendedorVerificado = false, // 🔥 NUEVO
   });
 
   factory Producto.fromJson(Map<String, dynamic> json) {
@@ -63,6 +65,7 @@ class Producto {
       vistas: json['total_vistas'] ?? json['vistas'] ?? 0,
       imagenMiniatura: json['imagen_miniatura'] ?? '', // 🔥 NUEVO
       audioUrl: json['audio_url'] ?? '', // 🔥 NUEVO
+      vendedorVerificado: json['vendedor_verificado'] == true, // 🔥 NUEVO
     );
   }
 
@@ -86,6 +89,7 @@ class Producto {
       'vistas': vistas,
       'imagen_miniatura': imagenMiniatura, // 🔥 NUEVO
       'audio_url': audioUrl, // 🔥 NUEVO
+      'vendedor_verificado': vendedorVerificado, // 🔥 NUEVO
     };
   }
 }

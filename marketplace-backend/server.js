@@ -1844,7 +1844,7 @@ app.get('/api/productos/:id', rateLimitProducto, async (req, res) => {
         console.log('>>> TIPO DEL ID:', typeof id); // ← AGREGAR ESTO
         
         const result = await pool.query(
-            `SELECT p.*, u.foto_perfil AS vendedor_foto
+            `SELECT p.*, u.foto_perfil AS vendedor_foto, u.verificado AS vendedor_verificado
              FROM productos_app p
              LEFT JOIN usuarios u ON p.vendedor_id = u.uid
              WHERE p.id = $1`,

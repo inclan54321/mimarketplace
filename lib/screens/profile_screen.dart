@@ -648,8 +648,11 @@ Future<void> _cargarEstadoVerificado() async {
         if (idToken != null) 'Authorization': 'Bearer $idToken',
       },
     );
+    print('>>> VERIFICADO status: ${r.statusCode}');
+    print('>>> VERIFICADO body: ${r.body}');
     if (r.statusCode == 200) {
       final data = jsonDecode(r.body);
+      print('>>> VERIFICADO campo: ${data['verificado']}');
       if (mounted) {
         setState(() {
           _esVerificado = data['verificado'] == true;
@@ -1187,6 +1190,7 @@ Future<void> _precargarImagenPerfil() async {
                       ),
                     ),
                   ),
+                  // 🔥 (Insignia movida al lado del nombre)
                   Positioned(
                     bottom: 10,
                     right: 10,
@@ -1251,11 +1255,26 @@ Future<void> _precargarImagenPerfil() async {
                   ),
                 ),
                 if (_esVerificado) ...[
-                  const SizedBox(width: 6),
-                  const Icon(
-                    Icons.verified,
-                    color: Color(0xFF1DA1F2),
-                    size: 24,
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF1DA1F2),
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1DA1F2).withValues(alpha: 0.6),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.verified,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                 ],
               ],

@@ -969,6 +969,7 @@ Future<void> _enviarDenuncia(String motivo) async {
     print('>>> vendedorFoto en Detalle: ${_producto.vendedorFoto}');
     print('>>> _fotoVendedorLocal: $_fotoVendedorLocal');
     print('>>> vendedorId en Detalle: ${_producto.vendedorId}');
+    print('>>> VERIFICADO DETALLE: ${_producto.vendedorVerificado}');
 
     final baseUrl = 'https://mimarketplace-production.up.railway.app';
 
