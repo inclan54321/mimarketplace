@@ -9923,15 +9923,38 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
         const bloqueadaPorRechazo =
             yoRechace || otroRechazo || c.cancelada_por_rechazo_grabacion === true;
 
+        // 🔥 Si ya pasaron 20 min desde la hora del encuentro → ventana cerrada
+        let ventanaCerrada = false;
+        try {
+            const enc = await pool.query(
+                `SELECT fecha_encuentro FROM encuentros_agendados
+                 WHERE conversacion_id = $1
+                 ORDER BY id DESC LIMIT 1`,
+                [conversacion_id]
+            );
+            if (enc.rows.length > 0 && enc.rows[0].fecha_encuentro) {
+                const fechaEnc = new Date(enc.rows[0].fecha_encuentro);
+                const ahora = new Date();
+                const minutosPasados = (ahora - fechaEnc) / 60000;
+                ventanaCerrada = minutosPasados > 20;
+                if (ventanaCerrada) {
+                    console.log(`>>> ⏰ Ventana de grabación cerrada (${Math.round(minutosPasados)} min) para conv ${conversacion_id}`);
+                }
+            }
+        } catch (e) {
+            console.error('Error verificando ventana de grabación:', e.message);
+        }
+
         res.json({
             yo_acepte: yoAcepte,
             yo_rechace: yoRechace,
             otro_acepto: otroAcepto,
             otro_rechazo: otroRechazo,
-            grabacion_habilitada: grabacionHabilitada,
+            grabacion_habilitada: grabacionHabilitada && !ventanaCerrada,
             bloqueada_por_rechazo: bloqueadaPorRechazo,
             encuentro_cancelado: c.cancelada_por_rechazo_grabacion === true,
             necesita_responder: !yoAcepte && !yoRechace && !bloqueadaPorRechazo,
+            ventana_cerrada: ventanaCerrada,
         });
     } catch (e) {
         console.error('Error en /api/grabacion/estado:', e);

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'dart:ui'; // 🔥 BackdropFilter + ImageFilter para efecto cristal
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart'; // 👈 Agregar para usar kDebugMode
 import 'services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -92,11 +93,7 @@ void main() async {
   // 🔥 Inicializar Firebase
   await Firebase.initializeApp();
 
-  // 🔥 APP CHECK (bloquea bots)
-  await FirebaseAppCheck.instance.activate(
-    providerAndroid: AndroidDebugProvider(), // 🔥 SOLO PARA DEBUG
-    providerApple: AppleDeviceCheckProvider(),
-  );
+
 
   // 🔥 Estos NO se esperan: corren en segundo plano para que el splash salga al instante
   MobileAds.instance.initialize();

@@ -38,7 +38,6 @@ import 'package:intl/intl.dart';                                    // 🔥 NUEV
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:io';
-import 'dart:async';
 
 
 class ChatScreen extends StatefulWidget {
@@ -150,14 +149,13 @@ class _ChatScreenState extends State<ChatScreen>
   bool _escudoResuelto = false;     // 🔥 Ya no hay que consultar más
   bool _estadoEscudoCargado = false; // 🔥 Ya sabemos el estado del escudo (para no pintar apagado)
 
-   // 🔥 GRABACIÓN DE VOZ POR SEGURIDAD
+  // 🔥 GRABACIÓN DE VOZ POR SEGURIDAD
   bool _consentimientoGrabacionPendiente = false;
   bool _grabacionHabilitada = false;
   bool _grabacionBloqueadaPorRechazo = false;
   bool _encuentroCanceladoPorRechazo = false;
   bool _modalConsentimientoMostrado = false;
 
-  // Grabación de chunks
   FlutterSoundRecorder? _recorderConsentimiento;
   bool _grabandoChunks = false;
   Timer? _timerChunks;
@@ -165,7 +163,7 @@ class _ChatScreenState extends State<ChatScreen>
   DateTime? _chunkInicio;
   String? _chunkPathActual;
 
-  // 🔥 AUDIO
+   // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
   bool _isRecording = false;
   String? _audioPath;
@@ -654,34 +652,12 @@ _iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid || esRevisor);
         print('>>> 🔄 WS cambio de estado: ${data['estado']}');
         if (!mounted) return;
 
-        // 🔥 RECHAZO DE GRABACIÓN → el otro rechazó, cancelar encuentro
-        if (data['estado'] == 'encuentro_cancelado_por_rechazo_grabacion') {
-          setState(() {
-            _chatBloqueado = true;
-            _grabacionBloqueadaPorRechazo = true;
-            _grabacionHabilitada = false;
-            _consentimientoGrabacionPendiente = false;
-            _encuentroCanceladoPorRechazo = true;
-          });
-          _detenerGrabacionDeChunks();
-          _cargarMensajes(_conversacionIdActual, forzar: true);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  '❌ El otro usuario rechazó la grabación por seguridad. El encuentro se canceló.',
-                ),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 5),
-              ),
-            );
-          }
-          return;
-        }
-
-        // 🔥 CONSENTIMIENTO DE GRABACIÓN → re-chequear estado
-        if (data['estado'] == 'consentimiento_grabacion') {
+        // 🔥 CUANDO AMBOS VERIFICAN Y EL CHAT SE LIBERA → modal de grabación
+        if (data['estado'] == 'chat_desbloqueado' ||
+            data['estado'] == 'escudo_verificado' ||
+            data['estado'] == 'verificacion_completa') {
           _verificarConsentimientoGrabacion();
+          _cargarMensajes(_conversacionIdActual, forzar: true);
           return;
         }
 
@@ -901,7 +877,6 @@ void dispose() {
   _timer?.cancel();
   _controller.dispose();
   _audioRecorder?.closeRecorder();
-  _detenerGrabacionDeChunks();
   _audioPlayer.dispose();
   _uiSoundPlayer.dispose();  // 🔥 LIBERAR REPRODUCTOR DE UI
   _emergencySoundPlayer.dispose();  // 🚨 LIBERAR REPRODUCTOR DE EMERGENCIA
@@ -1108,9 +1083,6 @@ void dispose() {
     return;
   }
 
-  // 🔥 GRABACIÓN: verificar consentimiento de voz
-  await _verificarConsentimientoGrabacion();
-
   // 🔥 PRIMERO: cargar el estado del escudo para que _escudoActivadoPor
   // 🔥 tenga valor antes de evaluar la condición del modal.
   await _cargarEstadoEscudo();
@@ -1171,6 +1143,12 @@ void dispose() {
     }
   } catch (e) {
     print('Error al consultar estado de bloqueo: $e');
+  }
+
+  // 🔥 SI EL CHAT ESTÁ LIBERADO POR VERIFICACIÓN → verificar el consentimiento
+  // 🔥 de grabación. Esto corre SIEMPRE que se libere el chat, venga de donde venga.
+  if (_chatDesbloqueadoPorVerificacion && !_consentimientoGrabacionPendiente && !_grabacionHabilitada && !_grabacionBloqueadaPorRechazo) {
+    await _verificarConsentimientoGrabacion();
   }
 
   // 🔥 MOSTRAR MODAL DEL ESCUDO SI EL OTRO LO ACTIVÓ Y YO NO HE RESPONDIDO
@@ -4823,17 +4801,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     final tarjeta = GestureDetector(
       onTap: () => _mostrarDetallePropuesta(propuesta),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        // 🔥 IMAGEN DE FONDO
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         decoration: BoxDecoration(
-          image: DecorationImage(
-            image: const AssetImage('assets/images/escudo/plantilla_encuentro.png'),
-            fit: BoxFit.contain,
-            colorFilter: ColorFilter.mode(
-              Colors.white.withValues(alpha: 0.0), // 👈 0.0 = normal, 0.5 = muy claro
-              BlendMode.lighten,
-            ),
-          ),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -4843,15 +4812,26 @@ final estaOcupada = horariosOcupados.contains(keyHora);
             ),
           ],
         ),
-        // 🔥 ALTURA reducida
-        constraints: const BoxConstraints(minHeight: 140),
-        // 🔥 POSICIÓN del texto ajustada
-        padding: const EdgeInsets.fromLTRB(55, 45, 20, 15),
         child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                'assets/images/escudo/plantilla_encuentro.png',
+                width: double.infinity,
+                fit: BoxFit.fitWidth,
+              ),
+            ),
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(55, 45, 20, 0),
+                child: Stack(
           clipBehavior: Clip.none,
           children: [
             // 🔥 CONTENIDO (LUGAR + FECHA)
             Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
@@ -4901,6 +4881,10 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                       : (estado == 'aceptada' || estado == 'confirmada')
                           ? Colors.green
                           : Colors.orange,
+                ),
+              ),
+            ),
+          ],
                 ),
               ),
             ),
@@ -5002,7 +4986,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
 
     // 🔥 Fondo del color elegido alrededor de la tarjeta + miniatura
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -6317,15 +6301,34 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     );
   }
 
-  // 🚨 Botón de llamada a emergencias con efecto neón intermitente
+  // 🎙️ Botón REC (reemplaza al de EMERGENCIA cuando el chat está liberado)
+  //    - Muestra REC / STOP según si está grabando
+  //    - Al presionar: si graba, detiene; si no, avisa
   Widget _buildBotonEmergencias() {
     return GestureDetector(
-      onTap: () {
-        // 🚨 Sonido de emergencia
-        _reproducirSonidoEmergencia();
+      onTap: () async {
+        if (!_grabandoChunks) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('La grabación no está activa'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
 
-        // 🔥 Rebote (1.0 → 1.25 → 0.92 → 1.0)
-        _emergencyReboteController.forward(from: 0);
+        await _detenerGrabacionDeChunks();
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⏹️ Grabación detenida'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
       },
       child: ScaleTransition(
         scale: _emergencyReboteAnim,
@@ -6338,6 +6341,10 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                 final t = _bordeController.value;
                 final pulso = (math.sin(t * 2 * math.pi) + 1) / 2;
 
+                final activo = _grabandoChunks;
+                final color1 = activo ? Colors.red.shade400 : Colors.grey.shade500;
+                final color2 = activo ? Colors.red.shade900 : Colors.grey.shade800;
+
                 return Container(
                   width: 52,
                   height: 52,
@@ -6347,22 +6354,24 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color.lerp(Colors.red.shade400, Colors.red.shade900, pulso)!,
-                        Color.lerp(Colors.red.shade700, Colors.red.shade900, pulso)!,
+                        Color.lerp(color1, color2, pulso)!,
+                        Color.lerp(color2, Colors.black, pulso * 0.3)!,
                       ],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withValues(alpha: 0.4 + pulso * 0.6),
-                        blurRadius: 12 + pulso * 20,
-                        spreadRadius: 2 + pulso * 6,
-                      ),
-                      BoxShadow(
-                        color: Colors.red.withValues(alpha: 0.2 + pulso * 0.4),
-                        blurRadius: 24 + pulso * 30,
-                        spreadRadius: 4 + pulso * 8,
-                      ),
-                    ],
+                    boxShadow: activo
+                        ? [
+                            BoxShadow(
+                              color: Colors.red.withValues(alpha: 0.4 + pulso * 0.6),
+                              blurRadius: 12 + pulso * 20,
+                              spreadRadius: 2 + pulso * 6,
+                            ),
+                            BoxShadow(
+                              color: Colors.red.withValues(alpha: 0.2 + pulso * 0.4),
+                              blurRadius: 24 + pulso * 30,
+                              spreadRadius: 4 + pulso * 8,
+                            ),
+                          ]
+                        : null,
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.85 + pulso * 0.15),
                       width: 2,
@@ -6370,15 +6379,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                   ),
                   child: Center(
                     child: Icon(
-                      Icons.emergency,
+                      activo ? Icons.stop : Icons.mic,
                       color: Colors.white.withValues(alpha: 0.9 + pulso * 0.1),
                       size: 28,
-                      shadows: [
-                        Shadow(
-                          color: Colors.red.withValues(alpha: 0.5 + pulso * 0.5),
-                          blurRadius: 8,
-                        ),
-                      ],
                     ),
                   ),
                 );
@@ -6391,15 +6394,16 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                 final t = _bordeController.value;
                 final pulso = (math.sin(t * 2 * math.pi) + 1) / 2;
                 return Text(
-                  'EMERGENCIA',
+                  _grabandoChunks ? 'STOP' : 'REC',
                   style: TextStyle(
-                    fontSize: 8,
+                    fontSize: 9,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.6,
+                    letterSpacing: 1.0,
                     color: Colors.white.withValues(alpha: 0.6 + pulso * 0.4),
                     shadows: [
                       Shadow(
-                        color: Colors.red.withValues(alpha: 0.3 + pulso * 0.5),
+                        color: (_grabandoChunks ? Colors.red : Colors.grey)
+                            .withValues(alpha: 0.3 + pulso * 0.5),
                         blurRadius: 4 + pulso * 4,
                       ),
                     ],
@@ -6882,510 +6886,6 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     );           // cierra PreferredSize
   }
 
-  // ============================================================
-  // 🔥 GRABACIÓN DE VOZ POR SEGURIDAD
-  // ============================================================
-
-  Future<Map<String, dynamic>> obtenerEstadoGrabacion(String conversacionId) async {
-    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-    final r = await http.get(
-      Uri.parse(
-          'https://mimarketplace-production.up.railway.app/api/grabacion/estado/$conversacionId'),
-      headers: {
-        if (idToken != null) 'Authorization': 'Bearer $idToken',
-      },
-    );
-    if (r.statusCode != 200) throw Exception('Error ${r.statusCode}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> responderConsentimiento(
-      String conversacionId, bool acepta) async {
-    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-    final r = await http.post(
-      Uri.parse(
-          'https://mimarketplace-production.up.railway.app/api/grabacion/consentimiento'),
-      headers: {
-        'Content-Type': 'application/json',
-        if (idToken != null) 'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode({
-        'conversacion_id': int.parse(conversacionId),
-        'acepta': acepta,
-      }),
-    );
-    if (r.statusCode != 200) throw Exception('Error ${r.statusCode}: ${r.body}');
-    return jsonDecode(r.body) as Map<String, dynamic>;
-  }
-
-  Future<void> _verificarConsentimientoGrabacion() async {
-    if (_conversacionIdActual.isEmpty) return;
-    try {
-      final estado = await obtenerEstadoGrabacion(_conversacionIdActual);
-      if (!mounted) return;
-
-      setState(() {
-        _grabacionHabilitada = estado['grabacion_habilitada'] == true;
-        _grabacionBloqueadaPorRechazo = estado['bloqueada_por_rechazo'] == true;
-        _consentimientoGrabacionPendiente = estado['necesita_responder'] == true;
-        _encuentroCanceladoPorRechazo = estado['encuentro_cancelado'] == true;
-
-        if (_grabacionBloqueadaPorRechazo || _encuentroCanceladoPorRechazo) {
-          _chatBloqueado = true;
-        }
-      });
-
-      if (_grabacionBloqueadaPorRechazo || _encuentroCanceladoPorRechazo) {
-        await _detenerGrabacionDeChunks();
-      }
-
-      if (_grabacionHabilitada && !_chatBloqueado) {
-        _iniciarGrabacionDeChunks();
-      }
-
-      if (_consentimientoGrabacionPendiente &&
-          !_modalConsentimientoMostrado &&
-          !_grabacionBloqueadaPorRechazo &&
-          !_chatBloqueado &&
-          mounted) {
-        _modalConsentimientoMostrado = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _mostrarModalConsentimientoGrabacion();
-        });
-      }
-    } catch (e) {
-      debugPrint('Error al verificar consentimiento: $e');
-    }
-  }
-
-  Future<void> _confirmarRechazoGrabacion(BuildContext dialogCtx) async {
-    final seguro = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '¿Cancelar el encuentro?',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Si rechazás la grabación de voz por seguridad, el encuentro '
-          'se cancela para AMBOS usuarios y el chat queda cerrado.\n\n'
-          'Esta acción no se puede deshacer.',
-          style: TextStyle(fontSize: 14, height: 1.4),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Volver'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Sí, cancelar el encuentro'),
-          ),
-        ],
-      ),
-    );
-
-    if (seguro == true && dialogCtx.mounted) {
-      Navigator.pop(dialogCtx, false);
-    }
-  }
-
-  Future<void> _mostrarModalConsentimientoGrabacion() async {
-    final acepta = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withValues(alpha: 0.75),
-      builder: (ctx) => WillPopScope(
-        onWillPop: () async => false,
-        child: Dialog(
-          backgroundColor: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF0A3D91), Color(0xFF0A5BE0), Color(0xFF1E9BF0)],
-              ),
-              border: Border.all(color: Colors.black, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 30,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(22),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.red.withValues(alpha: 0.2),
-                      border: Border.all(color: Colors.redAccent, width: 2),
-                    ),
-                    child: const Icon(Icons.mic, color: Colors.redAccent, size: 42),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Grabación de voz por seguridad',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                    ),
-                    child: const Text(
-                      'A partir de este momento, la app GRABARÁ el audio '
-                      'que se emita en esta conversación desde AMBOS dispositivos, '
-                      'con el único fin de proteger a los usuarios.\n\n'
-                      '• Los fragmentos de audio se guardan cada 10 segundos.\n'
-                      '• Esa grabación puede ser compartida con un tercero '
-                      '(autoridad o perito de seguridad) si hay una denuncia o incidente.\n'
-                      '• Nadie más puede escuchar los audios sin tu permiso o una orden legal.\n\n'
-                      '⚠️ IMPORTANTE: La grabación por seguridad es OBLIGATORIA '
-                      'para poder realizar el encuentro.\n\n'
-                      'Si RECHAZÁS la grabación, el encuentro se CANCELA automáticamente '
-                      'para ambos usuarios y el chat queda cerrado. No se podrá continuar '
-                      'con el encuentro presencial a través de la app.',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        height: 1.45,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _confirmarRechazoGrabacion(ctx),
-                          icon: const Icon(Icons.close, color: Colors.redAccent, size: 18),
-                          label: const Text(
-                            'Rechazar y cancelar',
-                            style: TextStyle(
-                              color: Colors.redAccent,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                            side: BorderSide(
-                              color: Colors.redAccent.withValues(alpha: 0.6),
-                              width: 1.5,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(26),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          icon: const Icon(Icons.check, color: Colors.white, size: 18),
-                          label: const Text(
-                            'Aceptar y continuar',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF22C55E),
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(26),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    if (acepta == null) return;
-
-    try {
-      final r = await responderConsentimiento(_conversacionIdActual, acepta);
-      if (!mounted) return;
-
-      setState(() {
-        _grabacionHabilitada = r['grabacion_habilitada'] == true;
-        _grabacionBloqueadaPorRechazo = r['bloqueada_por_rechazo'] == true;
-        _consentimientoGrabacionPendiente = false;
-        if (r['encuentro_cancelado'] == true) {
-          _chatBloqueado = true;
-          _encuentroCanceladoPorRechazo = true;
-        }
-      });
-
-      if (r['encuentro_cancelado'] == true) {
-        await _detenerGrabacionDeChunks();
-        _cachePropuestas.clear();
-        await _guardarPropuestasEnCache();
-        await _cargarMensajes(_conversacionIdActual, forzar: true);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                '❌ Rechazaste la grabación. El encuentro se canceló para ambos y el chat quedó cerrado.',
-              ),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 5),
-            ),
-          );
-        }
-      } else if (acepta) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              r['grabacion_habilitada'] == true
-                  ? '🎙️ Grabación habilitada. Ambos aceptaron.'
-                  : '🎙️ Aceptaste. Esperando que el otro usuario acepte.',
-            ),
-            backgroundColor: r['grabacion_habilitada'] == true
-                ? Colors.green
-                : Colors.blue,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _iniciarGrabacionDeChunks() async {
-    if (_grabandoChunks || !_grabacionHabilitada) return;
-
-    final permiso = await Permission.microphone.request();
-    if (permiso != PermissionStatus.granted) {
-      debugPrint('>>> 🎙️ Permiso de micrófono denegado');
-      return;
-    }
-
-    try {
-      _recorderConsentimiento ??= FlutterSoundRecorder();
-      await _recorderConsentimiento!.openRecorder();
-
-      _chunkNumero = 0;
-      _grabandoChunks = true;
-      _iniciarSiguienteChunk();
-
-      debugPrint('>>> 🎙️ Grabación de chunks INICIADA');
-    } catch (e) {
-      debugPrint('Error al iniciar chunks: $e');
-    }
-  }
-
-  void _iniciarSiguienteChunk() {
-    if (!_grabandoChunks) return;
-
-    _chunkNumero++;
-    _chunkInicio = DateTime.now();
-    _chunkPathActual =
-        'grabacion_${DateTime.now().millisecondsSinceEpoch}_$_chunkNumero.m4a';
-
-    _recorderConsentimiento!
-        .startRecorder(
-      toFile: _chunkPathActual,
-      codec: Codec.aacMP4,
-      bitRate: 32000,
-      sampleRate: 22050,
-    )
-        .then((_) {
-      _timerChunks = Timer(const Duration(seconds: 10), () async {
-        await _detenerYEnviarChunk();
-        if (_grabandoChunks) _iniciarSiguienteChunk();
-      });
-    }).catchError((e) {
-      debugPrint('Error iniciando chunk $_chunkNumero: $e');
-    });
-  }
-
-  Future<void> _detenerYEnviarChunk() async {
-    final duracion = _chunkInicio != null
-        ? DateTime.now().difference(_chunkInicio!).inMilliseconds
-        : 10000;
-    _timerChunks?.cancel();
-
-    try {
-      final resultPath = await _recorderConsentimiento?.stopRecorder();
-      if (resultPath == null || resultPath.isEmpty) return;
-
-      final f = File(resultPath);
-      if (await f.exists() && await f.length() > 1024) {
-        await _subirChunk(resultPath, duracion);
-      }
-      try {
-        await f.delete();
-      } catch (_) {}
-    } catch (e) {
-      debugPrint('Error cerrando chunk: $e');
-    }
-  }
-
-  Future<void> _subirChunk(String audioPath, int duracionMs) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      final idToken = await user.getIdToken();
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse(
-            'https://mimarketplace-production.up.railway.app/api/grabacion/chunk'),
-      );
-      if (idToken != null) {
-        request.headers['Authorization'] = 'Bearer $idToken';
-      }
-      request.fields['conversacion_id'] = _conversacionIdActual;
-      request.fields['usuario_id'] = user.uid;
-      request.fields['chunk_numero'] = _chunkNumero.toString();
-      request.fields['duracion_ms'] = duracionMs.toString();
-      request.files.add(await http.MultipartFile.fromPath('audio', audioPath));
-
-      final response = await request.send();
-      debugPrint('>>> 🎙️ Chunk $_chunkNumero subido: ${response.statusCode}');
-    } catch (e) {
-      debugPrint('Error subiendo chunk: $e');
-    }
-  }
-
-  Future<void> _detenerGrabacionDeChunks() async {
-    if (!_grabandoChunks) return;
-    _grabandoChunks = false;
-    _timerChunks?.cancel();
-    await _detenerYEnviarChunk();
-    await _recorderConsentimiento?.closeRecorder();
-    _recorderConsentimiento = null;
-    debugPrint('>>> 🎙️ Grabación de chunks DETENIDA');
-  }
-
-  Widget _buildPantallaRechazoGrabacion() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            'assets/icon/icon.png',
-            width: 72,
-            height: 72,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
-                const Icon(Icons.mic_off, size: 72, color: Colors.red),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            '🚫 Encuentro cancelado',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0A3D91),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'El encuentro se canceló porque una de las partes rechazó '
-            'la grabación de voz por seguridad.',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.red.shade200),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline, color: Colors.red, size: 22),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'La grabación por seguridad es obligatoria para realizar '
-                    'encuentros presenciales a través de la app. Esta medida '
-                    'protege a ambos usuarios.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF7F1D1D)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                setState(() => _viendoMensajesEnTratoCerrado = true);
-              },
-              icon: const Icon(Icons.chat_bubble_outline, size: 22),
-              label: const Text(
-                'Ver mensajes del chat',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0A5BE0),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(26),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
 
@@ -7765,9 +7265,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : (_chatBloqueado && !_viendoMensajesEnTratoCerrado)
-                    ? (_grabacionBloqueadaPorRechazo || _encuentroCanceladoPorRechazo)
-                        ? _buildPantallaRechazoGrabacion()
-                        : _buildPantallaTratoCerrado()
+                    ? _buildPantallaTratoCerrado()
                     : _mensajes.isEmpty
                         ? const Center(
                             child: Text(
@@ -8203,36 +7701,6 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
     );
   }
 
-  // 🔥 ENCUENTRO CANCELADO POR RECHAZO DE GRABACIÓN
-  if ((mensaje['texto'] ?? '')
-      .startsWith('||ENCUENTRO_CANCELADO_POR_RECHAZO_GRABACION||')) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade300, width: 2),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.mic_off, color: Colors.red, size: 24),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '❌ El encuentro se canceló porque una de las partes rechazó la grabación de voz por seguridad.',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // 🔥 TRATO CANCELADO
   if ((mensaje['texto'] ?? '').startsWith('||TRATO_CANCELADO||')) {
     return Container(
@@ -8434,7 +7902,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
          // 🔥 BOTÓN DE CALIFICACIÓN ELIMINADO - AHORA SOLO APARECE EN EL LISTVIEW
               // 🔥 BOTÓN DE CALIFICACIÓN ELIMINADO - AHORA SOLO APARECE EN EL LISTVIEW
          // 🔥 EL ÓVALO COMPLETO DEL INPUT SE OCULTA SI HAY PROPUESTA PENDIENTE O CHAT BLOQUEADO
-         if (!_propuestaEncuentroPendiente && !_chatBloqueado)
+         if (!_propuestaEncuentroPendiente && !_chatBloqueado && !_consentimientoGrabacionPendiente)
   SafeArea(
   top: false,
   bottom: true,
@@ -8757,6 +8225,517 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   }
 
 
+  // ============================================================
+  // 🔥 GRABACIÓN DE VOZ POR SEGURIDAD
+  // ============================================================
+
+  Future<Map<String, dynamic>> obtenerEstadoGrabacion(String conversacionId) async {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    final r = await http.get(
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/grabacion/estado/$conversacionId'),
+      headers: {
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
+    );
+    if (r.statusCode != 200) throw Exception('Error ${r.statusCode}');
+    return jsonDecode(r.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> responderConsentimiento(String conversacionId, bool acepta) async {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    final r = await http.post(
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/grabacion/consentimiento'),
+      headers: {
+        'Content-Type': 'application/json',
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
+      body: jsonEncode({
+        'conversacion_id': int.parse(conversacionId),
+        'acepta': acepta,
+      }),
+    );
+    if (r.statusCode != 200) throw Exception('Error ${r.statusCode}: ${r.body}');
+    return jsonDecode(r.body) as Map<String, dynamic>;
+  }
+
+  Future<void> _verificarConsentimientoGrabacion() async {
+    if (_conversacionIdActual.isEmpty) return;
+    try {
+      final estado = await obtenerEstadoGrabacion(_conversacionIdActual);
+      if (!mounted) return;
+
+      setState(() {
+        _grabacionHabilitada = estado['grabacion_habilitada'] == true;
+        _grabacionBloqueadaPorRechazo = estado['bloqueada_por_rechazo'] == true;
+        _consentimientoGrabacionPendiente = estado['necesita_responder'] == true;
+        _encuentroCanceladoPorRechazo = estado['encuentro_cancelado'] == true;
+
+        if (_grabacionBloqueadaPorRechazo || _encuentroCanceladoPorRechazo) {
+          _chatBloqueado = true;
+        }
+      });
+
+      if (_grabacionBloqueadaPorRechazo || _encuentroCanceladoPorRechazo) {
+        await _detenerGrabacionDeChunks();
+      }
+
+      // 🔥 Si ya pasó la ventana de 20 min → no grabar
+      if (estado['ventana_cerrada'] == true) {
+        await _detenerGrabacionDeChunks();
+        if (mounted) setState(() {});
+        debugPrint('>>> ⏰ Ventana de grabación cerrada, no se arranca');
+        return;
+      }
+
+      if (_grabacionHabilitada && !_chatBloqueado) {
+        _iniciarGrabacionDeChunks();
+      }
+
+      if (_consentimientoGrabacionPendiente &&
+          !_modalConsentimientoMostrado &&
+          !_grabacionBloqueadaPorRechazo &&
+          !_chatBloqueado &&
+          mounted) {
+        _modalConsentimientoMostrado = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _mostrarModalConsentimientoGrabacion();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error al verificar consentimiento: $e');
+    }
+  }
+
+  Future<void> _confirmarRechazoGrabacion(BuildContext dialogCtx) async {
+    final seguro = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '¿Cancelar el encuentro?',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Si rechazás la grabación de voz por seguridad, el encuentro '
+          'se cancela para AMBOS usuarios y el chat queda cerrado.\n\n'
+          'Esta acción no se puede deshacer.',
+          style: TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Volver'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sí, cancelar el encuentro'),
+          ),
+        ],
+      ),
+    );
+
+    if (seguro == true && dialogCtx.mounted) {
+      Navigator.pop(dialogCtx, false);
+    }
+  }
+
+  Future<void> _mostrarModalConsentimientoGrabacion() async {
+    final acepta = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (ctx) => WillPopScope(
+        onWillPop: () async => false,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF0A3D91), Color(0xFF0A5BE0), Color(0xFF1E9BF0)],
+              ),
+              border: Border.all(color: Colors.black, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 30,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(22),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.red.withValues(alpha: 0.2),
+                      border: Border.all(color: Colors.redAccent, width: 2),
+                    ),
+                    child: const Icon(Icons.mic, color: Colors.redAccent, size: 42),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Grabación de voz por seguridad',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                    ),
+                    child: const Text(
+                      'A partir de este momento, la app GRABARÁ el audio '
+                      'que se emita en esta conversación desde AMBOS dispositivos, '
+                      'con el único fin de proteger a los usuarios.\n\n'
+                      '• Los fragmentos de audio se guardan cada 10 segundos.\n'
+                      '• Esa grabación puede ser compartida con un tercero '
+                      '(autoridad o perito de seguridad) si hay una denuncia o incidente.\n'
+                      '• Nadie más puede escuchar los audios sin tu permiso o una orden legal.\n\n'
+                      '⚠️ IMPORTANTE: La grabación por seguridad es OBLIGATORIA '
+                      'para poder realizar el encuentro.\n\n'
+                      'Si RECHAZÁS la grabación, el encuentro se CANCELA automáticamente '
+                      'para ambos usuarios y el chat queda cerrado. No se podrá continuar '
+                      'con el encuentro presencial a través de la app.',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _confirmarRechazoGrabacion(ctx),
+                          icon: const Icon(Icons.close, color: Colors.redAccent, size: 18),
+                          label: const Text(
+                            'Rechazar y cancelar',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(50),
+                            side: BorderSide(
+                              color: Colors.redAccent.withValues(alpha: 0.6),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(26),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          icon: const Icon(Icons.check, color: Colors.white, size: 18),
+                          label: const Text(
+                            'Aceptar y continuar',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF22C55E),
+                            minimumSize: const Size.fromHeight(50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(26),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (acepta == null) return;
+
+    try {
+      final r = await responderConsentimiento(_conversacionIdActual, acepta);
+      if (!mounted) return;
+
+      setState(() {
+        _grabacionHabilitada = r['grabacion_habilitada'] == true;
+        _grabacionBloqueadaPorRechazo = r['bloqueada_por_rechazo'] == true;
+        _consentimientoGrabacionPendiente = false;
+        if (r['encuentro_cancelado'] == true) {
+          _chatBloqueado = true;
+          _encuentroCanceladoPorRechazo = true;
+        }
+      });
+
+      if (r['encuentro_cancelado'] == true) {
+        await _detenerGrabacionDeChunks();
+        _cachePropuestas.clear();
+        await _guardarPropuestasEnCache();
+        await _cargarMensajes(_conversacionIdActual, forzar: true);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                '❌ Rechazaste la grabación. El encuentro se canceló para ambos y el chat quedó cerrado.',
+              ),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      } else if (acepta) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              r['grabacion_habilitada'] == true
+                  ? '🎙️ Grabación habilitada. Ambos aceptaron.'
+                  : '🎙️ Aceptaste. Esperando que el otro usuario acepte.',
+            ),
+            backgroundColor: r['grabacion_habilitada'] == true
+                ? Colors.green
+                : Colors.blue,
+          ),
+        );
+        if (r['grabacion_habilitada'] == true) {
+          _iniciarGrabacionDeChunks();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _iniciarGrabacionDeChunks() async {
+    if (_grabandoChunks || !_grabacionHabilitada) return;
+
+    final permiso = await Permission.microphone.request();
+    if (permiso != PermissionStatus.granted) {
+      debugPrint('>>> 🎙️ Permiso de micrófono denegado');
+      return;
+    }
+
+    try {
+      _recorderConsentimiento ??= FlutterSoundRecorder();
+      await _recorderConsentimiento!.openRecorder();
+
+      _chunkNumero = 0;
+      _grabandoChunks = true;
+      _iniciarSiguienteChunk();
+
+      debugPrint('>>> 🎙️ Grabación de chunks INICIADA');
+    } catch (e) {
+      debugPrint('Error al iniciar chunks: $e');
+    }
+  }
+
+  void _iniciarSiguienteChunk() {
+    if (!_grabandoChunks) return;
+
+    _chunkNumero++;
+    _chunkInicio = DateTime.now();
+    _chunkPathActual =
+        'grabacion_${DateTime.now().millisecondsSinceEpoch}_$_chunkNumero.m4a';
+
+    _recorderConsentimiento!
+        .startRecorder(
+      toFile: _chunkPathActual,
+      codec: Codec.aacMP4,
+      bitRate: 32000,
+      sampleRate: 22050,
+    )
+        .then((_) {
+      _timerChunks = Timer(const Duration(seconds: 10), () async {
+        await _detenerYEnviarChunk();
+        if (_grabandoChunks) _iniciarSiguienteChunk();
+      });
+    }).catchError((e) {
+      debugPrint('Error iniciando chunk $_chunkNumero: $e');
+    });
+  }
+
+  Future<void> _detenerYEnviarChunk() async {
+    final duracion = _chunkInicio != null
+        ? DateTime.now().difference(_chunkInicio!).inMilliseconds
+        : 10000;
+    _timerChunks?.cancel();
+
+    try {
+      final resultPath = await _recorderConsentimiento?.stopRecorder();
+      if (resultPath == null || resultPath.isEmpty) return;
+
+      final f = File(resultPath);
+      if (await f.exists() && await f.length() > 1024) {
+        await _subirChunk(resultPath, duracion);
+      }
+      try {
+        await f.delete();
+      } catch (_) {}
+    } catch (e) {
+      debugPrint('Error cerrando chunk: $e');
+    }
+  }
+
+  Future<void> _subirChunk(String audioPath, int duracionMs) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final idToken = await user.getIdToken();
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/grabacion/chunk'),
+      );
+      if (idToken != null) {
+        request.headers['Authorization'] = 'Bearer $idToken';
+      }
+      request.fields['conversacion_id'] = _conversacionIdActual;
+      request.fields['usuario_id'] = user.uid;
+      request.fields['chunk_numero'] = _chunkNumero.toString();
+      request.fields['duracion_ms'] = duracionMs.toString();
+      request.files.add(await http.MultipartFile.fromPath('audio', audioPath));
+
+      final response = await request.send();
+      debugPrint('>>> 🎙️ Chunk $_chunkNumero subido: ${response.statusCode}');
+    } catch (e) {
+      debugPrint('Error subiendo chunk: $e');
+    }
+  }
+
+  Future<void> _detenerGrabacionDeChunks() async {
+    if (!_grabandoChunks) return;
+    _grabandoChunks = false;
+    _timerChunks?.cancel();
+    await _detenerYEnviarChunk();
+    await _recorderConsentimiento?.closeRecorder();
+    _recorderConsentimiento = null;
+    debugPrint('>>> 🎙️ Grabación de chunks DETENIDA');
+  }
+
+  Widget _buildPantallaRechazoGrabacion() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(
+            'assets/icon/icon.png',
+            width: 72,
+            height: 72,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.mic_off, size: 72, color: Colors.red),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            '🚫 Encuentro cancelado',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0A3D91),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'El encuentro se canceló porque una de las partes rechazó '
+            'la grabación de voz por seguridad.',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, color: Colors.red, size: 22),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'La grabación por seguridad es obligatoria para realizar '
+                    'encuentros presenciales a través de la app. Esta medida '
+                    'protege a ambos usuarios.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF7F1D1D)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                setState(() => _viendoMensajesEnTratoCerrado = true);
+              },
+              icon: const Icon(Icons.chat_bubble_outline, size: 22),
+              label: const Text(
+                'Ver mensajes del chat',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0A5BE0),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(26),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // 🌊 Recorte con ola para la parte baja del app bar
