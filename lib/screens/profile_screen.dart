@@ -61,6 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // 🎨 Estilo visual actual
   EstiloPerfil _estiloActual = EstiloPerfil.atardecer;
   bool _subiendoFoto = false;
+  bool _esVerificado = false;
 
 
 
@@ -78,6 +79,7 @@ void initState() {
 
   _cargarEstiloGuardado();
   _cargarFotoPerfil();
+  _cargarEstadoVerificado();
   _cargarMisProductos();
   _cargarFavoritos();
   _cargarCalificaciones();
@@ -634,6 +636,30 @@ Future<void> _cargarMasVistos() async {
       },
     );
   }
+
+Future<void> _cargarEstadoVerificado() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final idToken = await user.getIdToken();
+    final r = await http.get(
+      Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
+      headers: {
+        if (idToken != null) 'Authorization': 'Bearer $idToken',
+      },
+    );
+    if (r.statusCode == 200) {
+      final data = jsonDecode(r.body);
+      if (mounted) {
+        setState(() {
+          _esVerificado = data['verificado'] == true;
+        });
+      }
+    }
+  } catch (e) {
+    print('Error al cargar estado verificado: $e');
+  }
+}
 
 Future<void> _cargarFotoPerfil() async {
   final user = FirebaseAuth.instance.currentUser;
@@ -1209,13 +1235,30 @@ Future<void> _precargarImagenPerfil() async {
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              user?.displayName ?? 'Usuario',
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    user?.displayName ?? 'Usuario',
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (_esVerificado) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.verified,
+                    color: Color(0xFF1DA1F2),
+                    size: 24,
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 2),
             Text(
