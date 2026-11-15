@@ -9942,13 +9942,23 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
                 ventanaCerrada = minutosPasados > 20;
                 if (ventanaCerrada) {
                     console.log(`>>> ⏰ Ventana de grabación cerrada (${Math.round(minutosPasados)} min) para conv ${conversacion_id}`);
+                    console.log(`>>> 🔍 [ventanaCerrada] conv=${conversacion_id} minutosPasados=${Math.round(minutosPasados)} fecha_encuentro=${enc.rows[0].fecha_encuentro}`);
+                    console.log(`>>> 🔍 [ventanaCerrada] ANTES chat_bloqueado/cerrado_por_escudo/quiere_cerrar_trato:`);
+                    try {
+                        const antes = await pool.query(
+                            `SELECT chat_bloqueado, cerrado_por_escudo, quiere_cerrar_trato, grabacion_habilitada
+                             FROM conversaciones_app WHERE id = $1`,
+                            [conversacion_id]
+                        );
+                        console.log('>>> 🔍 [ventanaCerrada] ANTES:', JSON.stringify(antes.rows[0]));
+                    } catch (e) { console.error('>>> ❌ print ANTES:', e.message); }
 
+                    // 🔥 FIX: la ventana cerrada SOLO debe apagar la grabación.
+                    // NO debe tocar chat_bloqueado, cerrado_por_escudo ni quiere_cerrar_trato.
+                    // Tampoco debe borrar el escudo ni bajar escudo_verificado.
                     await pool.query(
                         `UPDATE conversaciones_app
-                         SET grabacion_habilitada = false,
-                             chat_bloqueado = false,
-                             cerrado_por_escudo = false,
-                             quiere_cerrar_trato = false
+                         SET grabacion_habilitada = false
                          WHERE id = $1`,
                         [conversacion_id]
                     );
@@ -9960,19 +9970,17 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
                          WHERE conversacion_id = $1`,
                         [conversacion_id]
                     );
-                    await pool.query(
-                        `DELETE FROM escudos_conversacion WHERE conversacion_id = $1`,
-                        [conversacion_id]
-                    );
-                    // 🔥 CLAVE: bajar escudo_verificado en la DB para que
-                    // /api/encuentro/agendado/:id devuelva false y Flutter
-                    // deje de mostrar el botón REC.
-                    await pool.query(
-                        `UPDATE encuentros_agendados
-                         SET escudo_verificado = false
-                         WHERE conversacion_id = $1`,
-                        [conversacion_id]
-                    );
+                    // 🔥 NO borrar escudos_conversacion ni tocar escudo_verificado acá.
+                    // Eso se limpia en: cancelar encuentro, no_presentado, o rechazo de grabación.
+
+                    try {
+                        const despues = await pool.query(
+                            `SELECT chat_bloqueado, cerrado_por_escudo, quiere_cerrar_trato, grabacion_habilitada
+                             FROM conversaciones_app WHERE id = $1`,
+                            [conversacion_id]
+                        );
+                        console.log('>>> 🔍 [ventanaCerrada] DESPUÉS:', JSON.stringify(despues.rows[0]));
+                    } catch (e) { console.error('>>> ❌ print DESPUÉS:', e.message); }
                 }
             }
         } catch (e) {
