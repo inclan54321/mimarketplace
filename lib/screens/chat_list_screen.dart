@@ -73,6 +73,10 @@ class _ChatListScreenState extends State<ChatListScreen>
         final List data = jsonDecode(response.body);
         final todas =
             data.map((item) => Map<String, dynamic>.from(item)).toList();
+        print('>>> 📋 CONVERSACIONES DEL SERVER: ${todas.length}');
+        for (final c in todas) {
+          print('>>> 📋 id=${c['id']} producto=${c['producto_nombre']} ultimo=${c['ultimo_mensaje']} ultima_fecha=${c['ultima_fecha']}');
+        }
 
         final conversacionesFiltradas = todas.where((chat) {
           final otroId = chat['usuario1_id'] == user.uid
@@ -544,6 +548,7 @@ class _ChatListScreenState extends State<ChatListScreen>
             _conversaciones
                 .removeWhere((c) => c['id'].toString() == conversacionId);
           });
+          print('>>> 🗑️ BORRADO LOCAL: $conversacionId. Quedan ${_conversaciones.length} conversaciones');
 
           // 🔥 BORRAR LA CACHÉ LOCAL DE ESTE CHAT
           final prefs = await SharedPreferences.getInstance();

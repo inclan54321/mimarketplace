@@ -2529,9 +2529,12 @@ app.get('/api/conversaciones/:usuario_id', verificarTokenFirebase, async (req, r
                  SELECT 1 FROM conversaciones_ocultas co
                  WHERE co.conversacion_id = c.id 
                    AND co.usuario_id = $1
-                   AND (
-                     SELECT MAX(fecha) FROM mensajes_app 
-                     WHERE conversacion_id = c.id
+                   AND COALESCE(
+                     (SELECT MAX(fecha) FROM mensajes_app 
+                      WHERE conversacion_id = c.id
+                        AND usuario_id != 'SYSTEM'
+                        AND usuario_id != $1),
+                     co.fecha_ocultado
                    ) <= co.fecha_ocultado
                )`,
             [usuario_id]

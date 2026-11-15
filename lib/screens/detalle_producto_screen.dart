@@ -74,6 +74,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     super.initState();
     _producto = widget.producto;
     _fotoVendedorLocal = widget.producto.vendedorFoto ?? '';
+    _recargarProductoFresco();
     _verificarFavorito();
     _cargarFotoVendedorSiFalta();
     _registrarVista();
@@ -90,6 +91,29 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _iniciarAutoScroll();
     });
+  }
+
+  Future<void> _recargarProductoFresco() async {
+    print('>>> RECARGANDO PRODUCTO FRESCO - id: ${_producto.id}');
+    try {
+      final r = await http.get(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/productos/${_producto.id}',
+        ),
+      );
+      print('>>> FRESCO status: ${r.statusCode}');
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        print('>>> FRESCO verificado: ${data['vendedor_verificado']}');
+        if (mounted) {
+          setState(() {
+            _producto = Producto.fromJson(data);
+          });
+        }
+      }
+    } catch (e) {
+      print('Error al recargar producto fresco: $e');
+    }
   }
 
   @override
@@ -251,6 +275,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
         likes: _isFavorito 
             ? _producto.likes + 1
             : _producto.likes - 1,
+        vendedorVerificado: _producto.vendedorVerificado,
       );
     });
   }
@@ -1317,15 +1342,45 @@ Future<void> _enviarDenuncia(String motivo) async {
                     onTap: () {
                       _mostrarOpcionesVendedor(context);
                     },
-                    child: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.grey,
-                      backgroundImage: _fotoVendedorLocal.isNotEmpty
-                          ? NetworkImage('$baseUrl$_fotoVendedorLocal')
-                          : null,
-                      child: _fotoVendedorLocal.isEmpty
-                          ? const Icon(Icons.person, color: Colors.white, size: 28)
-                          : null,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: Colors.grey,
+                          backgroundImage: _fotoVendedorLocal.isNotEmpty
+                              ? NetworkImage('$baseUrl$_fotoVendedorLocal')
+                              : null,
+                          child: _fotoVendedorLocal.isEmpty
+                              ? const Icon(Icons.person, color: Colors.white, size: 28)
+                              : null,
+                        ),
+                        if (_producto.vendedorVerificado)
+                          Positioned(
+                            bottom: -2,
+                            right: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF1DA1F2),
+                                border: Border.all(color: Colors.white, width: 1.2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF1DA1F2).withValues(alpha: 0.6),
+                                    blurRadius: 5,
+                                    spreadRadius: 0.8,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.verified,
+                                color: Colors.white,
+                                size: 10,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 8),

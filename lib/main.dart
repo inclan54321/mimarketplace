@@ -230,6 +230,36 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Escribí tu correo primero'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Te enviamos un correo a $email para restablecer tu contraseña'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.message}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _loginWithGoogle() async {
     setState(() => _isLoading = true);
     try {
@@ -308,7 +338,14 @@ class _LoginScreenState extends State<LoginScreen> {
               obscureText: true,
               style: const TextStyle(fontSize: 18),
             ),
-            const SizedBox(height: 30),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _resetPassword,
+                child: const Text('¿Olvidaste tu contraseña?'),
+              ),
+            ),
+            const SizedBox(height: 10),
             _isLoading
                 ? const CircularProgressIndicator()
                 : Column(

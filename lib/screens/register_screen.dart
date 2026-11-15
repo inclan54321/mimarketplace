@@ -189,7 +189,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await http.MultipartFile.fromPath('foto', _fotoPerfil!.path),
       );
       final response = await request.send();
+      final bodySubida = await response.stream.bytesToString();
       print('>>> Subida foto status: ${response.statusCode}');
+      print('>>> Subida foto body: $bodySubida');
     } catch (e) {
       print('>>> Error subiendo foto: $e');
       if (mounted) {
