@@ -199,7 +199,7 @@ class _ModalEscudoUberState extends State<ModalEscudoUber> {
                   // 🔥 BOTONES (según modo)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                    child: _esModoAceptar
+                    child: (_esModoAceptar && _paginaActual >= 6)
                         ? Row(
                             children: [
                               Expanded(

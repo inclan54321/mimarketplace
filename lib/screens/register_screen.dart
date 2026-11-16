@@ -192,6 +192,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final bodySubida = await response.stream.bytesToString();
       print('>>> Subida foto status: ${response.statusCode}');
       print('>>> Subida foto body: $bodySubida');
+
+      // 🔥 Si el endpoint de registro la rechazó, reintentar por el endpoint normal
+      if (response.statusCode != 200) {
+        final req2 = http.MultipartRequest(
+          'POST',
+          Uri.parse('https://mimarketplace-production.up.railway.app/api/perfil/foto'),
+        );
+        final token2 = await FirebaseAuth.instance.currentUser?.getIdToken();
+        if (token2 != null) {
+          req2.headers['Authorization'] = 'Bearer $token2';
+        }
+        req2.fields['uid'] = uid;
+        req2.files.add(
+          await http.MultipartFile.fromPath('foto', _fotoPerfil!.path),
+        );
+        final resp2 = await req2.send();
+        final body2 = await resp2.stream.bytesToString();
+        print('>>> Subida foto (fallback) status: ${resp2.statusCode}');
+        print('>>> Subida foto (fallback) body: $body2');
+      }
     } catch (e) {
       print('>>> Error subiendo foto: $e');
       if (mounted) {

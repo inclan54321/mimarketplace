@@ -290,7 +290,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
               builder: (_) => PantallaVerificacionEncuentro(encuentroId: encuentroId),
             ),
           ).then((_) async {
-            await _cargarEstadosVerificacion();
+            await _cargarEstadosVerificacion(silencioso: false);
           });
         },
         icon: const Icon(Icons.verified_user, size: 16),
@@ -330,7 +330,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
               builder: (_) => PantallaVerificarIdentidadOtro(encuentroId: encuentroId),
             ),
           ).then((_) async {
-            await _cargarEstadosVerificacion();
+            await _cargarEstadosVerificacion(silencioso: false);
           });
         },
         icon: const Icon(Icons.face_retouching_natural, size: 16),
@@ -391,6 +391,22 @@ class _AlertasScreenState extends State<AlertasScreen> {
         textStyle: const TextStyle(fontSize: 12),
       ),
     );
+  }
+
+  // 🔥 Solo la alerta MÁS RECIENTE de cada encuentro muestra el botón
+  bool _esAlertaMasRecienteParaEncuentro(int encuentroId, int index) {
+    for (int i = 0; i < _alertas.length; i++) {
+      final a = _alertas[i];
+      if ((a['encuentro_id'] ?? 0) != encuentroId) continue;
+      final tipo = a['tipo'] ?? '';
+      if (tipo == 'recordatorio_10m' ||
+          tipo == 'encuentro' ||
+          tipo == 'esperando_verificacion' ||
+          tipo == 'verificar_identidad') {
+        return i == index;
+      }
+    }
+    return false;
   }
 
   Future<void> _renovarProducto(Map<String, dynamic> alerta) async {
@@ -863,20 +879,28 @@ class _AlertasScreenState extends State<AlertasScreen> {
                                               encuentroId: (alerta['encuentro_id'] as num).toInt(),
                                             ),
                                           ),
-                                        // 🔥 BOTÓN DE VERIFICACIÓN FACIAL (solo 10min)
+                                        // 🔥 BOTÓN DE VERIFICACIÓN FACIAL (solo 10min, solo la alerta más reciente)
                                         if (tipo == 'recordatorio_10m' &&
-                                            (alerta['encuentro_id'] ?? 0) > 0)
+                                            (alerta['encuentro_id'] ?? 0) > 0 &&
+                                            _esAlertaMasRecienteParaEncuentro(
+                                              (alerta['encuentro_id'] as num).toInt(),
+                                              index,
+                                            ))
                                           Padding(
                                             padding: const EdgeInsets.only(top: 8),
                                             child: _buildBotonVerificacion(
                                               encuentroId: (alerta['encuentro_id'] as num).toInt(),
                                             ),
                                           ),
-                                        // 🔥 BOTÓN DE VERIFICACIÓN (para las otras alertas)
+                                        // 🔥 BOTÓN DE VERIFICACIÓN (solo la alerta más reciente)
                                         if ((tipo == 'encuentro' ||
                                                 tipo == 'esperando_verificacion' ||
                                                 tipo == 'verificar_identidad') &&
-                                            (alerta['encuentro_id'] ?? 0) > 0)
+                                            (alerta['encuentro_id'] ?? 0) > 0 &&
+                                            _esAlertaMasRecienteParaEncuentro(
+                                              (alerta['encuentro_id'] as num).toInt(),
+                                              index,
+                                            ))
                                           Padding(
                                             padding: const EdgeInsets.only(top: 8),
                                             child: _buildBotonVerificacion(
