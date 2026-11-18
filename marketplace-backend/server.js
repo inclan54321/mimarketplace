@@ -4080,16 +4080,23 @@ app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
     try {
         console.log('>>> GUARDANDO EN AGENDA:', req.body);
         
-        const { 
-            usuario_id, 
-            otro_usuario, 
-            producto_nombre, 
-            ultimo_mensaje, 
-            producto_imagen, 
-            conversacion_id,
-            productos_lista,     // 🔥 NUEVO
-            foto_perfil          // 🔥 NUEVO
-        } = req.body;
+      const { 
+    usuario_id, 
+    otro_usuario, 
+    producto_nombre, 
+    ultimo_mensaje, 
+    producto_imagen, 
+    conversacion_id,
+    productos_lista,
+    foto_perfil,
+    vendedor_id
+} = req.body;
+
+// Asegurar que la tabla tenga el identificador permanente del contacto
+await pool.query(`
+    ALTER TABLE agenda
+    ADD COLUMN IF NOT EXISTS vendedor_id TEXT
+`);
 
         // 🔥 Verificar que el usuario_id del body coincida con el del token
         if (usuario_id !== req.usuarioAutenticado) {
@@ -4150,18 +4157,28 @@ app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
             console.log('>>> ACTUALIZANDO fila', filaExistente.id);
             const result = await pool.query(
                 `UPDATE agenda 
-                 SET otro_usuario = $1, 
-                     producto_nombre = $2, 
-                     ultimo_mensaje = $3, 
-                     producto_imagen = $4, 
-                     productos_lista = $5,
-                     foto_perfil = $6,
-                     conversacion_id = $7,
-                     fecha_guardado = NOW()
-                 WHERE id = $8
-                 RETURNING *`,
-                [otro_usuario, producto_nombre, ultimo_mensaje, producto_imagen, 
-                 productosJson, foto_perfil, convIdNorm, filaExistente.id]
+ SET otro_usuario = $1, 
+     producto_nombre = $2, 
+     ultimo_mensaje = $3, 
+     producto_imagen = $4, 
+     productos_lista = $5,
+     foto_perfil = $6,
+     vendedor_id = $7,
+     conversacion_id = $8,
+     fecha_guardado = NOW()
+ WHERE id = $9
+ RETURNING *`,
+[
+    otro_usuario,
+    producto_nombre,
+    ultimo_mensaje,
+    producto_imagen,
+    productosJson,
+    foto_perfil,
+    vendedor_id || null,
+    convIdNorm,
+    filaExistente.id
+]
             );
             console.log('>>> ACTUALIZADO:', result.rows[0]);
             res.json(result.rows[0]);
@@ -4170,12 +4187,22 @@ app.post('/api/agenda', verificarTokenFirebase, async (req, res) => {
             console.log('>>> INSERTANDO NUEVO...');
             const result = await pool.query(
                 `INSERT INTO agenda 
-                 (usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, 
-                  producto_imagen, conversacion_id, productos_lista, foto_perfil)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                 RETURNING *`,
-                [usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, 
-                 producto_imagen, convIdNorm, productosJson, foto_perfil]
+ (usuario_id, otro_usuario, producto_nombre, ultimo_mensaje, 
+  producto_imagen, conversacion_id, productos_lista, foto_perfil,
+  vendedor_id)
+ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ RETURNING *`,
+[
+    usuario_id,
+    otro_usuario,
+    producto_nombre,
+    ultimo_mensaje,
+    producto_imagen,
+    convIdNorm,
+    productosJson,
+    foto_perfil,
+    vendedor_id || null
+]
             );
             console.log('>>> INSERTADO:', result.rows[0]);
             res.status(201).json(result.rows[0]);
@@ -4428,14 +4455,34 @@ app.get('/api/agenda/:usuario_id', verificarTokenFirebase, async (req, res) => {
             });
         }
 
-        const result = await pool.query(
-            `SELECT *, 
-                    productos_lista
-             FROM agenda 
-             WHERE usuario_id = $1 
-             ORDER BY fecha_guardado DESC`,
-            [usuario_id]
-        );
+     // Asegurar la columna para contactos independientes de los chats
+await pool.query(`
+    ALTER TABLE agenda
+    ADD COLUMN IF NOT EXISTS vendedor_id TEXT
+`);
+
+// Recuperar el UID de contactos guardados anteriormente,
+// siempre que su conversación todavía exista en la base de datos.
+await pool.query(`
+    UPDATE agenda a
+    SET vendedor_id = CASE
+        WHEN c.usuario1_id = a.usuario_id THEN c.usuario2_id
+        ELSE c.usuario1_id
+    END
+    FROM conversaciones_app c
+    WHERE a.usuario_id = $1
+      AND a.vendedor_id IS NULL
+      AND a.conversacion_id::text = c.id::text
+`, [usuario_id]);
+
+const result = await pool.query(
+    `SELECT *,
+            productos_lista
+     FROM agenda
+     WHERE usuario_id = $1
+     ORDER BY fecha_guardado DESC`,
+    [usuario_id]
+);
 
         console.log(`>>> Agenda - Registros encontrados: ${result.rows.length}`);
 

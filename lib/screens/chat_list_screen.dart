@@ -309,8 +309,9 @@ class _ChatListScreenState extends State<ChatListScreen>
               ? productos.first['productoImagen'] ?? ''
               : '',
           'conversacion_id': chat['conversacionId'] ?? '',
-          'productos_lista': productos,              // 🔥 NUEVO
-          'foto_perfil': chat['fotoPerfil'] ?? '',    // 🔥 NUEVO
+'productos_lista': productos,
+'foto_perfil': chat['fotoPerfil'] ?? '',
+'vendedor_id': otroUsuarioId,
         }),
       );
 
@@ -1409,27 +1410,32 @@ class _ChatListScreenState extends State<ChatListScreen>
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: GestureDetector(
-                     onTap: () {
-  final user = FirebaseAuth.instance.currentUser;
+                 onTap: () {
+  // Obtener directamente el UID permanente guardado en agenda
+  String vendedorId = item['vendedor_id']?.toString() ?? '';
 
-  // Buscar la conversación asociada al contacto
-  final chat = _conversaciones.firstWhere(
-    (c) => c['id']?.toString() == conversacionId,
-    orElse: () => <String, dynamic>{},
-  );
+  // Compatibilidad con contactos antiguos que todavía no tengan UID
+  if (vendedorId.isEmpty) {
+    final user = FirebaseAuth.instance.currentUser;
 
-  String vendedorId = '';
+    final chat = _conversaciones.firstWhere(
+      (c) => c['id']?.toString() == conversacionId,
+      orElse: () => <String, dynamic>{},
+    );
 
-  if (chat.isNotEmpty && user != null) {
-    vendedorId = chat['usuario1_id'] == user.uid
-        ? chat['usuario2_id']?.toString() ?? ''
-        : chat['usuario1_id']?.toString() ?? '';
+    if (chat.isNotEmpty && user != null) {
+      vendedorId = chat['usuario1_id'] == user.uid
+          ? chat['usuario2_id']?.toString() ?? ''
+          : chat['usuario1_id']?.toString() ?? '';
+    }
   }
 
   if (vendedorId.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('No se pudo identificar al vendedor.'),
+        content: Text(
+          'No se pudo identificar al vendedor. Volvé a guardar este contacto.',
+        ),
       ),
     );
     return;
