@@ -87,7 +87,7 @@ class NotificationService {
       if (navigator != null) {
         navigator.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => const MainScreen(initialIndex: 1),
+            builder: (_) => const AuthGate(initialIndex: 1),
           ),
           (route) => false,
         );

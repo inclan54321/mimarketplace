@@ -1401,6 +1401,10 @@ async function moderarProductoConGemini(nombre, descripcion, categoria, imagenPa
     try {
         console.log('>>> 🚨🚨🚨 DEEPSEEK LLAMADO DESDE moderarProductoConGemini');
         console.log('>>> 🚨 Producto:', nombre);
+        console.log('>>> 🔎 [COINCIDENCIA] Nombre:', nombre);
+        console.log('>>> 🔎 [COINCIDENCIA] Descripción:', descripcion);
+        console.log('>>> 🔎 [COINCIDENCIA] Categoría:', categoria);
+        console.log('>>> 🔎 [COINCIDENCIA] Imagen:', imagenPath);
         const fullPath = path.join(__dirname, imagenPath.replace(/^\//, ''));
         console.log('>>> Leyendo imagen desde:', fullPath);
         
@@ -1425,6 +1429,14 @@ async function moderarProductoConGemini(nombre, descripcion, categoria, imagenPa
 
 REGLAS PROHIBIDAS:
 - Celulares, consolas de videojuegos, armas, animales vivos, artículos eróticos, equipo médico
+
+REGLA DE COINCIDENCIA (OBLIGATORIA):
+- El NOMBRE y la DESCRIPCIÓN deben corresponder a lo que realmente se ve en la imagen.
+- Rechaza (aprobado: false) si el producto de la imagen es distinto al que dice el nombre o la descripción (ejemplo: el nombre dice "bicicleta" y la foto muestra una silla).
+- Rechaza si la descripción menciona características, marca o modelo que claramente no corresponden al objeto de la foto.
+- Rechaza si el nombre o la descripción no tienen relación con un producto en venta (texto sin sentido, insultos, solo números, spam).
+- Pequeñas diferencias de detalle (color exacto, ángulo) NO son motivo de rechazo.
+- Si rechazas por falta de coincidencia, en "motivo" explica brevemente qué se ve en la imagen y qué dice el título o la descripción.
 
 DATOS:
 Nombre: ${nombre}
@@ -4590,9 +4602,110 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO (sin texto adicional):
         return { esIA: false, confianza: 0 };
     }
 }
+// ===== ANALIZAR AUDIO DEL PRODUCTO CON GEMINI =====
+async function analizarAudioConGemini(audioPath, nombre, descripcion, categoria) {
+    try {
+        console.log('>>> 🎤 [AUDIO IA] Inicio. Archivo:', audioPath);
+        console.log('>>> 🎤 [AUDIO IA] Producto:', nombre, '| Categoría:', categoria);
+
+        if (!fs.existsSync(audioPath)) {
+            console.log('>>> 🎤 [AUDIO IA] ⚠️ El archivo no existe, se aprueba por defecto');
+            return { aprobado: true, motivo: '' };
+        }
+
+        const stats = fs.statSync(audioPath);
+        console.log('>>> 🎤 [AUDIO IA] Tamaño (KB):', Math.round(stats.size / 1024));
+        if (stats.size > 18 * 1024 * 1024) {
+            console.log('>>> 🎤 [AUDIO IA] ❌ Audio demasiado grande');
+            return { aprobado: false, motivo: 'El audio es demasiado largo. Graba uno más corto.' };
+        }
+
+        const ext = path.extname(audioPath).toLowerCase();
+        let mimeType = 'audio/mp4'; // .m4a
+        if (ext === '.mp3') mimeType = 'audio/mpeg';
+        if (ext === '.wav') mimeType = 'audio/wav';
+        if (ext === '.aac') mimeType = 'audio/aac';
+        if (ext === '.ogg') mimeType = 'audio/ogg';
+        if (ext === '.flac') mimeType = 'audio/flac';
+        console.log('>>> 🎤 [AUDIO IA] MIME:', mimeType);
+
+        const GEMINI_KEY = process.env.GEMINI_API_KEY;
+        if (!GEMINI_KEY) {
+            console.log('>>> 🎤 [AUDIO IA] ⚠️ Falta GEMINI_API_KEY, se aprueba por defecto');
+            return { aprobado: true, motivo: '' };
+        }
+
+        const audioBase64 = fs.readFileSync(audioPath).toString('base64');
+
+        const prompt = `Eres un moderador de un marketplace en Costa Rica. Escucha este audio que el vendedor grabó para su producto.
+
+DATOS DEL PRODUCTO:
+Nombre: ${nombre}
+Descripción: ${descripcion}
+Categoría: ${categoria}
+
+El audio SOLO puede hablar del producto: qué es, estado, características, medidas, accesorios, uso, motivo de venta o precio.
+
+RECHAZA (aprobado: false) si el audio:
+- Menciona números de teléfono, WhatsApp, correos, redes sociales o enlaces.
+- Pide o propone pagar o negociar fuera de la aplicación (SINPE, transferencias, depósitos).
+- Habla de otros productos que no son el anunciado.
+- Contiene insultos, contenido sexual, político, amenazas o publicidad ajena.
+- No habla del producto (conversación personal, música, ruido, silencio o no se entiende nada).
+
+Si el audio habla del producto aunque sea de forma breve o informal, APRUEBA.
+
+Responde ÚNICAMENTE con este JSON:
+{"aprobado": true/false, "motivo": "explicación breve en español si es rechazado, vacío si es aprobado", "resumen": "qué dice el audio en una frase"}`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+        console.log('>>> 🎤 [AUDIO IA] Enviando a Gemini...');
+
+        const response = await axios.post(url, {
+            contents: [{
+                parts: [
+                    { text: prompt },
+                    { inline_data: { mime_type: mimeType, data: audioBase64 } }
+                ]
+            }],
+            generationConfig: { temperature: 0, responseMimeType: 'application/json' }
+        }, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 60000,
+            maxBodyLength: Infinity,
+            maxContentLength: Infinity
+        });
+
+        const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        console.log('>>> 🎤 [AUDIO IA] Respuesta cruda de Gemini:', text);
+
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            const r = JSON.parse(jsonMatch[0]);
+            console.log('>>> 🎤 [AUDIO IA] Resumen:', r.resumen);
+            console.log('>>> 🎤 [AUDIO IA] Veredicto:', r.aprobado === true ? 'APROBADO ✅' : 'RECHAZADO ❌', '| Motivo:', r.motivo);
+            return {
+                aprobado: r.aprobado === true,
+                motivo: r.motivo || 'El audio no cumple las reglas de publicación'
+            };
+        }
+
+        console.log('>>> 🎤 [AUDIO IA] ⚠️ No se encontró JSON, se aprueba por defecto');
+        return { aprobado: true, motivo: '' };
+    } catch (error) {
+        console.error('>>> 🎤 [AUDIO IA] ❌ Error:', error.message);
+        if (error.response) {
+            console.error('>>> 🎤 [AUDIO IA] Detalles:', error.response.status, JSON.stringify(error.response.data));
+        }
+        // Si Gemini falla, no bloqueamos al vendedor.
+        return { aprobado: true, motivo: '' };
+    }
+}
+
 // ===== EDITAR PRODUCTO (CON IMAGEN) =====
 app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
     { name: 'imagen', maxCount: 1 },
+    { name: 'imagenes_nuevas', maxCount: 5 },
     { name: 'audio', maxCount: 1 }
 ]), async (req, res) => {
     try {
@@ -4601,6 +4714,7 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
         
         const imagenRecibida = req.files && req.files['imagen'] ? req.files['imagen'][0] : null;
         const audioRecibido = req.files && req.files['audio'] ? req.files['audio'][0] : null;
+        let audioParaAnalizar = null;
 
         console.log('>>> EDITANDO PRODUCTO ID:', id);
         console.log('>>> NOMBRE:', nombre);
@@ -4701,6 +4815,59 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
             paramIndex++;
         }
 
+        // 🔥 3b. Imágenes reales: conservar las elegidas + agregar las nuevas
+        if (req.body.imagenes_actualizadas === '1') {
+            const nuevasImgs = req.files && req.files['imagenes_nuevas'] ? req.files['imagenes_nuevas'] : [];
+            let conservar = [];
+            try { conservar = JSON.parse(req.body.imagenes_conservar || '[]'); } catch (e) {}
+            let actuales = [];
+            try { actuales = JSON.parse(productoActual.rows[0].imagenes_reales || '[]'); } catch (e) {}
+
+            // Solo se pueden conservar imágenes que ya pertenecían al producto
+            const permitidas = new Set([productoActual.rows[0].imagen_url, ...actuales].filter(Boolean));
+            conservar = conservar.filter(u => permitidas.has(u));
+
+            const finalList = [
+                ...conservar,
+                ...nuevasImgs.map(f => `/uploads/${f.filename}`)
+            ].slice(0, 5);
+            console.log('>>> 🖼️ Conservar:', conservar.length, '| Nuevas:', nuevasImgs.length, '| Final:', finalList);
+
+            if (finalList.length > 0) {
+                const principal = finalList[0];
+                const resto = finalList.slice(1);
+
+                query += `imagen_url = $${paramIndex}, `;
+                params.push(principal);
+                paramIndex++;
+
+                query += `imagenes_reales = $${paramIndex}, `;
+                params.push(JSON.stringify(resto));
+                paramIndex++;
+
+                // Miniatura de la nueva imagen principal
+                if (principal !== productoActual.rows[0].imagen_url) {
+                    try {
+                        const ext = path.extname(principal);
+                        const nombreBase = path.basename(principal, ext);
+                        const miniRel = `uploads/miniaturas/${nombreBase}_thumb${ext}`;
+                        if (!fs.existsSync('uploads/miniaturas')) {
+                            fs.mkdirSync('uploads/miniaturas', { recursive: true });
+                        }
+                        await sharp(path.join(__dirname, principal.replace(/^\//, '')))
+                            .resize(300, 300, { fit: 'cover' })
+                            .jpeg({ quality: 70 })
+                            .toFile(path.join(__dirname, miniRel));
+                        query += `imagen_miniatura = $${paramIndex}, `;
+                        params.push(`/${miniRel}`);
+                        paramIndex++;
+                    } catch (e) {
+                        console.error('>>> ⚠️ Error generando miniatura:', e.message);
+                    }
+                }
+            }
+        }
+
         // 🔥 4. Si hay audio nuevo, moverlo a uploads/audios/ y guardarlo
         if (audioRecibido) {
             try {
@@ -4715,6 +4882,8 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
                 console.error('>>> ❌ Error moviendo audio:', e.message);
             }
             const audio_url = `/uploads/audios/${audioRecibido.filename}`;
+            audioParaAnalizar = path.join(__dirname, 'uploads/audios', audioRecibido.filename);
+            console.log('>>> 🎤 [AUDIO IA] Audio recibido, quedará en cola de análisis:', audioParaAnalizar);
             query += `audio_url = $${paramIndex}, `;
             params.push(audio_url);
             paramIndex++;
@@ -4736,6 +4905,46 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
         }
         
         console.log('>>> PRODUCTO ACTUALIZADO:', result.rows[0]);
+
+        // 🔥 ANALIZAR EL AUDIO EN SEGUNDO PLANO
+        if (audioParaAnalizar) {
+            const prod = result.rows[0];
+            const audioUrlGuardado = prod.audio_url;
+            (async () => {
+                try {
+                    const v = await analizarAudioConGemini(
+                        audioParaAnalizar,
+                        prod.nombre,
+                        prod.descripcion,
+                        prod.categoria
+                    );
+
+                    if (!v.aprobado) {
+                        console.log('>>> 🎤 [AUDIO IA] Quitando audio rechazado del producto', prod.id);
+                        await pool.query(
+                            'UPDATE productos_app SET audio_url = NULL WHERE id = $1 AND audio_url = $2',
+                            [prod.id, audioUrlGuardado]
+                        );
+                        try { fs.unlinkSync(audioParaAnalizar); } catch (_) {}
+                        await pool.query(
+                            `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha)
+                             VALUES ($1, $2, $3, $4, NOW())`,
+                            [
+                                prod.vendedor_id,
+                                prod.id,
+                                `🎤 El audio de tu producto "${prod.nombre}" fue rechazado: ${v.motivo}`,
+                                'error'
+                            ]
+                        );
+                        console.log('>>> 🎤 [AUDIO IA] Alerta de rechazo creada');
+                    } else {
+                        console.log('>>> 🎤 [AUDIO IA] Audio aprobado para producto', prod.id);
+                    }
+                } catch (e) {
+                    console.error('>>> 🎤 [AUDIO IA] ❌ Error en segundo plano:', e.message);
+                }
+            })();
+        }
         res.json(result.rows[0]);
         
     } catch (error) {

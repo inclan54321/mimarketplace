@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'chat_screen.dart';
+import 'portafolio_vendedor_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:mimarketplace/l10n/generated/app_localizations.dart';
@@ -1408,48 +1409,43 @@ class _ChatListScreenState extends State<ChatListScreen>
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: GestureDetector(
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(
-                                conversacionId: conversacionId,
-                                otroUsuario: otroUsuario,
-                                otroUsuarioId: '', // 🔥 no está en la respuesta
-                                nombreProducto: primerProducto[
-                                        'productoNombre'] ??
-                                    'Producto',
-                                productoImagen:
-                                    primerProducto['productoImagen'] ?? '',
-                                productoId: primerProducto['productoId']
-                                        ?.toString() ??
-                                    '',
-                                productoPrecio: primerProducto[
-                                        'productoPrecio']
-                                        ?.toString() ??
-                                    '0',
-                                productoCategoria: primerProducto[
-                                        'productoCategoria'] ??
-                                    '',
-                                productoDescripcion: primerProducto[
-                                        'productoDescripcion'] ??
-                                    '',
-                                productoDireccion: primerProducto[
-                                        'productoDireccion'] ??
-                                    '',
-                                productoImagenesReales: primerProducto[
-                                        'productoImagenesReales'] ??
-                                    '',
-                                fotoPerfil: fotoPerfil,
-                              ),
-                            ),
-                          );
+                     onTap: () {
+  final user = FirebaseAuth.instance.currentUser;
 
-                          // 🔥 AL VOLVER, RECARGAR
-                          if (mounted) {
-                            await _cargarConversaciones();
-                          }
-                        },
+  // Buscar la conversación asociada al contacto
+  final chat = _conversaciones.firstWhere(
+    (c) => c['id']?.toString() == conversacionId,
+    orElse: () => <String, dynamic>{},
+  );
+
+  String vendedorId = '';
+
+  if (chat.isNotEmpty && user != null) {
+    vendedorId = chat['usuario1_id'] == user.uid
+        ? chat['usuario2_id']?.toString() ?? ''
+        : chat['usuario1_id']?.toString() ?? '';
+  }
+
+  if (vendedorId.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No se pudo identificar al vendedor.'),
+      ),
+    );
+    return;
+  }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => PortafolioVendedorScreen(
+        vendedorId: vendedorId,
+        vendedorNombre: otroUsuario.toString(),
+        vendedorFoto: fotoPerfil.toString(),
+      ),
+    ),
+  );
+},
                         child: Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(

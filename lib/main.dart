@@ -3,8 +3,7 @@ import 'l10n/generated/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui'; // 🔥 BackdropFilter + ImageFilter para efecto cristal
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:flutter/foundation.dart'; // 👈 Agregar para usar kDebugMode
+// 👈 Agregar para usar kDebugMode
 import 'services/notification_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -175,7 +174,8 @@ class MyApp extends StatelessWidget {
 
 // ============ CONTROL DE AUTENTICACIÓN ============
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  final int initialIndex;
+  const AuthGate({super.key, this.initialIndex = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +183,7 @@ class AuthGate extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          return const MainScreen();
+          return MainScreen(initialIndex: initialIndex);
         } else {
           return const LoginScreen();
         }

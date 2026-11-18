@@ -29,7 +29,11 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
   late TextEditingController _precioController;
   late TextEditingController _descripcionController;
   bool _guardando = false;
-  XFile? _nuevaImagen;
+  XFile? _nuevaImagen; // (ya no se usa)
+  List<String> _imagenesExistentes = [];
+  final List<XFile> _imagenesNuevas = [];
+  bool _imagenesModificadas = false;
+  static const int _maxImagenes = 5;
 
   // 🔥 AUDIO
   FlutterSoundRecorder? _audioRecorder;
@@ -53,16 +57,151 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
     _audioRecorder = FlutterSoundRecorder();
     _audioRecorder!.openRecorder();
     _audioRemotoUrl = widget.producto.audioUrl ?? '';
+
+    // 🔥 Todas las imágenes reales = imagen principal + imagenes_reales (SIN la destacada)
+    final destacada = (widget.producto.imagenDestacada ?? '').toString();
+    final lista = <String>[];
+    final principal = (widget.producto.imagenUrl ?? '').toString();
+    if (principal.isNotEmpty) lista.add(principal);
+    try {
+      final raw = widget.producto.imagenesReales;
+      final dynamic parsed = raw is String
+          ? (raw.isEmpty ? [] : jsonDecode(raw))
+          : raw;
+      if (parsed is List) {
+        for (final u in parsed) {
+          final s = u.toString();
+          if (s.isNotEmpty && !lista.contains(s)) lista.add(s);
+        }
+      }
+    } catch (e) {
+      debugPrint('>>> ⚠️ No se pudo leer imagenesReales: $e');
+    }
+    lista.removeWhere((u) => u == destacada);
+    _imagenesExistentes = lista;
+    debugPrint('>>> 🖼️ Imágenes cargadas para editar: $_imagenesExistentes (destacada excluida: $destacada)');
   }
 
   Future<void> _seleccionarImagen() async {
-    final picker = ImagePicker();
-    final imagen = await picker.pickImage(source: ImageSource.gallery);
-    if (imagen != null) {
-      setState(() {
-        _nuevaImagen = imagen;
-      });
+    final total = _imagenesExistentes.length + _imagenesNuevas.length;
+    if (total >= _maxImagenes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Máximo 5 imágenes'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
     }
+    final picker = ImagePicker();
+    final elegidas = await picker.pickMultiImage(
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 70,
+    );
+    if (elegidas.isEmpty) return;
+    final cupo = _maxImagenes - total;
+    setState(() {
+      _imagenesNuevas.addAll(elegidas.take(cupo));
+      _imagenesModificadas = true;
+    });
+    debugPrint('>>> 🖼️ Nuevas: ${_imagenesNuevas.length} | Existentes: ${_imagenesExistentes.length}');
+  }
+
+  Widget _buildGaleriaImagenes(String baseUrl) {
+    Widget miniatura({required Widget imagen, required VoidCallback onQuitar}) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(width: 90, height: 90, child: imagen),
+          ),
+          Positioned(
+            top: -6,
+            right: -6,
+            child: GestureDetector(
+              onTap: onQuitar,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                    color: Colors.red, shape: BoxShape.circle),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final total = _imagenesExistentes.length + _imagenesNuevas.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Imágenes del producto ($total/$_maxImagenes)',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'La imagen destacada no se edita aquí.',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final url in _imagenesExistentes)
+              miniatura(
+                imagen: Image.network(
+                  '$baseUrl$url',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  ),
+                ),
+                onQuitar: () => setState(() {
+                  _imagenesExistentes.remove(url);
+                  _imagenesModificadas = true;
+                }),
+              ),
+            for (final img in _imagenesNuevas)
+              miniatura(
+                imagen: Image.file(File(img.path), fit: BoxFit.cover),
+                onQuitar: () => setState(() {
+                  _imagenesNuevas.remove(img);
+                  _imagenesModificadas = true;
+                }),
+              ),
+            if (total < _maxImagenes)
+              GestureDetector(
+                onTap: _seleccionarImagen,
+                child: Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF93C5FD)),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, size: 30, color: Color(0xFF3B82F6)),
+                      Text('Agregar',
+                          style: TextStyle(
+                              fontSize: 11, color: Color(0xFF1E40AF))),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
   }
 
   // ============================================================
@@ -183,6 +322,16 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
   Future<void> _guardarCambios() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_imagenesExistentes.length + _imagenesNuevas.length == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ El producto debe tener al menos 1 imagen'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _guardando = true);
 
     try {
@@ -215,13 +364,15 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
       request.fields['descripcion'] = _descripcionController.text;
       request.fields['vendedor_id'] = user.uid;
 
-      if (_nuevaImagen != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'imagen',
-            _nuevaImagen!.path,
-          ),
-        );
+      if (_imagenesModificadas) {
+        request.fields['imagenes_actualizadas'] = '1';
+        request.fields['imagenes_conservar'] = jsonEncode(_imagenesExistentes);
+        for (final img in _imagenesNuevas) {
+          request.files.add(
+            await http.MultipartFile.fromPath('imagenes_nuevas', img.path),
+          );
+        }
+        print('>>> 🖼️ Enviando conservar=${_imagenesExistentes.length} nuevas=${_imagenesNuevas.length}');
       }
 
       // 🔥 Enviar audio si hay uno grabado (solo si el archivo existe)
@@ -302,6 +453,9 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              _buildGaleriaImagenes(baseUrl),
+              const SizedBox(height: 8),
+              if (false)
               Container(
                 height: 150,
                 width: double.infinity,
@@ -331,6 +485,7 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
                     : null,
               ),
               const SizedBox(height: 8),
+              if (false)
               ElevatedButton.icon(
                 onPressed: _seleccionarImagen,
                 icon: const Icon(Icons.photo_library),
