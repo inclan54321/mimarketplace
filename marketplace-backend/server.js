@@ -1495,15 +1495,22 @@ NO agregues texto adicional. SOLO el JSON.`;
             }
         }
 
-        console.log('>>> ⚠️ No se encontró JSON, aprobando por defecto');
-        return { aprobado: true, motivo: '' };
+        console.log('>>> ❌ No se encontró JSON válido. Edición bloqueada.');
+return {
+    aprobado: false,
+    motivo: 'No fue posible verificar el contenido. Inténtalo nuevamente.'
+};
 
     } catch (error) {
         console.error('Error en moderarProductoConGemini:', error.message);
-        if (error.response) {
-            console.error('>>> Detalles:', error.response.status, error.response.data);
-        }
-        return { aprobado: true, motivo: '' };
+if (error.response) {
+    console.error('>>> Detalles:', error.response.status, error.response.data);
+}
+
+return {
+    aprobado: false,
+    motivo: 'No se pudo completar la moderación. Inténtalo nuevamente.'
+};
     }
 }
 async function _verificarYPedirCalificacion(conversacionId) {
@@ -4811,7 +4818,11 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
         }
 
         console.log('>>> ✅ Producto pertenece al usuario, procediendo a editar');
-        
+
+// 🔥 IMAGEN QUE SE UTILIZARÁ PARA MODERAR LA EDICIÓN
+let imagenParaModerar = productoActual.rows[0].imagen_url;
+
+// 2. CONSTRUIR QUERY DINÁMICA        
         // 2. CONSTRUIR QUERY DINÁMICA
         let query = 'UPDATE productos_app SET ';
         const params = [];
@@ -4856,11 +4867,15 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
         
         // 3. Si hay nueva imagen, actualizarla
         if (imagenRecibida) {
-            const imagen_url = `/uploads/${imagenRecibida.filename}`;
-            query += `imagen_url = $${paramIndex}, `;
-            params.push(imagen_url);
-            paramIndex++;
-        }
+    const imagen_url = `/uploads/${imagenRecibida.filename}`;
+
+    // La IA revisará la nueva imagen
+    imagenParaModerar = imagen_url;
+
+    query += `imagen_url = $${paramIndex}, `;
+    params.push(imagen_url);
+    paramIndex++;
+}
 
         // 🔥 3b. Imágenes reales: conservar las elegidas + agregar las nuevas
         if (req.body.imagenes_actualizadas === '1') {
@@ -4882,7 +4897,10 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
 
             if (finalList.length > 0) {
                 const principal = finalList[0];
-                const resto = finalList.slice(1);
+const resto = finalList.slice(1);
+
+// La IA revisará la imagen principal definitiva
+imagenParaModerar = principal;
 
                 query += `imagen_url = $${paramIndex}, `;
                 params.push(principal);
@@ -4915,8 +4933,64 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
             }
         }
 
-        // 🔥 4. Si hay audio nuevo, moverlo a uploads/audios/ y guardarlo
-        if (audioRecibido) {
+        // ============================================================
+// 🔥 MODERAR TODA LA INFORMACIÓN ANTES DE GUARDAR
+// ============================================================
+
+const nombreModeracion =
+    nombre !== undefined && nombre !== ''
+        ? nombre
+        : productoActual.rows[0].nombre;
+
+const descripcionModeracion =
+    descripcion !== undefined
+        ? descripcion
+        : productoActual.rows[0].descripcion;
+
+const categoriaModeracion =
+    categoria !== undefined && categoria !== ''
+        ? categoria
+        : productoActual.rows[0].categoria;
+
+console.log('>>> 🔍 MODERANDO EDICIÓN DEL PRODUCTO:', id);
+
+const resultadoModeracion = await moderarProductoConGemini(
+    nombreModeracion,
+    descripcionModeracion,
+    categoriaModeracion,
+    imagenParaModerar
+);
+
+if (!resultadoModeracion.aprobado) {
+
+    console.log('>>> ❌ EDICIÓN RECHAZADA:', resultadoModeracion.motivo);
+
+    // Eliminar los archivos nuevos que se habían subido.
+    if (req.files) {
+        for (const grupo of Object.values(req.files)) {
+            for (const archivo of grupo) {
+                try {
+                    if (fs.existsSync(archivo.path)) {
+                        fs.unlinkSync(archivo.path);
+                    }
+                } catch (e) {
+                    console.error('Error eliminando archivo rechazado:', e.message);
+                }
+            }
+        }
+    }
+
+    return res.status(422).json({
+        aprobado: false,
+        error: 'La IA rechazó los cambios del producto.',
+        motivo: resultadoModeracion.motivo
+    });
+}
+
+console.log('>>> ✅ EDICIÓN APROBADA POR LA IA. CONTINUANDO CON EL GUARDADO.');
+
+// 🔥 4. Si hay audio nuevo, moverlo a uploads/audios/ y guardarlo
+if (audioRecibido) {
             try {
                 const dirAudios = path.join(__dirname, 'uploads/audios');
                 if (!fs.existsSync(dirAudios)) {
@@ -4936,8 +5010,13 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
             paramIndex++;
         }
         
-        // Quitar la última coma y espacio
-        query = query.slice(0, -2);
+        // 🔥 MODERACIÓN OBLIGATORIA AL EDITAR PRODUCTO
+// Todo cambio vuelve a revisión de IA.
+query += `estado_moderacion = 'pendiente', `;
+query += `motivo_rechazo = NULL, `;
+
+// Quitar la última coma y espacio
+query = query.slice(0, -2);
         query += ` WHERE id = $${paramIndex} RETURNING *`;
         params.push(id);
         
@@ -4953,7 +5032,94 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
         
         console.log('>>> PRODUCTO ACTUALIZADO:', result.rows[0]);
 
-        // 🔥 ANALIZAR EL AUDIO EN SEGUNDO PLANO
+// ============================================================
+// 🔥 MODERACIÓN DEL PRODUCTO EDITADO CON IA
+// ============================================================
+const productoModerado = result.rows[0];
+
+(async () => {
+    try {
+        const imagenModeracion =
+            productoModerado.imagen_url ||
+            productoActual.rows[0].imagen_url;
+
+        console.log('>>> 🔎 MODERANDO PRODUCTO EDITADO:', productoModerado.id);
+
+        const resultadoModeracion = await moderarProductoConGemini(
+            productoModerado.nombre,
+            productoModerado.descripcion,
+            productoModerado.categoria,
+            imagenModeracion
+        );
+
+        if (resultadoModeracion.aprobado) {
+
+            await pool.query(
+                `UPDATE productos_app
+                 SET estado_moderacion = 'aprobado',
+                     motivo_rechazo = NULL
+                 WHERE id = $1`,
+                [productoModerado.id]
+            );
+
+            console.log('>>> ✅ PRODUCTO EDITADO APROBADO:', productoModerado.id);
+
+            await pool.query(
+                `INSERT INTO alertas
+                 (usuario_id, producto_id, mensaje, tipo, fecha)
+                 VALUES ($1, $2, $3, 'exito', NOW())`,
+                [
+                    productoModerado.vendedor_id,
+                    productoModerado.id,
+                    `✅ Los cambios de tu producto "${productoModerado.nombre}" fueron aprobados.`
+                ]
+            );
+
+        } else {
+
+            await pool.query(
+                `UPDATE productos_app
+                 SET estado_moderacion = 'rechazado',
+                     motivo_rechazo = $1
+                 WHERE id = $2`,
+                [
+                    resultadoModeracion.motivo,
+                    productoModerado.id
+                ]
+            );
+
+            console.log(
+                '>>> ❌ PRODUCTO EDITADO RECHAZADO:',
+                productoModerado.id,
+                resultadoModeracion.motivo
+            );
+
+            await pool.query(
+                `INSERT INTO alertas
+                 (usuario_id, producto_id, mensaje, tipo, fecha)
+                 VALUES ($1, $2, $3, 'error', NOW())`,
+                [
+                    productoModerado.vendedor_id,
+                    productoModerado.id,
+                    `❌ Los cambios de tu producto "${productoModerado.nombre}" fueron rechazados: ${resultadoModeracion.motivo}`
+                ]
+            );
+        }
+
+    } catch (error) {
+        console.error('>>> ❌ ERROR MODERANDO PRODUCTO EDITADO:', error);
+
+        // No aprobar automáticamente si ocurre un error inesperado
+        await pool.query(
+            `UPDATE productos_app
+             SET estado_moderacion = 'pendiente'
+             WHERE id = $1`,
+            [productoModerado.id]
+        ).catch(e => console.error('Error manteniendo pendiente:', e));
+    }
+})();
+
+// 🔥 ANALIZAR EL AUDIO EN SEGUNDO PLANO
         if (audioParaAnalizar) {
             const prod = result.rows[0];
             const audioUrlGuardado = prod.audio_url;

@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/producto.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class EditarProductoScreen extends StatefulWidget {
   final Producto producto;
@@ -29,6 +30,7 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
   late TextEditingController _precioController;
   late TextEditingController _descripcionController;
   bool _guardando = false;
+bool _anuncioEnCurso = false;
   XFile? _nuevaImagen; // (ya no se usa)
   List<String> _imagenesExistentes = [];
   final List<XFile> _imagenesNuevas = [];
@@ -317,9 +319,114 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
   }
 
   // ============================================================
-  // 🔥 GUARDAR CAMBIOS
-  // ============================================================
-  Future<void> _guardarCambios() async {
+// 🔥 ANUNCIO RECOMPENSADO ANTES DE GUARDAR
+// ============================================================
+Future<void> _mostrarAnuncioYGuardar() async {
+
+  if (_guardando || _anuncioEnCurso) return;
+
+  if (!_formKey.currentState!.validate()) return;
+
+  if (_imagenesExistentes.length + _imagenesNuevas.length == 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('⚠️ El producto debe tener al menos 1 imagen'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
+  }
+
+  setState(() => _anuncioEnCurso = true);
+
+  final adUnitId = Platform.isAndroid
+      ? 'ca-app-pub-3940256099942544/5224354917'
+      : 'ca-app-pub-3940256099942544/1712485313';
+
+  RewardedAd.load(
+    adUnitId: adUnitId,
+    request: const AdRequest(),
+
+    rewardedAdLoadCallback: RewardedAdLoadCallback(
+
+      onAdLoaded: (RewardedAd ad) {
+
+        bool anuncioCompletado = false;
+
+        ad.fullScreenContentCallback = FullScreenContentCallback(
+
+          onAdDismissedFullScreenContent: (ad) {
+            ad.dispose();
+
+            if (!mounted) return;
+
+            setState(() => _anuncioEnCurso = false);
+
+            if (!anuncioCompletado) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Debes completar el video para guardar los cambios.'
+                  ),
+                ),
+              );
+            }
+          },
+
+          onAdFailedToShowFullScreenContent: (ad, error) {
+            ad.dispose();
+
+            if (!mounted) return;
+
+            setState(() => _anuncioEnCurso = false);
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No se pudo mostrar el anuncio. Intenta nuevamente.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          },
+        );
+
+        ad.show(
+          onUserEarnedReward: (ad, reward) {
+
+            anuncioCompletado = true;
+
+            if (!mounted) return;
+
+            setState(() => _anuncioEnCurso = false);
+
+            // 🔥 SOLO GUARDA CUANDO SE COMPLETA EL VIDEO
+            _guardarCambios();
+          },
+        );
+      },
+
+      onAdFailedToLoad: (error) {
+
+        if (!mounted) return;
+
+        setState(() => _anuncioEnCurso = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No hay anuncios disponibles. Intenta nuevamente.'
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      },
+    ),
+  );
+}
+
+// ============================================================
+// 🔥 GUARDAR CAMBIOS
+// ============================================================
+Future<void> _guardarCambios() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_imagenesExistentes.length + _imagenesNuevas.length == 0) {
@@ -420,9 +527,22 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
         );
         Navigator.pop(context, true);
       } else {
-        final errBody = await response.stream.bytesToString();
-        print('>>> ❌ Error body: $errBody');
-        throw Exception('Error al actualizar producto (${response.statusCode})');
+      final errBody = await response.stream.bytesToString();
+print('>>> ❌ Error body: $errBody');
+
+String mensajeError = 'Error al actualizar producto';
+
+try {
+  final errorData = jsonDecode(errBody);
+
+  if (errorData['motivo'] != null) {
+    mensajeError = 'La IA rechazó los cambios: ${errorData['motivo']}';
+  } else if (errorData['error'] != null) {
+    mensajeError = errorData['error'];
+  }
+} catch (_) {}
+
+throw Exception(mensajeError);
       }
     } catch (e) {
       print('>>> ❌ ERROR AL ACTUALIZAR: $e');
@@ -641,7 +761,9 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _guardando ? null : _guardarCambios,
+                  onPressed: (_guardando || _anuncioEnCurso)
+    ? null
+    : _mostrarAnuncioYGuardar,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF087FE8),
                     foregroundColor: Colors.white,
@@ -657,8 +779,8 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
                           ),
                         )
                       : const Text(
-                          'Guardar Cambios',
-                          style: TextStyle(fontSize: 18),
+                          'Ver video y guardar cambios',
+                          style: TextStyle(fontSize: 15),
                         ),
                 ),
               ),
