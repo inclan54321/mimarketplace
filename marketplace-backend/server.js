@@ -1468,7 +1468,7 @@ NO agregues texto adicional. SOLO el JSON.`;
                 }
             ],
             temperature: 0.1,
-            max_tokens: 200,
+            max_tokens: 800,
         }, {
             headers: {
                 'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -1479,6 +1479,9 @@ NO agregues texto adicional. SOLO el JSON.`;
 
         const text = response.data.choices[0].message.content;
         console.log('>>> Respuesta de DeepSeek (moderación):', text);
+        console.log('>>> 🔍 [DEEPSEEK] finish_reason:', response.data.choices[0].finish_reason);
+        console.log('>>> 🔍 [DEEPSEEK] usage:', JSON.stringify(response.data.usage));
+        console.log('>>> 🔍 [DEEPSEEK] reasoning (largo):', (response.data.choices[0].message.reasoning_content || '').length);
 
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -6157,7 +6160,7 @@ CRITERIOS:
                 { role: 'user', content: prompt }
             ],
             temperature: 0.1,
-            max_tokens: 200,
+            max_tokens: 800,
         }, {
             headers: {
                 'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
