@@ -4,6 +4,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const axios = require('axios');
+const cron = require('node-cron');
 require('dotenv').config();
 console.log('>>> 🔥 GEMINI_KEY configurada:', process.env.GEMINI_API_KEY ? 'SÍ ✅' : 'NO ❌');
 
@@ -777,7 +778,7 @@ setInterval(() => {
 // ============================================================
 // 🔥 CRON PARA CADUCAR PRODUCTOS CADA 1 MINUTO
 // ============================================================
-const cron = require('node-cron');
+
 
 cron.schedule('* * * * *', async () => {
     try {
