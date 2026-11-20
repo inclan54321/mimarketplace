@@ -22,6 +22,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   int _suspensiones = 0;
   static const int _maxAdvertencias = 3;
   static const int _maxSuspensiones = 3;
+  static const int _maxTardanzas = 3;
 
   // 🔥 CONTABILIDAD DE ASISTENCIA
   int _llegadasTarde = 0;
@@ -29,14 +30,10 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   int _minutosTardeAcumulados = 0;
   int _totalEncuentros = 0;
 
-  // 🔥 CONTACTOS DE EMERGENCIA
-  List<Map<String, String>> _contactosEmergencia = [];
-
   @override
   void initState() {
     super.initState();
     _cargarPreferencias();
-    _cargarContactosEmergencia();
   }
 
   Future<void> _cargarPreferencias() async {
@@ -165,7 +162,16 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
               ),
               SizedBox(height: 8),
               Text(
-                'Tu cuenta acumula advertencias y suspensiones temporales por incumplir las normas de la comunidad.',
+                'Tu cuenta acumula advertencias y suspensiones temporales por incumplir las normas de la comunidad.\n\n'
+                'Asistencia a encuentros:\n'
+                '• 3 llegadas tardías (0/3) = 1 advertencia.\n'
+                '• 1 ausencia = 1 advertencia.\n\n'
+                'Escalado:\n'
+                '• 3 advertencias = 1 suspensión temporal (7 días).\n'
+                '• 3 suspensiones = baneo permanente.\n\n'
+                'Recuperación:\n'
+                '• Cada mes se descuentan 2 llegadas tardías.\n'
+                '• Cada 3 meses se descuenta 1 advertencia.',
                 style: TextStyle(fontSize: 13),
               ),
               SizedBox(height: 14),
@@ -198,7 +204,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
               ),
               SizedBox(height: 14),
               Text(
-                'Si llegás a 3 suspensiones, tu cuenta puede ser inhabilitada permanentemente.',
+                'Si llegás a 3 suspensiones, tu cuenta será baneada de forma permanente y su correo no podrá volver a registrarse.',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
@@ -218,194 +224,6 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
     );
   }
 
-  // ============================================================
-  // 🔥 CONTACTOS DE EMERGENCIA
-  // ============================================================
-  Future<void> _cargarContactosEmergencia() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('contactos_emergencia');
-      if (raw == null || raw.isEmpty) return;
-      final List data = jsonDecode(raw);
-      if (mounted) {
-        setState(() {
-          _contactosEmergencia = data
-              .map((e) => Map<String, String>.from(e as Map))
-              .toList();
-        });
-      }
-    } catch (e) {
-      print('Error al cargar contactos de emergencia: $e');
-    }
-  }
-
-  Future<void> _guardarContactosEmergencia() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'contactos_emergencia',
-        jsonEncode(_contactosEmergencia),
-      );
-    } catch (e) {
-      print('Error al guardar contactos de emergencia: $e');
-    }
-  }
-
-  void _mostrarDialogoAgregarContacto({int? indexEditar}) {
-    final nombreCtrl = TextEditingController(
-      text: indexEditar != null
-          ? _contactosEmergencia[indexEditar]['nombre'] ?? ''
-          : '',
-    );
-    final numeroCtrl = TextEditingController(
-      text: indexEditar != null
-          ? _contactosEmergencia[indexEditar]['numero'] ?? ''
-          : '',
-    );
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.emergency, color: Colors.red),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                indexEditar == null
-                    ? 'Agregar contacto de emergencia'
-                    : 'Editar contacto de emergencia',
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nombreCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Nombre',
-                hintText: 'Ej: Mamá, Papá, Hermano',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: numeroCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Número de teléfono',
-                hintText: 'Ej: 8888-8888',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              final nombre = nombreCtrl.text.trim();
-              final numero = numeroCtrl.text.trim();
-              if (nombre.isEmpty || numero.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Completá nombre y número'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-                return;
-              }
-
-              setState(() {
-                if (indexEditar == null) {
-                  _contactosEmergencia.add({
-                    'nombre': nombre,
-                    'numero': numero,
-                  });
-                } else {
-                  _contactosEmergencia[indexEditar] = {
-                    'nombre': nombre,
-                    'numero': numero,
-                  };
-                }
-              });
-              await _guardarContactosEmergencia();
-
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      indexEditar == null
-                          ? '✅ Contacto agregado'
-                          : '✅ Contacto actualizado',
-                    ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            icon: const Icon(Icons.save, size: 18),
-            label: Text(indexEditar == null ? 'Agregar' : 'Guardar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _eliminarContactoEmergencia(int index) async {
-    final contacto = _contactosEmergencia[index];
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('¿Eliminar contacto?'),
-        content: Text(
-          'Se eliminará "${contacto['nombre']}" de tus contactos de emergencia.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmar != true) return;
-
-    setState(() {
-      _contactosEmergencia.removeAt(index);
-    });
-    await _guardarContactosEmergencia();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🗑️ Contacto eliminado'),
-          backgroundColor: Colors.grey,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -418,566 +236,414 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
         padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Recolección de datos',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Tu privacidad es importante para nosotros. Puedes elegir si permites que tus datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else
-              Row(
-                children: [
-                  Checkbox(
-                    value: _aceptaRecoleccion,
-                    onChanged: (value) {
-                      setState(() {
-                        _aceptaRecoleccion = value ?? false;
-                      });
-                    },
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Acepto que mis datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 30),
-            if (!_isLoading)
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _guardarPreferencias,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isSaving
-                      ? const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        )
-                      : const Text(
-                          'Guardar preferencias',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                ),
-              ),
-            // 🔥 NUEVA SECCIÓN: HISTORIAL DE PAGOS
-            const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 20),
-            const Text(
-              'Historial de pagos',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Consultá todos los pagos que hiciste dentro de la app: impulsos de publicaciones, renovaciones, eliminación de publicidad y otros servicios.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.receipt_long,
-                  color: Colors.blue,
-                ),
-              ),
-              title: const Text(
-                'Ver historial de pagos',
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Recolección de datos',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              subtitle: const Text(
-                'Todos tus pagos y transacciones',
-                style: TextStyle(fontSize: 13),
+              const SizedBox(height: 12),
+              const Text(
+                'Tu privacidad es importante para nosotros. Puedes elegir si permites que tus datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
-              trailing: const Icon(
-                Icons.chevron_right,
-                color: Colors.grey,
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const HistorialPagosScreen(),
-                  ),
-                );
-              },
-            ),
-
-            // 🔥 NUEVA SECCIÓN: ESTADO DE CUENTA
-            const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 20),
-            const Text(
-              'Estado de cuenta',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Revisá tus advertencias y suspensiones activas en la plataforma.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-
-            // 🔥 TARJETA: ADVERTENCIAS
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.orange.withValues(alpha: 0.4),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Advertencias',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '$_advertencias/$_maxAdvertencias',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _advertencias >= _maxAdvertencias
-                          ? Colors.red
-                          : Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 🔥 TARJETA: SUSPENSIONES TEMPORALES
-            Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.red.withValues(alpha: 0.4),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.lock_clock,
-                      color: Colors.red,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Suspensiones temporales',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '$_suspensiones/$_maxSuspensiones',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: _suspensiones >= _maxSuspensiones
-                          ? Colors.red
-                          : Colors.red.shade400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // 🔥 NUEVA SECCIÓN: CONTABILIDAD DE ASISTENCIA
-            const SizedBox(height: 20),
-            const Text(
-              'Asistencia a encuentros',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Tardanzas
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.amber.withValues(alpha: 0.4),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.schedule,
-                      color: Colors.amber,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Llegadas tardías',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          'No verificaste a 5 min o menos del encuentro',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    '$_llegadasTarde',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.amber,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Ausencias
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.red.withValues(alpha: 0.4),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.event_busy,
-                      color: Colors.red,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ausencias',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          'No llegaste al encuentro',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    '$_ausencias',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Minutos tarde acumulados (informativo, solo si hay)
-            if (_minutosTardeAcumulados > 0)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12, top: 4),
-                child: Text(
-                  '⏱️ Minutos tarde acumulados: $_minutosTardeAcumulados',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade700,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ),
-
-            // BOTÓN: INFORMACIÓN
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: OutlinedButton.icon(
-                onPressed: _mostrarInfoEstadoCuenta,
-                icon: const Icon(Icons.info_outline, size: 20),
-                label: const Text(
-                  'Información',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.blue,
-                  side: const BorderSide(color: Colors.blue, width: 1.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-
-            // 🔥 NUEVA SECCIÓN: LLAMADA DE EMERGENCIA
-            const SizedBox(height: 32),
-            const Divider(),
-            const SizedBox(height: 20),
-            const Text(
-              'Llamada de emergencia',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Agregá los nombres y números de las personas que querés que aparezcan en tu pantalla de emergencia. Podrás llamarlas rápido desde cualquier chat con el Escudo activo.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-
-            // 🔥 LISTA DE CONTACTOS
-            if (_contactosEmergencia.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.grey.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Column(
+              const SizedBox(height: 24),
+              if (_isLoading)
+                const Center(child: CircularProgressIndicator())
+              else
+                Row(
                   children: [
-                    Icon(
-                      Icons.contacts_outlined,
-                      size: 40,
-                      color: Colors.grey.shade500,
+                    Checkbox(
+                      value: _aceptaRecoleccion,
+                      onChanged: (value) {
+                        setState(() {
+                          _aceptaRecoleccion = value ?? false;
+                        });
+                      },
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'No tenés contactos de emergencia',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Agregá al menos uno para usarlo desde el chat.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
+                    const Expanded(
+                      child: Text(
+                        'Acepto que mis datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.',
+                        style: TextStyle(fontSize: 14),
                       ),
                     ),
                   ],
                 ),
-              )
-            else
-              ...List.generate(_contactosEmergencia.length, (i) {
-                final c = _contactosEmergencia[i];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.red.withValues(alpha: 0.3),
-                      width: 1.2,
+              const SizedBox(height: 30),
+              if (!_isLoading)
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _guardarPreferencias,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          color: Colors.red,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              c['nombre'] ?? '',
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
+                    child: _isSaving
+                        ? const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          )
+                        : const Text(
+                            'Guardar preferencias',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              c['numero'] ?? '',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () =>
-                            _mostrarDialogoAgregarContacto(indexEditar: i),
-                        tooltip: 'Editar',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () => _eliminarContactoEmergencia(i),
-                        tooltip: 'Eliminar',
-                      ),
-                    ],
-                  ),
-                );
-              }),
-
-            // 🔥 BOTÓN AGREGAR
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                onPressed: () => _mostrarDialogoAgregarContacto(),
-                icon: const Icon(Icons.add, size: 20),
-                label: const Text(
-                  'Agregar contacto',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                          ),
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              // 🔥 NUEVA SECCIÓN: HISTORIAL DE PAGOS
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 20),
+              const Text(
+                'Historial de pagos',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Consultá todos los pagos que hiciste dentro de la app: impulsos de publicaciones, renovaciones, eliminación de publicidad y otros servicios.',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.receipt_long,
+                    color: Colors.blue,
+                  ),
+                ),
+                title: const Text(
+                  'Ver historial de pagos',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Todos tus pagos y transacciones',
+                  style: TextStyle(fontSize: 13),
+                ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey,
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HistorialPagosScreen(),
+                    ),
+                  );
+                },
+              ),
+
+              // 🔥 NUEVA SECCIÓN: ESTADO DE CUENTA
+              const SizedBox(height: 32),
+              const Divider(),
+              const SizedBox(height: 20),
+              const Text(
+                'Estado de cuenta',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Revisá tus advertencias y suspensiones activas en la plataforma.',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+
+              // 🔥 TARJETA: ADVERTENCIAS
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Advertencias',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$_advertencias/$_maxAdvertencias',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: _advertencias >= _maxAdvertencias
+                            ? Colors.red
+                            : Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 🔥 TARJETA: SUSPENSIONES TEMPORALES
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.red.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.lock_clock,
+                        color: Colors.red,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Suspensiones temporales',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$_suspensiones/$_maxSuspensiones',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: _suspensiones >= _maxSuspensiones
+                            ? Colors.red
+                            : Colors.red.shade400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 🔥 NUEVA SECCIÓN: CONTABILIDAD DE ASISTENCIA
+              const SizedBox(height: 20),
+              const Text(
+                'Asistencia a encuentros',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Tardanzas
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.schedule,
+                        color: Colors.amber,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Llegadas tardías',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'No verificaste a 5 min o menos. 3 = 1 advertencia',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '$_llegadasTarde/$_maxTardanzas',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Ausencias
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.red.withValues(alpha: 0.4),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.event_busy,
+                        color: Colors.red,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Ausencias',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'No llegaste al encuentro. 1 = 1 advertencia',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '$_ausencias',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Minutos tarde acumulados (informativo, solo si hay)
+              if (_minutosTardeAcumulados > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12, top: 4),
+                  child: Text(
+                    '⏱️ Minutos tarde acumulados: $_minutosTardeAcumulados',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+
+              // BOTÓN: INFORMACIÓN
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _mostrarInfoEstadoCuenta,
+                  icon: const Icon(Icons.info_outline, size: 20),
+                  label: const Text(
+                    'Información',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    side: const BorderSide(color: Colors.blue, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );

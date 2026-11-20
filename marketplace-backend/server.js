@@ -410,6 +410,247 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// ============================================================
+// 🚨 SISTEMA DE SANCIONES
+// 3 tardanzas = 1 advertencia | 1 ausencia = 1 advertencia
+// 3 advertencias = 1 suspensión | 3 suspensiones = baneo permanente
+// ============================================================
+const SUSPENSION_DIAS = 7;
+
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS contabilidad_asistencia (
+                usuario_id TEXT PRIMARY KEY,
+                total_encuentros INT DEFAULT 0,
+                llegadas_tarde INT DEFAULT 0,
+                ausencias INT DEFAULT 0,
+                minutos_tarde_acumulados INT DEFAULT 0,
+                ultima_actualizacion TIMESTAMPTZ DEFAULT NOW()
+            )`);
+        await pool.query(`ALTER TABLE contabilidad_asistencia ADD COLUMN IF NOT EXISTS ultima_baja_advertencia TIMESTAMPTZ`);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS advertencias_usuarios (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                motivo TEXT,
+                fecha TIMESTAMPTZ DEFAULT NOW(),
+                activa BOOLEAN DEFAULT TRUE
+            )`);
+        await pool.query(`ALTER TABLE advertencias_usuarios ADD COLUMN IF NOT EXISTS motivo TEXT`);
+        await pool.query(`ALTER TABLE advertencias_usuarios ADD COLUMN IF NOT EXISTS fecha TIMESTAMPTZ DEFAULT NOW()`);
+        await pool.query(`ALTER TABLE advertencias_usuarios ADD COLUMN IF NOT EXISTS activa BOOLEAN DEFAULT TRUE`);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS suspensiones_usuarios (
+                id SERIAL PRIMARY KEY,
+                usuario_id TEXT NOT NULL,
+                motivo TEXT,
+                inicio TIMESTAMPTZ DEFAULT NOW(),
+                fin TIMESTAMPTZ
+            )`);
+        await pool.query(`ALTER TABLE suspensiones_usuarios ADD COLUMN IF NOT EXISTS motivo TEXT`);
+        await pool.query(`ALTER TABLE suspensiones_usuarios ADD COLUMN IF NOT EXISTS inicio TIMESTAMPTZ DEFAULT NOW()`);
+        await pool.query(`ALTER TABLE suspensiones_usuarios ADD COLUMN IF NOT EXISTS fin TIMESTAMPTZ`);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS usuarios_baneados (
+                id SERIAL PRIMARY KEY,
+                uid TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                verificado BOOLEAN DEFAULT FALSE,
+                motivo TEXT,
+                fecha TIMESTAMPTZ DEFAULT NOW()
+            )`);
+
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS baneado BOOLEAN DEFAULT FALSE`);
+        await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS fecha_baneo TIMESTAMPTZ`);
+        console.log('>>> ✅ Tablas de sanciones listas');
+    } catch (e) {
+        console.error('>>> ❌ Error creando tablas de sanciones:', e.message);
+    }
+})();
+
+async function alertaSancion(uid, mensaje, tipo) {
+    try {
+        await pool.query(
+            `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha)
+             VALUES ($1, 0, $2, $3, NOW())`,
+            [uid, mensaje, tipo]
+        );
+    } catch (e) { console.error('>>> ❌ alertaSancion:', e.message); }
+}
+
+async function banearUsuario(uid, motivo) {
+    const u = await pool.query('SELECT email, verificado FROM usuarios WHERE uid = $1', [uid]);
+    if (u.rows.length === 0) return;
+    const email = (u.rows[0].email || '').toLowerCase().trim();
+
+    await pool.query(
+        `INSERT INTO usuarios_baneados (uid, email, verificado, motivo)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (email) DO NOTHING`,
+        [uid, email, !!u.rows[0].verificado, motivo]
+    );
+    await pool.query(
+        'UPDATE usuarios SET baneado = TRUE, fecha_baneo = NOW() WHERE uid = $1',
+        [uid]
+    );
+
+    for (const [k, v] of tokenCache.entries()) {
+        if (v.uid === uid) tokenCache.delete(k);
+    }
+    try {
+        await getAuth().updateUser(uid, { disabled: true });
+        await getAuth().revokeRefreshTokens(uid);
+    } catch (e) { console.error('>>> ❌ Error deshabilitando en Firebase:', e.message); }
+
+    console.log(`>>> ⛔ BANEO PERMANENTE: ${uid} (${email}) verificado=${!!u.rows[0].verificado}`);
+}
+
+async function crearSuspension(uid, motivo) {
+    await pool.query(
+        `INSERT INTO suspensiones_usuarios (usuario_id, motivo, inicio, fin)
+         VALUES ($1, $2, NOW(), NOW() + ($3 || ' days')::interval)`,
+        [uid, motivo, String(SUSPENSION_DIAS)]
+    );
+    const total = await pool.query(
+        'SELECT COUNT(*)::int AS total FROM suspensiones_usuarios WHERE usuario_id = $1',
+        [uid]
+    );
+    const n = total.rows[0].total;
+    if (n >= 3) {
+        await banearUsuario(uid, '3 suspensiones temporales acumuladas');
+    } else {
+        await alertaSancion(uid,
+            `🔒 Tu cuenta fue suspendida ${SUSPENSION_DIAS} días (suspensión ${n}/3). Al llegar a 3 suspensiones, tu cuenta será baneada permanentemente.`,
+            'suspension');
+    }
+}
+
+async function crearAdvertencia(uid, motivo) {
+    await pool.query(
+        `INSERT INTO advertencias_usuarios (usuario_id, motivo, activa) VALUES ($1, $2, TRUE)`,
+        [uid, motivo]
+    );
+    const act = await pool.query(
+        `SELECT id FROM advertencias_usuarios
+         WHERE usuario_id = $1 AND activa = TRUE
+         ORDER BY fecha ASC, id ASC`,
+        [uid]
+    );
+    if (act.rows.length >= 3) {
+        const ids = act.rows.slice(0, 3).map(r => r.id);
+        await pool.query(
+            'UPDATE advertencias_usuarios SET activa = FALSE WHERE id = ANY($1::int[])',
+            [ids]
+        );
+        await crearSuspension(uid, '3 advertencias acumuladas');
+    } else {
+        await alertaSancion(uid,
+            `⚠️ Recibiste una advertencia (${act.rows.length}/3): ${motivo}`,
+            'advertencia');
+    }
+}
+
+async function aplicarTardanza(uid, minutos) {
+    const r = await pool.query(`
+        INSERT INTO contabilidad_asistencia
+            (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_actualizacion)
+        VALUES ($1, 1, 1, 0, $2, NOW())
+        ON CONFLICT (usuario_id) DO UPDATE SET
+            total_encuentros = contabilidad_asistencia.total_encuentros + 1,
+            llegadas_tarde = contabilidad_asistencia.llegadas_tarde + 1,
+            minutos_tarde_acumulados = contabilidad_asistencia.minutos_tarde_acumulados + $2,
+            ultima_actualizacion = NOW()
+        RETURNING llegadas_tarde`, [uid, minutos]);
+
+    if (r.rows[0].llegadas_tarde >= 3) {
+        await pool.query(
+            'UPDATE contabilidad_asistencia SET llegadas_tarde = llegadas_tarde - 3 WHERE usuario_id = $1',
+            [uid]
+        );
+        await crearAdvertencia(uid, '3 llegadas tardías a encuentros');
+    }
+}
+
+async function aplicarAusencia(uid) {
+    await pool.query(`
+        INSERT INTO contabilidad_asistencia
+            (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_actualizacion)
+        VALUES ($1, 1, 0, 1, 0, NOW())
+        ON CONFLICT (usuario_id) DO UPDATE SET
+            total_encuentros = contabilidad_asistencia.total_encuentros + 1,
+            ausencias = contabilidad_asistencia.ausencias + 1,
+            ultima_actualizacion = NOW()`, [uid]);
+    await crearAdvertencia(uid, 'Ausencia a un encuentro');
+}
+
+// 🔥 Bloquea acciones clave mientras el usuario esté suspendido
+async function bloquearSiSuspendido(req, res, next) {
+    try {
+        const s = await pool.query(
+            `SELECT fin FROM suspensiones_usuarios
+             WHERE usuario_id = $1 AND fin > NOW()
+             ORDER BY fin DESC LIMIT 1`,
+            [req.usuarioAutenticado]
+        );
+        if (s.rows.length > 0) {
+            return res.status(403).json({
+                error: 'Tu cuenta está suspendida temporalmente.',
+                codigo: 'CUENTA_SUSPENDIDA',
+                suspendido_hasta: s.rows[0].fin,
+            });
+        }
+    } catch (e) { /* si falla, no bloquear */ }
+    next();
+}
+
+// 🔥 CRON MENSUAL (día 1, 4:00 AM CR): -2 tardanzas a todos y -1 advertencia cada 3 meses
+cron.schedule('0 10 1 * *', async () => {
+    try {
+        const t = await pool.query(
+            `UPDATE contabilidad_asistencia
+             SET llegadas_tarde = GREATEST(llegadas_tarde - 2, 0)
+             WHERE llegadas_tarde > 0`
+        );
+        console.log(`>>> 🧹 Tardanzas descontadas (-2) a ${t.rowCount} usuarios`);
+
+        const bajas = await pool.query(`
+            WITH candidatas AS (
+                SELECT DISTINCT ON (a.usuario_id) a.id, a.usuario_id
+                FROM advertencias_usuarios a
+                LEFT JOIN contabilidad_asistencia c ON c.usuario_id = a.usuario_id
+                WHERE a.activa = TRUE
+                  AND a.fecha <= NOW() - INTERVAL '3 months'
+                  AND (c.ultima_baja_advertencia IS NULL
+                       OR c.ultima_baja_advertencia <= NOW() - INTERVAL '3 months')
+                ORDER BY a.usuario_id, a.fecha ASC
+            )
+            UPDATE advertencias_usuarios SET activa = FALSE
+            WHERE id IN (SELECT id FROM candidatas)
+            RETURNING usuario_id`);
+
+        for (const r of bajas.rows) {
+            await pool.query(
+                `INSERT INTO contabilidad_asistencia
+                    (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_baja_advertencia)
+                 VALUES ($1, 0, 0, 0, 0, NOW())
+                 ON CONFLICT (usuario_id) DO UPDATE SET ultima_baja_advertencia = NOW()`,
+                [r.usuario_id]
+            );
+            await alertaSancion(r.usuario_id,
+                '✅ Por tu buen comportamiento se descontó 1 advertencia de tu cuenta.',
+                'exito');
+        }
+        console.log(`>>> 🧹 Advertencias descontadas: ${bajas.rowCount}`);
+    } catch (e) {
+        console.error('>>> ❌ Error en cron mensual de sanciones:', e.message);
+    }
+});
+console.log('>>> ⏰ CRON mensual de sanciones activado (día 1, 4:00 AM CR)');
+
 // 🔥 TABLA DE SUSCRIPCIONES (sin anuncios)
 (async () => {
     try {
@@ -1249,16 +1490,7 @@ cron.schedule('0 9 * * *', async () => {
                 continue;
             }
 
-            await pool.query(`
-                INSERT INTO contabilidad_asistencia 
-                    (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_actualizacion)
-                VALUES ($1, 1, 1, 0, $2, NOW())
-                ON CONFLICT (usuario_id) DO UPDATE SET
-                    total_encuentros = contabilidad_asistencia.total_encuentros + 1,
-                    llegadas_tarde = contabilidad_asistencia.llegadas_tarde + 1,
-                    minutos_tarde_acumulados = contabilidad_asistencia.minutos_tarde_acumulados + $2,
-                    ultima_actualizacion = NOW()
-            `, [t.usuario_id, Math.max(0, t.minutos_antes)]);
+            await aplicarTardanza(t.usuario_id, Math.max(0, t.minutos_antes));
 
             await pool.query(
                 `UPDATE eventos_tardanza SET contabilizado = TRUE WHERE id = $1`,
@@ -1307,15 +1539,7 @@ cron.schedule('0 9 * * *', async () => {
                 );
 
                 if (estado === 'ausente') {
-                    await pool.query(`
-                        INSERT INTO contabilidad_asistencia 
-                            (usuario_id, total_encuentros, llegadas_tarde, ausencias, minutos_tarde_acumulados, ultima_actualizacion)
-                        VALUES ($1, 1, 0, 1, 0, NOW())
-                        ON CONFLICT (usuario_id) DO UPDATE SET
-                            total_encuentros = contabilidad_asistencia.total_encuentros + 1,
-                            ausencias = contabilidad_asistencia.ausencias + 1,
-                            ultima_actualizacion = NOW()
-                    `, [uid]);
+                    await aplicarAusencia(uid);
                 }
 
                 console.log(`>>> 📊 [enc ${enc.encuentro_id}] ${uid} → ${estado}`);
@@ -1987,7 +2211,7 @@ app.get('/api/productos/vendedor/:vendedor_id', rateLimitVendedor, async (req, r
     }
 });
 
-app.post('/api/productos', rateLimitProductosCrear, verificarTokenFirebase, upload.fields([
+app.post('/api/productos', rateLimitProductosCrear, verificarTokenFirebase, bloquearSiSuspendido, upload.fields([
   { name: 'imagen_destacada', maxCount: 1 },
   { name: 'imagen_normal', maxCount: 1 },
   { name: 'imagenes_reales[]', maxCount: 5 }
@@ -2258,7 +2482,7 @@ function contieneNumeroTelefono(texto) {
     return patrones.some(p => p.test(texto));
 }
 
-app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, upload.single('imagen'), async (req, res) => {
+app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiSuspendido, upload.single('imagen'), async (req, res) => {
     try {
         console.log('>>> Archivo recibido:', req.file);
         const { conversacion_id, usuario_id, texto } = req.body;
@@ -2884,6 +3108,18 @@ async function verificarTokenFirebase(req, res, next) {
 
         // 🔥 No está en caché: verificar con Firebase (tarda ~150 ms)
         const decoded = await getAuth().verifyIdToken(token);
+        try {
+            const b = await pool.query(
+                'SELECT 1 FROM usuarios WHERE uid = $1 AND baneado = TRUE',
+                [decoded.uid]
+            );
+            if (b.rows.length > 0) {
+                return res.status(403).json({
+                    error: 'Tu cuenta fue baneada permanentemente.',
+                    codigo: 'CUENTA_BANEADA'
+                });
+            }
+        } catch (_) {}
         req.usuarioAutenticado = decoded.uid;
         tokenCache.set(token, {
             uid: decoded.uid,
@@ -3202,6 +3438,25 @@ app.post('/api/usuarios', rateLimitRegistroUsuario, verificarTokenFirebase, asyn
             return res.status(403).json({
                 error: 'No autorizado para crear/modificar a nombre de otro usuario',
                 codigo: 'UID_NO_COINCIDE'
+            });
+        }
+
+        // 🔥 BLOQUEAR CORREOS BANEADOS
+        let emailReal = (email || '').toLowerCase().trim();
+        try {
+            const fu = await getAuth().getUser(uid);
+            if (fu.email) emailReal = fu.email.toLowerCase().trim();
+        } catch (_) {}
+        const baneado = await pool.query(
+            'SELECT 1 FROM usuarios_baneados WHERE email = $1',
+            [emailReal]
+        );
+        if (baneado.rows.length > 0) {
+            console.log('>>> ⛔ Registro bloqueado, correo baneado:', emailReal);
+            try { await getAuth().deleteUser(uid); } catch (_) {}
+            return res.status(403).json({
+                error: 'Este correo fue baneado permanentemente y no puede registrarse.',
+                codigo: 'CUENTA_BANEADA'
             });
         }
 
@@ -6579,7 +6834,7 @@ app.get('/api/usuarios/:uid/estado-cuenta', verificarTokenFirebase, async (req, 
                 `SELECT COUNT(*)::int AS total 
                  FROM advertencias_usuarios 
                  WHERE usuario_id = $1 
-                   AND (expira_en IS NULL OR expira_en > NOW())`,
+                   AND activa = TRUE`,
                 [uid]
             );
             advertencias = advResult.rows[0]?.total ?? 0;
@@ -6592,7 +6847,7 @@ app.get('/api/usuarios/:uid/estado-cuenta', verificarTokenFirebase, async (req, 
                 `SELECT COUNT(*)::int AS total 
                  FROM suspensiones_usuarios 
                  WHERE usuario_id = $1 
-                   AND (fin IS NULL OR fin > NOW())`,
+                   AND inicio IS NOT NULL`,
                 [uid]
             );
             suspensiones = suspResult.rows[0]?.total ?? 0;
@@ -6619,7 +6874,22 @@ app.get('/api/usuarios/:uid/estado-cuenta', verificarTokenFirebase, async (req, 
         }
 
         console.log(`>>> 📋 Estado de cuenta ${uid}: advertencias=${advertencias}, suspensiones=${suspensiones}, tardanzas=${contabilidad.llegadas_tarde}, ausencias=${contabilidad.ausencias}`);
-        res.json({ advertencias, suspensiones, contabilidad_asistencia: contabilidad });
+        let suspendidoHasta = null;
+        try {
+            const s = await pool.query(
+                `SELECT fin FROM suspensiones_usuarios
+                 WHERE usuario_id = $1 AND fin > NOW()
+                 ORDER BY fin DESC LIMIT 1`,
+                [uid]
+            );
+            suspendidoHasta = s.rows[0]?.fin || null;
+        } catch (_) {}
+        res.json({
+            advertencias,
+            suspensiones,
+            suspendido_hasta: suspendidoHasta,
+            contabilidad_asistencia: contabilidad
+        });
     } catch (error) {
         console.error('Error al obtener estado de cuenta:', error);
         res.status(500).json({ error: error.message });
@@ -7227,7 +7497,7 @@ app.post('/api/escudo/rechazar', verificarTokenFirebase, async (req, res) => {
 // ============================================================
 
 // 🔥 PROPONER ENCUENTRO (CON LUGAR SEGURO)
-app.post('/api/encuentro/proponer', verificarTokenFirebase, async (req, res) => {
+app.post('/api/encuentro/proponer', verificarTokenFirebase, bloquearSiSuspendido, async (req, res) => {
     try {
         const {
             conversacion_id,

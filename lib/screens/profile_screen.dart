@@ -1798,10 +1798,16 @@ Future<void> _precargarImagenPerfil() async {
                         final user = FirebaseAuth.instance.currentUser;
                         if (user == null) return;
 
+                        final idToken = await user.getIdToken();
+
                         final response = await http.delete(
                           Uri.parse(
                               'https://mimarketplace-production.up.railway.app/api/favoritos'),
-                          headers: {'Content-Type': 'application/json'},
+                          headers: {
+                            'Content-Type': 'application/json',
+                            if (idToken != null)
+                              'Authorization': 'Bearer $idToken',
+                          },
                           body: jsonEncode({
                             'usuario_id': user.uid,
                             'producto_id': producto.id.toString(),
@@ -1822,7 +1828,10 @@ Future<void> _precargarImagenPerfil() async {
                             ),
                           );
                         } else {
-                          throw Exception('Error al eliminar favorito');
+                          print('>>> DELETE favorito status: ${response.statusCode}');
+                          print('>>> DELETE favorito body: ${response.body}');
+                          throw Exception(
+                              'Error al eliminar favorito (${response.statusCode})');
                         }
                       } catch (e) {
                         if (!mounted) return;
