@@ -666,6 +666,29 @@ _iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid || esRevisor);
           return;
         }
 
+        // 🔥 Se aceptó una propuesta: las demás quedan ANULADAS al instante
+        // y el input se libera (igual que cuando solo hay una propuesta).
+        if (data['estado'] == 'propuesta_aceptada') {
+          final anuladas = (data['anuladas'] is List)
+              ? (data['anuladas'] as List).map((e) => e.toString()).toSet()
+              : <String>{};
+          final aceptadaId = data['propuesta_id']?.toString();
+          print('>>> ✅ WS propuesta_aceptada: aceptada=$aceptadaId, anuladas=$anuladas');
+          setState(() {
+            for (final id in anuladas) {
+              final p = _cachePropuestas[id];
+              if (p != null) p['estado'] = 'rechazada';
+            }
+            if (aceptadaId != null) {
+              final p = _cachePropuestas[aceptadaId];
+              if (p != null) p['estado'] = 'aceptada';
+            }
+            // Cualquier "pendiente" que quede en caché está vieja: se vuelve a pedir
+            _cachePropuestas.removeWhere(
+                (k, v) => (v['estado'] ?? 'pendiente') == 'pendiente');
+            _propuestaEncuentroPendiente = false;
+          });
+        }
         if (data['estado'] == 'trato_cancelado') {
           _cachePropuestas.clear();
         }
@@ -1272,6 +1295,12 @@ void dispose() {
       // 🔥 SI NO HAY CAMBIOS, no hace falta consultar nada más.
       // 🔥 Esto ahorra 5 requests cada 3 segundos cuando el chat está quieto.
       if (!hayCambios && _estadoCargado && !forzar) {
+        // 🔥 Si el input está bloqueado por "propuesta pendiente" (el dato puede venir
+        // de la caché local y estar viejo), revalidarlo contra el servidor.
+        if (_propuestaEncuentroPendiente) {
+          await _verificarPropuestaPendiente();
+          _guardarEstadoBloqueo();
+        }
         // 🔥 El análisis de la IA llega después del mensaje: seguir consultándolo
         await _analizarMensajeConIA('', user.uid, esMensajeNuevo: esMensajeNuevo);
         return;
@@ -1451,6 +1480,12 @@ void dispose() {
 
         String estado = 'pendiente';
         String? usuarioPropuso;
+
+        // 🔥 Una propuesta "pendiente" en caché puede estar vieja (el otro pudo aceptar
+        // otra y esta quedó anulada): se vuelve a pedir siempre al servidor.
+        if ((_cachePropuestas[propuestaId]?['estado'] ?? 'pendiente') == 'pendiente') {
+          _cachePropuestas.remove(propuestaId);
+        }
 
         // 🔥 SI NO ESTÁ EN CACHÉ, PEDIRLA AL SERVER
         if (!_cachePropuestas.containsKey(propuestaId)) {

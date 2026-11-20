@@ -7531,6 +7531,20 @@ app.put('/api/encuentro/propuesta/:id/aceptar', verificarTokenFirebase, async (r
             });
         }
 
+        // 🔒 Si ya estaba aceptada (doble toque), responder OK sin repetir nada
+        if (propuesta.estado === 'aceptada') {
+            console.log(`>>> ⏭️ Propuesta ${id} ya estaba aceptada, no se repite`);
+            return res.json({ success: true, propuesta, rechazadas: 0, ya_aceptada: true });
+        }
+        // 🔒 Si fue anulada (se aceptó otra antes), no se puede aceptar
+        if (propuesta.estado === 'rechazada') {
+            console.log(`>>> 🚫 Propuesta ${id} está anulada, no se puede aceptar`);
+            return res.status(409).json({
+                error: 'Esta propuesta fue anulada porque se aceptó otra.',
+                codigo: 'PROPUESTA_ANULADA'
+            });
+        }
+
         // 2. Aceptar esta propuesta
         const result = await pool.query(
             `UPDATE propuestas_encuentro 
@@ -7568,6 +7582,8 @@ app.put('/api/encuentro/propuesta/:id/aceptar', verificarTokenFirebase, async (r
         global.broadcast(conversacionId, {
             tipo: 'estado_cambio',
             estado: 'propuesta_aceptada',
+            propuesta_id: Number(id),
+            anuladas: rechazadas.rows.map(r => r.id),
         });
 
         // 🔥 ALERTA PARA QUIEN PROPUSO: su propuesta fue aceptada
@@ -8590,7 +8606,21 @@ app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
             });
         }
 
-        // 🔥 FALLBACK: si no hay agendado, buscar en propuestas_encuentro
+        // 🔥 PRIORIDAD: propuestas vivas (aceptada/pendiente) antes que las anuladas
+        const propViva = await pool.query(
+            `SELECT * FROM propuestas_encuentro
+             WHERE conversacion_id = $1
+               AND estado IN ('aceptada', 'confirmada', 'pendiente', 'contrapropuesta')
+             ORDER BY id DESC
+             LIMIT 1`,
+            [conversacion_id]
+        );
+        if (propViva.rows.length > 0) {
+            console.log(`>>> 🟢 Propuesta viva para conv ${conversacion_id}: ${propViva.rows[0].id} (estado: ${propViva.rows[0].estado})`);
+            return res.json({ encuentro: propViva.rows[0] });
+        }
+
+        // FALLBACK: si no hay agendado, buscar en propuestas_encuentro
         const result = await pool.query(
             `SELECT * FROM propuestas_encuentro 
              WHERE conversacion_id = $1

@@ -149,6 +149,7 @@ class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
                     MaterialPageRoute(
                       builder: (context) => DetalleProductoScreen(
                         producto: widget.producto!,
+                        reproducirAudio: false, // 🔊 ya sonó en la imagen destacada
                       ),
                     ),
                   );

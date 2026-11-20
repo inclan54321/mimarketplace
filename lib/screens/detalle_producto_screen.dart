@@ -11,16 +11,19 @@ import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'perfil_vendedor_screen.dart';
 import 'editar_producto_screen.dart';
 import 'portafolio_vendedor_screen.dart'; // 🔥 NUEVO
+import 'package:audioplayers/audioplayers.dart';
 
 
 class DetalleProductoScreen extends StatefulWidget {
   final Producto producto;
   final VoidCallback? onBloqueoCambiado; // ✅ ESTE PARÁMETRO ES OBLIGATORIO
+  final bool reproducirAudio; // 🔊 false cuando se entra desde la imagen destacada
 
   const DetalleProductoScreen({
     super.key,
     required this.producto,
     this.onBloqueoCambiado, // ✅ ESTO VA AQUÍ
+    this.reproducirAudio = true,
   });
 
   @override
@@ -34,6 +37,10 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   final String _usuarioId = FirebaseAuth.instance.currentUser?.uid ?? '';
   int _imagenActual = 0;
   late Producto _producto;
+
+  // 🔊 AUDIO DEL PRODUCTO (se reproduce al entrar al detalle)
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _audioIniciado = false;
   
   // 🔥 NUEVO: GUARDAR UBICACIÓN EN CACHÉ LOCAL
   String? _ubicacionCache;
@@ -75,6 +82,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     _producto = widget.producto;
     _fotoVendedorLocal = widget.producto.vendedorFoto ?? '';
     _recargarProductoFresco();
+    _iniciarAudioSiCorresponde();
     _verificarFavorito();
     _cargarFotoVendedorSiFalta();
     _registrarVista();
@@ -93,6 +101,34 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     });
   }
 
+  // 🔊 Reproduce el audio del producto al entrar al detalle.
+  // No se reproduce si se entró desde la imagen destacada (ya sonó allí).
+  Future<void> _iniciarAudioSiCorresponde() async {
+    if (_audioIniciado) return;
+
+    if (!widget.reproducirAudio) {
+      print('>>> 🔊 Audio NO se reproduce: se entró desde la imagen destacada');
+      return;
+    }
+
+    final audio = _producto.audioUrl ?? '';
+    if (audio.isEmpty) {
+      print('>>> 🔊 Producto sin audio, todo queda igual');
+      return;
+    }
+
+    _audioIniciado = true;
+    try {
+      final urlCompleta = audio.startsWith('http')
+          ? audio
+          : 'https://mimarketplace-production.up.railway.app$audio';
+      print('>>> 🔊 Reproduciendo audio del producto: $urlCompleta');
+      await _audioPlayer.play(UrlSource(urlCompleta));
+    } catch (e) {
+      print('>>> ❌ Error al reproducir audio del producto: $e');
+    }
+  }
+
   Future<void> _recargarProductoFresco() async {
     print('>>> RECARGANDO PRODUCTO FRESCO - id: ${_producto.id}');
     try {
@@ -105,6 +141,12 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
         print('>>> FRESCO verificado: ${data['vendedor_verificado']}');
+        print('>>> FRESCO audio_url: ${data['audio_url']}');
+        // 🔊 Si el audio aún no arrancó, intentarlo con el producto fresco
+        // (se ejecuta después del setState de abajo)
+        Future.microtask(() {
+          if (mounted) _iniciarAudioSiCorresponde();
+        });
         if (mounted) {
           setState(() {
             _producto = Producto.fromJson(data);
@@ -119,6 +161,8 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   @override
   void dispose() {
     _autoScrollTimer?.cancel();
+    _audioPlayer.stop();
+    _audioPlayer.dispose();
     _descripcionController.dispose();
     super.dispose();
   }
