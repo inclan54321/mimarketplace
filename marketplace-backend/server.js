@@ -1052,7 +1052,7 @@ cron.schedule('* * * * *', async () => {
         }
 
         // ============================================================
-        // 4. MARCAR 'NO_PRESENTADO' (15 min después de la hora) + AVISO
+        // 4. MARCAR 'N O_PRESENTADO' (15 min después de la hora) + AVISO
         // ============================================================
         const marcadosNoPresentado = await pool.query(
             `UPDATE encuentros_agendados 
@@ -1069,6 +1069,38 @@ cron.schedule('* * * * *', async () => {
 
         for (const enc of marcadosNoPresentado.rows) {
             console.log(`>>> 🚫 Encuentro ${enc.id} marcado como no_presentado`);
+
+            // 🔥 FIX: CONTABILIZAR AUSENCIA PARA CADA USUARIO
+            for (const uid of [enc.usuario1_id, enc.usuario2_id]) {
+                try {
+                    const yaContado = await pool.query(
+                        `SELECT 1 FROM asistencia_contada 
+                         WHERE encuentro_id = $1 AND usuario_id = $2`,
+                        [enc.id, uid]
+                    );
+                    if (yaContado.rows.length > 0) continue;
+
+                    const v = await pool.query(
+                        `SELECT id FROM verificaciones_faciales
+                         WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE LIMIT 1`,
+                        [enc.id, uid]
+                    );
+                    const estadoAsistencia = v.rows.length > 0 ? 'a_tiempo' : 'ausente';
+
+                    await pool.query(
+                        `INSERT INTO asistencia_contada (encuentro_id, usuario_id, estado, minutos_tarde)
+                         VALUES ($1, $2, $3, 0) ON CONFLICT DO NOTHING`,
+                        [enc.id, uid, estadoAsistencia]
+                    );
+
+                    if (estadoAsistencia === 'ausente') {
+                        await aplicarAusencia(uid);
+                        console.log(`>>> 📊 [enc ${enc.id}] ${uid} → ausente`);
+                    }
+                } catch (e) {
+                    console.error(`>>> ❌ Error contabilizando [enc ${enc.id}] ${uid}:`, e.message);
+                }
+            }
 
             const fechaTxt = new Date(enc.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
             const mensaje = `🚫 No llegaste al encuentro.\n\n📍 ${enc.lugar_nombre}\n🕐 ${fechaTxt}\n\nEl encuentro se marcó como "no presentado".`;
