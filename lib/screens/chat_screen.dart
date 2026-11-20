@@ -2458,7 +2458,126 @@ Future<void> _obtenerFotoVendedorReal() async {
     );
   }
 
+  // 🛡️ Devuelve null si el aviso está oculto, true si el usuario aceptó, false si canceló
+  Future<bool?> _mostrarAvisoEscudo({required bool esAudio}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = esAudio ? 'aviso_audio_escudo_oculto' : 'aviso_imagen_escudo_oculto';
+    if (prefs.getBool(key) ?? false) return null;
+    if (!mounted) return false;
+
+    bool noMostrar = false;
+    final r = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.shield, color: Colors.blue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  esAudio ? 'Audios con el Escudo' : 'Imágenes con el Escudo',
+                  style: const TextStyle(fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                esAudio
+                    ? '• Solo puedes grabar 25 segundos.\n'
+                      '• El audio se revisa con IA: debe hablar únicamente de "${widget.nombreProducto}".\n'
+                      '• No se permiten teléfonos, redes sociales, pagos fuera de la app, insultos ni otros temas.\n\n'
+                      'Cuando cierres esta ventana, mantén presionado el micrófono para grabar.'
+                    : '• Solo puedes enviar 1 imagen en este chat.\n'
+                      '• La imagen se revisa con IA: debe mostrar el producto "${widget.nombreProducto}".\n'
+                      '• No se permiten teléfonos, QR, redes sociales, pagos fuera de la app, contenido sexual, violento u ofensivo.',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () => setD(() => noMostrar = !noMostrar),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: noMostrar,
+                      onChanged: (v) => setD(() => noMostrar = v ?? false),
+                    ),
+                    const Expanded(child: Text('No volver a mostrar')),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            if (!esAudio)
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar'),
+              ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(esAudio ? 'Entendido' : 'Continuar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (r == true && noMostrar) await prefs.setBool(key, true);
+    return r ?? false;
+  }
+
+  // 🛡️ Ventana cuando la IA rechaza el audio o la imagen
+  Future<void> _mostrarRechazoModeracion(String titulo, String motivo) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.gpp_bad, color: Colors.red),
+            const SizedBox(width: 8),
+            Expanded(child: Text(titulo, style: const TextStyle(fontSize: 18))),
+          ],
+        ),
+        content: Text(motivo),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🛡️ ¿Ya envié una imagen en este chat? (el servidor también lo valida)
+  bool _yaEnvieImagenEnChat() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return _mensajes.any((m) {
+      final img = (m['imagen'] ?? '').toString();
+      return m['usuario_id'] == uid && img.isNotEmpty && !img.endsWith('.m4a');
+    });
+  }
+
   Future<void> _seleccionarImagen(ImageSource source) async {
+    // 🛡️ Escudo activo: máximo 1 imagen + aviso previo
+    if (_iaActiva) {
+      if (_yaEnvieImagenEnChat()) {
+        await _mostrarRechazoModeracion(
+          'Límite de imágenes',
+          'Con el Escudo activo solo puedes enviar 1 imagen en este chat.',
+        );
+        return;
+      }
+      final aviso = await _mostrarAvisoEscudo(esAudio: false);
+      if (aviso == false) return;
+    }
     final picker = ImagePicker();
     
     // 1️⃣ Elegir imagen
@@ -2517,6 +2636,17 @@ Future<void> _obtenerFotoVendedorReal() async {
       if (response.statusCode == 201) {
         await _cargarMensajes(_conversacionIdActual);
       } else {
+        final bodyErr = await response.stream.bytesToString();
+        String? motivo;
+        try {
+          motivo = (jsonDecode(bodyErr) as Map)['motivo']?.toString();
+        } catch (_) {}
+        if ((response.statusCode == 403 || response.statusCode == 500) &&
+            motivo != null &&
+            motivo.isNotEmpty) {
+          await _mostrarRechazoModeracion('Imagen rechazada', motivo);
+          return;
+        }
         throw Exception('Error al enviar (status ${response.statusCode})');
       }
     } catch (e) {
@@ -2587,6 +2717,14 @@ Future<void> _enviarAudio(String audioPath) async {
     if (user == null) return;
 
     print('>>> Enviando audio: $audioPath');
+    if (_iaActiva) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🛡️ Verificando audio...'),
+          duration: Duration(seconds: 30),
+        ),
+      );
+    }
 
     var request = http.MultipartRequest(
       'POST',
@@ -2610,6 +2748,7 @@ Future<void> _enviarAudio(String audioPath) async {
     final response = await request.send();
 
     if (response.statusCode == 201) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       print('>>> Audio enviado correctamente');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2621,6 +2760,18 @@ Future<void> _enviarAudio(String audioPath) async {
       // Recargar mensajes para mostrar el audio
       await _cargarMensajes(_conversacionIdActual);
     } else {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      final bodyErr = await response.stream.bytesToString();
+      String? motivo;
+      try {
+        motivo = (jsonDecode(bodyErr) as Map)['motivo']?.toString();
+      } catch (_) {}
+      if ((response.statusCode == 403 || response.statusCode == 500) &&
+          motivo != null &&
+          motivo.isNotEmpty) {
+        await _mostrarRechazoModeracion('Audio rechazado', motivo);
+        return;
+      }
       throw Exception('Error al enviar audio');
     }
   } catch (e) {
@@ -2642,6 +2793,13 @@ Future<void> _startRecording() async {
       const SnackBar(content: Text('Se necesita permiso para grabar audio')),
     );
     return;
+  }
+
+  // 🛡️ Escudo activo: aviso de 25 segundos + moderación. Si se muestra, NO se graba
+  // (el usuario ya soltó el botón); tiene que volver a mantener presionado.
+  if (_iaActiva) {
+    final aviso = await _mostrarAvisoEscudo(esAudio: true);
+    if (aviso != null) return;
   }
 
   // Verificar que no se esté grabando ya
@@ -2671,6 +2829,18 @@ Future<void> _startRecording() async {
     // 🔥 Iniciar timer para mostrar el tiempo
     _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       final seconds = timer.tick;
+      // 🛡️ Con escudo activo el audio dura máximo 25 segundos
+      if (_iaActiva && seconds >= 25) {
+        timer.cancel();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⏱️ Límite de 25 segundos alcanzado'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        _stopRecordingAndSend();
+        return;
+      }
       final minutes = (seconds / 60).floor();
       final remainingSeconds = seconds % 60;
       setState(() {
