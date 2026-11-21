@@ -257,22 +257,22 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
                   ),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const Column(
+                child: Column(
                   children: [
-                    Icon(Icons.verified, color: Colors.white, size: 48),
-                    SizedBox(height: 12),
+                    const Icon(Icons.verified, color: Colors.white, size: 48),
+                    const SizedBox(height: 12),
                     Text(
-                      '¡Ya sos premium!',
-                      style: TextStyle(
+                      AppLocalizations.of(context)!.premiumActivoTitulo,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      'Los anuncios están eliminados',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                      AppLocalizations.of(context)!.premiumActivoDescripcion,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                   ],
                 ),
@@ -304,11 +304,11 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
             // 🔥 PLAN SEMANAL
             _buildPlanCard(
               id: 'semanal',
-              titulo: '1 Semana',
+              titulo: AppLocalizations.of(context)!.planUnaSemana,
               precio: _cargandoPrecios
                   ? '...'
                   : _formatearPrecio(_precioSemestralConvertido ?? 1000.0),
-              subtitulo: 'Sin anuncios por 7 días',
+              subtitulo: AppLocalizations.of(context)!.sinAnunciosPor7Dias,
               ahorro: null,
             ),
             const SizedBox(height: 32),
@@ -512,8 +512,8 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
   Future<void> _confirmarCompra(String plan) async {
     if (_esPremium) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ya tenés los anuncios eliminados'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.yaTenesAnunciosEliminados),
           backgroundColor: Colors.blue,
         ),
       );
@@ -534,7 +534,8 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'V4: no disponible. Encontrados: ${_productosDisponibles.map((p) => p.id).toList()} | Buscado: $productId',
+              '${AppLocalizations.of(context)!.productoNoDisponible} '
+              'Encontrados: ${_productosDisponibles.map((p) => p.id).toList()} | Buscado: $productId',
             ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 8),
@@ -567,7 +568,9 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${purchase.error?.message ?? 'Desconocido'}'),
+              content: Text(AppLocalizations.of(context)!.errorCompra(
+                purchase.error?.message ?? AppLocalizations.of(context)!.desconocido,
+              )),
               backgroundColor: Colors.red,
             ),
           );
@@ -609,7 +612,7 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('No hay usuario logueado');
+      if (user == null) throw Exception(AppLocalizations.of(context)!.usuarioNoLogueado);
       final idToken = await user.getIdToken();
 
       final response = await http.post(
@@ -632,17 +635,17 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
         setState(() => _esPremium = true);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ ¡Listo! Los anuncios fueron eliminados.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.compraExitosaAnunciosEliminados),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
+              duration: const Duration(seconds: 3),
             ),
           );
           Navigator.pop(context, true); // devolver true a quien la abrió
         }
       } else {
         final data = jsonDecode(response.body);
-        throw Exception(data['error'] ?? 'Error al verificar compra');
+        throw Exception(data['error'] ?? AppLocalizations.of(context)!.errorVerificarCompra);
       }
     } catch (e) {
       if (!mounted) return;
@@ -650,7 +653,10 @@ class _EliminarPublicidadScreenState extends State<EliminarPublicidadScreen> {
         Navigator.of(context, rootNavigator: true).pop();
       } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.errorCompra(e.toString())),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       if (mounted) setState(() => _procesandoCompra = false);

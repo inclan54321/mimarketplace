@@ -139,6 +139,7 @@ class _ChatScreenState extends State<ChatScreen>
   bool _cerrarTratoForzado = false; // 🔥 Modal de cerrar trato abierto por el escudo o por el otro usuario (la IA no lo apaga)
   bool _yoAbriCerrarTrato = false;  // 🔥 true SOLO si YO pulsé "Cerrar trato" en el menú del escudo
   bool _viendoMensajesEnTratoCerrado = false; // 🔥 Ver historial cuando el trato está cerrado
+  bool _encuentroNoPresentado = false; // 🔥 Chat cerrado porque el encuentro no se realizó
   // 🔥 ESCUDO MUTUO (aceptar/rechazar por el otro usuario)
   String? _escudoActivadoPor;
   bool _escudoYoAcepte = false;
@@ -569,6 +570,7 @@ _iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid || esRevisor);
         'propuestaPendiente': _propuestaEncuentroPendiente,
         'quiereCerrarTrato': _quiereCerrarTrato,
         'mostrarBotonesCerrarTrato': _mostrarBotonesCerrarTrato,
+        'noPresentado': _encuentroNoPresentado,
       }));
     } catch (e) {
       print('Error al guardar estado de bloqueo: $e');
@@ -618,6 +620,7 @@ _iaActiva = activoBackend && (yoAcepte || activadoPor == user.uid || esRevisor);
         _usuarioDecidioSeguirConversando = false;
         _propuestaEncuentroPendiente = m['propuestaPendiente'] == true;
         _quiereCerrarTrato = m['quiereCerrarTrato'] == true;
+        _encuentroNoPresentado = m['noPresentado'] == true;
         // 🔥 NO restaurar el modal de cerrar trato del caché: lo decide el servidor.
         // Si se restaura, aparece unos segundos y luego se apaga.
         _mostrarBotonesCerrarTrato = false;
@@ -1147,6 +1150,7 @@ void dispose() {
       final dataBloqueo = jsonDecode(rBloqueo.body);
       final chatBloqueadoBD = dataBloqueo['chat_bloqueado'] == true;
       final cerradoPorEscudoBD = dataBloqueo['cerrado_por_escudo'] == true;
+      final noPresentadoBD = dataBloqueo['no_presentado'] == true;
 
       print('>>> 🔒 Estado de bloqueo BD: chat_bloqueado=$chatBloqueadoBD, cerrado_por_escudo=$cerradoPorEscudoBD');
 
@@ -1189,6 +1193,7 @@ void dispose() {
           }
 
           _chatDesbloqueadoPorVerificacion = escudoVerificado;
+          _encuentroNoPresentado = noPresentadoBD;
         });
       }
     }
@@ -2079,6 +2084,16 @@ Future<void> _obtenerFotoVendedorReal() async {
     } catch (e) {
       print('Error al consultar análisis: $e');
     }
+  }
+
+  void _avisoNoPresentado() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('El encuentro no se realizó. Eliminá este chat y volvé a abrirlo para seguir conversando.'),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 4),
+      ),
+    );
   }
 
   void _mostrarOpcionesImagen() {
@@ -7052,7 +7067,7 @@ else
                     emojiDesdeEstado: _conversationStatus,
                     hayPropuestaAceptada: _hayPropuestaAceptadaEnCache,
                     hayPropuestaPendiente: _propuestaEncuentroPendiente,
-                    tratoCerrado: _chatBloqueado,
+                    tratoCerrado: _chatBloqueado && !_encuentroNoPresentado,
                     onCancelarTrato: _mostrarDialogoCancelarTrato,
                     onCerrarTrato: () {
                       setState(() {
@@ -7067,6 +7082,10 @@ else
                       _mostrarInterfazEncuentro();
                     },
                     onToggle: () {
+                      if (_encuentroNoPresentado) {
+                        _avisoNoPresentado();
+                        return;
+                      }
                       if (_iaActiva) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -7090,6 +7109,10 @@ else
                       _guardarEstadoEscudo(true);
                     },
                     onInfoTap: () {
+                      if (_encuentroNoPresentado) {
+                        _avisoNoPresentado();
+                        return;
+                      }
                       if (!_iaActiva) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -7122,7 +7145,7 @@ else
 
     return Scaffold(
  appBar: _buildAppBar(context),
-      floatingActionButton: (_chatBloqueado && _viendoMensajesEnTratoCerrado)
+      floatingActionButton: (_chatBloqueado && _viendoMensajesEnTratoCerrado && !_encuentroNoPresentado)
           ? FloatingActionButton.extended(
               onPressed: () {
                 setState(() {
@@ -7491,7 +7514,7 @@ else
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : (_chatBloqueado && !_viendoMensajesEnTratoCerrado)
+                : (_chatBloqueado && !_viendoMensajesEnTratoCerrado && !_encuentroNoPresentado)
                     ? _buildPantallaTratoCerrado()
                     : _mensajes.isEmpty
                         ? const Center(
@@ -7941,8 +7964,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           const Text(
             'Lamentamos las molestias. No todos los encuentros se pueden concretar, '
             'y eso está bien: lo importante es cuidarnos entre todos.\n\n'
-            'El chat queda abierto y el escudo se desactivó. Podés seguir '
-            'conversando con total normalidad.',
+            'El chat quedó cerrado. Eliminá este chat y volvé a abrirlo '
+            'para seguir conversando.',
             style: TextStyle(
               color: Color(0xFF78350F),
               fontSize: 12.5,
@@ -8249,16 +8272,18 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                _escudoOtroRechazo ? Icons.gpp_bad : Icons.lock,
+                (_escudoOtroRechazo || _encuentroNoPresentado) ? Icons.gpp_bad : Icons.lock,
                 color: Colors.red,
                 size: 18,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _escudoOtroRechazo
-                      ? 'Chat cerrado. Uno de los participantes no aceptó el Escudo de Seguridad.'
-                      : 'Chat bloqueado. Se verán en persona. No llegues tarde.',
+                  _encuentroNoPresentado
+                      ? 'El encuentro no se realizó. Eliminá este chat y volvé a abrirlo para seguir conversando.'
+                      : _escudoOtroRechazo
+                          ? 'Chat cerrado. Uno de los participantes no aceptó el Escudo de Seguridad.'
+                          : 'Chat bloqueado. Se verán en persona. No llegues tarde.',
                   style: const TextStyle(color: Colors.red, fontSize: 13),
                 ),
               ),
@@ -8520,7 +8545,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
 
     DateTime? fecha;
     try {
-      fecha = DateTime.parse(fechaEncuentroStr).toLocal();
+      fecha = DateTime.parse(fechaEncuentroStr.replaceAll('Z', ''));
     } catch (e) {
       debugPrint('>>> ⏰ fecha_encuentro inválida: $fechaEncuentroStr');
       return;

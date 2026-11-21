@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/producto.dart';
 import 'package:http/http.dart' as http;
@@ -369,7 +370,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   void _compartirProducto() {
     final String enlace = 'https://mimarketplace.com';
     Share.share(
-      '📱 Mira este producto en MiMarketplace:\n\n$enlace',
+      AppLocalizations.of(context)!.compartirProductoMensaje(enlace),
     );
   }
 
@@ -417,10 +418,10 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     if (response.statusCode == 201) {
       print('>>> BLOQUEO EXITOSO');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vendedor bloqueado correctamente. Reiniciando...'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.vendedorBloqueadoCorrectamente),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
       
@@ -443,7 +444,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
       final error = jsonDecode(response.body);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error['error'] ?? 'Error al bloquear'),
+          content: Text(error['error'] ?? AppLocalizations.of(context)!.errorAlBloquear),
           backgroundColor: Colors.red,
         ),
       );
@@ -451,8 +452,8 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   } catch (e) {
     print('>>> EXCEPCIÓN EN BLOQUEO: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Error al bloquear usuario'),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.errorAlBloquearUsuario),
         backgroundColor: Colors.red,
       ),
     );
@@ -483,10 +484,10 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     if (response.statusCode == 200) {
       print('>>> DESBLOQUEO EXITOSO');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vendedor desbloqueado correctamente. Reiniciando...'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.vendedorDesbloqueadoCorrectamente),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
       
@@ -509,7 +510,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
       final error = jsonDecode(response.body);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error['error'] ?? 'Error al desbloquear'),
+          content: Text(error['error'] ?? AppLocalizations.of(context)!.errorAlDesbloquear),
           backgroundColor: Colors.red,
         ),
       );
@@ -517,8 +518,8 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   } catch (e) {
     print('>>> EXCEPCIÓN EN DESBLOQUEO: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Error al desbloquear usuario'),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.errorAlDesbloquearUsuario),
         backgroundColor: Colors.red,
       ),
     );
@@ -550,11 +551,11 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    'Mi Perfil',
-                    style: TextStyle(
+                    AppLocalizations.of(context)!.miPerfil,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -567,13 +568,13 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                     color: Colors.blue,
                     size: 28,
                   ),
-                  title: const Text(
-                    'Ver Portafolio',
-                    style: TextStyle(fontSize: 16),
+                  title: Text(
+                    AppLocalizations.of(context)!.verPortafolio,
+                    style: const TextStyle(fontSize: 16),
                   ),
-                  subtitle: const Text(
-                    'Ver todos mis productos publicados',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.verTodosMisProductos,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   onTap: () {
                     Navigator.pop(context);
@@ -583,7 +584,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                         builder: (context) => PortafolioVendedorScreen(
                           vendedorId: _producto.vendedorId ?? '',
                           vendedorNombre:
-                              _producto.vendedorNombre ?? 'Mi Portafolio',
+                              _producto.vendedorNombre ?? AppLocalizations.of(context)!.miPortafolio,
                           vendedorFoto: _fotoVendedorLocal,
                         ),
                       ),
@@ -625,11 +626,11 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'Opciones del Vendedor',
-                      style: TextStyle(
+                      AppLocalizations.of(context)!.opcionesDelVendedor,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -643,13 +644,17 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                       size: 28,
                     ),
                     title: Text(
-                      estaBloqueado ? 'Desbloquear' : 'Bloquear',
+                      estaBloqueado
+                          ? AppLocalizations.of(context)!.desbloquear
+                          : AppLocalizations.of(context)!.bloquear,
                       style: const TextStyle(fontSize: 16),
                     ),
                     subtitle: Text(
                       estaBloqueado
-                          ? 'Desbloquear a ${_producto.vendedorNombre ?? 'este vendedor'}'
-                          : 'Bloquear a ${_producto.vendedorNombre ?? 'este vendedor'}',
+                          ? AppLocalizations.of(context)!.desbloquearA(
+                              _producto.vendedorNombre ?? AppLocalizations.of(context)!.esteVendedor)
+                          : AppLocalizations.of(context)!.bloquearA(
+                              _producto.vendedorNombre ?? AppLocalizations.of(context)!.esteVendedor),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     onTap: () async {
@@ -667,12 +672,13 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                       color: Colors.green,
                       size: 28,
                     ),
-                    title: const Text(
-                      'Ver información de perfil',
-                      style: TextStyle(fontSize: 16),
+                    title: Text(
+                      AppLocalizations.of(context)!.verInformacionDePerfil,
+                      style: const TextStyle(fontSize: 16),
                     ),
                     subtitle: Text(
-                      'Ver detalles de ${_producto.vendedorNombre ?? 'este vendedor'}',
+                      AppLocalizations.of(context)!.verDetallesDe(
+                          _producto.vendedorNombre ?? AppLocalizations.of(context)!.esteVendedor),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     onTap: () {
@@ -697,12 +703,13 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                       color: Colors.blue,
                       size: 28,
                     ),
-                    title: const Text(
-                      'Ver Portafolio',
-                      style: TextStyle(fontSize: 16),
+                    title: Text(
+                      AppLocalizations.of(context)!.verPortafolio,
+                      style: const TextStyle(fontSize: 16),
                     ),
                     subtitle: Text(
-                      'Ver todos los productos de ${_producto.vendedorNombre ?? 'este vendedor'}',
+                      AppLocalizations.of(context)!.verTodosLosProductosDe(
+                          _producto.vendedorNombre ?? AppLocalizations.of(context)!.esteVendedor),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     onTap: () {
@@ -727,12 +734,13 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                       color: Colors.red,
                       size: 28,
                     ),
-                    title: const Text(
-                      'Denunciar vendedor',
-                      style: TextStyle(fontSize: 16),
+                    title: Text(
+                      AppLocalizations.of(context)!.denunciarVendedor,
+                      style: const TextStyle(fontSize: 16),
                     ),
                     subtitle: Text(
-                      'Reportar a ${_producto.vendedorNombre ?? 'este vendedor'} por incumplir las reglas',
+                      AppLocalizations.of(context)!.reportarA(
+                          _producto.vendedorNombre ?? AppLocalizations.of(context)!.esteVendedor),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     onTap: () {
@@ -766,14 +774,14 @@ void _mostrarDialogoDenuncia() {
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: const Text('⚠️ Denunciar vendedor'),
+            title: Text(AppLocalizations.of(context)!.denunciarVendedorTitulo),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Selecciona el motivo de la denuncia:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                Text(
+                  AppLocalizations.of(context)!.seleccionaMotivoDenuncia,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 ...motivos.map((motivo) => RadioListTile<String>(
@@ -790,16 +798,16 @@ void _mostrarDialogoDenuncia() {
                   contentPadding: EdgeInsets.zero,
                 )),
                 const SizedBox(height: 8),
-                const Text(
-                  'Esta denuncia será revisada por nuestro equipo de moderación.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                Text(
+                  AppLocalizations.of(context)!.denunciaRevisadaPorEquipo,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancelar'),
+                child: Text(AppLocalizations.of(context)!.cancelar),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -810,7 +818,7 @@ void _mostrarDialogoDenuncia() {
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Denunciar'),
+                child: Text(AppLocalizations.of(context)!.denunciar),
               ),
             ],
           );
@@ -825,8 +833,8 @@ Future<void> _enviarDenuncia(String motivo) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debes iniciar sesión para denunciar'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.debesIniciarSesionParaDenunciar),
           backgroundColor: Colors.orange,
         ),
       );
@@ -846,8 +854,8 @@ Future<void> _enviarDenuncia(String motivo) async {
 
     if (response.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Denuncia enviada. Será revisada por moderación.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.denunciaEnviada),
           backgroundColor: Colors.green,
         ),
       );
@@ -857,7 +865,7 @@ Future<void> _enviarDenuncia(String motivo) async {
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Error al enviar denuncia: $e'),
+        content: Text(AppLocalizations.of(context)!.errorAlEnviarDenuncia(e.toString())),
         backgroundColor: Colors.red,
       ),
     );
@@ -1283,7 +1291,7 @@ Future<void> _enviarDenuncia(String motivo) async {
                         if (user == null) {
                           print('>>> 2. USUARIO NO LOGUEADO');
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Debes iniciar sesión')),
+                            SnackBar(content: Text(AppLocalizations.of(context)!.debesIniciarSesion)),
                           );
                           return;
                         }
@@ -1405,8 +1413,8 @@ Future<void> _enviarDenuncia(String motivo) async {
                           const SizedBox(width: 8),
                           Text(
                             _esMiPropioProducto
-                                ? 'Editar Producto'
-                                : 'Contactar Vendedor',
+                                ? AppLocalizations.of(context)!.editarProducto
+                                : AppLocalizations.of(context)!.contactarVendedor,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -1479,7 +1487,7 @@ Future<void> _enviarDenuncia(String motivo) async {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _producto.vendedorNombre ?? 'Vendedor',
+                    _producto.vendedorNombre ?? AppLocalizations.of(context)!.vendedor,
                     style: const TextStyle(color: Colors.white70, fontSize: 10),
                     textAlign: TextAlign.center,
                   ),

@@ -8,6 +8,8 @@ import 'package:intl/intl.dart' as intl;
 import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
 import 'app_localizations_es.dart';
+import 'app_localizations_ja.dart';
+import 'app_localizations_ko.dart';
 
 // ignore_for_file: type=lint
 
@@ -98,6 +100,8 @@ abstract class AppLocalizations {
     Locale('de'),
     Locale('en'),
     Locale('es'),
+    Locale('ja'),
+    Locale('ko'),
   ];
 
   /// No description provided for @appTitle.
@@ -327,6 +331,240 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Favoritos'**
   String get favoritos;
+
+  /// No description provided for @miPerfil.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi Perfil'**
+  String get miPerfil;
+
+  /// No description provided for @verPortafolio.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver Portafolio'**
+  String get verPortafolio;
+
+  /// No description provided for @verTodosMisProductos.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver todos mis productos publicados'**
+  String get verTodosMisProductos;
+
+  /// No description provided for @opcionesDelVendedor.
+  ///
+  /// In es, this message translates to:
+  /// **'Opciones del Vendedor'**
+  String get opcionesDelVendedor;
+
+  /// No description provided for @desbloquear.
+  ///
+  /// In es, this message translates to:
+  /// **'Desbloquear'**
+  String get desbloquear;
+
+  /// No description provided for @bloquear.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloquear'**
+  String get bloquear;
+
+  /// No description provided for @desbloquearA.
+  ///
+  /// In es, this message translates to:
+  /// **'Desbloquear a {nombre}'**
+  String desbloquearA(String nombre);
+
+  /// No description provided for @bloquearA.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloquear a {nombre}'**
+  String bloquearA(String nombre);
+
+  /// No description provided for @verInformacionDePerfil.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver información de perfil'**
+  String get verInformacionDePerfil;
+
+  /// No description provided for @verDetallesDe.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver detalles de {nombre}'**
+  String verDetallesDe(String nombre);
+
+  /// No description provided for @verTodosLosProductosDe.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver todos los productos de {nombre}'**
+  String verTodosLosProductosDe(String nombre);
+
+  /// No description provided for @denunciarVendedor.
+  ///
+  /// In es, this message translates to:
+  /// **'Denunciar vendedor'**
+  String get denunciarVendedor;
+
+  /// No description provided for @reportarA.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportar a {nombre} por incumplir las reglas'**
+  String reportarA(String nombre);
+
+  /// No description provided for @vendedorBloqueadoCorrectamente.
+  ///
+  /// In es, this message translates to:
+  /// **'Vendedor bloqueado correctamente. Reiniciando...'**
+  String get vendedorBloqueadoCorrectamente;
+
+  /// No description provided for @vendedorDesbloqueadoCorrectamente.
+  ///
+  /// In es, this message translates to:
+  /// **'Vendedor desbloqueado correctamente. Reiniciando...'**
+  String get vendedorDesbloqueadoCorrectamente;
+
+  /// No description provided for @errorAlBloquear.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al bloquear'**
+  String get errorAlBloquear;
+
+  /// No description provided for @errorAlDesbloquear.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al desbloquear'**
+  String get errorAlDesbloquear;
+
+  /// No description provided for @errorAlBloquearUsuario.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al bloquear usuario'**
+  String get errorAlBloquearUsuario;
+
+  /// No description provided for @errorAlDesbloquearUsuario.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al desbloquear usuario'**
+  String get errorAlDesbloquearUsuario;
+
+  /// No description provided for @denunciarVendedorTitulo.
+  ///
+  /// In es, this message translates to:
+  /// **'⚠️ Denunciar vendedor'**
+  String get denunciarVendedorTitulo;
+
+  /// No description provided for @seleccionaMotivoDenuncia.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona el motivo de la denuncia:'**
+  String get seleccionaMotivoDenuncia;
+
+  /// No description provided for @denunciaRevisadaPorEquipo.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta denuncia será revisada por nuestro equipo de moderación.'**
+  String get denunciaRevisadaPorEquipo;
+
+  /// No description provided for @denunciar.
+  ///
+  /// In es, this message translates to:
+  /// **'Denunciar'**
+  String get denunciar;
+
+  /// No description provided for @debesIniciarSesionParaDenunciar.
+  ///
+  /// In es, this message translates to:
+  /// **'Debes iniciar sesión para denunciar'**
+  String get debesIniciarSesionParaDenunciar;
+
+  /// No description provided for @denunciaEnviada.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Denuncia enviada. Será revisada por moderación.'**
+  String get denunciaEnviada;
+
+  /// No description provided for @errorAlEnviarDenuncia.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al enviar denuncia: {error}'**
+  String errorAlEnviarDenuncia(String error);
+
+  /// No description provided for @motivoProductoSospechoso.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto sospechoso'**
+  String get motivoProductoSospechoso;
+
+  /// No description provided for @motivoProductosProhibidos.
+  ///
+  /// In es, this message translates to:
+  /// **'Publicación de productos prohibidos'**
+  String get motivoProductosProhibidos;
+
+  /// No description provided for @motivoEstafaFraude.
+  ///
+  /// In es, this message translates to:
+  /// **'Estafa o fraude'**
+  String get motivoEstafaFraude;
+
+  /// No description provided for @motivoAcosoMaltrato.
+  ///
+  /// In es, this message translates to:
+  /// **'Acoso o maltrato'**
+  String get motivoAcosoMaltrato;
+
+  /// No description provided for @motivoInformacionFalsa.
+  ///
+  /// In es, this message translates to:
+  /// **'Información falsa o engañosa'**
+  String get motivoInformacionFalsa;
+
+  /// No description provided for @motivoOtro.
+  ///
+  /// In es, this message translates to:
+  /// **'Otro motivo'**
+  String get motivoOtro;
+
+  /// No description provided for @vendedor.
+  ///
+  /// In es, this message translates to:
+  /// **'Vendedor'**
+  String get vendedor;
+
+  /// No description provided for @esteVendedor.
+  ///
+  /// In es, this message translates to:
+  /// **'este vendedor'**
+  String get esteVendedor;
+
+  /// No description provided for @miPortafolio.
+  ///
+  /// In es, this message translates to:
+  /// **'Mi Portafolio'**
+  String get miPortafolio;
+
+  /// No description provided for @debesIniciarSesion.
+  ///
+  /// In es, this message translates to:
+  /// **'Debes iniciar sesión'**
+  String get debesIniciarSesion;
+
+  /// No description provided for @editarProducto.
+  ///
+  /// In es, this message translates to:
+  /// **'Editar Producto'**
+  String get editarProducto;
+
+  /// No description provided for @contactarVendedor.
+  ///
+  /// In es, this message translates to:
+  /// **'Contactar Vendedor'**
+  String get contactarVendedor;
+
+  /// No description provided for @compartirProductoMensaje.
+  ///
+  /// In es, this message translates to:
+  /// **'📱 Mira este producto en MiMarketplace:\n\n{enlace}'**
+  String compartirProductoMensaje(String enlace);
 
   /// No description provided for @noHasPublicadoNingunArticulo.
   ///
@@ -1113,6 +1351,402 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'🚧 Integración de pago en desarrollo'**
   String get integracionPagoEnDesarrollo;
+
+  /// No description provided for @encuentroCaducado.
+  ///
+  /// In es, this message translates to:
+  /// **'Encuentro caducado'**
+  String get encuentroCaducado;
+
+  /// No description provided for @esperandoVerificacionDelOtro.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperando que el otro verifique tu selfie'**
+  String get esperandoVerificacionDelOtro;
+
+  /// No description provided for @verificacionCompleta.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificación completa'**
+  String get verificacionCompleta;
+
+  /// No description provided for @premiumActivoTitulo.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Ya sos premium!'**
+  String get premiumActivoTitulo;
+
+  /// No description provided for @premiumActivoDescripcion.
+  ///
+  /// In es, this message translates to:
+  /// **'Los anuncios están eliminados'**
+  String get premiumActivoDescripcion;
+
+  /// No description provided for @planUnaSemana.
+  ///
+  /// In es, this message translates to:
+  /// **'1 Semana'**
+  String get planUnaSemana;
+
+  /// No description provided for @sinAnunciosPor7Dias.
+  ///
+  /// In es, this message translates to:
+  /// **'Sin anuncios por 7 días'**
+  String get sinAnunciosPor7Dias;
+
+  /// No description provided for @yaTenesAnunciosEliminados.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya tenés los anuncios eliminados'**
+  String get yaTenesAnunciosEliminados;
+
+  /// No description provided for @productoNoDisponible.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto no disponible'**
+  String get productoNoDisponible;
+
+  /// No description provided for @errorCompra.
+  ///
+  /// In es, this message translates to:
+  /// **'Error: {detalle}'**
+  String errorCompra(Object detalle);
+
+  /// No description provided for @desconocido.
+  ///
+  /// In es, this message translates to:
+  /// **'Desconocido'**
+  String get desconocido;
+
+  /// No description provided for @usuarioNoLogueado.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay usuario logueado'**
+  String get usuarioNoLogueado;
+
+  /// No description provided for @errorVerificarCompra.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al verificar compra'**
+  String get errorVerificarCompra;
+
+  /// No description provided for @compraExitosaAnunciosEliminados.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ ¡Listo! Los anuncios fueron eliminados.'**
+  String get compraExitosaAnunciosEliminados;
+
+  /// No description provided for @configurarImpulso.
+  ///
+  /// In es, this message translates to:
+  /// **'Configurar impulso'**
+  String get configurarImpulso;
+
+  /// No description provided for @impulsarTitulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Impulsar'**
+  String get impulsarTitulo;
+
+  /// No description provided for @impulsarPublicacion.
+  ///
+  /// In es, this message translates to:
+  /// **'Impulsar publicación'**
+  String get impulsarPublicacion;
+
+  /// No description provided for @poneTuProductoPrimero.
+  ///
+  /// In es, this message translates to:
+  /// **'Poné tu producto primero'**
+  String get poneTuProductoPrimero;
+
+  /// No description provided for @impulsarPunto1Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Subí al primer lugar'**
+  String get impulsarPunto1Titulo;
+
+  /// No description provided for @impulsarPunto1Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu producto aparece primero en la lista de Productos Destacados del Home.'**
+  String get impulsarPunto1Desc;
+
+  /// No description provided for @impulsarPunto2Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Más visibilidad'**
+  String get impulsarPunto2Titulo;
+
+  /// No description provided for @impulsarPunto2Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'Al estar primero, más personas lo ven y tenés más chances de venderlo rápido.'**
+  String get impulsarPunto2Desc;
+
+  /// No description provided for @impulsarPunto3Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Duración limitada'**
+  String get impulsarPunto3Titulo;
+
+  /// No description provided for @impulsarPunto3Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'El impulso dura hasta que otro vendedor pague por subir. Ahí bajás un lugar.'**
+  String get impulsarPunto3Desc;
+
+  /// No description provided for @seleccionarArticulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccionar artículo'**
+  String get seleccionarArticulo;
+
+  /// No description provided for @proximamenteDisponiblePagos.
+  ///
+  /// In es, this message translates to:
+  /// **'Próximamente disponible. Estamos habilitando los pagos.'**
+  String get proximamenteDisponiblePagos;
+
+  /// No description provided for @articuloAImpulsar.
+  ///
+  /// In es, this message translates to:
+  /// **'Artículo a impulsar'**
+  String get articuloAImpulsar;
+
+  /// No description provided for @comoFuncionaImpulso.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cómo funciona?'**
+  String get comoFuncionaImpulso;
+
+  /// No description provided for @explicacionImpulso.
+  ///
+  /// In es, this message translates to:
+  /// **'Al impulsar, tu producto sube al primer lugar del Home. Si otro vendedor impulsa su producto, vos bajás un lugar. El que pagó más recientemente siempre está primero.'**
+  String get explicacionImpulso;
+
+  /// No description provided for @procesando.
+  ///
+  /// In es, this message translates to:
+  /// **'Procesando...'**
+  String get procesando;
+
+  /// No description provided for @cargando.
+  ///
+  /// In es, this message translates to:
+  /// **'Cargando...'**
+  String get cargando;
+
+  /// No description provided for @impulsarAhora.
+  ///
+  /// In es, this message translates to:
+  /// **'Impulsar ahora'**
+  String get impulsarAhora;
+
+  /// No description provided for @cambiarProducto.
+  ///
+  /// In es, this message translates to:
+  /// **'Cambiar producto'**
+  String get cambiarProducto;
+
+  /// No description provided for @noTenesProductosPublicados.
+  ///
+  /// In es, this message translates to:
+  /// **'No tenés productos publicados'**
+  String get noTenesProductosPublicados;
+
+  /// No description provided for @elegiUnArticulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegí un artículo'**
+  String get elegiUnArticulo;
+
+  /// No description provided for @elQueElijasApareceraPrimero.
+  ///
+  /// In es, this message translates to:
+  /// **'El que elijas aparecerá primero en el Home'**
+  String get elQueElijasApareceraPrimero;
+
+  /// No description provided for @primeroElegiUnArticulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Primero elegí un artículo'**
+  String get primeroElegiUnArticulo;
+
+  /// No description provided for @productoImpulsoNoDisponible.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto de impulso no disponible. Revisá tu conexión.'**
+  String get productoImpulsoNoDisponible;
+
+  /// No description provided for @errorDesconocido.
+  ///
+  /// In es, this message translates to:
+  /// **'Desconocido'**
+  String get errorDesconocido;
+
+  /// No description provided for @productoEstaPrimeroEnHome.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ \"{nombre}\" está primero en el Home'**
+  String productoEstaPrimeroEnHome(String nombre);
+
+  /// No description provided for @pagoNoVerificado.
+  ///
+  /// In es, this message translates to:
+  /// **'El pago no se pudo verificar. Contactá a soporte.'**
+  String get pagoNoVerificado;
+
+  /// No description provided for @compraPendiente.
+  ///
+  /// In es, this message translates to:
+  /// **'La compra quedó pendiente. Intentá de nuevo.'**
+  String get compraPendiente;
+
+  /// No description provided for @errorAlImpulsar.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al impulsar'**
+  String get errorAlImpulsar;
+
+  /// No description provided for @escudoActivoPor.
+  ///
+  /// In es, this message translates to:
+  /// **'{nombre} activó el Escudo de Seguridad'**
+  String escudoActivoPor(String nombre);
+
+  /// No description provided for @escudoPaso0Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Qué es el Escudo de Seguridad?'**
+  String get escudoPaso0Titulo;
+
+  /// No description provided for @escudoPaso0Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'Es un conjunto de medidas de protección que se activan cuando ambos usuarios de un trato lo aceptan. Su objetivo es prevenir fraudes y garantizar que el encuentro sea seguro.\n\n¿Quién debe activarlo?\nAmbos usuarios del trato deben aceptar el Escudo. Si uno lo activa, el otro recibirá una notificación para aceptarlo o rechazarlo. Si el segundo usuario lo rechaza, el chat se cerrará para ambos.'**
+  String get escudoPaso0Desc;
+
+  /// No description provided for @escudoPaso1Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Qué ocurre cuando el Escudo está activo?'**
+  String get escudoPaso1Titulo;
+
+  /// No description provided for @escudoPaso1Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'3.1. Bloqueo de enlaces y teléfonos: La app detecta y bloquea automáticamente números de teléfono y enlaces externos en los mensajes. Esto evita compartir datos de contacto fuera de la plataforma y reduce el riesgo de estafas.'**
+  String get escudoPaso1Desc;
+
+  /// No description provided for @escudoPaso2Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Cómo cerrar el trato'**
+  String get escudoPaso2Titulo;
+
+  /// No description provided for @escudoPaso2Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'Para cerrar el trato, primero proponé un encuentro: tocá el escudo en la barra superior del chat y elegí \"Proponer encuentro\". Ahí seleccionás provincia, cantón, distrito, un lugar seguro y la fecha con hora. Enviás la propuesta y el otro usuario la recibe como tarjeta en el chat. Cuando la acepta, el encuentro queda agendado pero el chat sigue abierto: pueden seguir hablando. Para cerrar el trato, tocá el escudo otra vez y elegí \"Cerrar trato\". Se abre un cartel para confirmar. Cuando ambos confirman, el chat se bloquea y las protecciones se activan.'**
+  String get escudoPaso2Desc;
+
+  /// No description provided for @escudoPaso3Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmación de asistencia'**
+  String get escudoPaso3Titulo;
+
+  /// No description provided for @escudoPaso3Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'Una hora antes del encuentro, ambos usuarios recibirán una notificación para confirmar su asistencia. Si alguno de los dos no confirma dentro de los 15 minutos posteriores a la notificación, el otro usuario podrá cancelar el encuentro hasta 15 minutos antes de la hora pactada.'**
+  String get escudoPaso3Desc;
+
+  /// No description provided for @escudoPaso4Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Seguimiento GPS'**
+  String get escudoPaso4Titulo;
+
+  /// No description provided for @escudoPaso4Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'3.3. Seguimiento GPS el día del encuentro: El día acordado, 15 minutos antes de la hora del encuentro, ambos usuarios deben estar en el lugar y activar el GPS para verificar su ubicación. Si faltando 5 minutos para la hora acordada el usuario no activó el GPS y no verificó su identidad, se considerará que llegó tarde. Si 15 minutos después de la hora acordada el usuario no lo hizo, se considerará que no llegó. En ambos casos, queda registrado y puede ser sancionado según las normas de MiMarketplace.'**
+  String get escudoPaso4Desc;
+
+  /// No description provided for @escudoPaso5Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificación facial'**
+  String get escudoPaso5Titulo;
+
+  /// No description provided for @escudoPaso5Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'3.4. Verificación de identidad antes del chat: Para liberar el chat del encuentro, ambos usuarios deben confirmar que son quienes dicen ser. Esto se habilita 15 minutos antes de la hora acordada y es un requisito obligatorio para poder abrir el chat. El sistema le pedirá a cada uno que se tome una foto en el momento. Luego, el otro usuario deberá comparar esa foto con la foto de perfil para confirmar que coinciden. Es importante estar atento, porque la verificación se habilita cuando el otro usuario la activa, y hay que seguir las instrucciones que aparecen en pantalla. Así se evita que alguien más use la cuenta.'**
+  String get escudoPaso5Desc;
+
+  /// No description provided for @escudoPaso6Titulo.
+  ///
+  /// In es, this message translates to:
+  /// **'Consideraciones adicionales'**
+  String get escudoPaso6Titulo;
+
+  /// No description provided for @escudoPaso6Desc.
+  ///
+  /// In es, this message translates to:
+  /// **'4.1. Cancelación voluntaria: Cualquier usuario puede cancelar su asistencia al encuentro siempre y cuando falte más de una hora para la hora acordada. Una vez que falte menos de una hora, la cancelación ya no estará disponible.\n\n¿Cómo cancelar? Entrá al chat del artículo, tocá el botón del escudo en la barra superior y elegí \"Cancelar trato\". Se va a abrir un cartel que te muestra la fecha del encuentro y te indica si todavía podés cancelar o si ya falta menos de una hora. Si se puede, confirmás y el encuentro se anula para los dos.\n\nRevisá siempre la sección de Alertas. Ahí llegan los recordatorios del encuentro, la confirmación de asistencia, la verificación de identidad y cualquier cambio de estado. Tenés que revisarlas seguido para no perderte nada importante.'**
+  String get escudoPaso6Desc;
+
+  /// No description provided for @noAceptar.
+  ///
+  /// In es, this message translates to:
+  /// **'No aceptar'**
+  String get noAceptar;
+
+  /// No description provided for @aceptar.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar'**
+  String get aceptar;
+
+  /// No description provided for @cerrar.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar'**
+  String get cerrar;
+
+  /// No description provided for @siguiente.
+  ///
+  /// In es, this message translates to:
+  /// **'Siguiente'**
+  String get siguiente;
+
+  /// No description provided for @iniciar.
+  ///
+  /// In es, this message translates to:
+  /// **'Iniciar'**
+  String get iniciar;
+
+  /// No description provided for @verVideo.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver video'**
+  String get verVideo;
+
+  /// No description provided for @errorGenericoImpulsar.
+  ///
+  /// In es, this message translates to:
+  /// **'Error: {error}'**
+  String errorGenericoImpulsar(String error);
+
+  /// No description provided for @ubicacionDelEncuentro.
+  ///
+  /// In es, this message translates to:
+  /// **'Ubicación del encuentro'**
+  String get ubicacionDelEncuentro;
 }
 
 class _AppLocalizationsDelegate
@@ -1126,7 +1760,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['de', 'en', 'es'].contains(locale.languageCode);
+      <String>['de', 'en', 'es', 'ja', 'ko'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -1141,6 +1775,10 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsEn();
     case 'es':
       return AppLocalizationsEs();
+    case 'ja':
+      return AppLocalizationsJa();
+    case 'ko':
+      return AppLocalizationsKo();
   }
 
   throw FlutterError(

@@ -467,6 +467,7 @@ const SUSPENSION_DIAS = 7;
 
         await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS baneado BOOLEAN DEFAULT FALSE`);
         await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS fecha_baneo TIMESTAMPTZ`);
+        await pool.query(`ALTER TABLE conversaciones_app ADD COLUMN IF NOT EXISTS cerrado_por_no_presentado BOOLEAN DEFAULT FALSE`);
         console.log('>>> ✅ Tablas de sanciones listas');
     } catch (e) {
         console.error('>>> ❌ Error creando tablas de sanciones:', e.message);
@@ -1112,9 +1113,10 @@ cron.schedule('* * * * *', async () => {
             try {
                 await pool.query(
                     `UPDATE conversaciones_app 
-                     SET chat_bloqueado = false,
+                     SET chat_bloqueado = true,
                          cerrado_por_escudo = false,
-                         quiere_cerrar_trato = false
+                         quiere_cerrar_trato = false,
+                         cerrado_por_no_presentado = true
                      WHERE id = $1`,
                     [enc.conversacion_id]
                 );
@@ -1137,7 +1139,8 @@ cron.schedule('* * * * *', async () => {
                     [enc.conversacion_id]
                 );
 
-                console.log(`>>> 🔓 Chat ${enc.conversacion_id} liberado y escudo desactivado por no_presentado`);
+                console.log(`>>> 🔒 Chat ${enc.conversacion_id} CERRADO y escudo desactivado por no_presentado`);
+                global.broadcast(enc.conversacion_id, { tipo: 'estado_cambio', estado: 'no_presentado' });
             } catch (e) {
                 console.error('>>> ❌ Error liberando chat por no_presentado:', e.message);
             }
@@ -2848,6 +2851,7 @@ app.post('/api/conversaciones', verificarTokenFirebase, async (req, res) => {
         const existente = await pool.query(
             `SELECT * FROM conversaciones_app 
              WHERE producto_id = $1
+               AND COALESCE(cerrado_por_no_presentado, FALSE) = FALSE
                AND ((usuario1_id = $2 AND usuario2_id = $3)
                     OR (usuario1_id = $3 AND usuario2_id = $2))
              ORDER BY id DESC
@@ -3566,7 +3570,7 @@ app.get('/api/conversaciones/:id/estado-bloqueo', async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query(
-            `SELECT chat_bloqueado, cerrado_por_escudo 
+            `SELECT chat_bloqueado, cerrado_por_escudo, cerrado_por_no_presentado 
              FROM conversaciones_app WHERE id = $1`,
             [id]
         );
@@ -3576,6 +3580,7 @@ app.get('/api/conversaciones/:id/estado-bloqueo', async (req, res) => {
         res.json({
             chat_bloqueado: result.rows[0].chat_bloqueado === true,
             cerrado_por_escudo: result.rows[0].cerrado_por_escudo === true,
+            no_presentado: result.rows[0].cerrado_por_no_presentado === true,
         });
     } catch (error) {
         console.error('Error al obtener estado de bloqueo:', error);
@@ -10387,13 +10392,16 @@ app.post('/api/encuentro/:id/confirmar-identidad', verificarTokenFirebase, async
 
         // Buscar la fila de verificación cruzada donde yo soy el que verifica
         const enc = await pool.query(
-            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            'SELECT usuario1_id, usuario2_id, estado FROM encuentros_agendados WHERE id = $1',
             [id]
         );
         if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
         const e = enc.rows[0];
         if (e.usuario1_id !== req.usuarioAutenticado && e.usuario2_id !== req.usuarioAutenticado) {
             return res.status(403).json({ error: 'No autorizado' });
+        }
+        if (e.estado === 'no_presentado') {
+            return res.status(400).json({ error: 'El encuentro caducó.', codigo: 'ENCUENTRO_CADUCADO' });
         }
         const otroId = e.usuario1_id === req.usuarioAutenticado ? e.usuario2_id : e.usuario1_id;
 
@@ -10575,14 +10583,14 @@ app.get('/api/encuentro/:id/mi-estado-verificacion', verificarTokenFirebase, asy
         );
 
         // 🔥 Calcular si el encuentro ya caducó
-        const fechaEncuentro = e.fecha_encuentro ? new Date(e.fecha_encuentro) : null;
-        const ahora = new Date();
-        const minutosDesdeEncuentro = fechaEncuentro
-            ? (ahora - fechaEncuentro) / 60000
-            : 0;
+        const tiempo = await pool.query(
+            `SELECT EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'America/Costa_Rica') - fecha_encuentro)) / 60 AS minutos
+             FROM encuentros_agendados WHERE id = $1`,
+            [id]
+        );
+        const minutosDesdeEncuentro = parseFloat(tiempo.rows[0]?.minutos || '0');
         const encuentroCaducado =
-            e.estado === 'no_presentado' ||
-            (fechaEncuentro && minutosDesdeEncuentro > 15);
+            e.estado === 'no_presentado' || minutosDesdeEncuentro > 15;
 
         res.json({
             mi_selfie_existe: miSelfie.rows.length > 0,
@@ -11296,9 +11304,12 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
                 [conversacion_id]
             );
             if (enc.rows.length > 0 && enc.rows[0].fecha_encuentro) {
-                const fechaEnc = new Date(enc.rows[0].fecha_encuentro);
-                const ahora = new Date();
-                const minutosPasados = (ahora - fechaEnc) / 60000;
+                const mp = await pool.query(
+                    `SELECT EXTRACT(EPOCH FROM ((NOW() AT TIME ZONE 'America/Costa_Rica') - fecha_encuentro)) / 60 AS minutos
+                     FROM encuentros_agendados WHERE conversacion_id = $1 ORDER BY id DESC LIMIT 1`,
+                    [conversacion_id]
+                );
+                const minutosPasados = parseFloat(mp.rows[0]?.minutos || '0');
                 ventanaCerrada = minutosPasados > 20;
                 if (ventanaCerrada) {
                     console.log(`>>> ⏰ Ventana de grabación cerrada (${Math.round(minutosPasados)} min) para conv ${conversacion_id}`);

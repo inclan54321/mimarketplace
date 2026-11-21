@@ -7,6 +7,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import '../services/producto_service.dart';
 import '../models/producto.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class ImpulsarScreen extends StatefulWidget {
   const ImpulsarScreen({super.key});
@@ -83,7 +84,9 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(
-        title: Text(_modoSeleccion ? 'Configurar impulso' : 'Impulsar'),
+        title: Text(_modoSeleccion
+            ? AppLocalizations.of(context)!.configurarImpulso
+            : AppLocalizations.of(context)!.impulsarTitulo),
         backgroundColor: const Color(0xFF0D1117),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -129,10 +132,10 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          const Center(
+          Center(
             child: Text(
-              'Impulsar publicación',
-              style: TextStyle(
+              AppLocalizations.of(context)!.impulsarPublicacion,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -142,7 +145,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'Poné tu producto primero',
+              AppLocalizations.of(context)!.poneTuProductoPrimero,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 15,
@@ -162,20 +165,20 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
               children: [
                 _buildPunto(
                   '🚀',
-                  'Subí al primer lugar',
-                  'Tu producto aparece primero en la lista de Productos Destacados del Home.',
+                  AppLocalizations.of(context)!.impulsarPunto1Titulo,
+                  AppLocalizations.of(context)!.impulsarPunto1Desc,
                 ),
                 const SizedBox(height: 18),
                 _buildPunto(
                   '👀',
-                  'Más visibilidad',
-                  'Al estar primero, más personas lo ven y tenés más chances de venderlo rápido.',
+                  AppLocalizations.of(context)!.impulsarPunto2Titulo,
+                  AppLocalizations.of(context)!.impulsarPunto2Desc,
                 ),
                 const SizedBox(height: 18),
                 _buildPunto(
                   '⏱️',
-                  'Duración limitada',
-                  'El impulso dura hasta que otro vendedor pague por subir. Ahí bajás un lugar.',
+                  AppLocalizations.of(context)!.impulsarPunto3Titulo,
+                  AppLocalizations.of(context)!.impulsarPunto3Desc,
                 ),
               ],
             ),
@@ -188,9 +191,9 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
             child: ElevatedButton.icon(
               onPressed: _abrirSelectorProducto,
               icon: const Icon(Icons.add_circle_outline),
-              label: const Text(
-                'Seleccionar artículo',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              label: Text(
+                AppLocalizations.of(context)!.seleccionarArticulo,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFB300),
@@ -224,7 +227,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Próximamente disponible. Estamos habilitando los pagos.',
+                    AppLocalizations.of(context)!.proximamenteDisponiblePagos,
                     style: TextStyle(
                       color: const Color(0xFFFFB300).withValues(alpha: 0.9),
                       fontSize: 13,
@@ -284,9 +287,9 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 🔥 PRODUCTO SELECCIONADO
-          const Text(
-            'Artículo a impulsar',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.articuloAImpulsar,
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -308,16 +311,16 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  children: const [
-                    Icon(
+                  children: [
+                    const Icon(
                       Icons.info_outline,
                       color: Color(0xFFFFB300),
                       size: 22,
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Text(
-                      '¿Cómo funciona?',
-                      style: TextStyle(
+                      AppLocalizations.of(context)!.comoFuncionaImpulso,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -327,9 +330,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Al impulsar, tu producto sube al primer lugar del Home. '
-                  'Si otro vendedor impulsa su producto, vos bajás un lugar. '
-                  'El que pagó más recientemente siempre está primero.',
+                  AppLocalizations.of(context)!.explicacionImpulso,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 13,
@@ -363,10 +364,10 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
                   : const Icon(Icons.rocket_launch),
               label: Text(
                 _procesandoCompra
-                    ? 'Procesando...'
+                    ? AppLocalizations.of(context)!.procesando
                     : (_cargandoProducto
-                        ? 'Cargando...'
-                        : 'Impulsar ahora'),
+                        ? AppLocalizations.of(context)!.cargando
+                        : AppLocalizations.of(context)!.impulsarAhora),
                 style: const TextStyle(
                     fontSize: 16, fontWeight: FontWeight.bold),
               ),
@@ -450,7 +451,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
             onPressed: _abrirSelectorProducto,
-            tooltip: 'Cambiar producto',
+            tooltip: AppLocalizations.of(context)!.cambiarProducto,
           ),
         ],
       ),
@@ -466,7 +467,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Debes iniciar sesión')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.debesIniciarSesion)),
       );
       return;
     }
@@ -485,8 +486,8 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
 
       if (productos.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No tenés productos publicados'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.noTenesProductosPublicados),
             backgroundColor: Colors.orange,
           ),
         );
@@ -539,9 +540,9 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Elegí un artículo',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.elegiUnArticulo,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -549,7 +550,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'El que elijas aparecerá primero en el Home',
+              AppLocalizations.of(context)!.elQueElijasApareceraPrimero,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 12,
@@ -658,7 +659,7 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Debes iniciar sesión')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.debesIniciarSesion)),
       );
       return;
     }
@@ -705,7 +706,10 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${purchase.error?.message ?? 'Desconocido'}'),
+              content: Text(
+                '${AppLocalizations.of(context)!.errorGenericoImpulsar(
+                  purchase.error?.message ?? AppLocalizations.of(context)!.errorDesconocido)}',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -765,7 +769,8 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ "${_productoSeleccionado!.nombre}" está primero en el Home'),
+            content: Text(AppLocalizations.of(context)!
+                .productoEstaPrimeroEnHome(_productoSeleccionado!.nombre)),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
@@ -777,13 +782,13 @@ class _ImpulsarScreenState extends State<ImpulsarScreen> {
         String mensaje;
         switch (codigo) {
           case 'PAGO_INVALIDO':
-            mensaje = 'El pago no se pudo verificar. Contactá a soporte.';
+            mensaje = AppLocalizations.of(context)!.pagoNoVerificado;
             break;
           case 'COMPRA_NO_COMPLETADA':
-            mensaje = 'La compra quedó pendiente. Intentá de nuevo.';
+            mensaje = AppLocalizations.of(context)!.compraPendiente;
             break;
           default:
-            mensaje = data['error'] ?? 'Error al impulsar';
+            mensaje = data['error'] ?? AppLocalizations.of(context)!.errorAlImpulsar;
         }
         throw Exception(mensaje);
       }

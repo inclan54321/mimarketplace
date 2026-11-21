@@ -126,6 +126,141 @@ class AppLocalizationsEn extends AppLocalizations {
   String get favoritos => 'Favorites';
 
   @override
+  String get miPerfil => 'My Profile';
+
+  @override
+  String get verPortafolio => 'View Portfolio';
+
+  @override
+  String get verTodosMisProductos => 'View all my published products';
+
+  @override
+  String get opcionesDelVendedor => 'Seller Options';
+
+  @override
+  String get desbloquear => 'Unblock';
+
+  @override
+  String get bloquear => 'Block';
+
+  @override
+  String desbloquearA(String nombre) {
+    return 'Unblock $nombre';
+  }
+
+  @override
+  String bloquearA(String nombre) {
+    return 'Block $nombre';
+  }
+
+  @override
+  String get verInformacionDePerfil => 'View profile information';
+
+  @override
+  String verDetallesDe(String nombre) {
+    return 'View details of $nombre';
+  }
+
+  @override
+  String verTodosLosProductosDe(String nombre) {
+    return 'View all products from $nombre';
+  }
+
+  @override
+  String get denunciarVendedor => 'Report seller';
+
+  @override
+  String reportarA(String nombre) {
+    return 'Report $nombre for breaking the rules';
+  }
+
+  @override
+  String get vendedorBloqueadoCorrectamente =>
+      'Seller blocked successfully. Restarting...';
+
+  @override
+  String get vendedorDesbloqueadoCorrectamente =>
+      'Seller unblocked successfully. Restarting...';
+
+  @override
+  String get errorAlBloquear => 'Error blocking';
+
+  @override
+  String get errorAlDesbloquear => 'Error unblocking';
+
+  @override
+  String get errorAlBloquearUsuario => 'Error blocking user';
+
+  @override
+  String get errorAlDesbloquearUsuario => 'Error unblocking user';
+
+  @override
+  String get denunciarVendedorTitulo => '⚠️ Report seller';
+
+  @override
+  String get seleccionaMotivoDenuncia => 'Select the reason for the report:';
+
+  @override
+  String get denunciaRevisadaPorEquipo =>
+      'This report will be reviewed by our moderation team.';
+
+  @override
+  String get denunciar => 'Report';
+
+  @override
+  String get debesIniciarSesionParaDenunciar => 'You must log in to report';
+
+  @override
+  String get denunciaEnviada =>
+      '✅ Report sent. It will be reviewed by moderation.';
+
+  @override
+  String errorAlEnviarDenuncia(String error) {
+    return 'Error sending report: $error';
+  }
+
+  @override
+  String get motivoProductoSospechoso => 'Suspicious product';
+
+  @override
+  String get motivoProductosProhibidos => 'Publishing prohibited products';
+
+  @override
+  String get motivoEstafaFraude => 'Scam or fraud';
+
+  @override
+  String get motivoAcosoMaltrato => 'Harassment or abuse';
+
+  @override
+  String get motivoInformacionFalsa => 'False or misleading information';
+
+  @override
+  String get motivoOtro => 'Other reason';
+
+  @override
+  String get vendedor => 'Seller';
+
+  @override
+  String get esteVendedor => 'this seller';
+
+  @override
+  String get miPortafolio => 'My Portfolio';
+
+  @override
+  String get debesIniciarSesion => 'You must log in';
+
+  @override
+  String get editarProducto => 'Edit Product';
+
+  @override
+  String get contactarVendedor => 'Contact Seller';
+
+  @override
+  String compartirProductoMensaje(String enlace) {
+    return '📱 Check out this product on MiMarketplace:\n\n$enlace';
+  }
+
+  @override
   String get noHasPublicadoNingunArticulo => 'You haven\'t published any items';
 
   @override
@@ -552,4 +687,227 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get integracionPagoEnDesarrollo =>
       '🚧 Payment integration in progress';
+
+  @override
+  String get encuentroCaducado => 'Meeting expired';
+
+  @override
+  String get esperandoVerificacionDelOtro =>
+      'Waiting for the other person to verify your selfie';
+
+  @override
+  String get verificacionCompleta => 'Verification complete';
+
+  @override
+  String get premiumActivoTitulo => 'You\'re premium!';
+
+  @override
+  String get premiumActivoDescripcion => 'Ads have been removed';
+
+  @override
+  String get planUnaSemana => '1 Week';
+
+  @override
+  String get sinAnunciosPor7Dias => 'Ad-free for 7 days';
+
+  @override
+  String get yaTenesAnunciosEliminados => 'Ads have already been removed';
+
+  @override
+  String get productoNoDisponible => 'Product unavailable';
+
+  @override
+  String errorCompra(Object detalle) {
+    return 'Error: $detalle';
+  }
+
+  @override
+  String get desconocido => 'Unknown';
+
+  @override
+  String get usuarioNoLogueado => 'No user is logged in';
+
+  @override
+  String get errorVerificarCompra => 'Error verifying purchase';
+
+  @override
+  String get compraExitosaAnunciosEliminados =>
+      '✅ Done! Ads have been removed.';
+
+  @override
+  String get configurarImpulso => 'Configure boost';
+
+  @override
+  String get impulsarTitulo => 'Boost';
+
+  @override
+  String get impulsarPublicacion => 'Boost listing';
+
+  @override
+  String get poneTuProductoPrimero => 'Put your product first';
+
+  @override
+  String get impulsarPunto1Titulo => 'Go to first place';
+
+  @override
+  String get impulsarPunto1Desc =>
+      'Your product appears first in the Featured Products list on the Home screen.';
+
+  @override
+  String get impulsarPunto2Titulo => 'More visibility';
+
+  @override
+  String get impulsarPunto2Desc =>
+      'Being first, more people see it and you have a better chance of selling it fast.';
+
+  @override
+  String get impulsarPunto3Titulo => 'Limited duration';
+
+  @override
+  String get impulsarPunto3Desc =>
+      'The boost lasts until another seller pays to move up. Then you go down one place.';
+
+  @override
+  String get seleccionarArticulo => 'Select item';
+
+  @override
+  String get proximamenteDisponiblePagos =>
+      'Coming soon. We\'re enabling payments.';
+
+  @override
+  String get articuloAImpulsar => 'Item to boost';
+
+  @override
+  String get comoFuncionaImpulso => 'How does it work?';
+
+  @override
+  String get explicacionImpulso =>
+      'When you boost, your product goes to the top of the Home screen. If another seller boosts their product, you go down one place. Whoever paid most recently is always first.';
+
+  @override
+  String get procesando => 'Processing...';
+
+  @override
+  String get cargando => 'Loading...';
+
+  @override
+  String get impulsarAhora => 'Boost now';
+
+  @override
+  String get cambiarProducto => 'Change product';
+
+  @override
+  String get noTenesProductosPublicados => 'You have no published products';
+
+  @override
+  String get elegiUnArticulo => 'Choose an item';
+
+  @override
+  String get elQueElijasApareceraPrimero =>
+      'The one you choose will appear first on the Home screen';
+
+  @override
+  String get primeroElegiUnArticulo => 'First choose an item';
+
+  @override
+  String get productoImpulsoNoDisponible =>
+      'Boost product unavailable. Check your connection.';
+
+  @override
+  String get errorDesconocido => 'Unknown';
+
+  @override
+  String productoEstaPrimeroEnHome(String nombre) {
+    return '✅ \"$nombre\" is first on the Home screen';
+  }
+
+  @override
+  String get pagoNoVerificado =>
+      'Payment could not be verified. Contact support.';
+
+  @override
+  String get compraPendiente => 'Purchase is pending. Try again.';
+
+  @override
+  String get errorAlImpulsar => 'Error boosting';
+
+  @override
+  String escudoActivoPor(String nombre) {
+    return '$nombre activated the Security Shield';
+  }
+
+  @override
+  String get escudoPaso0Titulo => 'What is the Security Shield?';
+
+  @override
+  String get escudoPaso0Desc =>
+      'It\'s a set of protection measures that activate when both users of a deal accept them. Its goal is to prevent fraud and ensure the meeting is safe.\n\nWho should activate it?\nBoth users of the deal must accept the Shield. If one activates it, the other receives a notification to accept or reject it. If the second user rejects it, the chat will close for both.';
+
+  @override
+  String get escudoPaso1Titulo => 'What happens when the Shield is active?';
+
+  @override
+  String get escudoPaso1Desc =>
+      '3.1. Link and phone blocking: The app automatically detects and blocks phone numbers and external links in messages. This prevents sharing contact info outside the platform and reduces the risk of scams.';
+
+  @override
+  String get escudoPaso2Titulo => 'How to close the deal';
+
+  @override
+  String get escudoPaso2Desc =>
+      'To close the deal, first propose a meeting: tap the shield in the chat\'s top bar and choose \"Propose meeting\". There you select province, canton, district, a safe place and the date with time. Send the proposal and the other user receives it as a card in the chat. When they accept, the meeting is scheduled but the chat stays open: you can keep talking. To close the deal, tap the shield again and choose \"Close deal\". A confirmation dialog opens. When both confirm, the chat is blocked and protections activate.';
+
+  @override
+  String get escudoPaso3Titulo => 'Attendance confirmation';
+
+  @override
+  String get escudoPaso3Desc =>
+      'One hour before the meeting, both users will receive a notification to confirm their attendance. If either doesn\'t confirm within 15 minutes after the notification, the other user can cancel the meeting up to 15 minutes before the agreed time.';
+
+  @override
+  String get escudoPaso4Titulo => 'GPS tracking';
+
+  @override
+  String get escudoPaso4Desc =>
+      '3.3. GPS tracking on the day of the meeting: On the agreed day, 15 minutes before the meeting time, both users must be at the place and activate GPS to verify their location. If 5 minutes before the agreed time the user hasn\'t activated GPS and hasn\'t verified their identity, it will be considered late. If 15 minutes after the agreed time the user hasn\'t done so, it will be considered a no-show. In both cases, it\'s recorded and can be sanctioned according to MiMarketplace rules.';
+
+  @override
+  String get escudoPaso5Titulo => 'Facial verification';
+
+  @override
+  String get escudoPaso5Desc =>
+      '3.4. Identity verification before chat: To unlock the meeting chat, both users must confirm they are who they say they are. This is enabled 15 minutes before the agreed time and is a mandatory requirement to open the chat. The system will ask each one to take a photo on the spot. Then, the other user must compare that photo with the profile photo to confirm they match. It\'s important to pay attention, because verification is enabled when the other user activates it, and you must follow the instructions on screen. This prevents someone else from using the account.';
+
+  @override
+  String get escudoPaso6Titulo => 'Additional considerations';
+
+  @override
+  String get escudoPaso6Desc =>
+      '4.1. Voluntary cancellation: Any user can cancel their attendance to the meeting as long as more than one hour remains before the agreed time. Once less than one hour remains, cancellation is no longer available.\n\nHow to cancel? Enter the item chat, tap the shield button in the top bar and choose \"Cancel deal\". A dialog opens showing the meeting date and telling you if you can still cancel or if less than an hour remains. If possible, confirm and the meeting is canceled for both.\n\nAlways check the Alerts section. Meeting reminders, attendance confirmation, identity verification and any status changes arrive there. You must check them often so you don\'t miss anything important.';
+
+  @override
+  String get noAceptar => 'Don\'t accept';
+
+  @override
+  String get aceptar => 'Accept';
+
+  @override
+  String get cerrar => 'Close';
+
+  @override
+  String get siguiente => 'Next';
+
+  @override
+  String get iniciar => 'Start';
+
+  @override
+  String get verVideo => 'Watch video';
+
+  @override
+  String errorGenericoImpulsar(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get ubicacionDelEncuentro => 'Meeting location';
 }

@@ -1,19 +1,19 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-
+import '../l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 class VerMapaPropuestaScreen extends StatefulWidget {
   final double lat;
   final double lng;
-  final String titulo;
+  final String? titulo;
 
   const VerMapaPropuestaScreen({
     super.key,
     required this.lat,
     required this.lng,
-    this.titulo = 'Ubicación del encuentro',
+    this.titulo,
   });
 
   @override
@@ -28,7 +28,7 @@ class _VerMapaPropuestaScreenState extends State<VerMapaPropuestaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.titulo),
+        title: Text(widget.titulo ?? AppLocalizations.of(context)!.ubicacionDelEncuentro),
         backgroundColor: const Color(0xFF0A5BE0),
         foregroundColor: Colors.white,
       ),

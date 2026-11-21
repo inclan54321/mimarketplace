@@ -169,5 +169,148 @@
   "confirmarCompra": "Confirm purchase",
   "confirmarCompraPregunta": "Do you want to pay {precio} for {duracion} without ads?",
   "pagar": "Pay",
-  "integracionPagoEnDesarrollo": "🚧 Payment integration in progress"
+  "integracionPagoEnDesarrollo": "🚧 Payment integration in progress",
+  "encuentroCaducado": "Meeting expired",
+  "esperandoVerificacionDelOtro": "Waiting for the other person to verify your selfie",
+  "verificacionCompleta": "Verification complete",
+  "premiumActivoTitulo": "You're premium!",
+  "premiumActivoDescripcion": "Ads have been removed",
+  "planUnaSemana": "1 Week",
+  "sinAnunciosPor7Dias": "Ad-free for 7 days",
+  "yaTenesAnunciosEliminados": "Ads have already been removed",
+  "productoNoDisponible": "Product unavailable",
+  "errorCompra": "Error: {detalle}",
+  "@errorCompra": {
+    "placeholders": {
+      "detalle": {}
+    }
+  },
+  "desconocido": "Unknown",
+  "usuarioNoLogueado": "No user is logged in",
+  "errorVerificarCompra": "Error verifying purchase",
+  "compraExitosaAnunciosEliminados": "✅ Done! Ads have been removed.",
+
+  "miPerfil": "My Profile",
+  "verPortafolio": "View Portfolio",
+  "verTodosMisProductos": "View all my published products",
+  "opcionesDelVendedor": "Seller Options",
+  "desbloquear": "Unblock",
+  "bloquear": "Block",
+  "desbloquearA": "Unblock {nombre}",
+  "@desbloquearA": {
+    "placeholders": { "nombre": { "type": "String" } }
+  },
+  "bloquearA": "Block {nombre}",
+  "@bloquearA": {
+    "placeholders": { "nombre": { "type": "String" } }
+  },
+  "verInformacionDePerfil": "View profile information",
+  "verDetallesDe": "View details of {nombre}",
+  "@verDetallesDe": {
+    "placeholders": { "nombre": { "type": "String" } }
+  },
+  "verTodosLosProductosDe": "View all products from {nombre}",
+  "@verTodosLosProductosDe": {
+    "placeholders": { "nombre": { "type": "String" } }
+  },
+  "denunciarVendedor": "Report seller",
+  "reportarA": "Report {nombre} for breaking the rules",
+  "@reportarA": {
+    "placeholders": { "nombre": { "type": "String" } }
+  },
+  "vendedorBloqueadoCorrectamente": "Seller blocked successfully. Restarting...",
+  "vendedorDesbloqueadoCorrectamente": "Seller unblocked successfully. Restarting...",
+  "errorAlBloquear": "Error blocking",
+  "errorAlDesbloquear": "Error unblocking",
+  "errorAlBloquearUsuario": "Error blocking user",
+  "errorAlDesbloquearUsuario": "Error unblocking user",
+  "denunciarVendedorTitulo": "⚠️ Report seller",
+  "seleccionaMotivoDenuncia": "Select the reason for the report:",
+  "denunciaRevisadaPorEquipo": "This report will be reviewed by our moderation team.",
+  "denunciar": "Report",
+  "debesIniciarSesionParaDenunciar": "You must log in to report",
+  "denunciaEnviada": "✅ Report sent. It will be reviewed by moderation.",
+  "errorAlEnviarDenuncia": "Error sending report: {error}",
+  "@errorAlEnviarDenuncia": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "motivoProductoSospechoso": "Suspicious product",
+  "motivoProductosProhibidos": "Publishing prohibited products",
+  "motivoEstafaFraude": "Scam or fraud",
+  "motivoAcosoMaltrato": "Harassment or abuse",
+  "motivoInformacionFalsa": "False or misleading information",
+  "motivoOtro": "Other reason",
+  "vendedor": "Seller",
+  "esteVendedor": "this seller",
+  "miPortafolio": "My Portfolio",
+  "debesIniciarSesion": "You must log in",
+  "editarProducto": "Edit Product",
+  "contactarVendedor": "Contact Seller",
+  "compartirProductoMensaje": "📱 Check out this product on MiMarketplace:\n\n{enlace}",
+  "@compartirProductoMensaje": {
+    "placeholders": { "enlace": { "type": "String" } }
+  },
+
+  "configurarImpulso": "Configure boost",
+  "impulsarTitulo": "Boost",
+  "impulsarPublicacion": "Boost listing",
+  "poneTuProductoPrimero": "Put your product first",
+  "impulsarPunto1Titulo": "Go to first place",
+  "impulsarPunto1Desc": "Your product appears first in the Featured Products list on the Home screen.",
+  "impulsarPunto2Titulo": "More visibility",
+  "impulsarPunto2Desc": "Being first, more people see it and you have a better chance of selling it fast.",
+  "impulsarPunto3Titulo": "Limited duration",
+  "impulsarPunto3Desc": "The boost lasts until another seller pays to move up. Then you go down one place.",
+  "seleccionarArticulo": "Select item",
+  "proximamenteDisponiblePagos": "Coming soon. We're enabling payments.",
+  "articuloAImpulsar": "Item to boost",
+  "comoFuncionaImpulso": "How does it work?",
+  "explicacionImpulso": "When you boost, your product goes to the top of the Home screen. If another seller boosts their product, you go down one place. Whoever paid most recently is always first.",
+  "procesando": "Processing...",
+  "cargando": "Loading...",
+  "impulsarAhora": "Boost now",
+  "cambiarProducto": "Change product",
+  "noTenesProductosPublicados": "You have no published products",
+  "elegiUnArticulo": "Choose an item",
+  "elQueElijasApareceraPrimero": "The one you choose will appear first on the Home screen",
+  "primeroElegiUnArticulo": "First choose an item",
+  "productoImpulsoNoDisponible": "Boost product unavailable. Check your connection.",
+  "errorDesconocido": "Unknown",
+  "productoEstaPrimeroEnHome": "✅ \"{nombre}\" is first on the Home screen",
+  "@productoEstaPrimeroEnHome": {
+    "placeholders": { "nombre": { "type": "String" } }
+  },
+  "pagoNoVerificado": "Payment could not be verified. Contact support.",
+  "compraPendiente": "Purchase is pending. Try again.",
+  "errorAlImpulsar": "Error boosting",
+  "errorGenericoImpulsar": "Error: {error}",
+  "@errorGenericoImpulsar": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+
+  "escudoActivoPor": "{nombre} activated the Security Shield",
+  "@escudoActivoPor": {
+    "placeholders": { "nombre": { "type": "String" } }
+  },
+  "escudoPaso0Titulo": "What is the Security Shield?",
+  "escudoPaso0Desc": "It's a set of protection measures that activate when both users of a deal accept them. Its goal is to prevent fraud and ensure the meeting is safe.\n\nWho should activate it?\nBoth users of the deal must accept the Shield. If one activates it, the other receives a notification to accept or reject it. If the second user rejects it, the chat will close for both.",
+  "escudoPaso1Titulo": "What happens when the Shield is active?",
+  "escudoPaso1Desc": "3.1. Link and phone blocking: The app automatically detects and blocks phone numbers and external links in messages. This prevents sharing contact info outside the platform and reduces the risk of scams.",
+  "escudoPaso2Titulo": "How to close the deal",
+  "escudoPaso2Desc": "To close the deal, first propose a meeting: tap the shield in the chat's top bar and choose \"Propose meeting\". There you select province, canton, district, a safe place and the date with time. Send the proposal and the other user receives it as a card in the chat. When they accept, the meeting is scheduled but the chat stays open: you can keep talking. To close the deal, tap the shield again and choose \"Close deal\". A confirmation dialog opens. When both confirm, the chat is blocked and protections activate.",
+  "escudoPaso3Titulo": "Attendance confirmation",
+  "escudoPaso3Desc": "One hour before the meeting, both users will receive a notification to confirm their attendance. If either doesn't confirm within 15 minutes after the notification, the other user can cancel the meeting up to 15 minutes before the agreed time.",
+  "escudoPaso4Titulo": "GPS tracking",
+  "escudoPaso4Desc": "3.3. GPS tracking on the day of the meeting: On the agreed day, 15 minutes before the meeting time, both users must be at the place and activate GPS to verify their location. If 5 minutes before the agreed time the user hasn't activated GPS and hasn't verified their identity, it will be considered late. If 15 minutes after the agreed time the user hasn't done so, it will be considered a no-show. In both cases, it's recorded and can be sanctioned according to MiMarketplace rules.",
+  "escudoPaso5Titulo": "Facial verification",
+  "escudoPaso5Desc": "3.4. Identity verification before chat: To unlock the meeting chat, both users must confirm they are who they say they are. This is enabled 15 minutes before the agreed time and is a mandatory requirement to open the chat. The system will ask each one to take a photo on the spot. Then, the other user must compare that photo with the profile photo to confirm they match. It's important to pay attention, because verification is enabled when the other user activates it, and you must follow the instructions on screen. This prevents someone else from using the account.",
+  "escudoPaso6Titulo": "Additional considerations",
+  "escudoPaso6Desc": "4.1. Voluntary cancellation: Any user can cancel their attendance to the meeting as long as more than one hour remains before the agreed time. Once less than one hour remains, cancellation is no longer available.\n\nHow to cancel? Enter the item chat, tap the shield button in the top bar and choose \"Cancel deal\". A dialog opens showing the meeting date and telling you if you can still cancel or if less than an hour remains. If possible, confirm and the meeting is canceled for both.\n\nAlways check the Alerts section. Meeting reminders, attendance confirmation, identity verification and any status changes arrive there. You must check them often so you don't miss anything important.",
+  "noAceptar": "Don't accept",
+  "aceptar": "Accept",
+  "cerrar": "Close",
+  "siguiente": "Next",
+  "iniciar": "Start",
+  "verVideo": "Watch video",
+  "ubicacionDelEncuentro": "Meeting location"
 }

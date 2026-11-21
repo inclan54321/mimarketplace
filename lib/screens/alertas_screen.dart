@@ -278,7 +278,10 @@ class _AlertasScreenState extends State<AlertasScreen> {
     }
 
     final estado = _estadosVerificacion[encuentroId];
-    final encuentroCaducado = estado?['encuentro_caducado'] == true;
+    final estadoEnc = estado?['estado_encuentro'];
+    final encuentroCaducado = estado?['encuentro_caducado'] == true ||
+        estadoEnc == 'cancelado' ||
+        estadoEnc == 'completado';
     print('>>> 🎨 [BOTON VERIF $encuentroId] estado: $estado | caducado: $encuentroCaducado');
 
     // 🔥 Si el encuentro ya caducó, mostrar "Encuentro caducado" y no dejar verificar
@@ -286,9 +289,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
       return ElevatedButton.icon(
         onPressed: null,
         icon: const Icon(Icons.timer_off, size: 16, color: Colors.grey),
-        label: const Text(
-          'Encuentro caducado',
-          style: TextStyle(color: Colors.grey, fontSize: 12),
+        label: Text(
+          AppLocalizations.of(context)!.encuentroCaducado,
+          style: const TextStyle(color: Colors.grey, fontSize: 12),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.grey.shade200,
@@ -389,9 +392,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
       return ElevatedButton.icon(
         onPressed: null,
         icon: const Icon(Icons.hourglass_top, size: 16, color: Colors.grey),
-        label: const Text(
-          'Esperando que el otro verifique tu selfie',
-          style: TextStyle(color: Colors.grey, fontSize: 12),
+        label: Text(
+          AppLocalizations.of(context)!.esperandoVerificacionDelOtro,
+          style: const TextStyle(color: Colors.grey, fontSize: 12),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.grey.shade200,
@@ -405,9 +408,9 @@ class _AlertasScreenState extends State<AlertasScreen> {
     return ElevatedButton.icon(
       onPressed: null,
       icon: const Icon(Icons.check_circle, size: 16, color: Colors.green),
-      label: const Text(
-        'Verificación completa',
-        style: TextStyle(color: Colors.green, fontSize: 12),
+      label: Text(
+        AppLocalizations.of(context)!.verificacionCompleta,
+        style: const TextStyle(color: Colors.green, fontSize: 12),
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.green.shade50,
