@@ -168,6 +168,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
             'yo_asist': yoAsist,
             'otro_asist': otroAsist,
             'ambos_asist': ambosAsist,
+            'encuentro_caducado': data['encuentro_caducado'] == true,
+            'estado_encuentro': data['estado_encuentro'],
           };
         }
       } catch (e) {
@@ -274,6 +276,25 @@ class _AlertasScreenState extends State<AlertasScreen> {
     }
 
     final estado = _estadosVerificacion[encuentroId];
+    final encuentroCaducado = estado?['encuentro_caducado'] == true;
+
+    // 🔥 Si el encuentro ya caducó, mostrar "Encuentro caducado" y no dejar verificar
+    if (encuentroCaducado) {
+      return ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.timer_off, size: 16, color: Colors.grey),
+        label: const Text(
+          'Encuentro caducado',
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.grey.shade200,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          textStyle: const TextStyle(fontSize: 12),
+        ),
+      );
+    }
+
     final miSelfie = estado?['mi_selfie'] ?? false;
     final otroSelfie = estado?['otro_selfie'] ?? false;
     final confirmado = estado?['confirmado'] ?? false;

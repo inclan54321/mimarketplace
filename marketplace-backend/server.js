@@ -10573,6 +10573,16 @@ app.get('/api/encuentro/:id/mi-estado-verificacion', verificarTokenFirebase, asy
             [id, otroId, req.usuarioAutenticado]
         );
 
+        // 🔥 Calcular si el encuentro ya caducó
+        const fechaEncuentro = e.fecha_encuentro ? new Date(e.fecha_encuentro) : null;
+        const ahora = new Date();
+        const minutosDesdeEncuentro = fechaEncuentro
+            ? (ahora - fechaEncuentro) / 60000
+            : 0;
+        const encuentroCaducado =
+            e.estado === 'no_presentado' ||
+            (fechaEncuentro && minutosDesdeEncuentro > 15);
+
         res.json({
             mi_selfie_existe: miSelfie.rows.length > 0,
             otro_selfie_existe: otroSelfie.rows.length > 0,
@@ -10580,6 +10590,8 @@ app.get('/api/encuentro/:id/mi-estado-verificacion', verificarTokenFirebase, asy
             mi_rechazo_cruzado: miCruzada.rows[0]?.rechazado === true,
             otro_confirmado: otroCruzada.rows[0]?.confirmado === true,
             otro_rechazo: otroCruzada.rows[0]?.rechazado === true,
+            encuentro_caducado: encuentroCaducado,
+            estado_encuentro: e.estado || null,
         });
     } catch (err) {
         console.error('Error al obtener estado de verificación:', err);
