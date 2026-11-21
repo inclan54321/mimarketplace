@@ -9,43 +9,46 @@ class TodasCategoriasScreen extends StatefulWidget {
   // Misma lista de categorías que el home
   static const List<String> categorias = [
     'Electrónicos',
-    'Ropa',
-    'Libros',
-    'Hogar',
-    'Juegos',
-    'Herramientas',
-    'Música',
     'Deportes',
-    'Automóviles',
-    'Jardín',
+    'Hogar',
+    'Música',
+    'Cocina',
+    'Películas',
+    'Fotografía',
+    'Videojuegos',
+    'Juegos de Mesa',
+    'Juguetes',
+    'Figuras',
   ];
 
   // Mismos íconos que el home
   static const Map<String, IconData> iconos = {
-    'Electrónicos': Icons.phone_android,
-    'Ropa': Icons.checkroom,
-    'Libros': Icons.library_books,
-    'Hogar': Icons.weekend,
-    'Juegos': Icons.sports_esports,
-    'Herramientas': Icons.handyman,
+    'Electrónicos': Icons.memory,
+    'Deportes': Icons.directions_run,
+    'Hogar': Icons.home,
     'Música': Icons.music_note,
-    'Deportes': Icons.sports_soccer,
-    'Automóviles': Icons.directions_car,
-    'Jardín': Icons.grass,
+    'Cocina': Icons.restaurant,
+    'Películas': Icons.movie,
+    'Fotografía': Icons.camera_alt,
+    'Videojuegos': Icons.sports_esports,
+    'Juegos de Mesa': Icons.casino,
+    'Juguetes': Icons.toys,
+    'Figuras': Icons.emoji_people,
   };
 
   // Misma paleta que el home
   static const List<Color> coloresAtardecer = [
-    Color(0xFF5EEAD4), // Electrónicos - turquesa
-    Color(0xFF4ADE80), // Ropa         - verde
-    Color(0xFFFCD34D), // Libros       - amarillo
-    Color(0xFFFB923C), // Hogar        - naranja claro
-    Color(0xFFF97316), // Juegos       - naranja
-    Color(0xFFEF4444), // Herramientas - rojo
-    Color(0xFFF87171), // Música       - rojo suave/rosa
-    Color(0xFF2DD4BF), // Deportes     - turquesa oscuro
-    Color(0xFFA78BFA), // Automóviles  - violeta
-    Color(0xFF60A5FA), // Jardín       - azul claro
+    Color(0xFF06B6D4), // Electrónicos
+    Color(0xFF22C55E), // Deportes
+    Color(0xFFF97316), // Hogar
+    Color(0xFFEC4899), // Música
+    Color(0xFFEF4444), // Cocina
+    Color(0xFFA855F7), // Películas
+    Color(0xFF6366F1), // Fotografía
+    Color(0xFF14B8A6), // Videojuegos
+    Color(0xFFF59E0B), // Juegos de Mesa
+    Color(0xFFF472B6), // Juguetes
+    Color(0xFF8B5CF6), // Figuras
   ];
 
   @override

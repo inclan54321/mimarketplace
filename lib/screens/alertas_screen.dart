@@ -617,24 +617,32 @@ class _AlertasScreenState extends State<AlertasScreen> {
   Widget build(BuildContext context) {
     print('>>> 🎨 BUILD AlertasScreen: _isLoading=$_isLoading, _alertas.length=${_alertas.length}');
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF0A1929),
       appBar: AppBar(
         title: Text(
           AppLocalizations.of(context)!.alertasTitulo,
           style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
         ),
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0A5BE0), Color(0xFF1E9BF0), Color(0xFF0A5BE0)],
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF0F2A47), Color(0xFF0A1929)],
             ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                blurRadius: 30,
+                spreadRadius: 5,
+              ),
+            ],
           ),
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -656,9 +664,38 @@ class _AlertasScreenState extends State<AlertasScreen> {
       ),
       body: Stack(
         children: [
-          // 📱 Contenido (fondo negro puro)
+          // 🌄 Formas geométricas difusas (igual que Vender)
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.6,
+              child: const CustomPaint(
+                painter: _GeometricBackgroundPainter(),
+                size: Size.infinite,
+              ),
+            ),
+          ),
+
+          // 🌑 Degradado oscuro encima
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0.0, -0.5),
+                  radius: 1.5,
+                  colors: [
+                    Color(0x990A1929),
+                    Color(0xCC0F2447),
+                    Color(0xFF0A1929),
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // 📱 Contenido
           _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
               : _alertas.isEmpty
               ? Center(
                   child: Column(
@@ -694,13 +731,13 @@ class _AlertasScreenState extends State<AlertasScreen> {
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0A3D91),
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         AppLocalizations.of(context)!.aquiApareceranAvisos,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6)),
                       ),
                     ],
                   ),
@@ -786,8 +823,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Colors.black,
-                            Colors.black,
+                            Color(0xFF12294A),
+                            Color(0xFF0C1E38),
                           ],
                         ),
                         border: Border.all(

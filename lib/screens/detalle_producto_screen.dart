@@ -12,6 +12,7 @@ import 'perfil_vendedor_screen.dart';
 import 'editar_producto_screen.dart';
 import 'portafolio_vendedor_screen.dart'; // 🔥 NUEVO
 import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class DetalleProductoScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   bool _isFavorito = false;
   final String _usuarioId = FirebaseAuth.instance.currentUser?.uid ?? '';
   int _imagenActual = 0;
+  final PageController _pageController = PageController();
   late Producto _producto;
 
   // 🔊 AUDIO DEL PRODUCTO (se reproduce al entrar al detalle)
@@ -164,6 +166,7 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     _audioPlayer.stop();
     _audioPlayer.dispose();
     _descripcionController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -241,6 +244,22 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
   }
 
   Future<void> _verificarFavorito() async {
+    // 🔥 Saber al instante si es favorito, desde la caché
+    try {
+      final prefsFav = await SharedPreferences.getInstance();
+      final cachedFav = prefsFav.getString('favoritos_$_usuarioId');
+      if (cachedFav != null) {
+        final List dataCache = jsonDecode(cachedFav);
+        final idProd = _producto.id.toString();
+        if (mounted) {
+          setState(() {
+            _isFavorito = dataCache.any((p) => p['id'].toString() == idProd);
+          });
+        }
+      }
+    } catch (e) {
+      print('Error al leer caché de favoritos: $e');
+    }
     try {
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
@@ -252,6 +271,9 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
         final productoId = _producto.id.toString();
+        SharedPreferences.getInstance().then(
+          (p) => p.setString('favoritos_$_usuarioId', response.body),
+        );
         setState(() {
           _isFavorito = data.any((p) => p['id'].toString() == productoId);
         });
@@ -300,7 +322,27 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
     }
   }
 
+  // 🔥 Actualiza solo la caché de favoritos (no toca el icono)
+  Future<void> _actualizarCacheFavoritos() async {
+    try {
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/favoritos/$_usuarioId'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+      );
+      if (r.statusCode == 200) {
+        final p = await SharedPreferences.getInstance();
+        await p.setString('favoritos_$_usuarioId', r.body);
+      }
+    } catch (e) {
+      print('Error al actualizar caché de favoritos: $e');
+    }
+  }
+
   void _actualizarLikesManual() {
+    _actualizarCacheFavoritos();
     setState(() {
       _producto = Producto(
         id: _producto.id,
@@ -930,6 +972,7 @@ Future<void> _enviarDenuncia(String motivo) async {
             _mostrarImagenCompleta('$baseUrl${imagenes[_imagenActual]}');
           },
           child: PageView.builder(
+            controller: _pageController,
             itemCount: imagenes.length,
             onPageChanged: (index) {
               setState(() {
@@ -979,6 +1022,13 @@ Future<void> _enviarDenuncia(String motivo) async {
                       setState(() {
                         _imagenActual = index;
                       });
+                      if (_pageController.hasClients) {
+                        _pageController.animateToPage(
+                          index,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeInOut,
+                        );
+                      }
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 3),

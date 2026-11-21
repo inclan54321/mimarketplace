@@ -7073,7 +7073,7 @@ app.get('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
         }
 
         const result = await pool.query(
-            'SELECT uid, email, nombre, telefono, acepta_recoleccion, verificado FROM usuarios WHERE uid = $1',
+            'SELECT uid, email, nombre, telefono, acepta_recoleccion, verificado, pais FROM usuarios WHERE uid = $1',
             [uid]
         );
         if (result.rows.length === 0) {

@@ -492,33 +492,9 @@ class _SellScreenState extends State<SellScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // 🔵 Ícono circular arriba izquierda
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [colorInicio, colorFin],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorInicio.withValues(alpha: 0.6),
-                            blurRadius: 12,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        data['icono'] as IconData,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
+
 
                     // 📝 Título + subtítulo
                     Column(

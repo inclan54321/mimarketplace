@@ -7,12 +7,16 @@ class ImagenCompletaScreen extends StatefulWidget {
   final String imagenUrl;
   final String nombreProducto;
   final Producto? producto; // 🔥 NUEVO
+  final List<Producto>? productos; // 🔥 lista para hacer scroll entre destacados
+  final int indiceInicial;
 
   const ImagenCompletaScreen({
     super.key,
     required this.imagenUrl,
     required this.nombreProducto,
     this.producto, // 🔥 NUEVO - opcional
+    this.productos,
+    this.indiceInicial = 0,
   });
 
   @override
@@ -22,12 +26,31 @@ class ImagenCompletaScreen extends StatefulWidget {
 class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _audioSonando = false;
+  late final PageController _pageController;
+  int _indice = 0;
+
+  List<Producto> get _lista =>
+      widget.productos ?? (widget.producto != null ? [widget.producto!] : []);
+
+  Producto? get _productoActual {
+    final l = _lista;
+    if (l.isNotEmpty && _indice >= 0 && _indice < l.length) return l[_indice];
+    return widget.producto;
+  }
+
+  String _imagenDe(Producto p) {
+    final d = p.imagenDestacada ?? '';
+    if (d.isNotEmpty) return d;
+    return p.imagenUrl ?? '';
+  }
 
   @override
   void initState() {
     super.initState();
+    _indice = widget.indiceInicial;
+    _pageController = PageController(initialPage: widget.indiceInicial);
     // 🔥 Reproducir el audio del producto (si tiene) al abrir
-    final audio = widget.producto?.audioUrl ?? '';
+    final audio = _productoActual?.audioUrl ?? '';
     if (audio.isNotEmpty) {
       _reproducirAudio(audio);
     }
@@ -45,6 +68,16 @@ class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
     }
   }
 
+  Future<void> _alCambiarPagina(int i) async {
+    setState(() {
+      _indice = i;
+      _audioSonando = false;
+    });
+    await _audioPlayer.stop();
+    final audio = _productoActual?.audioUrl ?? '';
+    if (audio.isNotEmpty) _reproducirAudio(audio);
+  }
+
   Future<void> _pausarAudio() async {
     await _audioPlayer.pause();
     if (mounted) setState(() => _audioSonando = false);
@@ -54,6 +87,7 @@ class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
   void dispose() {
     _audioPlayer.stop();
     _audioPlayer.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -74,7 +108,7 @@ class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
         elevation: 0,
         foregroundColor: Colors.white,
         title: Text(
-          widget.nombreProducto,
+          _productoActual?.nombre ?? widget.nombreProducto,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -87,29 +121,56 @@ class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
       ),
       body: Stack(
         children: [
-          // 🔥 IMAGEN A PANTALLA COMPLETA
-          Positioned.fill(
-            child: Center(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Hero(
-                  tag: widget.imagenUrl,
-                  child: Image.network(
-                    'https://mimarketplace-production.up.railway.app${widget.imagenUrl}',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) => const Center(
-                      child: Icon(Icons.broken_image,
-                          size: 80, color: Colors.grey),
+          // 🔥 SCROLL VERTICAL ENTRE DESTACADOS (sin zoom)
+          if (_lista.length > 1)
+            Positioned.fill(
+              child: PageView.builder(
+                controller: _pageController,
+                scrollDirection: Axis.vertical,
+                itemCount: _lista.length,
+                onPageChanged: _alCambiarPagina,
+                itemBuilder: (context, i) {
+                  final img = _imagenDe(_lista[i]);
+                  return Center(
+                    child: img.isEmpty
+                        ? const Icon(Icons.image, size: 80, color: Colors.grey)
+                        : Image.network(
+                            'https://mimarketplace-production.up.railway.app$img',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => const Icon(
+                                Icons.broken_image,
+                                size: 80,
+                                color: Colors.grey),
+                          ),
+                  );
+                },
+              ),
+            ),
+
+          // 🔥 IMAGEN A PANTALLA COMPLETA (un solo producto: conserva zoom)
+          if (_lista.length <= 1)
+            Positioned.fill(
+              child: Center(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Hero(
+                    tag: widget.imagenUrl,
+                    child: Image.network(
+                      'https://mimarketplace-production.up.railway.app${widget.imagenUrl}',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Center(
+                        child: Icon(Icons.broken_image,
+                            size: 80, color: Colors.grey),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
 
           // 🔥 BOTÓN DE PLAY/PAUSA DEL AUDIO
-          if ((widget.producto?.audioUrl ?? '').isNotEmpty)
+          if ((_productoActual?.audioUrl ?? '').isNotEmpty)
             Positioned(
               top: 100,
               right: 20,
@@ -118,7 +179,7 @@ class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
                   if (_audioSonando) {
                     _pausarAudio();
                   } else {
-                    _reproducirAudio(widget.producto!.audioUrl!);
+                    _reproducirAudio(_productoActual!.audioUrl!);
                   }
                 },
                 child: Container(
@@ -137,7 +198,7 @@ class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
             ),
 
           // 🔥 BOTÓN "VER PRODUCTO" ABAJO
-          if (widget.producto != null)
+          if (_productoActual != null)
             Positioned(
               bottom: 60,
               left: 24,
@@ -148,7 +209,7 @@ class _ImagenCompletaScreenState extends State<ImagenCompletaScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => DetalleProductoScreen(
-                        producto: widget.producto!,
+                        producto: _productoActual!,
                         reproducirAudio: false, // 🔊 ya sonó en la imagen destacada
                       ),
                     ),

@@ -6,23 +6,35 @@ import '../models/producto.dart';
 class ProductoService {
   static const String baseUrl = 'https://mimarketplace-production.up.railway.app';
 
+  // 🔥 Caché en memoria por categoría (se borra al cerrar la app)
+  static final Map<String, List<Producto>> _cacheCategorias = {};
+
+  List<Producto>? categoriaEnCache(String categoria, {List<String>? bloqueados}) {
+    final c = _cacheCategorias[categoria];
+    if (c == null) return null;
+    if (bloqueados == null || bloqueados.isEmpty) return c;
+    return c.where((p) => !bloqueados.contains(p.vendedorId ?? '')).toList();
+  }
+
   Future<List<Producto>> getProductosByCategoria(String categoria, {List<String>? bloqueados}) async {
     try {
       // ✅ RUTA CORRECTA CON /categoria/ EN LA URL (con token)
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.get(
-        Uri.parse('$baseUrl/api/productos/categoria/$categoria'),
+        Uri.parse('$baseUrl/api/productos/categoria/${Uri.encodeComponent(categoria)}'),
         headers: {
           if (idToken != null) 'Authorization': 'Bearer $idToken',
         },
       );
 
       print('>>> RESPONSE STATUS: ${response.statusCode}');
-      print('>>> RESPONSE BODY: ${response.body}');
+
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
-        
+        _cacheCategorias[categoria] =
+            data.map((json) => Producto.fromJson(json)).toList();
+
         if (bloqueados != null && bloqueados.isNotEmpty) {
           final filtrados = data.where((p) {
             final vendedorId = p['vendedor_id']?.toString() ?? '';

@@ -79,6 +79,7 @@ void initState() {
 
   _cargarEstiloGuardado();
   _cargarFotoPerfil();
+  _cargarVerificadoDeCache();
   _cargarEstadoVerificado();
   _cargarMisProductos();
   _cargarFavoritos();
@@ -637,6 +638,22 @@ Future<void> _cargarMasVistos() async {
     );
   }
 
+Future<void> _cargarVerificadoDeCache() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getBool('verificado_${user.uid}');
+    if (cached != null && mounted) {
+      setState(() {
+        _esVerificado = cached;
+      });
+    }
+  } catch (e) {
+    print('Error al leer caché de verificado: $e');
+  }
+}
+
 Future<void> _cargarEstadoVerificado() async {
   try {
     final user = FirebaseAuth.instance.currentUser;
@@ -653,6 +670,9 @@ Future<void> _cargarEstadoVerificado() async {
     if (r.statusCode == 200) {
       final data = jsonDecode(r.body);
       print('>>> VERIFICADO campo: ${data['verificado']}');
+      SharedPreferences.getInstance().then(
+        (p) => p.setBool('verificado_${user.uid}', data['verificado'] == true),
+      );
       if (mounted) {
         setState(() {
           _esVerificado = data['verificado'] == true;
@@ -1051,7 +1071,22 @@ Future<void> _precargarImagenPerfil() async {
 ),
             // 🔥 NUEVO: VERIFICADOS
             ListTile(
-              leading: const Icon(Icons.verified_user, color: Color(0xFF00E676)),
+              leading: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF1DA1F2),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1DA1F2).withValues(alpha: 0.6),
+                      blurRadius: 6,
+                      spreadRadius: 0.5,
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.verified, color: Colors.white, size: 18),
+              ),
               title: const Text('Verificados'),
               subtitle: const Text(
                 'Obtené la insignia de verificado',

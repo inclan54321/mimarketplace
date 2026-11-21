@@ -99,10 +99,23 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
                 shape: BoxShape.circle,
                 color: const Color(0xFF00E676).withValues(alpha: 0.15),
               ),
-              child: const Icon(
-                Icons.verified_user,
-                size: 52,
-                color: Color(0xFF00E676),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1DA1F2),
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1DA1F2).withValues(alpha: 0.6),
+                        blurRadius: 16,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.verified, color: Colors.white, size: 40),
+                ),
               ),
             ),
           ),

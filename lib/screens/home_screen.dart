@@ -11,6 +11,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'imagen_completa_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'todas_categorias_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _busqueda = '';
   List<String> _bloqueados = [];
   List<Producto> _productosDestacados = []; // 🔥 NUEVA VARIABLE
+  String _codigoPais = 'CR'; // 🌍 país del usuario (según su IP al registrarse)
   
   // 🔥 NUEVO: FAVORITOS VISUALES (solo en memoria)
   final Set<int> _favoritosVisuales = {};
@@ -41,15 +44,16 @@ final TextEditingController _busquedaController = TextEditingController();
   bool _filtrosActivos = false;
   final List<String> categorias = [
     'Electrónicos',
-    'Ropa',
-    'Libros',
-    'Hogar',
-    'Juegos',
-    'Herramientas',
-    'Música',
     'Deportes',
-    'Automóviles',
-    'Jardín',
+    'Hogar',
+    'Música',
+    'Cocina',
+    'Películas',
+    'Fotografía',
+    'Videojuegos',
+    'Juegos de Mesa',
+    'Juguetes',
+    'Figuras',
   ];
 
   @override
@@ -62,9 +66,49 @@ final TextEditingController _busquedaController = TextEditingController();
         });
       }
     });
+    _cargarPais();
     _cargarBloqueados();
+    _cargarDestacadosDeCache(); // 🔥 mostrar lo guardado al instante
     _cargarProductosDestacados(); // 🔥 NUEVO
     _cargarFavoritos(); // 🔥 NUEVO
+  }
+
+  // 🌍 Muestra al instante el país guardado y lo actualiza desde el servidor
+  Future<void> _cargarPais() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final clave = 'pais_usuario_${user.uid}';
+    final prefs = await SharedPreferences.getInstance();
+
+    final guardado = prefs.getString(clave);
+    if (guardado != null && guardado.isNotEmpty && mounted) {
+      setState(() => _codigoPais = guardado);
+    }
+
+    try {
+      final idToken = await user.getIdToken();
+      final r = await http.get(
+        Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/${user.uid}'),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+      );
+      if (r.statusCode == 200) {
+        final data = jsonDecode(r.body);
+        final codigo = _limpiarCodigoPais(data['pais']?.toString());
+        await prefs.setString(clave, codigo);
+        if (mounted) setState(() => _codigoPais = codigo);
+      }
+    } catch (e) {
+      print('Error al cargar país: $e');
+    }
+  }
+
+  // Solo letras, en mayúscula, entre 2 y 3 caracteres (si no, CR)
+  String _limpiarCodigoPais(String? raw) {
+    final c = (raw ?? '').toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '');
+    if (c.length < 2) return 'CR';
+    return c.length > 3 ? c.substring(0, 3) : c;
   }
 
   Future<List<String>> _obtenerBloqueados() async {
@@ -95,9 +139,34 @@ final TextEditingController _busquedaController = TextEditingController();
     final nuevos = await _obtenerBloqueados();
     setState(() {
       _bloqueados = nuevos;
+      _productosDestacados = _productosDestacados
+          .where((p) => !nuevos.contains(p.vendedorId ?? ''))
+          .toList();
     });
     print('>>> BLOQUEADOS ACTUALIZADOS: $_bloqueados');
   }
+String get _claveCacheDestacados =>
+    'destacados_cache_${FirebaseAuth.instance.currentUser?.uid ?? ''}';
+
+Future<void> _cargarDestacadosDeCache() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString(_claveCacheDestacados);
+    if (cached == null) return;
+    final List data = jsonDecode(cached);
+    final lista = data.map((json) => Producto.fromJson(json)).toList();
+    // Solo si todavía no llegó la lista fresca del servidor
+    if (mounted && _productosDestacados.isEmpty) {
+      setState(() {
+        _productosDestacados = lista;
+      });
+    }
+    print('>>> DESTACADOS DESDE CACHÉ: ${lista.length}');
+  } catch (e) {
+    print('Error al leer caché de destacados: $e');
+  }
+}
+
 Future<void> _cargarProductosDestacados() async {
   try {
     print('>>> 1. INICIANDO CARGA DE DESTACADOS');
@@ -112,7 +181,7 @@ Future<void> _cargarProductosDestacados() async {
     );
 
     print('>>> IMPULSADOS STATUS: ${impulsadosResponse.statusCode}');
-    print('>>> IMPULSADOS BODY: ${impulsadosResponse.body}');
+
 
     List<Producto> impulsados = [];
     if (impulsadosResponse.statusCode == 200) {
@@ -169,6 +238,11 @@ Future<void> _cargarProductosDestacados() async {
       print('>>>    - Impulsados: ${impulsados.length}');
       print('>>>    - Destacados: ${destacadosSinDuplicados.length}');
 
+      // 🔥 Guardar en caché para abrir rápido la próxima vez
+      final jsonCache = jsonEncode(listaFinal.map((p) => p.toJson()).toList());
+      SharedPreferences.getInstance()
+          .then((prefs) => prefs.setString(_claveCacheDestacados, jsonCache));
+
       setState(() {
         _productosDestacados = listaFinal;
       });
@@ -179,6 +253,27 @@ Future<void> _cargarProductosDestacados() async {
 }
   // ============ 🔥 NUEVO: CARGAR FAVORITOS DEL USUARIO ============
   Future<void> _cargarFavoritos() async {
+    // 🔥 Mostrar corazones al instante desde la caché
+    try {
+      final uidCache = FirebaseAuth.instance.currentUser?.uid;
+      if (uidCache != null && _favoritosVisuales.isEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        final cached = prefs.getString('favoritos_$uidCache');
+        if (cached != null) {
+          final List data = jsonDecode(cached);
+          if (mounted) {
+            setState(() {
+              for (var item in data) {
+                final id = int.tryParse(item['id']?.toString() ?? '0');
+                if (id != null) _favoritosVisuales.add(id);
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('Error al leer caché de favoritos: $e');
+    }
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -205,6 +300,9 @@ Future<void> _cargarProductosDestacados() async {
           }
         });
         print('>>> ✅ Favoritos cargados: ${_favoritosVisuales.length}');
+        SharedPreferences.getInstance().then(
+          (p) => p.setString('favoritos_${user.uid}', response.body),
+        );
       }
     } catch (e) {
       print('Error al cargar favoritos: $e');
@@ -212,7 +310,35 @@ Future<void> _cargarProductosDestacados() async {
   }
 
   // ============ 🔥 NUEVO: TOGGLE FAVORITO (BACKEND) ============
+  // 🔥 Actualiza solo la caché (no toca los corazones en pantalla)
+  Future<void> _actualizarCacheFavoritos() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final idToken = await user.getIdToken();
+      final r = await http.get(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/favoritos/${user.uid}',
+        ),
+        headers: {
+          if (idToken != null) 'Authorization': 'Bearer $idToken',
+        },
+      );
+      if (r.statusCode == 200) {
+        final p = await SharedPreferences.getInstance();
+        await p.setString('favoritos_${user.uid}', r.body);
+      }
+    } catch (e) {
+      print('Error al actualizar caché de favoritos: $e');
+    }
+  }
+
   Future<void> _toggleFavorito(Producto producto) async {
+    await _toggleFavoritoInterno(producto);
+    _actualizarCacheFavoritos();
+  }
+
+  Future<void> _toggleFavoritoInterno(Producto producto) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -689,9 +815,9 @@ Future<void> _cargarProductosDestacados() async {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'MiMarketplaceCR',
-                                style: TextStyle(
+                              Text(
+                                'MiMarketplace$_codigoPais',
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
@@ -731,9 +857,12 @@ Future<void> _cargarProductosDestacados() async {
                               ),
                             ],
                           ),
-                          const Text(
-                            '🇨🇷',
-                            style: TextStyle(fontSize: 24),
+                          Text(
+                            _codigoPais.length == 2
+                                ? String.fromCharCodes(
+                                    _codigoPais.codeUnits.map((c) => 0x1F1E6 + c - 65))
+                                : '🌎',
+                            style: const TextStyle(fontSize: 24),
                           ),
                         ],
                       ),
@@ -1368,6 +1497,8 @@ Future<void> _cargarProductosDestacados() async {
                                                             nombreProducto:
                                                                 producto.nombre,
                                                             producto: producto, // 🔥 NUEVO: pasar el producto completo
+                                                            productos: _productosDestacados,
+                                                            indiceInicial: index,
                                                           ),
                                                         ),
                                                       );
@@ -1512,30 +1643,32 @@ Future<void> _cargarProductosDestacados() async {
 
    Widget _buildCategoryCard(String categoria) {
     final Map<String, IconData> iconos = {
-      'Electrónicos': Icons.phone_android,
-      'Ropa': Icons.checkroom,
-      'Libros': Icons.library_books,
-      'Hogar': Icons.weekend,
-      'Juegos': Icons.sports_esports,
-      'Herramientas': Icons.handyman,
+      'Electrónicos': Icons.memory,
+      'Deportes': Icons.directions_run,
+      'Hogar': Icons.home,
       'Música': Icons.music_note,
-      'Deportes': Icons.sports_soccer,
-      'Automóviles': Icons.directions_car,
-      'Jardín': Icons.grass,
+      'Cocina': Icons.restaurant,
+      'Películas': Icons.movie,
+      'Fotografía': Icons.camera_alt,
+      'Videojuegos': Icons.sports_esports,
+      'Juegos de Mesa': Icons.casino,
+      'Juguetes': Icons.toys,
+      'Figuras': Icons.emoji_people,
     };
 
     // 🔥 PALETA FLAT (mapeada al orden de categorías)
     final List<Color> coloresAtardecer = [
-      const Color(0xFF5EEAD4), // Electrónicos - turquesa
-      const Color(0xFF4ADE80), // Ropa         - verde
-      const Color(0xFFFCD34D), // Libros       - amarillo
-      const Color(0xFFFB923C), // Hogar        - naranja claro
-      const Color(0xFFF97316), // Juegos       - naranja
-      const Color(0xFFEF4444), // Herramientas - rojo
-      const Color(0xFFF87171), // Música       - rojo suave/rosa
-      const Color(0xFF2DD4BF), // Deportes     - turquesa oscuro
-      const Color(0xFFA78BFA), // Automóviles  - violeta
-      const Color(0xFF60A5FA), // Jardín       - azul claro
+      const Color(0xFF06B6D4), // Electrónicos
+      const Color(0xFF22C55E), // Deportes
+      const Color(0xFFF97316), // Hogar
+      const Color(0xFFEC4899), // Música
+      const Color(0xFFEF4444), // Cocina
+      const Color(0xFFA855F7), // Películas
+      const Color(0xFF6366F1), // Fotografía
+      const Color(0xFF14B8A6), // Videojuegos
+      const Color(0xFFF59E0B), // Juegos de Mesa
+      const Color(0xFFF472B6), // Juguetes
+      const Color(0xFF8B5CF6), // Figuras
     ];
 
     // Obtener el índice de la categoría
@@ -1543,29 +1676,16 @@ Future<void> _cargarProductosDestacados() async {
     final colorBase = coloresAtardecer[index % coloresAtardecer.length];
 
     return GestureDetector(
-      onTap: () async {
-        try {
-          final productos = await ProductoService().getProductosByCategoria(
-            categoria,
-            bloqueados: _bloqueados,
-          );
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProductosScreen(
-                categoria: categoria,
-                productos: productos,
-              ),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _CategoriaLoader(
+              categoria: categoria,
+              bloqueados: _bloqueados,
             ),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al cargar productos: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -1621,6 +1741,87 @@ void dispose() {     // ← ❌ ESTÁ FUERA DE LA CLASE
   super.dispose();
   }
   
+}
+
+// 🔥 Abre al instante; muestra lo guardado en caché y actualiza por detrás
+class _CategoriaLoader extends StatefulWidget {
+  final String categoria;
+  final List<String> bloqueados;
+
+  const _CategoriaLoader({
+    required this.categoria,
+    required this.bloqueados,
+  });
+
+  @override
+  State<_CategoriaLoader> createState() => _CategoriaLoaderState();
+}
+
+class _CategoriaLoaderState extends State<_CategoriaLoader> {
+  List<Producto>? _productos;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Si ya la abrimos antes, mostrar al instante lo guardado
+    final enCache = ProductoService().categoriaEnCache(
+      widget.categoria,
+      bloqueados: widget.bloqueados,
+    );
+    if (enCache != null) _productos = enCache;
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    try {
+      final productos = await ProductoService().getProductosByCategoria(
+        widget.categoria,
+        bloqueados: widget.bloqueados,
+      );
+      // Si falló la red (devuelve vacío) y ya hay algo en pantalla, no lo borres
+      if (productos.isEmpty && _productos != null) return;
+      if (mounted) setState(() => _productos = productos);
+    } catch (e) {
+      if (mounted && _productos == null) setState(() => _error = e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_productos != null) {
+      return ProductosScreen(
+        categoria: widget.categoria,
+        productos: _productos!,
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.categoria),
+        backgroundColor: const Color(0xFF087FE8),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Center(
+        child: _error != null
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Error al cargar productos: $_error'),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() => _error = null);
+                      _cargar();
+                    },
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              )
+            : const CircularProgressIndicator(),
+      ),
+    );
+  }
 }
 
 class BottomBevelledClipper extends CustomClipper<Path> {
