@@ -1352,6 +1352,53 @@ cron.schedule('* * * * *', async () => {
 console.log('>>> ⏰ CRON de detección de llegada tardía activado (cada 1 minuto)');
 
 // ============================================================
+// 🔥 CRON: CONTABILIZAR TARDANZAS (cada minuto, 15 min después del encuentro)
+// ============================================================
+cron.schedule('* * * * *', async () => {
+    try {
+        const tardes = await pool.query(`
+            SELECT et.id, et.encuentro_id, et.usuario_id, e.estado
+            FROM eventos_tardanza et
+            JOIN encuentros_agendados e ON e.id = et.encuentro_id
+            WHERE et.contabilizado = FALSE
+              AND e.fecha_encuentro < (NOW() AT TIME ZONE 'America/Costa_Rica') - INTERVAL '15 minutes'
+        `);
+
+        for (const t of tardes.rows) {
+            try {
+                // Marcar primero para que nunca se cuente dos veces
+                const marcado = await pool.query(
+                    `UPDATE eventos_tardanza SET contabilizado = TRUE
+                     WHERE id = $1 AND contabilizado = FALSE RETURNING id`,
+                    [t.id]
+                );
+                if (marcado.rows.length === 0) continue;
+
+                const verif = await pool.query(
+                    `SELECT id FROM verificaciones_faciales
+                     WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE LIMIT 1`,
+                    [t.encuentro_id, t.usuario_id]
+                );
+                const seVerifico = verif.rows.length > 0;
+
+                if (t.estado === 'cancelado' || (t.estado === 'no_presentado' && !seVerifico)) {
+                    console.log(`>>> 📊 [tardanza enc ${t.encuentro_id}] ${t.usuario_id} → omitida (${t.estado})`);
+                    continue;
+                }
+
+                await aplicarTardanza(t.usuario_id, 0);
+                console.log(`>>> 📊 [tardanza enc ${t.encuentro_id}] ${t.usuario_id} → +1 tardanza`);
+            } catch (e) {
+                console.error(`>>> ❌ Error contabilizando tardanza ${t.id}:`, e.message);
+            }
+        }
+    } catch (e) {
+        console.error('>>> ❌ Error en cron de contabilizar tardanzas:', e.message);
+    }
+});
+console.log('>>> ⏰ CRON de contabilizar tardanzas activado (cada 1 minuto)');
+
+// ============================================================
 // 🔥 CRON DE LLAMADAS DE VERIFICACIÓN CRUZADA (1 min después de selfie)
 // ============================================================
 cron.schedule('* * * * *', async () => {
