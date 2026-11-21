@@ -10533,7 +10533,7 @@ app.get('/api/encuentro/:id/mi-estado-verificacion', verificarTokenFirebase, asy
         const { id } = req.params;
 
         const enc = await pool.query(
-            'SELECT usuario1_id, usuario2_id FROM encuentros_agendados WHERE id = $1',
+            'SELECT usuario1_id, usuario2_id, estado, fecha_encuentro FROM encuentros_agendados WHERE id = $1',
             [id]
         );
         if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
