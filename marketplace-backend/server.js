@@ -11398,7 +11398,7 @@ app.get('/api/grabacion/estado/:conversacion_id', verificarTokenFirebase, async 
             grabacion_habilitada: grabacionHabilitada && !ventanaCerrada,
             bloqueada_por_rechazo: bloqueadaPorRechazo,
             encuentro_cancelado: c.cancelada_por_rechazo_grabacion === true,
-            necesita_responder: !yoAcepte && !yoRechace && !bloqueadaPorRechazo && escudoConfirmado,
+            necesita_responder: false, // 🔥 Grabación de voz desactivada
             ventana_cerrada: ventanaCerrada,
         });
     } catch (e) {

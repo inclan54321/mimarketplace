@@ -8585,6 +8585,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
   }
 
   Future<void> _verificarConsentimientoGrabacion() async {
+    const grabacionActiva = false; // 🔥 Grabación de voz DESACTIVADA
+    if (!grabacionActiva) return;
     if (_conversacionIdActual.isEmpty) return;
     try {
       final estado = await obtenerEstadoGrabacion(_conversacionIdActual);

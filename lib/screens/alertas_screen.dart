@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import '../widgets/rewarded_ad_prueba.dart';
@@ -23,6 +24,13 @@ class _AlertasScreenState extends State<AlertasScreen> {
   List<Map<String, dynamic>> _alertas = [];
   bool _isLoading = true;
   final Map<int, Map<String, dynamic>> _estadosVerificacion = {};
+  Timer? _refrescoTimer;
+
+  @override
+  void dispose() {
+    _refrescoTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -37,6 +45,11 @@ class _AlertasScreenState extends State<AlertasScreen> {
     }
     // 🔥 PERO siempre pedir al backend. Si hay algo nuevo, el setState lo pinta.
     _cargarAlertas();
+
+    // 🔥 Refrescar solo cada 6s mientras la pantalla está abierta
+    _refrescoTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (mounted) _cargarAlertas();
+    });
   }
 
   Future<void> _cargarAlertas() async {
