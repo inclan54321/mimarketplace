@@ -1061,9 +1061,17 @@ cron.schedule('* * * * *', async () => {
              WHERE estado IN ('agendado', 'tarde')
                AND no_presentado_procesado = FALSE
                AND fecha_encuentro < (NOW() AT TIME ZONE 'America/Costa_Rica') - INTERVAL '15 minutes'
-               AND NOT EXISTS (
-                 SELECT 1 FROM verificaciones_faciales v
-                 WHERE v.encuentro_id = encuentros_agendados.id AND v.aprobado = TRUE
+               AND NOT (
+                 EXISTS (
+                   SELECT 1 FROM verificaciones_faciales v
+                   WHERE v.encuentro_id = encuentros_agendados.id
+                     AND v.usuario_id = encuentros_agendados.usuario1_id AND v.aprobado = TRUE
+                 )
+                 AND EXISTS (
+                   SELECT 1 FROM verificaciones_faciales v
+                   WHERE v.encuentro_id = encuentros_agendados.id
+                     AND v.usuario_id = encuentros_agendados.usuario2_id AND v.aprobado = TRUE
+                 )
                )
              RETURNING id, conversacion_id, usuario1_id, usuario2_id, lugar_nombre, fecha_encuentro`
         );
@@ -1154,6 +1162,16 @@ cron.schedule('* * * * *', async () => {
                     [enc.usuario1_id, enc.usuario2_id, enc.id, mensaje]
                 );
                 console.log(`>>> 📥 Alertas "no_presentado" insertadas para usuarios ${enc.usuario1_id} y ${enc.usuario2_id}`);
+                // 🔥 A quien sí llegó, mensaje distinto (no se le acusa de no llegar)
+                await pool.query(
+                    `UPDATE alertas SET mensaje = $1
+                     WHERE encuentro_id = $2 AND tipo = 'no_presentado'
+                       AND usuario_id IN (
+                         SELECT usuario_id FROM verificaciones_faciales
+                         WHERE encuentro_id = $2 AND aprobado = TRUE
+                       )`,
+                    [`El encuentro no se pudo realizar porque el otro usuario no llegó.\n\n📍 ${enc.lugar_nombre}\n🕐 ${fechaTxt}\n\nNo recibís ninguna penalización. Eliminá el chat y volvé a abrirlo para seguir conversando.`, enc.id]
+                );
             } catch (e) {
                 console.error('>>> ❌ Error INSERT alerta no_presentado:', e.message);
             }
@@ -1354,49 +1372,7 @@ console.log('>>> ⏰ CRON de detección de llegada tardía activado (cada 1 minu
 // ============================================================
 // 🔥 CRON: CONTABILIZAR TARDANZAS (cada minuto, 15 min después del encuentro)
 // ============================================================
-cron.schedule('* * * * *', async () => {
-    try {
-        const tardes = await pool.query(`
-            SELECT et.id, et.encuentro_id, et.usuario_id, e.estado
-            FROM eventos_tardanza et
-            JOIN encuentros_agendados e ON e.id = et.encuentro_id
-            WHERE et.contabilizado = FALSE
-              AND e.fecha_encuentro < (NOW() AT TIME ZONE 'America/Costa_Rica') - INTERVAL '15 minutes'
-        `);
 
-        for (const t of tardes.rows) {
-            try {
-                // Marcar primero para que nunca se cuente dos veces
-                const marcado = await pool.query(
-                    `UPDATE eventos_tardanza SET contabilizado = TRUE
-                     WHERE id = $1 AND contabilizado = FALSE RETURNING id`,
-                    [t.id]
-                );
-                if (marcado.rows.length === 0) continue;
-
-                const verif = await pool.query(
-                    `SELECT id FROM verificaciones_faciales
-                     WHERE encuentro_id = $1 AND usuario_id = $2 AND aprobado = TRUE LIMIT 1`,
-                    [t.encuentro_id, t.usuario_id]
-                );
-                const seVerifico = verif.rows.length > 0;
-
-                if (t.estado === 'cancelado' || (t.estado === 'no_presentado' && !seVerifico)) {
-                    console.log(`>>> 📊 [tardanza enc ${t.encuentro_id}] ${t.usuario_id} → omitida (${t.estado})`);
-                    continue;
-                }
-
-                await aplicarTardanza(t.usuario_id, 0);
-                console.log(`>>> 📊 [tardanza enc ${t.encuentro_id}] ${t.usuario_id} → +1 tardanza`);
-            } catch (e) {
-                console.error(`>>> ❌ Error contabilizando tardanza ${t.id}:`, e.message);
-            }
-        }
-    } catch (e) {
-        console.error('>>> ❌ Error en cron de contabilizar tardanzas:', e.message);
-    }
-});
-console.log('>>> ⏰ CRON de contabilizar tardanzas activado (cada 1 minuto)');
 
 // ============================================================
 // 🔥 CRON DE LLAMADAS DE VERIFICACIÓN CRUZADA (1 min después de selfie)
@@ -9773,6 +9749,34 @@ app.post('/api/encuentro/verificar-facial', verificarTokenFirebase, async (req, 
              RETURNING *`,
             [encuentro_id, usuario_id, aprobado === true, confianza || 0, fotoSelfieUrl]
         );
+
+        // 🔥 Registrar tardanza si la selfie se tomó con menos de 5 min de anticipación
+        if (aprobado === true) {
+            try {
+                const tiempoSelfie = await pool.query(
+                    `SELECT EXTRACT(EPOCH FROM (fecha_encuentro - (NOW() AT TIME ZONE 'America/Costa_Rica'))) / 60 AS minutos
+                     FROM encuentros_agendados WHERE id = $1`,
+                    [encuentro_id]
+                );
+                const minutosAntesSelfie = parseFloat(tiempoSelfie.rows[0]?.minutos ?? '999');
+                if (minutosAntesSelfie < 5) {
+                    const nuevaTardanza = await pool.query(
+                        `INSERT INTO eventos_tardanza (encuentro_id, usuario_id, minutos_antes, contabilizado)
+                         VALUES ($1, $2, $3, TRUE)
+                         ON CONFLICT (encuentro_id, usuario_id) DO NOTHING
+                         RETURNING id`,
+                        [encuentro_id, usuario_id, Math.round(minutosAntesSelfie)]
+                    );
+                    // Solo se cuenta si el registro es nuevo (evita contar dos veces)
+                    if (nuevaTardanza.rows.length > 0) {
+                        await aplicarTardanza(usuario_id, 0);
+                    }
+                    console.log(`>>> ⏰ Tardanza registrada por selfie tardía: usuario ${usuario_id}, encuentro ${encuentro_id} (${Math.round(minutosAntesSelfie)} min antes)`);
+                }
+            } catch (e) {
+                console.error('>>> ❌ Error registrando tardanza en selfie:', e.message);
+            }
+        }
 
         // Si el usuario verifica OK, marcar en el encuentro
         if (aprobado === true) {
