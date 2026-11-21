@@ -10526,7 +10526,7 @@ app.post('/api/encuentro/:id/rechazar-identidad', verificarTokenFirebase, async 
     }
 });
 // ============================================================
-// 🔥 ESTADO DE VERIFICACIÓN DEL USUARIO EN UN ENCUENTRO
+// 🔥 ESTADO DE VERIF ICACIÓN DEL USUARIO EN UN ENCUENTRO
 // ============================================================
 app.get('/api/encuentro/:id/mi-estado-verificacion', verificarTokenFirebase, async (req, res) => {
     try {

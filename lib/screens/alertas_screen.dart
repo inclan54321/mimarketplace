@@ -18,11 +18,11 @@ class AlertasScreen extends StatefulWidget {
 class _AlertasScreenState extends State<AlertasScreen> {
   // 🔥 Caché en memoria: sobrevive mientras la app esté abierta
   static List<Map<String, dynamic>>? _alertasCache;
-  static Map<int, Map<String, bool>>? _estadosCache;
+  static Map<int, Map<String, dynamic>>? _estadosCache;
 
   List<Map<String, dynamic>> _alertas = [];
   bool _isLoading = true;
-  final Map<int, Map<String, bool>> _estadosVerificacion = {};
+  final Map<int, Map<String, dynamic>> _estadosVerificacion = {};
 
   @override
   void initState() {
@@ -63,7 +63,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
 
         print('>>> 🔍 ALERTAS DEL BACKEND: ${nuevas.length}');
         for (final a in nuevas) {
-          print('>>>   id=${a['id']} tipo=${a['tipo']} producto_id=${a['producto_id']} leida=${a['leida']}');
+          print('>>>   id=${a['id']} tipo=${a['tipo']} encuentro_id=${a['encuentro_id']} leida=${a['leida']}');
         }
 
         // 🔥 PRINT 1: cuántas alertas llegaron del backend
@@ -150,6 +150,8 @@ class _AlertasScreenState extends State<AlertasScreen> {
 
         if (rVerif.statusCode == 200) {
           final data = jsonDecode(rVerif.body) as Map<String, dynamic>;
+          print('>>> 🔍 [VERIF $eid] body: ${rVerif.body}');
+          print('>>> 🔍 [VERIF $eid] encuentro_caducado: ${data['encuentro_caducado']} | estado: ${data['estado_encuentro']}');
           bool yoAsist = false, otroAsist = false, ambosAsist = false;
           if (rAsist.statusCode == 200) {
             final a = jsonDecode(rAsist.body) as Map<String, dynamic>;
@@ -277,6 +279,7 @@ class _AlertasScreenState extends State<AlertasScreen> {
 
     final estado = _estadosVerificacion[encuentroId];
     final encuentroCaducado = estado?['encuentro_caducado'] == true;
+    print('>>> 🎨 [BOTON VERIF $encuentroId] estado: $estado | caducado: $encuentroCaducado');
 
     // 🔥 Si el encuentro ya caducó, mostrar "Encuentro caducado" y no dejar verificar
     if (encuentroCaducado) {
