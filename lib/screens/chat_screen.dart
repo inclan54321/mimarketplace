@@ -7789,7 +7789,33 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
     return const SizedBox.shrink();
   }
   
-  return _buildCalificacionButton();
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      _buildCalificacionButton(),
+      Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.blue.shade100),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.schedule, size: 16, color: Colors.blue),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Tu calificación se reflejará en el perfil de ${widget.otroUsuario} una semana después de enviarla.',
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 }
   // 📍 UBICACIÓN COMPARTIDA
   // 🔥 SI EL ESCUDO ESTÁ ACTIVO, OCULTAR LA TARJETA DE UBICACIÓN

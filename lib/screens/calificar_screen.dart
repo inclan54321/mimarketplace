@@ -140,6 +140,29 @@ class _CalificarScreenState extends State<CalificarScreen> {
             ),
             const SizedBox(height: 30),
             
+            // 🕒 AVISO: la calificación se hace efectiva en una semana
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule, size: 18, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tu calificación se reflejará en el perfil de ${widget.vendedorNombre} una semana después de enviarla.',
+                      style: TextStyle(fontSize: 13, color: Colors.blue.shade800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
             // 🔥 ESTRELLAS
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

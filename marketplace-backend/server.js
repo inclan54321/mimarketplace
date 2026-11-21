@@ -1403,7 +1403,7 @@ console.log('>>> ⏰ CRON de llamadas de verificación cruzada activado (cada 1 
 // 🔥 CRON DIARIO: recuperar huérfanos + contabilidad de asistencia
 // Corre a las 3:00 AM Costa Rica (9:00 UTC)
 // ============================================================
-cron.schedule('0 9 * * *', async () => {
+if (false) cron.schedule('0 9 * * *', async () => { // DESACTIVADO: contaba advertencias y tardanzas por duplicado
     try {
         console.log('>>> 📊 CRON diario de asistencia INICIO');
 
@@ -1584,7 +1584,7 @@ cron.schedule('0 9 * * *', async () => {
         console.error('>>> ❌ Error en cron diario de asistencia:', e.message);
     }
 });
-console.log('>>> ⏰ CRON diario de asistencia activado (9:00 UTC = 3:00 AM Costa Rica)');
+console.log('>>> ⏰ CRON diario de asistencia DESACTIVADO');
 
 // ===== FUNCIÓN DE MODERACIÓN CON DEEPSEEK =====
 async function moderarProducto(nombre, descripcion, categoria, imagenUrl) {
@@ -4146,6 +4146,7 @@ app.get('/api/calificaciones/:usuario_id', async (req, res) => {
              FROM calificaciones c
              LEFT JOIN usuarios u ON c.calificador_id = u.uid
              WHERE c.usuario_id = $1
+               AND (c.fecha IS NULL OR c.fecha <= NOW() - INTERVAL '7 days')
              ORDER BY c.fecha DESC`,
             [usuario_id]
         );
@@ -4161,8 +4162,8 @@ app.get('/api/calificaciones/resumen/:usuario_id', async (req, res) => {
         const { usuario_id } = req.params;
         const result = await pool.query(
             `SELECT 
-                COUNT(*) as total,
-                COALESCE(ROUND(AVG(puntuacion)::numeric, 1), 0) as promedio
+                COUNT(*) FILTER (WHERE fecha IS NULL OR fecha <= NOW() - INTERVAL '7 days') as total,
+                COALESCE(ROUND(AVG(puntuacion) FILTER (WHERE fecha IS NULL OR fecha <= NOW() - INTERVAL '7 days')::numeric, 1), 0) as promedio
              FROM calificaciones
              WHERE usuario_id = $1`,
             [usuario_id]
