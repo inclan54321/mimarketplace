@@ -9022,12 +9022,42 @@ app.get('/api/encuentro/horarios-ocupados/:usuario1/:usuario2', verificarTokenFi
     try {
         const { usuario1, usuario2 } = req.params;
 
-        if (usuario1 !== req.usuarioAutenticado && usuario2 !== req.usuarioAutenticado) {
+        // 🔒 El usuario autenticado debe ser uno de los dos
+        if (
+            usuario1 !== req.usuarioAutenticado &&
+            usuario2 !== req.usuarioAutenticado
+        ) {
+            console.warn('>>> 🚫 [HORARIOS] UID no autorizado');
+
             return res.status(403).json({
                 error: 'No autorizado',
                 codigo: 'UID_NO_COINCIDE'
             });
         }
+
+        // 🔒 Comprobar que ambos usuarios comparten una conversación
+        const conversacionValida = await pool.query(
+            `SELECT id
+             FROM conversaciones_app
+             WHERE (
+                 (usuario1_id = $1 AND usuario2_id = $2)
+                 OR
+                 (usuario1_id = $2 AND usuario2_id = $1)
+             )
+             LIMIT 1`,
+            [usuario1, usuario2]
+        );
+
+        if (conversacionValida.rows.length === 0) {
+            console.warn('>>> 🚫 [HORARIOS] Usuarios sin conversación compartida');
+
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar estos horarios',
+                codigo: 'CONVERSACION_NO_AUTORIZADA'
+            });
+        }
+
+        console.log('>>> ✅ [HORARIOS] Consulta autorizada');
 
         // Encuentros agendados de cualquiera de los dos
         const agendados = await pool.query(
@@ -10154,10 +10184,20 @@ app.post('/api/encuentro/agendar', verificarTokenFirebase, async (req, res) => {
     }
 });
 
-// OBTENER PRÓXIMO ENCUENTRO DE UN USUARIO
-app.get('/api/encuentro/proximo/:usuario_id', async (req, res) => {
+// 🔒 OBTENER PRÓXIMO ENCUENTRO SOLO DEL USUARIO AUTENTICADO
+app.get('/api/encuentro/proximo/:usuario_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
+
+        // 🔒 Impedir consultar encuentros de otros usuarios
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.warn('>>> 🔒 [PRÓXIMO ENCUENTRO] Acceso no autorizado');
+
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar estos encuentros'
+            });
+        }
+
         const result = await pool.query(
             `SELECT * FROM encuentros_agendados 
              WHERE (usuario1_id = $1 OR usuario2_id = $1)
@@ -10179,10 +10219,40 @@ app.get('/api/encuentro/proximo/:usuario_id', async (req, res) => {
     }
 });
 
-// OBTENER ENCUENTRO POR CONVERSACIÓN
-app.get('/api/encuentro/conversacion/:conversacion_id', async (req, res) => {
+// 🔒 OBTENER ENCUENTRO SOLO SI PARTICIPA EN LA CONVERSACIÓN
+app.get('/api/encuentro/conversacion/:conversacion_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
+
+        // 🔒 Verificar que el usuario pertenezca a la conversación
+        const convCheck = await pool.query(
+            `SELECT usuario1_id, usuario2_id
+             FROM conversaciones_app
+             WHERE id = $1`,
+            [conversacion_id]
+        );
+
+        if (convCheck.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Conversación no encontrada'
+            });
+        }
+
+        const conversacion = convCheck.rows[0];
+
+        if (
+            conversacion.usuario1_id !== usuarioId &&
+            conversacion.usuario2_id !== usuarioId
+        ) {
+            console.warn('>>> 🔒 [ENCUENTRO CONVERSACIÓN] Acceso no autorizado');
+
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar este encuentro'
+            });
+        }
+
+        console.log('>>> ✅ [ENCUENTRO CONVERSACIÓN] Acceso autorizado');
 
         // 🔥 PRIMERO: buscar en encuentros_agendados (fecha real del encuentro)
         const agendado = await pool.query(
@@ -10291,23 +10361,60 @@ app.get('/api/encuentros/semana/:usuario_id', verificarTokenFirebase, async (req
     }
 });
 
-// OBTENER ENCUENTRO AGENDADO POR CONVERSACIÓN
-app.get('/api/encuentro/agendado/:conversacion_id', async (req, res) => {
+// 🔒 OBTENER ENCUENTRO AGENDADO SOLO SI PARTICIPA EN LA CONVERSACIÓN
+app.get('/api/encuentro/agendado/:conversacion_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
+
+        // 🔒 Verificar que la conversación pertenezca al usuario
+        const conversacion = await pool.query(
+            `SELECT usuario1_id, usuario2_id
+             FROM conversaciones_app
+             WHERE id = $1`,
+            [conversacion_id]
+        );
+
+        if (conversacion.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Conversación no encontrada'
+            });
+        }
+
+        const participantes = conversacion.rows[0];
+
+        if (
+            participantes.usuario1_id !== usuarioId &&
+            participantes.usuario2_id !== usuarioId
+        ) {
+            console.warn('>>> 🔒 [ENCUENTRO AGENDADO] Acceso no autorizado');
+
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar este encuentro'
+            });
+        }
+
+        // 🔒 El usuario está autorizado: consultar el encuentro
         const result = await pool.query(
-            `SELECT * FROM encuentros_agendados 
+            `SELECT * FROM encuentros_agendados
              WHERE conversacion_id = $1
              ORDER BY id DESC LIMIT 1`,
             [conversacion_id]
         );
+
         if (result.rows.length === 0) {
             return res.json({ encuentro: null });
         }
+
+        console.log('>>> ✅ [ENCUENTRO AGENDADO] Acceso autorizado');
+
         res.json({ encuentro: result.rows[0] });
+
     } catch (error) {
         console.error('Error al obtener encuentro agendado:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: 'Error interno al obtener encuentro agendado'
+        });
     }
 });
 
@@ -11014,20 +11121,56 @@ app.post('/api/encuentro/gps', verificarTokenFirebase, async (req, res) => {
     }
 });
 
-// OBTENER HISTORIAL GPS DE UN ENCUENTRO
-app.get('/api/encuentro/gps/:encuentro_id', async (req, res) => {
+// 🔒 OBTENER HISTORIAL GPS SOLO DE ENCUENTROS PROPIOS
+app.get('/api/encuentro/gps/:encuentro_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { encuentro_id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
+
+        // 🔒 Verificar que el usuario participe en el encuentro
+        const encCheck = await pool.query(
+            `SELECT usuario1_id, usuario2_id
+             FROM encuentros_agendados
+             WHERE id = $1`,
+            [encuentro_id]
+        );
+
+        if (encCheck.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Encuentro no encontrado'
+            });
+        }
+
+        const encuentro = encCheck.rows[0];
+
+        if (
+            encuentro.usuario1_id !== usuarioId &&
+            encuentro.usuario2_id !== usuarioId
+        ) {
+            console.warn('>>> 🔒 [GPS] Intento de consultar ubicaciones ajenas');
+
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar estas ubicaciones'
+            });
+        }
+
+        // 🔒 Usuario autorizado
         const result = await pool.query(
-            `SELECT * FROM gps_tracking 
+            `SELECT * FROM gps_tracking
              WHERE encuentro_id = $1
              ORDER BY fecha ASC`,
             [encuentro_id]
         );
+
+        console.log('>>> ✅ [GPS] Consulta autorizada');
+
         res.json(result.rows);
+
     } catch (error) {
         console.error('Error al obtener GPS:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: 'Error interno al obtener GPS'
+        });
     }
 });
 // ============================================================
@@ -11182,11 +11325,12 @@ app.post('/api/encuentro/:id/verificar-ubicacion', verificarTokenFirebase, async
 // ============================================================
 // 🔥 ESTADO DEL ENCUENTRO (verifica si ambos están presentes)
 // ============================================================
-app.get('/api/encuentro/:id/estado', async (req, res) => {
+app.get('/api/encuentro/:id/estado', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
 
-        // 1. Obtener el encuentro
+        // 🔒 Obtener el encuentro
         const encResult = await pool.query(
             `SELECT * FROM encuentros_agendados WHERE id = $1`,
             [id]
@@ -11197,6 +11341,20 @@ app.get('/api/encuentro/:id/estado', async (req, res) => {
         }
 
         const enc = encResult.rows[0];
+
+        // 🔒 Solo los participantes pueden consultar el estado
+        if (
+            enc.usuario1_id !== usuarioId &&
+            enc.usuario2_id !== usuarioId
+        ) {
+            console.warn('>>> 🔒 [ESTADO ENCUENTRO] Acceso no autorizado');
+
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar este encuentro'
+            });
+        }
+
+        console.log('>>> ✅ [ESTADO ENCUENTRO] Acceso autorizado');
 
         // 2. Verificar cuántos usuarios verificaron facialmente
         const verifResult = await pool.query(

@@ -1174,8 +1174,14 @@ void dispose() {
       bool escudoVerificado = false;
       if (!chatBloqueadoBD) {
         try {
+          final tokenEncuentro = await FirebaseAuth.instance.currentUser?.getIdToken();
+
           final rEnc = await http.get(
             Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/agendado/$_conversacionIdActual'),
+            headers: {
+              if (tokenEncuentro != null)
+                'Authorization': 'Bearer $tokenEncuentro',
+            },
           );
           if (rEnc.statusCode == 200) {
             final dataEnc = jsonDecode(rEnc.body);
@@ -5957,8 +5963,13 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     // Consultar el encuentro agendado para saber la fecha
     Map<String, dynamic>? encuentro;
     try {
+      final tokenEncuentro = await user.getIdToken();
+
       final r = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/agendado/$_conversacionIdActual'),
+        headers: {
+          'Authorization': 'Bearer $tokenEncuentro',
+        },
       );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
@@ -6528,8 +6539,16 @@ final estaOcupada = horariosOcupados.contains(keyHora);
   // 🔥 Si solo hay pendiente o rechazada, devuelve false.
   Future<bool> _hayPropuestaEncuentro() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final idToken = await user.getIdToken();
+
       final r = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/conversacion/$_conversacionIdActual'),
+        headers: {
+          'Authorization': 'Bearer $idToken',
+        },
       );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
@@ -6549,8 +6568,16 @@ final estaOcupada = horariosOcupados.contains(keyHora);
   // 🔥 de proponer encuentro cuando ya hay una propuesta esperando respuesta.
   Future<bool> _hayPropuestaEncuentroPendienteOAceptada() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final idToken = await user.getIdToken();
+
       final r = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/encuentro/conversacion/$_conversacionIdActual'),
+        headers: {
+          'Authorization': 'Bearer $idToken',
+        },
       );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);

@@ -537,8 +537,16 @@ class _PantallaVerificacionEncuentroState
 
   Future<void> _consultarEstado() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final idToken = await user.getIdToken();
+
       final r = await http.get(
         Uri.parse('$_baseUrl/api/encuentro/${widget.encuentroId}/estado'),
+        headers: {
+          'Authorization': 'Bearer $idToken',
+        },
       );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body) as Map<String, dynamic>;
