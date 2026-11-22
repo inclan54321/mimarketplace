@@ -463,6 +463,14 @@ class AppLocalizationsKo extends AppLocalizations {
   }
 
   @override
+  String errorGenericoAlerta(String error) {
+    return '오류: $error';
+  }
+
+  @override
+  String get errorDesconocido => '알 수 없음';
+
+  @override
   String get catElectronicos => '전자기기';
 
   @override
@@ -494,6 +502,15 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get catFiguras => '피규어';
+
+  @override
+  String get catAutomoviles => '자동차';
+
+  @override
+  String get catHerramientas => '도구';
+
+  @override
+  String get catRopaYCalzado => '의류 및 신발';
 
   @override
   String get subElectronicos => '스마트폰, 노트북, 음향기기';
@@ -611,11 +628,6 @@ class AppLocalizationsKo extends AppLocalizations {
   String get confirmasteAsistencia => '✅ 참석을 확정했습니다. 상대방의 확인을 기다리는 중입니다.';
 
   @override
-  String errorGenericoAlerta(String error) {
-    return '오류: $error';
-  }
-
-  @override
   String get eliminarPublicidadTitulo => '광고 제거';
 
   @override
@@ -707,7 +719,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get productoNoDisponible => '구매할 수 없는 상품입니다';
 
   @override
-  String errorCompra(Object detalle) {
+  String errorCompra(String detalle) {
     return '오류: $detalle';
   }
 
@@ -797,9 +809,6 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get productoImpulsoNoDisponible =>
       '홍보 상품을 이용할 수 없습니다. 인터넷 연결을 확인해주세요.';
-
-  @override
-  String get errorDesconocido => '알 수 없음';
 
   @override
   String productoEstaPrimeroEnHome(String nombre) {
@@ -894,4 +903,375 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get ubicacionDelEncuentro => '만남 장소';
+
+  @override
+  String get verificarCuenta => 'Verificar cuenta';
+
+  @override
+  String get verificaTuCuenta => 'Verificá tu cuenta';
+
+  @override
+  String get obteneLaInsigniaDeVerificado =>
+      'Obtené la insignia de verificado en tu perfil';
+
+  @override
+  String get paso1EnviaSinpe => 'Paso 1: Enviá el SINPE Móvil';
+
+  @override
+  String realizaSinpeDeMontoANumero(String monto) {
+    return 'Realizá un SINPE Móvil de $monto al número:';
+  }
+
+  @override
+  String get paso2IngresaTuNumero => 'Paso 2: Ingresá tu número';
+
+  @override
+  String get ingresaNumeroDesdeElQueEnviaste =>
+      'Ingresá el número de teléfono desde el que enviaste el SINPE:';
+
+  @override
+  String get ejemploTelefono => 'Ej: 88888888';
+
+  @override
+  String get confirmarPago => 'Confirmar pago';
+
+  @override
+  String get enviando => 'Enviando...';
+
+  @override
+  String get porFavorIngresaTuTelefono =>
+      'Por favor, ingresá tu número de teléfono';
+
+  @override
+  String get solicitudEnviada => '¡Solicitud enviada!';
+
+  @override
+  String get estamosVerificandoTuPago =>
+      'Estamos verificando tu pago. En breve recibirás la insignia de verificado en tu perfil.';
+
+  @override
+  String get porFavorEscribeUnMensaje => '메시지를 입력해주세요';
+
+  @override
+  String get porFavorEscribeUnAsunto => '제목을 입력해주세요';
+
+  @override
+  String get mensajeEnviadoExito => '✅ 메시지가 전송되었습니다. 곧 답변드리겠습니다.';
+
+  @override
+  String get necesitasAyuda => '도움이 필요하신가요?';
+
+  @override
+  String get cuentanosTuProblema => '문제를 알려주시면 해결을 도와드리겠습니다.';
+
+  @override
+  String get tipoDeConsulta => '문의 유형';
+
+  @override
+  String get asunto => '제목';
+
+  @override
+  String get ejemploProblemaCuenta => '예: 계정 문제';
+
+  @override
+  String get mensaje => '메시지';
+
+  @override
+  String get describeTuProblema => '문제를 최대한 자세히 설명해주세요...';
+
+  @override
+  String get enviarMensaje => '메시지 보내기';
+
+  @override
+  String get tiempoRespuestaEstimado => '예상 응답 시간: 24-48시간';
+
+  @override
+  String get mensajeEnviado => '메시지가 전송되었습니다!';
+
+  @override
+  String get hemosRecibidoTuConsulta => '문의가 접수되었습니다. 지원팀이 24-48시간 이내에 답변드립니다.';
+
+  @override
+  String get enviarOtroMensaje => '다른 메시지 보내기';
+
+  @override
+  String get volver => '돌아가기';
+
+  @override
+  String get categoria => '카테고리';
+
+  @override
+  String get direccion => '주소';
+
+  @override
+  String get nombreDelProducto => '상품명';
+
+  @override
+  String get ejemploNombreProducto => '예: iPhone 13, 노트북 등';
+
+  @override
+  String get ingresaNombreProducto => '상품명을 입력해주세요';
+
+  @override
+  String get nombreMinimoCaracteres => '이름은 최소 3자 이상이어야 합니다';
+
+  @override
+  String get precio => '가격 (₡)';
+
+  @override
+  String get ingresePrecioProducto => '상품 가격을 입력해주세요';
+
+  @override
+  String get ingresaPrecio => '가격을 입력해주세요';
+
+  @override
+  String get ingresaPrecioValido => '유효한 가격을 입력해주세요';
+
+  @override
+  String get precioMayorCero => '가격은 0보다 커야 합니다';
+
+  @override
+  String get descripcion => '설명';
+
+  @override
+  String get escribeDescripcionDetallada => '상품에 대한 자세한 설명을 작성해주세요...';
+
+  @override
+  String get ingresaDescripcion => '설명을 입력해주세요';
+
+  @override
+  String get publicarProducto => '상품 등록';
+
+  @override
+  String get compartaProductoComunidad => '커뮤니티와 상품을 공유하세요';
+
+  @override
+  String get anuncioCompletado => '✅ 광고가 완료되었습니다. 상품 등록 중...';
+
+  @override
+  String get debesVerAnuncioParaPublicar => '❌ 등록하려면 광고를 끝까지 시청해야 합니다';
+
+  @override
+  String get productoEnviadoRevision =>
+      '📝 상품이 검토를 위해 전송되었습니다. 승인되면 알림을 받게 됩니다.';
+
+  @override
+  String errorAlPublicar(String error) {
+    return '등록 오류: $error';
+  }
+
+  @override
+  String get paraPublicarNecesitasVerAnuncio => '상품을 등록하려면 짧은 광고를 시청해야 합니다.';
+
+  @override
+  String get verAnuncio => '광고 보기';
+
+  @override
+  String get agregarImagenes => '이미지 추가';
+
+  @override
+  String get imagenDestacada => '대표 이미지';
+
+  @override
+  String get estaImagenApareceraPortada => '이 이미지는 상품 커버와 추천 섹션에 표시됩니다.';
+
+  @override
+  String get soloImagenesCalidadEstudio =>
+      '스튜디오 품질의 사진(좋은 조명, 선명한 초점, 깨끗한 배경)만 허용됩니다.';
+
+  @override
+  String get tocaParaSeleccionarImagen => '탭하여 이미지 선택';
+
+  @override
+  String get formatosImagenPermitidos => 'JPG, PNG 또는 WEBP · 최대 10MB';
+
+  @override
+  String get enRevisionPuntos => '🔍 검토 중...';
+
+  @override
+  String get enviadoARevision => '🔄 검토를 위해 전송됨';
+
+  @override
+  String get enviarARevision => '🛡️ 검토를 위해 전송';
+
+  @override
+  String get imagenRevisadaIA => '이미지는 AI에 의해 검토됩니다. 승인되면 알림을 받게 됩니다.';
+
+  @override
+  String get imagenesRealesProducto => '상품 실제 이미지';
+
+  @override
+  String get subeHasta4Fotos => '상품의 실제 사진을 최대 4장 업로드하세요 (필수)';
+
+  @override
+  String get agregar => '추가';
+
+  @override
+  String get maximo4ImagenesReales => '⚠️ 실제 이미지는 최대 4장까지만 업로드할 수 있습니다';
+
+  @override
+  String get escribeDescripcionMejorarImagen => '이미지를 개선할 설명을 작성하세요';
+
+  @override
+  String get primeroSeleccionaImagen => '먼저 이미지를 선택하세요';
+
+  @override
+  String get imagenMejoradaCorrectamente => '✅ 이미지가 성공적으로 개선되었습니다';
+
+  @override
+  String get errorGenerarImagen => '이미지 생성 오류';
+
+  @override
+  String get imagenEnviadaRevision =>
+      '🔄 이미지가 검토를 위해 전송되었습니다. 승인되면 알림을 받게 됩니다.';
+
+  @override
+  String errorEnviarImagen(String codigo) {
+    return '이미지 전송 오류: $codigo';
+  }
+
+  @override
+  String get revisionDeImagen => '🛡️ 이미지 검토';
+
+  @override
+  String get tuImagenSeraEnviadaModeracion =>
+      '이미지는 검토를 위해 검토 팀으로 전송됩니다. 계속하려면 짧은 광고를 시청해야 합니다.';
+
+  @override
+  String get revisionPuedeTomar24Horas => '검토에는 최대 24시간이 소요될 수 있습니다.';
+
+  @override
+  String get verAnuncioConEmoji => '광고 보기 🎬';
+
+  @override
+  String get anuncioCompletadoEnviandoImagen =>
+      '✅ 광고가 완료되었습니다. 이미지를 검토로 전송 중...';
+
+  @override
+  String get debesVerAnuncioParaEnviarImagen => '❌ 이미지를 전송하려면 광고를 끝까지 시청해야 합니다';
+
+  @override
+  String get seleccionaAlMenos1Imagen => '실제 이미지를 최소 1장 선택하세요';
+
+  @override
+  String get siguienteConFlecha => '다음 →';
+
+  @override
+  String get recoleccionDeDatos => '데이터 수집';
+
+  @override
+  String get tuPrivacidadImportante =>
+      '귀하의 개인정보는 중요합니다. 맞춤형 상품 추천을 받기 위해 브라우징 데이터 및 환경설정 수집을 허용할지 선택할 수 있습니다.';
+
+  @override
+  String get aceptoRecoleccionDatos =>
+      '맞춤형 상품 추천을 받기 위해 브라우징 데이터 및 환경설정 수집에 동의합니다.';
+
+  @override
+  String get guardarPreferencias => '환경설정 저장';
+
+  @override
+  String get preferenciasGuardadas => '✅ 환경설정이 저장되었습니다';
+
+  @override
+  String get errorAlGuardar => '저장 오류';
+
+  @override
+  String get historialDePagos => '결제 내역';
+
+  @override
+  String get consultaTodosLosPagos =>
+      '앱 내에서 한 모든 결제를 확인하세요: 게시물 홍보, 갱신, 광고 제거 및 기타 서비스.';
+
+  @override
+  String get verHistorialDePagos => '결제 내역 보기';
+
+  @override
+  String get todosTusPagosTransacciones => '모든 결제 및 거래';
+
+  @override
+  String get estadoDeCuenta => '계정 상태';
+
+  @override
+  String get revisaTusAdvertencias => '플랫폼에서 경고 및 활성 정지를 확인하세요.';
+
+  @override
+  String get advertencias => '경고';
+
+  @override
+  String get suspensionesTemporales => '임시 정지';
+
+  @override
+  String get asistenciaAEncuentros => '약속 참석';
+
+  @override
+  String get llegadasTardias => '지각';
+
+  @override
+  String get noVerificaste5Min => '5분 이내에 확인하지 않았습니다. 3회 = 경고 1회';
+
+  @override
+  String get ausencias => '결석';
+
+  @override
+  String get noLlegasteEncuentro => '약속에 오지 않았습니다. 1회 = 경고 1회';
+
+  @override
+  String minutosTardeAcumulados(int cantidad) {
+    return '⏱️ 누적 지각 시간: $cantidad분';
+  }
+
+  @override
+  String get informacion => '정보';
+
+  @override
+  String get comoFunciona => '어떻게 작동하나요?';
+
+  @override
+  String get comoFuncionaEstadoCuenta =>
+      '귀하의 계정은 커뮤니티 규칙 위반으로 경고와 임시 정지가 누적됩니다.\n\n약속 참석:\n• 지각 3회 (0/3) = 경고 1회.\n• 결석 1회 = 경고 1회.\n\n에스컬레이션:\n• 경고 3회 = 임시 정지 1회 (7일).\n• 정지 3회 = 영구 차단.\n\n회복:\n• 매월 지각 2회가 차감됩니다.\n• 3개월마다 경고 1회가 차감됩니다.';
+
+  @override
+  String get advertenciasInfo =>
+      '경고 (최대 3회): 부적절한 언어, 오해의 소지가 있는 게시물, 경미한 규칙 위반 등의 가벼운 신고로 발생합니다. 계정을 차단하지 않습니다.';
+
+  @override
+  String get suspensionesInfo =>
+      '임시 정지 (최대 3회): 사기, 괴롭힘, 신원 도용 또는 경고 반복 등의 더 심각한 위반에 적용됩니다. 각 정지는 일정 기간 동안 계정을 차단합니다.';
+
+  @override
+  String get baneoInfo => '정지 3회에 도달하면 계정이 영구 차단되며 해당 이메일로 재가입할 수 없습니다.';
+
+  @override
+  String get entendido => '확인';
+
+  @override
+  String get guardar => '저장';
+
+  @override
+  String get guardarCambios => '변경사항 저장';
+
+  @override
+  String get nombreCompleto => '전체 이름';
+
+  @override
+  String get telefono => '전화번호';
+
+  @override
+  String get usuarioNoAutenticado => '사용자가 인증되지 않았습니다';
+
+  @override
+  String get errorAlCargarDatos => '데이터 로드 오류';
+
+  @override
+  String get nombreNoPuedeEstarVacio => '이름은 비워둘 수 없습니다';
+
+  @override
+  String get perfilActualizadoCorrectamente => '✅ 프로필이 성공적으로 업데이트되었습니다';
+
+  @override
+  String get errorAlGuardarEnServidor => '서버 저장 오류';
+
+  @override
+  String get volverAlPerfil => 'Volver al perfil';
 }

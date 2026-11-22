@@ -1,12 +1,10 @@
-{
+﻿{
   "@@locale": "es",
   "appTitle": "Mi Marketplace",
   "bienvenido": "Bienvenido, {nombre}",
   "@bienvenido": {
     "placeholders": {
-      "nombre": {
-        "type": "String"
-      }
+      "nombre": { "type": "String" }
     }
   },
   "categorias": "Categorías",
@@ -24,8 +22,7 @@
   "aplicarFiltros": "Aplicar filtros",
   "filtrosAplicados": "✅ Filtros aplicados",
   "sinFiltrosAplicados": "Sin filtros aplicados",
-  
-    "todos": "Todos",
+  "todos": "Todos",
   "iniciarSesion": "Iniciar Sesión",
   "correoElectronico": "Correo electrónico",
   "contrasena": "Contraseña",
@@ -147,32 +144,24 @@
   "chatDesfijado": "📌 Chat desfijado",
   "errorAlFijar": "Error al fijar: {codigo}",
   "@errorAlFijar": {
-    "placeholders": {
-      "codigo": { "type": "String" }
-    }
+    "placeholders": { "codigo": { "type": "String" } }
   },
   "eliminarChat": "Eliminar chat",
   "confirmarEliminarChat": "¿Estás seguro de borrar la conversación con {nombre}?",
   "@confirmarEliminarChat": {
-    "placeholders": {
-      "nombre": { "type": "String" }
-    }
+    "placeholders": { "nombre": { "type": "String" } }
   },
   "chatEliminado": "🗑️ Chat eliminado",
   "guardadoConProductos": "✅ Guardado ({cantidad} productos)",
   "@guardadoConProductos": {
-    "placeholders": {
-      "cantidad": { "type": "int" }
-    }
+    "placeholders": { "cantidad": { "type": "int" } }
   },
   "eliminado": "🗑️ Eliminado",
   "buscarContactosProductos": "Buscar contactos o productos...",
   "noHayContactosGuardados": "No hay contactos guardados",
   "noHayResultadosPara": "No hay resultados para \"{busqueda}\"",
   "@noHayResultadosPara": {
-    "placeholders": {
-      "busqueda": { "type": "String" }
-    }
+    "placeholders": { "busqueda": { "type": "String" } }
   },
   "tocaBotonParaGuardarContacto": "Toca el botón en un chat para guardar el contacto en tu agenda",
   "producto": "Producto",
@@ -180,21 +169,15 @@
   "fechaDesconocida": "Fecha desconocida",
   "haceDias": "hace {cantidad} días",
   "@haceDias": {
-    "placeholders": {
-      "cantidad": { "type": "int" }
-    }
+    "placeholders": { "cantidad": { "type": "int" } }
   },
   "haceHoras": "hace {cantidad} horas",
   "@haceHoras": {
-    "placeholders": {
-      "cantidad": { "type": "int" }
-    }
+    "placeholders": { "cantidad": { "type": "int" } }
   },
   "haceMinutos": "hace {cantidad} minutos",
   "@haceMinutos": {
-    "placeholders": {
-      "cantidad": { "type": "int" }
-    }
+    "placeholders": { "cantidad": { "type": "int" } }
   },
   "haceUnosSegundos": "hace unos segundos",
   "lun": "Lun",
@@ -205,12 +188,13 @@
   "sab": "Sáb",
   "errorGenerico": "Error: {error}",
   "@errorGenerico": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
+    "placeholders": { "error": { "type": "String" } }
   },
+  "errorGenericoAlerta": "Error: {error}",
+  "@errorGenericoAlerta": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "errorDesconocido": "Error desconocido",
   "catElectronicos": "Electrónicos",
   "catDeportes": "Deportes",
   "catHogar": "Hogar",
@@ -222,6 +206,9 @@
   "catJuegosDeMesa": "Juegos de Mesa",
   "catJuguetes": "Juguetes",
   "catFiguras": "Figuras",
+  "catAutomoviles": "Automóviles",
+  "catHerramientas": "Herramientas",
+  "catRopaYCalzado": "Ropa y Calzado",
   "subElectronicos": "Móviles, Laptops, Audio",
   "subDeportes": "Fútbol, Tenis, Running",
   "subHogar": "Muebles, Decoración, Cocina",
@@ -245,18 +232,14 @@
   "todasLasAlertasEliminadas": "✅ Todas las alertas han sido eliminadas",
   "errorAlLimpiarAlertas": "Error al limpiar alertas: {error}",
   "@errorAlLimpiarAlertas": {
-    "placeholders": {
-      "error": { "type": "String" }
-    }
+    "placeholders": { "error": { "type": "String" } }
   },
   "cargandoAnuncio": "⏳ Cargando anuncio... espera un momento",
   "noSePudoCargarAnuncio": "❌ No se pudo cargar el anuncio. Intentá de nuevo.",
   "productoRenovado": "✅ Producto renovado por 30 días más",
   "errorAlRenovar": "Error al renovar: {error}",
   "@errorAlRenovar": {
-    "placeholders": {
-      "error": { "type": "String" }
-    }
+    "placeholders": { "error": { "type": "String" } }
   },
   "debesVerAnuncioCompleto": "❌ Debes ver el anuncio completo para renovar",
   "renovarPor30Dias": "Renovar por 30 días",
@@ -269,12 +252,6 @@
   "revisarComparacion": "Revisar comparación",
   "ambosConfirmaronExito": "✅ Ambos confirmaron. ¡Nos vemos!",
   "confirmasteAsistencia": "✅ Confirmaste tu asistencia. Esperando al otro.",
-  "errorGenericoAlerta": "Error: {error}",
-  "@errorGenericoAlerta": {
-    "placeholders": {
-      "error": { "type": "String" }
-    }
-  },
   "eliminarPublicidadTitulo": "Eliminar publicidad",
   "eliminaLosAnuncios": "Eliminá los anuncios",
   "descripcionEliminarPublicidad": "Pagá un plan y navegá sin publicidad en toda la app. Sin anuncios, sin interrupciones.",
@@ -288,16 +265,12 @@
   "sinAnunciosPor180Dias": "Sin anuncios por 180 días",
   "ahorrasMonto": "Ahorrás {monto}",
   "@ahorrasMonto": {
-    "placeholders": {
-      "monto": { "type": "String" }
-    }
+    "placeholders": { "monto": { "type": "String" } }
   },
   "elegiUnPlan": "Elegí un plan",
   "pagarMonto": "Pagar {monto}",
   "@pagarMonto": {
-    "placeholders": {
-      "monto": { "type": "String" }
-    }
+    "placeholders": { "monto": { "type": "String" } }
   },
   "pagoSeguro": "El pago se procesa de forma segura",
   "confirmarCompra": "Confirmar compra",
@@ -321,9 +294,7 @@
   "productoNoDisponible": "Producto no disponible",
   "errorCompra": "Error: {detalle}",
   "@errorCompra": {
-    "placeholders": {
-      "detalle": {}
-    }
+    "placeholders": { "detalle": { "type": "String" } }
   },
   "desconocido": "Desconocido",
   "usuarioNoLogueado": "No hay usuario logueado",
@@ -348,13 +319,11 @@
   "cargando": "Cargando...",
   "impulsarAhora": "Impulsar ahora",
   "cambiarProducto": "Cambiar producto",
-  "debesIniciarSesion": "Debes iniciar sesión",
   "noTenesProductosPublicados": "No tenés productos publicados",
   "elegiUnArticulo": "Elegí un artículo",
   "elQueElijasApareceraPrimero": "El que elijas aparecerá primero en el Home",
   "primeroElegiUnArticulo": "Primero elegí un artículo",
   "productoImpulsoNoDisponible": "Producto de impulso no disponible. Revisá tu conexión.",
-  "errorDesconocido": "Desconocido",
   "productoEstaPrimeroEnHome": "✅ \"{nombre}\" está primero en el Home",
   "@productoEstaPrimeroEnHome": {
     "placeholders": { "nombre": { "type": "String" } }
@@ -390,5 +359,133 @@
   "@errorGenericoImpulsar": {
     "placeholders": { "error": { "type": "String" } }
   },
-  "ubicacionDelEncuentro": "Ubicación del encuentro"
+  "ubicacionDelEncuentro": "Ubicación del encuentro",
+  "verificarCuenta": "Verificar cuenta",
+  "verificaTuCuenta": "Verificá tu cuenta",
+  "obteneLaInsigniaDeVerificado": "Obtené la insignia de verificado en tu perfil",
+  "paso1EnviaSinpe": "Paso 1: Enviá el SINPE Móvil",
+  "realizaSinpeDeMontoANumero": "Realizá un SINPE Móvil de {monto} al número:",
+  "@realizaSinpeDeMontoANumero": {
+    "placeholders": { "monto": { "type": "String" } }
+  },
+  "paso2IngresaTuNumero": "Paso 2: Ingresá tu número",
+  "ingresaNumeroDesdeElQueEnviaste": "Ingresá el número de teléfono desde el que enviaste el SINPE:",
+  "ejemploTelefono": "Ej: 88888888",
+  "confirmarPago": "Confirmar pago",
+  "enviando": "Enviando...",
+  "porFavorIngresaTuTelefono": "Por favor, ingresá tu número de teléfono",
+  "solicitudEnviada": "¡Solicitud enviada!",
+  "estamosVerificandoTuPago": "Estamos verificando tu pago. En breve recibirás la insignia de verificado en tu perfil.",
+  "porFavorEscribeUnMensaje": "Por favor, escribe un mensaje",
+  "porFavorEscribeUnAsunto": "Por favor, escribe un asunto",
+  "mensajeEnviadoExito": "✅ Mensaje enviado. Te responderemos pronto.",
+  "necesitasAyuda": "¿Necesitas ayuda?",
+  "cuentanosTuProblema": "Cuéntanos tu problema y te ayudaremos a resolverlo.",
+  "tipoDeConsulta": "Tipo de consulta",
+  "asunto": "Asunto",
+  "ejemploProblemaCuenta": "Ej: Problema con mi cuenta",
+  "mensaje": "Mensaje",
+  "describeTuProblema": "Describe tu problema con el mayor detalle posible...",
+  "enviarMensaje": "Enviar mensaje",
+  "tiempoRespuestaEstimado": "Tiempo de respuesta estimado: 24-48 horas",
+  "mensajeEnviado": "¡Mensaje enviado!",
+  "hemosRecibidoTuConsulta": "Hemos recibido tu consulta. Nuestro equipo de soporte te responderá en las próximas 24-48 horas.",
+  "enviarOtroMensaje": "Enviar otro mensaje",
+  "volver": "Volver",
+  "categoria": "Categoría",
+  "direccion": "Dirección",
+  "nombreDelProducto": "Nombre del producto",
+  "ejemploNombreProducto": "Ej. iPhone 13, Laptop, etc.",
+  "ingresaNombreProducto": "Ingresa el nombre del producto",
+  "nombreMinimoCaracteres": "El nombre debe tener al menos 3 caracteres",
+  "precio": "Precio (₡)",
+  "ingresePrecioProducto": "Ingrese el precio del producto",
+  "ingresaPrecio": "Ingresa el precio",
+  "ingresaPrecioValido": "Ingresa un precio válido",
+  "precioMayorCero": "El precio debe ser mayor a 0",
+  "descripcion": "Descripción",
+  "escribeDescripcionDetallada": "Escriba una descripción detallada del producto...",
+  "ingresaDescripcion": "Ingresa una descripción",
+  "publicarProducto": "Publicar Producto",
+  "compartaProductoComunidad": "Comparta su producto con la comunidad",
+  "anuncioCompletado": "✅ Anuncio completado. Publicando producto...",
+  "debesVerAnuncioParaPublicar": "❌ Debes ver el anuncio completo para publicar",
+  "productoEnviadoRevision": "📝 Producto enviado para revisión. Recibirás notificación al aprobarse.",
+  "errorAlPublicar": "Error al publicar: {error}",
+  "@errorAlPublicar": {
+    "placeholders": { "error": { "type": "String" } }
+  },
+  "paraPublicarNecesitasVerAnuncio": "Para publicar tu producto, necesitas ver un breve anuncio.",
+  "verAnuncio": "Ver anuncio",
+  "agregarImagenes": "Agregar imágenes",
+  "imagenDestacada": "Imagen Destacada",
+  "estaImagenApareceraPortada": "Esta imagen aparecerá en la portada del producto y en la sección de destacados.",
+  "soloImagenesCalidadEstudio": "Solo se aceptan imágenes con calidad de estudio fotográfico (buena iluminación, enfoque nítido, fondo limpio).",
+  "tocaParaSeleccionarImagen": "Toca para seleccionar una imagen",
+  "formatosImagenPermitidos": "JPG, PNG o WEBP · Máx. 10 MB",
+  "enRevisionPuntos": "🔍 En revisión...",
+  "enviadoARevision": "🔄 Enviado a revisión",
+  "enviarARevision": "🛡️ Enviar a revisión",
+  "imagenRevisadaIA": "La imagen será revisada por IA. Recibirás una notificación cuando sea aprobada.",
+  "imagenesRealesProducto": "Imágenes Reales del Producto",
+  "subeHasta4Fotos": "Sube hasta 4 fotos reales del producto (obligatorio)",
+  "agregar": "Agregar",
+  "maximo4ImagenesReales": "⚠️ Solo puedes subir máximo 4 imágenes reales",
+  "escribeDescripcionMejorarImagen": "Escribe una descripción para mejorar la imagen",
+  "primeroSeleccionaImagen": "Primero selecciona una imagen",
+  "imagenMejoradaCorrectamente": "✅ Imagen mejorada correctamente",
+  "errorGenerarImagen": "Error al generar imagen",
+  "imagenEnviadaRevision": "🔄 Imagen enviada a revisión. Recibirás una notificación cuando sea aprobada.",
+  "errorEnviarImagen": "Error al enviar imagen: {codigo}",
+  "@errorEnviarImagen": {
+    "placeholders": { "codigo": { "type": "String" } }
+  },
+  "revisionDeImagen": "🛡️ Revisión de imagen",
+  "tuImagenSeraEnviadaModeracion": "Tu imagen será enviada a nuestro equipo de moderación para su revisión. Para continuar, necesitas ver un breve anuncio.",
+  "revisionPuedeTomar24Horas": "La revisión puede tomar hasta 24 horas.",
+  "verAnuncioConEmoji": "Ver anuncio 🎬",
+  "anuncioCompletadoEnviandoImagen": "✅ Anuncio completado. Enviando imagen a revisión...",
+  "debesVerAnuncioParaEnviarImagen": "❌ Debes ver el anuncio completo para enviar la imagen",
+  "seleccionaAlMenos1Imagen": "Selecciona al menos 1 imagen real",
+  "siguienteConFlecha": "Siguiente →",
+  "recoleccionDeDatos": "Recolección de datos",
+  "tuPrivacidadImportante": "Tu privacidad es importante para nosotros. Puedes elegir si permites que tus datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.",
+  "aceptoRecoleccionDatos": "Acepto que mis datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.",
+  "guardarPreferencias": "Guardar preferencias",
+  "preferenciasGuardadas": "✅ Preferencias guardadas",
+  "errorAlGuardar": "Error al guardar",
+  "historialDePagos": "Historial de pagos",
+  "consultaTodosLosPagos": "Consultá todos los pagos que hiciste dentro de la app: impulsos de publicaciones, renovaciones, eliminación de publicidad y otros servicios.",
+  "verHistorialDePagos": "Ver historial de pagos",
+  "todosTusPagosTransacciones": "Todos tus pagos y transacciones",
+  "estadoDeCuenta": "Estado de cuenta",
+  "revisaTusAdvertencias": "Revisá tus advertencias y suspensiones activas en la plataforma.",
+  "advertencias": "Advertencias",
+  "suspensionesTemporales": "Suspensiones temporales",
+  "asistenciaAEncuentros": "Asistencia a encuentros",
+  "llegadasTardias": "Llegadas tardías",
+  "noVerificaste5Min": "No verificaste a 5 min o menos. 3 = 1 advertencia",
+  "ausencias": "Ausencias",
+  "noLlegasteEncuentro": "No llegaste al encuentro. 1 = 1 advertencia",
+  "minutosTardeAcumulados": "⏱️ Minutos tarde acumulados: {cantidad}",
+  "@minutosTardeAcumulados": {
+    "placeholders": { "cantidad": { "type": "int" } }
+  },
+  "informacion": "Información",
+  "comoFunciona": "¿Cómo funciona?",
+  "comoFuncionaEstadoCuenta": "Tu cuenta acumula advertencias y suspensiones temporales por incumplir las normas de la comunidad.\n\nAsistencia a encuentros:\n• 3 llegadas tardías (0/3) = 1 advertencia.\n• 1 ausencia = 1 advertencia.\n\nEscalado:\n• 3 advertencias = 1 suspensión temporal (7 días).\n• 3 suspensiones = baneo permanente.\n\nRecuperación:\n• Cada mes se descuentan 2 llegadas tardías.\n• Cada 3 meses se descuenta 1 advertencia.",
+  "advertenciasInfo": "Advertencias (máx. 3): se generan por reportes leves como lenguaje inapropiado, publicaciones con información engañosa o incumplimiento menor de las reglas. No bloquean tu cuenta.",
+  "suspensionesInfo": "Suspensiones temporales (máx. 3): se aplican por faltas más graves como estafas, acoso, suplantación de identidad o reincidencia en advertencias. Cada suspensión bloquea tu cuenta por un período.",
+  "baneoInfo": "Si llegás a 3 suspensiones, tu cuenta será baneada de forma permanente y su correo no podrá volver a registrarse.",
+  "entendido": "Entendido",
+  "guardar": "Guardar",
+  "guardarCambios": "Guardar Cambios",
+  "nombreCompleto": "Nombre completo",
+  "telefono": "Teléfono",
+  "usuarioNoAutenticado": "Usuario no autenticado",
+  "errorAlCargarDatos": "Error al cargar datos",
+  "nombreNoPuedeEstarVacio": "El nombre no puede estar vacío",
+  "perfilActualizadoCorrectamente": "✅ Perfil actualizado correctamente",
+  "errorAlGuardarEnServidor": "Error al guardar en el servidor",
+  "volverAlPerfil": "Volver al perfil"
 }

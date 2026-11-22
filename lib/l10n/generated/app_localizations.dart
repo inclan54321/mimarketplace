@@ -944,6 +944,18 @@ abstract class AppLocalizations {
   /// **'Error: {error}'**
   String errorGenerico(String error);
 
+  /// No description provided for @errorGenericoAlerta.
+  ///
+  /// In es, this message translates to:
+  /// **'Error: {error}'**
+  String errorGenericoAlerta(String error);
+
+  /// No description provided for @errorDesconocido.
+  ///
+  /// In es, this message translates to:
+  /// **'Error desconocido'**
+  String get errorDesconocido;
+
   /// No description provided for @catElectronicos.
   ///
   /// In es, this message translates to:
@@ -1009,6 +1021,24 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Figuras'**
   String get catFiguras;
+
+  /// No description provided for @catAutomoviles.
+  ///
+  /// In es, this message translates to:
+  /// **'Automóviles'**
+  String get catAutomoviles;
+
+  /// No description provided for @catHerramientas.
+  ///
+  /// In es, this message translates to:
+  /// **'Herramientas'**
+  String get catHerramientas;
+
+  /// No description provided for @catRopaYCalzado.
+  ///
+  /// In es, this message translates to:
+  /// **'Ropa y Calzado'**
+  String get catRopaYCalzado;
 
   /// No description provided for @subElectronicos.
   ///
@@ -1232,12 +1262,6 @@ abstract class AppLocalizations {
   /// **'✅ Confirmaste tu asistencia. Esperando al otro.'**
   String get confirmasteAsistencia;
 
-  /// No description provided for @errorGenericoAlerta.
-  ///
-  /// In es, this message translates to:
-  /// **'Error: {error}'**
-  String errorGenericoAlerta(String error);
-
   /// No description provided for @eliminarPublicidadTitulo.
   ///
   /// In es, this message translates to:
@@ -1410,7 +1434,7 @@ abstract class AppLocalizations {
   ///
   /// In es, this message translates to:
   /// **'Error: {detalle}'**
-  String errorCompra(Object detalle);
+  String errorCompra(String detalle);
 
   /// No description provided for @desconocido.
   ///
@@ -1580,12 +1604,6 @@ abstract class AppLocalizations {
   /// **'Producto de impulso no disponible. Revisá tu conexión.'**
   String get productoImpulsoNoDisponible;
 
-  /// No description provided for @errorDesconocido.
-  ///
-  /// In es, this message translates to:
-  /// **'Desconocido'**
-  String get errorDesconocido;
-
   /// No description provided for @productoEstaPrimeroEnHome.
   ///
   /// In es, this message translates to:
@@ -1747,6 +1765,702 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Ubicación del encuentro'**
   String get ubicacionDelEncuentro;
+
+  /// No description provided for @verificarCuenta.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificar cuenta'**
+  String get verificarCuenta;
+
+  /// No description provided for @verificaTuCuenta.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificá tu cuenta'**
+  String get verificaTuCuenta;
+
+  /// No description provided for @obteneLaInsigniaDeVerificado.
+  ///
+  /// In es, this message translates to:
+  /// **'Obtené la insignia de verificado en tu perfil'**
+  String get obteneLaInsigniaDeVerificado;
+
+  /// No description provided for @paso1EnviaSinpe.
+  ///
+  /// In es, this message translates to:
+  /// **'Paso 1: Enviá el SINPE Móvil'**
+  String get paso1EnviaSinpe;
+
+  /// No description provided for @realizaSinpeDeMontoANumero.
+  ///
+  /// In es, this message translates to:
+  /// **'Realizá un SINPE Móvil de {monto} al número:'**
+  String realizaSinpeDeMontoANumero(String monto);
+
+  /// No description provided for @paso2IngresaTuNumero.
+  ///
+  /// In es, this message translates to:
+  /// **'Paso 2: Ingresá tu número'**
+  String get paso2IngresaTuNumero;
+
+  /// No description provided for @ingresaNumeroDesdeElQueEnviaste.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresá el número de teléfono desde el que enviaste el SINPE:'**
+  String get ingresaNumeroDesdeElQueEnviaste;
+
+  /// No description provided for @ejemploTelefono.
+  ///
+  /// In es, this message translates to:
+  /// **'Ej: 88888888'**
+  String get ejemploTelefono;
+
+  /// No description provided for @confirmarPago.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar pago'**
+  String get confirmarPago;
+
+  /// No description provided for @enviando.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviando...'**
+  String get enviando;
+
+  /// No description provided for @porFavorIngresaTuTelefono.
+  ///
+  /// In es, this message translates to:
+  /// **'Por favor, ingresá tu número de teléfono'**
+  String get porFavorIngresaTuTelefono;
+
+  /// No description provided for @solicitudEnviada.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Solicitud enviada!'**
+  String get solicitudEnviada;
+
+  /// No description provided for @estamosVerificandoTuPago.
+  ///
+  /// In es, this message translates to:
+  /// **'Estamos verificando tu pago. En breve recibirás la insignia de verificado en tu perfil.'**
+  String get estamosVerificandoTuPago;
+
+  /// No description provided for @porFavorEscribeUnMensaje.
+  ///
+  /// In es, this message translates to:
+  /// **'Por favor, escribe un mensaje'**
+  String get porFavorEscribeUnMensaje;
+
+  /// No description provided for @porFavorEscribeUnAsunto.
+  ///
+  /// In es, this message translates to:
+  /// **'Por favor, escribe un asunto'**
+  String get porFavorEscribeUnAsunto;
+
+  /// No description provided for @mensajeEnviadoExito.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Mensaje enviado. Te responderemos pronto.'**
+  String get mensajeEnviadoExito;
+
+  /// No description provided for @necesitasAyuda.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Necesitas ayuda?'**
+  String get necesitasAyuda;
+
+  /// No description provided for @cuentanosTuProblema.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuéntanos tu problema y te ayudaremos a resolverlo.'**
+  String get cuentanosTuProblema;
+
+  /// No description provided for @tipoDeConsulta.
+  ///
+  /// In es, this message translates to:
+  /// **'Tipo de consulta'**
+  String get tipoDeConsulta;
+
+  /// No description provided for @asunto.
+  ///
+  /// In es, this message translates to:
+  /// **'Asunto'**
+  String get asunto;
+
+  /// No description provided for @ejemploProblemaCuenta.
+  ///
+  /// In es, this message translates to:
+  /// **'Ej: Problema con mi cuenta'**
+  String get ejemploProblemaCuenta;
+
+  /// No description provided for @mensaje.
+  ///
+  /// In es, this message translates to:
+  /// **'Mensaje'**
+  String get mensaje;
+
+  /// No description provided for @describeTuProblema.
+  ///
+  /// In es, this message translates to:
+  /// **'Describe tu problema con el mayor detalle posible...'**
+  String get describeTuProblema;
+
+  /// No description provided for @enviarMensaje.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar mensaje'**
+  String get enviarMensaje;
+
+  /// No description provided for @tiempoRespuestaEstimado.
+  ///
+  /// In es, this message translates to:
+  /// **'Tiempo de respuesta estimado: 24-48 horas'**
+  String get tiempoRespuestaEstimado;
+
+  /// No description provided for @mensajeEnviado.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Mensaje enviado!'**
+  String get mensajeEnviado;
+
+  /// No description provided for @hemosRecibidoTuConsulta.
+  ///
+  /// In es, this message translates to:
+  /// **'Hemos recibido tu consulta. Nuestro equipo de soporte te responderá en las próximas 24-48 horas.'**
+  String get hemosRecibidoTuConsulta;
+
+  /// No description provided for @enviarOtroMensaje.
+  ///
+  /// In es, this message translates to:
+  /// **'Enviar otro mensaje'**
+  String get enviarOtroMensaje;
+
+  /// No description provided for @volver.
+  ///
+  /// In es, this message translates to:
+  /// **'Volver'**
+  String get volver;
+
+  /// No description provided for @categoria.
+  ///
+  /// In es, this message translates to:
+  /// **'Categoría'**
+  String get categoria;
+
+  /// No description provided for @direccion.
+  ///
+  /// In es, this message translates to:
+  /// **'Dirección'**
+  String get direccion;
+
+  /// No description provided for @nombreDelProducto.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre del producto'**
+  String get nombreDelProducto;
+
+  /// No description provided for @ejemploNombreProducto.
+  ///
+  /// In es, this message translates to:
+  /// **'Ej. iPhone 13, Laptop, etc.'**
+  String get ejemploNombreProducto;
+
+  /// No description provided for @ingresaNombreProducto.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresa el nombre del producto'**
+  String get ingresaNombreProducto;
+
+  /// No description provided for @nombreMinimoCaracteres.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre debe tener al menos 3 caracteres'**
+  String get nombreMinimoCaracteres;
+
+  /// No description provided for @precio.
+  ///
+  /// In es, this message translates to:
+  /// **'Precio (₡)'**
+  String get precio;
+
+  /// No description provided for @ingresePrecioProducto.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingrese el precio del producto'**
+  String get ingresePrecioProducto;
+
+  /// No description provided for @ingresaPrecio.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresa el precio'**
+  String get ingresaPrecio;
+
+  /// No description provided for @ingresaPrecioValido.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresa un precio válido'**
+  String get ingresaPrecioValido;
+
+  /// No description provided for @precioMayorCero.
+  ///
+  /// In es, this message translates to:
+  /// **'El precio debe ser mayor a 0'**
+  String get precioMayorCero;
+
+  /// No description provided for @descripcion.
+  ///
+  /// In es, this message translates to:
+  /// **'Descripción'**
+  String get descripcion;
+
+  /// No description provided for @escribeDescripcionDetallada.
+  ///
+  /// In es, this message translates to:
+  /// **'Escriba una descripción detallada del producto...'**
+  String get escribeDescripcionDetallada;
+
+  /// No description provided for @ingresaDescripcion.
+  ///
+  /// In es, this message translates to:
+  /// **'Ingresa una descripción'**
+  String get ingresaDescripcion;
+
+  /// No description provided for @publicarProducto.
+  ///
+  /// In es, this message translates to:
+  /// **'Publicar Producto'**
+  String get publicarProducto;
+
+  /// No description provided for @compartaProductoComunidad.
+  ///
+  /// In es, this message translates to:
+  /// **'Comparta su producto con la comunidad'**
+  String get compartaProductoComunidad;
+
+  /// No description provided for @anuncioCompletado.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Anuncio completado. Publicando producto...'**
+  String get anuncioCompletado;
+
+  /// No description provided for @debesVerAnuncioParaPublicar.
+  ///
+  /// In es, this message translates to:
+  /// **'❌ Debes ver el anuncio completo para publicar'**
+  String get debesVerAnuncioParaPublicar;
+
+  /// No description provided for @productoEnviadoRevision.
+  ///
+  /// In es, this message translates to:
+  /// **'📝 Producto enviado para revisión. Recibirás notificación al aprobarse.'**
+  String get productoEnviadoRevision;
+
+  /// No description provided for @errorAlPublicar.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al publicar: {error}'**
+  String errorAlPublicar(String error);
+
+  /// No description provided for @paraPublicarNecesitasVerAnuncio.
+  ///
+  /// In es, this message translates to:
+  /// **'Para publicar tu producto, necesitas ver un breve anuncio.'**
+  String get paraPublicarNecesitasVerAnuncio;
+
+  /// No description provided for @verAnuncio.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver anuncio'**
+  String get verAnuncio;
+
+  /// No description provided for @agregarImagenes.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar imágenes'**
+  String get agregarImagenes;
+
+  /// No description provided for @imagenDestacada.
+  ///
+  /// In es, this message translates to:
+  /// **'Imagen Destacada'**
+  String get imagenDestacada;
+
+  /// No description provided for @estaImagenApareceraPortada.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta imagen aparecerá en la portada del producto y en la sección de destacados.'**
+  String get estaImagenApareceraPortada;
+
+  /// No description provided for @soloImagenesCalidadEstudio.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo se aceptan imágenes con calidad de estudio fotográfico (buena iluminación, enfoque nítido, fondo limpio).'**
+  String get soloImagenesCalidadEstudio;
+
+  /// No description provided for @tocaParaSeleccionarImagen.
+  ///
+  /// In es, this message translates to:
+  /// **'Toca para seleccionar una imagen'**
+  String get tocaParaSeleccionarImagen;
+
+  /// No description provided for @formatosImagenPermitidos.
+  ///
+  /// In es, this message translates to:
+  /// **'JPG, PNG o WEBP · Máx. 10 MB'**
+  String get formatosImagenPermitidos;
+
+  /// No description provided for @enRevisionPuntos.
+  ///
+  /// In es, this message translates to:
+  /// **'🔍 En revisión...'**
+  String get enRevisionPuntos;
+
+  /// No description provided for @enviadoARevision.
+  ///
+  /// In es, this message translates to:
+  /// **'🔄 Enviado a revisión'**
+  String get enviadoARevision;
+
+  /// No description provided for @enviarARevision.
+  ///
+  /// In es, this message translates to:
+  /// **'🛡️ Enviar a revisión'**
+  String get enviarARevision;
+
+  /// No description provided for @imagenRevisadaIA.
+  ///
+  /// In es, this message translates to:
+  /// **'La imagen será revisada por IA. Recibirás una notificación cuando sea aprobada.'**
+  String get imagenRevisadaIA;
+
+  /// No description provided for @imagenesRealesProducto.
+  ///
+  /// In es, this message translates to:
+  /// **'Imágenes Reales del Producto'**
+  String get imagenesRealesProducto;
+
+  /// No description provided for @subeHasta4Fotos.
+  ///
+  /// In es, this message translates to:
+  /// **'Sube hasta 4 fotos reales del producto (obligatorio)'**
+  String get subeHasta4Fotos;
+
+  /// No description provided for @agregar.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar'**
+  String get agregar;
+
+  /// No description provided for @maximo4ImagenesReales.
+  ///
+  /// In es, this message translates to:
+  /// **'⚠️ Solo puedes subir máximo 4 imágenes reales'**
+  String get maximo4ImagenesReales;
+
+  /// No description provided for @escribeDescripcionMejorarImagen.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe una descripción para mejorar la imagen'**
+  String get escribeDescripcionMejorarImagen;
+
+  /// No description provided for @primeroSeleccionaImagen.
+  ///
+  /// In es, this message translates to:
+  /// **'Primero selecciona una imagen'**
+  String get primeroSeleccionaImagen;
+
+  /// No description provided for @imagenMejoradaCorrectamente.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Imagen mejorada correctamente'**
+  String get imagenMejoradaCorrectamente;
+
+  /// No description provided for @errorGenerarImagen.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al generar imagen'**
+  String get errorGenerarImagen;
+
+  /// No description provided for @imagenEnviadaRevision.
+  ///
+  /// In es, this message translates to:
+  /// **'🔄 Imagen enviada a revisión. Recibirás una notificación cuando sea aprobada.'**
+  String get imagenEnviadaRevision;
+
+  /// No description provided for @errorEnviarImagen.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al enviar imagen: {codigo}'**
+  String errorEnviarImagen(String codigo);
+
+  /// No description provided for @revisionDeImagen.
+  ///
+  /// In es, this message translates to:
+  /// **'🛡️ Revisión de imagen'**
+  String get revisionDeImagen;
+
+  /// No description provided for @tuImagenSeraEnviadaModeracion.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu imagen será enviada a nuestro equipo de moderación para su revisión. Para continuar, necesitas ver un breve anuncio.'**
+  String get tuImagenSeraEnviadaModeracion;
+
+  /// No description provided for @revisionPuedeTomar24Horas.
+  ///
+  /// In es, this message translates to:
+  /// **'La revisión puede tomar hasta 24 horas.'**
+  String get revisionPuedeTomar24Horas;
+
+  /// No description provided for @verAnuncioConEmoji.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver anuncio 🎬'**
+  String get verAnuncioConEmoji;
+
+  /// No description provided for @anuncioCompletadoEnviandoImagen.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Anuncio completado. Enviando imagen a revisión...'**
+  String get anuncioCompletadoEnviandoImagen;
+
+  /// No description provided for @debesVerAnuncioParaEnviarImagen.
+  ///
+  /// In es, this message translates to:
+  /// **'❌ Debes ver el anuncio completo para enviar la imagen'**
+  String get debesVerAnuncioParaEnviarImagen;
+
+  /// No description provided for @seleccionaAlMenos1Imagen.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona al menos 1 imagen real'**
+  String get seleccionaAlMenos1Imagen;
+
+  /// No description provided for @siguienteConFlecha.
+  ///
+  /// In es, this message translates to:
+  /// **'Siguiente →'**
+  String get siguienteConFlecha;
+
+  /// No description provided for @recoleccionDeDatos.
+  ///
+  /// In es, this message translates to:
+  /// **'Recolección de datos'**
+  String get recoleccionDeDatos;
+
+  /// No description provided for @tuPrivacidadImportante.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu privacidad es importante para nosotros. Puedes elegir si permites que tus datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.'**
+  String get tuPrivacidadImportante;
+
+  /// No description provided for @aceptoRecoleccionDatos.
+  ///
+  /// In es, this message translates to:
+  /// **'Acepto que mis datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.'**
+  String get aceptoRecoleccionDatos;
+
+  /// No description provided for @guardarPreferencias.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar preferencias'**
+  String get guardarPreferencias;
+
+  /// No description provided for @preferenciasGuardadas.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Preferencias guardadas'**
+  String get preferenciasGuardadas;
+
+  /// No description provided for @errorAlGuardar.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al guardar'**
+  String get errorAlGuardar;
+
+  /// No description provided for @historialDePagos.
+  ///
+  /// In es, this message translates to:
+  /// **'Historial de pagos'**
+  String get historialDePagos;
+
+  /// No description provided for @consultaTodosLosPagos.
+  ///
+  /// In es, this message translates to:
+  /// **'Consultá todos los pagos que hiciste dentro de la app: impulsos de publicaciones, renovaciones, eliminación de publicidad y otros servicios.'**
+  String get consultaTodosLosPagos;
+
+  /// No description provided for @verHistorialDePagos.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver historial de pagos'**
+  String get verHistorialDePagos;
+
+  /// No description provided for @todosTusPagosTransacciones.
+  ///
+  /// In es, this message translates to:
+  /// **'Todos tus pagos y transacciones'**
+  String get todosTusPagosTransacciones;
+
+  /// No description provided for @estadoDeCuenta.
+  ///
+  /// In es, this message translates to:
+  /// **'Estado de cuenta'**
+  String get estadoDeCuenta;
+
+  /// No description provided for @revisaTusAdvertencias.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisá tus advertencias y suspensiones activas en la plataforma.'**
+  String get revisaTusAdvertencias;
+
+  /// No description provided for @advertencias.
+  ///
+  /// In es, this message translates to:
+  /// **'Advertencias'**
+  String get advertencias;
+
+  /// No description provided for @suspensionesTemporales.
+  ///
+  /// In es, this message translates to:
+  /// **'Suspensiones temporales'**
+  String get suspensionesTemporales;
+
+  /// No description provided for @asistenciaAEncuentros.
+  ///
+  /// In es, this message translates to:
+  /// **'Asistencia a encuentros'**
+  String get asistenciaAEncuentros;
+
+  /// No description provided for @llegadasTardias.
+  ///
+  /// In es, this message translates to:
+  /// **'Llegadas tardías'**
+  String get llegadasTardias;
+
+  /// No description provided for @noVerificaste5Min.
+  ///
+  /// In es, this message translates to:
+  /// **'No verificaste a 5 min o menos. 3 = 1 advertencia'**
+  String get noVerificaste5Min;
+
+  /// No description provided for @ausencias.
+  ///
+  /// In es, this message translates to:
+  /// **'Ausencias'**
+  String get ausencias;
+
+  /// No description provided for @noLlegasteEncuentro.
+  ///
+  /// In es, this message translates to:
+  /// **'No llegaste al encuentro. 1 = 1 advertencia'**
+  String get noLlegasteEncuentro;
+
+  /// No description provided for @minutosTardeAcumulados.
+  ///
+  /// In es, this message translates to:
+  /// **'⏱️ Minutos tarde acumulados: {cantidad}'**
+  String minutosTardeAcumulados(int cantidad);
+
+  /// No description provided for @informacion.
+  ///
+  /// In es, this message translates to:
+  /// **'Información'**
+  String get informacion;
+
+  /// No description provided for @comoFunciona.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cómo funciona?'**
+  String get comoFunciona;
+
+  /// No description provided for @comoFuncionaEstadoCuenta.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu cuenta acumula advertencias y suspensiones temporales por incumplir las normas de la comunidad.\n\nAsistencia a encuentros:\n• 3 llegadas tardías (0/3) = 1 advertencia.\n• 1 ausencia = 1 advertencia.\n\nEscalado:\n• 3 advertencias = 1 suspensión temporal (7 días).\n• 3 suspensiones = baneo permanente.\n\nRecuperación:\n• Cada mes se descuentan 2 llegadas tardías.\n• Cada 3 meses se descuenta 1 advertencia.'**
+  String get comoFuncionaEstadoCuenta;
+
+  /// No description provided for @advertenciasInfo.
+  ///
+  /// In es, this message translates to:
+  /// **'Advertencias (máx. 3): se generan por reportes leves como lenguaje inapropiado, publicaciones con información engañosa o incumplimiento menor de las reglas. No bloquean tu cuenta.'**
+  String get advertenciasInfo;
+
+  /// No description provided for @suspensionesInfo.
+  ///
+  /// In es, this message translates to:
+  /// **'Suspensiones temporales (máx. 3): se aplican por faltas más graves como estafas, acoso, suplantación de identidad o reincidencia en advertencias. Cada suspensión bloquea tu cuenta por un período.'**
+  String get suspensionesInfo;
+
+  /// No description provided for @baneoInfo.
+  ///
+  /// In es, this message translates to:
+  /// **'Si llegás a 3 suspensiones, tu cuenta será baneada de forma permanente y su correo no podrá volver a registrarse.'**
+  String get baneoInfo;
+
+  /// No description provided for @entendido.
+  ///
+  /// In es, this message translates to:
+  /// **'Entendido'**
+  String get entendido;
+
+  /// No description provided for @guardar.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar'**
+  String get guardar;
+
+  /// No description provided for @guardarCambios.
+  ///
+  /// In es, this message translates to:
+  /// **'Guardar Cambios'**
+  String get guardarCambios;
+
+  /// No description provided for @nombreCompleto.
+  ///
+  /// In es, this message translates to:
+  /// **'Nombre completo'**
+  String get nombreCompleto;
+
+  /// No description provided for @telefono.
+  ///
+  /// In es, this message translates to:
+  /// **'Teléfono'**
+  String get telefono;
+
+  /// No description provided for @usuarioNoAutenticado.
+  ///
+  /// In es, this message translates to:
+  /// **'Usuario no autenticado'**
+  String get usuarioNoAutenticado;
+
+  /// No description provided for @errorAlCargarDatos.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al cargar datos'**
+  String get errorAlCargarDatos;
+
+  /// No description provided for @nombreNoPuedeEstarVacio.
+  ///
+  /// In es, this message translates to:
+  /// **'El nombre no puede estar vacío'**
+  String get nombreNoPuedeEstarVacio;
+
+  /// No description provided for @perfilActualizadoCorrectamente.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Perfil actualizado correctamente'**
+  String get perfilActualizadoCorrectamente;
+
+  /// No description provided for @errorAlGuardarEnServidor.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al guardar en el servidor'**
+  String get errorAlGuardarEnServidor;
+
+  /// No description provided for @volverAlPerfil.
+  ///
+  /// In es, this message translates to:
+  /// **'Volver al perfil'**
+  String get volverAlPerfil;
 }
 
 class _AppLocalizationsDelegate

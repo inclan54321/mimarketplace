@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'producto_form_screen.dart';
 import '../widgets/rewarded_ad_prueba.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class ImagenesProductoScreen extends StatefulWidget {
   final String categoria;
@@ -42,9 +43,10 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Agregar imágenes'),
+        title: Text(l10n.agregarImagenes),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -97,9 +99,9 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Imagen Destacada',
+                      l10n.imagenDestacada,
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -113,7 +115,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 48),
                 child: Text(
-                  'Esta imagen aparecerá en la portada del producto y en la sección de destacados.',
+                  l10n.estaImagenApareceraPortada,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey[600],
@@ -139,7 +141,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Solo se aceptan imágenes con calidad de estudio fotográfico (buena iluminación, enfoque nítido, fondo limpio).',
+                        l10n.soloImagenesCalidadEstudio,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -205,8 +207,8 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              const Text(
-                                'Toca para seleccionar una imagen',
+                              Text(
+                                l10n.tocaParaSeleccionarImagen,
                                 style: TextStyle(
                                   color: Color(0xFF1E40AF),
                                   fontWeight: FontWeight.w600,
@@ -215,7 +217,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'JPG, PNG o WEBP · Máx. 10 MB',
+                                l10n.formatosImagenPermitidos,
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: 11,
@@ -227,9 +229,9 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                       : _enRevision
                           ? Container(
                               color: Colors.black.withValues(alpha: 0.3),
-                              child: const Center(
+                              child: Center(
                                 child: Text(
-                                  '🔍 En revisión...',
+                                  l10n.enRevisionPuntos,
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -245,7 +247,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    _enRevision ? '🔄 Enviado a revisión' : '✅ ${_imagenDestacada!.name}',
+                    _enRevision ? l10n.enviadoARevision : '✅ ${_imagenDestacada!.name}',
                     style: TextStyle(
                       fontSize: 12,
                       color: _enRevision ? Colors.orange : Colors.green,
@@ -292,8 +294,8 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Debes iniciar sesión'),
+      SnackBar(
+        content: Text(l10n.debesIniciarSesion),
         backgroundColor: Colors.orange,
       ),
     );
@@ -308,19 +310,19 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.shield, size: 20),
-                        SizedBox(width: 8),
-                        Text('🛡️ Enviar a revisión'),
+                        const Icon(Icons.shield, size: 20),
+                        const SizedBox(width: 8),
+                        Text(l10n.enviarARevision)
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'La imagen será revisada por IA. Recibirás una notificación cuando sea aprobada.',
+                  l10n.imagenRevisadaIA,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
@@ -366,9 +368,9 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Imágenes Reales del Producto',
+                      l10n.imagenesRealesProducto,
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -382,7 +384,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
               Padding(
                 padding: const EdgeInsets.only(left: 56),
                 child: Text(
-                  'Sube hasta 4 fotos reales del producto (obligatorio)',
+                  l10n.subeHasta4Fotos,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -462,7 +464,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Agregar',
+                              l10n.agregar,
                               style: TextStyle(
                                 fontSize: 11,
                                 color: const Color(0xFF1E40AF),
@@ -506,8 +508,8 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                   ),
                   child: Text(
                     _imagenesReales.isEmpty
-                        ? 'Selecciona al menos 1 imagen real'
-                        : 'Siguiente →',
+                        ? l10n.seleccionaAlMenos1Imagen
+                        : l10n.siguienteConFlecha,
                     style: const TextStyle(fontSize: 18),
                   ),
                 ),
@@ -540,11 +542,12 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
   }
 
   Future<void> _seleccionarImagenReal() async {
+    final l10n = AppLocalizations.of(context)!;
     // 🔥 LIMITAR A 4 IMÁGENES REALES
     if (_imagenesReales.length >= 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('⚠️ Solo puedes subir máximo 4 imágenes reales'),
+        SnackBar(
+          content: Text(l10n.maximo4ImagenesReales),
           backgroundColor: Colors.orange,
         ),
       );
@@ -566,12 +569,13 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
   }
 
   Future<void> _generarImagenConIA() async {
+    final l10n = AppLocalizations.of(context)!;
     print('>>> ENTRE A _generarImagenConIA');
 
     if (_descripcionIAController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Escribe una descripción para mejorar la imagen'),
+        SnackBar(
+          content: Text(l10n.primeroSeleccionaImagen),
           backgroundColor: Colors.orange,
         ),
       );
@@ -580,8 +584,8 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
 
     if (_imagenDestacada == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Primero selecciona una imagen'),
+        SnackBar(
+          content: Text(l10n.primeroSeleccionaImagen),
           backgroundColor: Colors.orange,
         ),
       );
@@ -616,33 +620,34 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
           _generandoIA = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Imagen mejorada correctamente'),
+          SnackBar(
+            content: Text(l10n.imagenMejoradaCorrectamente),
             backgroundColor: Colors.green,
           ),
         );
       } else {
-        throw Exception('Error al generar imagen');
+        throw Exception(l10n.errorGenerarImagen);
       }
     } catch (e) {
       setState(() => _generandoIA = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text(l10n.errorGenerico('$e')),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
     Future<void> _enviarImagenARevision(String vendedorId) async {
+  final l10n = AppLocalizations.of(context)!;
   print('>>> 1. ENTRE A _enviarImagenARevision');
   print('>>> 2. vendedorId: $vendedorId');
   
   if (_imagenDestacada == null) {
     print('>>> 3. NO HAY IMAGEN SELECCIONADA');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Primero selecciona una imagen'),
+      SnackBar(
+        content: Text(l10n.primeroSeleccionaImagen),
         backgroundColor: Colors.orange,
       ),
     );
@@ -690,25 +695,25 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
       print('>>> 11. PETICIÓN EXITOSA ✅');
       setState(() {
         _enRevision = true;
-        _mensajeRevision = '🔄 Imagen enviada a revisión. Recibirás una notificación cuando sea aprobada.';
+        _mensajeRevision = l10n.imagenEnviadaRevision;
         _generandoIA = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ ${data['mensaje'] ?? 'Imagen enviada a revisión'}'),
+          content: Text('✅ ${data['mensaje'] ?? l10n.imagenEnviadaRevision}'),
           backgroundColor: Colors.green,
         ),
       );
     } else {
       print('>>> 12. ERROR: STATUS ${response.statusCode}');
-      throw Exception('Error al enviar imagen: ${response.statusCode}');
+      throw Exception(l10n.errorEnviarImagen('${response.statusCode}'));
     }
   } catch (e) {
     print('>>> 13. EXCEPCIÓN CAPTURADA: $e');
     setState(() => _generandoIA = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Error: $e'),
+        content: Text(l10n.errorGenerico('$e')),
         backgroundColor: Colors.red,
       ),
     );
@@ -716,6 +721,7 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
 }
     // ============ 🔥 MOSTRAR POPUP DE ANUNCIO ============
   void _mostrarPopupAnuncio(String vendedorId) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -742,16 +748,16 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  '🛡️ Revisión de imagen',
+                Text(
+                  l10n.revisionDeImagen,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Tu imagen será enviada a nuestro equipo de moderación para su revisión. Para continuar, necesitas ver un breve anuncio.',
+                Text(
+                  l10n.tuImagenSeraEnviadaModeracion,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -766,14 +772,14 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.orange.shade200),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.orange, size: 18),
-                      SizedBox(width: 8),
+                      const Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'La revisión puede tomar hasta 24 horas.',
-                          style: TextStyle(fontSize: 13, color: Colors.orange),
+                          l10n.revisionPuedeTomar24Horas,
+                          style: const TextStyle(fontSize: 13, color: Colors.orange),
                         ),
                       ),
                     ],
@@ -790,9 +796,9 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text(
-                          'Cancelar',
-                          style: TextStyle(
+                        child: Text(
+                          l10n.cancelar,
+                          style: const TextStyle(
                             fontSize: 16,
                             color: Colors.grey,
                           ),
@@ -818,10 +824,10 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
                           fit: BoxFit.scaleDown,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.play_circle_filled, size: 18),
-                              SizedBox(width: 6),
-                              Text('Ver anuncio 🎬'),
+                            children: [
+                              const Icon(Icons.play_circle_filled, size: 18),
+                              const SizedBox(width: 6),
+                              Text(l10n.verAnuncioConEmoji),
                             ],
                           ),
                         ),
@@ -838,11 +844,12 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
   }
 
   void _verAnuncioYGenerar(String vendedorId) {
+  final l10n = AppLocalizations.of(context)!;
   if (!RewardedAdManager.isAdLoaded) {
     RewardedAdManager.loadRewardedAd();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('⏳ Cargando anuncio... espera un momento'),
+      SnackBar(
+        content: Text(l10n.cargandoAnuncio),
         backgroundColor: Colors.orange,
       ),
     );
@@ -853,8 +860,8 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
     onRewarded: () {
       print('>>> 🔥 onRewarded EJECUTADO ✅');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Anuncio completado. Enviando imagen a revisión...'),
+        SnackBar(
+          content: Text(l10n.anuncioCompletadoEnviandoImagen),
           backgroundColor: Colors.green,
         ),
       );
@@ -863,8 +870,8 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
     onDismissed: () {
       print('>>> 🔥 onDismissed EJECUTADO ❌');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Debes ver el anuncio completo para enviar la imagen'),
+        SnackBar(
+          content: Text(l10n.debesVerAnuncioParaEnviarImagen),
           backgroundColor: Colors.red,
         ),
       );

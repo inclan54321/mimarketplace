@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'historial_pagos_screen.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class PrivacidadScreen extends StatefulWidget {
   const PrivacidadScreen({super.key});
@@ -66,6 +67,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   }
 
   Future<void> _guardarPreferencias() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -86,18 +88,18 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Preferencias guardadas'),
+          SnackBar(
+            content: Text(l10n.preferenciasGuardadas),
             backgroundColor: Colors.green,
           ),
         );
       } else {
-        throw Exception('Error al guardar');
+        throw Exception(l10n.errorAlGuardar);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text(l10n.errorGenerico('$e')),
           backgroundColor: Colors.red,
         ),
       );
@@ -141,37 +143,29 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
 
   // 🔥 MOSTRAR INFO DEL ESTADO DE CUENTA
   void _mostrarInfoEstadoCuenta() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.info_outline, color: Colors.blue),
-            SizedBox(width: 8),
-            Expanded(child: Text('Estado de cuenta')),
+            const Icon(Icons.info_outline, color: Colors.blue),
+            const SizedBox(width: 8),
+            Expanded(child: Text(l10n.estadoDeCuenta)),
           ],
         ),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '¿Cómo funciona?',
+                l10n.comoFunciona,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               SizedBox(height: 8),
               Text(
-                'Tu cuenta acumula advertencias y suspensiones temporales por incumplir las normas de la comunidad.\n\n'
-                'Asistencia a encuentros:\n'
-                '• 3 llegadas tardías (0/3) = 1 advertencia.\n'
-                '• 1 ausencia = 1 advertencia.\n\n'
-                'Escalado:\n'
-                '• 3 advertencias = 1 suspensión temporal (7 días).\n'
-                '• 3 suspensiones = baneo permanente.\n\n'
-                'Recuperación:\n'
-                '• Cada mes se descuentan 2 llegadas tardías.\n'
-                '• Cada 3 meses se descuenta 1 advertencia.',
+                l10n.comoFuncionaEstadoCuenta,
                 style: TextStyle(fontSize: 13),
               ),
               SizedBox(height: 14),
@@ -182,7 +176,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Advertencias (máx. 3): se generan por reportes leves como lenguaje inapropiado, publicaciones con información engañosa o incumplimiento menor de las reglas. No bloquean tu cuenta.',
+                      l10n.advertenciasInfo,
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
@@ -196,7 +190,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Suspensiones temporales (máx. 3): se aplican por faltas más graves como estafas, acoso, suplantación de identidad o reincidencia en advertencias. Cada suspensión bloquea tu cuenta por un período.',
+                      l10n.suspensionesInfo,
                       style: TextStyle(fontSize: 13),
                     ),
                   ),
@@ -204,7 +198,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
               ),
               SizedBox(height: 14),
               Text(
-                'Si llegás a 3 suspensiones, tu cuenta será baneada de forma permanente y su correo no podrá volver a registrarse.',
+                l10n.baneoInfo,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
@@ -217,7 +211,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Entendido'),
+            child: Text(l10n.entendido),
           ),
         ],
       ),
@@ -226,9 +220,10 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Privacidad y Seguridad'),
+        title: Text(l10n.privacidadYSeguridad),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -238,17 +233,17 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Recolección de datos',
-                style: TextStyle(
+              Text(
+                l10n.recoleccionDeDatos,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Tu privacidad es importante para nosotros. Puedes elegir si permites que tus datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+              Text(
+                l10n.tuPrivacidadImportante,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 24),
               if (_isLoading)
@@ -264,9 +259,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                         });
                       },
                     ),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Acepto que mis datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.',
+                        l10n.aceptoRecoleccionDatos,
                         style: TextStyle(fontSize: 14),
                       ),
                     ),
@@ -291,8 +286,8 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                             strokeWidth: 2,
                             color: Colors.white,
                           )
-                        : const Text(
-                            'Guardar preferencias',
+                        : Text(
+                            l10n.guardarPreferencias,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -304,17 +299,17 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
               const SizedBox(height: 32),
               const Divider(),
               const SizedBox(height: 20),
-              const Text(
-                'Historial de pagos',
+              Text(
+                l10n.historialDePagos,
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Consultá todos los pagos que hiciste dentro de la app: impulsos de publicaciones, renovaciones, eliminación de publicidad y otros servicios.',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+              Text(
+                l10n.consultaTodosLosPagos,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 12),
               ListTile(
@@ -331,15 +326,15 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                     color: Colors.blue,
                   ),
                 ),
-                title: const Text(
-                  'Ver historial de pagos',
+                title: Text(
+                  l10n.verHistorialDePagos,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                subtitle: const Text(
-                  'Todos tus pagos y transacciones',
+                subtitle: Text(
+                  l10n.todosTusPagosTransacciones,
                   style: TextStyle(fontSize: 13),
                 ),
                 trailing: const Icon(
@@ -360,17 +355,17 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
               const SizedBox(height: 32),
               const Divider(),
               const SizedBox(height: 20),
-              const Text(
-                'Estado de cuenta',
+              Text(
+                l10n.estadoDeCuenta,
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Revisá tus advertencias y suspensiones activas en la plataforma.',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+              Text(
+                l10n.revisaTusAdvertencias,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 16),
 
@@ -401,10 +396,10 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Advertencias',
-                        style: TextStyle(
+                        l10n.advertencias,
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
@@ -451,10 +446,10 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Suspensiones temporales',
-                        style: TextStyle(
+                        l10n.suspensionesTemporales,
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
@@ -476,8 +471,8 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
 
               // 🔥 NUEVA SECCIÓN: CONTABILIDAD DE ASISTENCIA
               const SizedBox(height: 20),
-              const Text(
-                'Asistencia a encuentros',
+              Text(
+                l10n.asistenciaAEncuentros,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -512,20 +507,20 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Llegadas tardías',
-                            style: TextStyle(
+                            l10n.llegadasTardias,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
-                            'No verificaste a 5 min o menos. 3 = 1 advertencia',
-                            style: TextStyle(
+                            l10n.noVerificaste5Min,
+                            style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
                             ),
@@ -572,20 +567,20 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Ausencias',
-                            style: TextStyle(
+                            l10n.ausencias,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
-                            'No llegaste al encuentro. 1 = 1 advertencia',
-                            style: TextStyle(
+                            l10n.noLlegasteEncuentro,
+                            style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
                             ),
@@ -610,7 +605,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12, top: 4),
                   child: Text(
-                    '⏱️ Minutos tarde acumulados: $_minutosTardeAcumulados',
+                    l10n.minutosTardeAcumulados(_minutosTardeAcumulados),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade700,
@@ -626,8 +621,8 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _mostrarInfoEstadoCuenta,
                   icon: const Icon(Icons.info_outline, size: 20),
-                  label: const Text(
-                    'Información',
+                  label: Text(
+                    l10n.informacion,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,

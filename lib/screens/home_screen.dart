@@ -1643,7 +1643,28 @@ Future<void> _cargarProductosDestacados() async {
     );
   }
 
-   Widget _buildCategoryCard(String categoria) {
+   String _traducirCategoria(String categoria, AppLocalizations l10n) {
+    switch (categoria) {
+      case 'Electrónicos': return l10n.catElectronicos;
+      case 'Deportes': return l10n.catDeportes;
+      case 'Hogar': return l10n.catHogar;
+      case 'Música': return l10n.catMusica;
+      case 'Cocina': return l10n.catCocina;
+      case 'Películas': return l10n.catPeliculas;
+      case 'Fotografía': return l10n.catFotografia;
+      case 'Videojuegos': return l10n.catVideojuegos;
+      case 'Juegos de Mesa': return l10n.catJuegosDeMesa;
+      case 'Juguetes': return l10n.catJuguetes;
+      case 'Figuras': return l10n.catFiguras;
+      case 'Automóviles': return l10n.catAutomoviles;
+      case 'Herramientas': return l10n.catHerramientas;
+      case 'Ropa y Calzado': return l10n.catRopaYCalzado;
+      default: return categoria;
+    }
+  }
+
+  Widget _buildCategoryCard(String categoria) {
+    final l10n = AppLocalizations.of(context)!;
     final Map<String, IconData> iconos = {
       'Electrónicos': Icons.memory,
       'Deportes': Icons.directions_run,
@@ -1723,7 +1744,7 @@ Future<void> _cargarProductosDestacados() async {
               color: Colors.white,
             ),
             Text(
-              categoria,
+              _traducirCategoria(categoria, l10n),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 8,
@@ -1744,11 +1765,10 @@ Future<void> _cargarProductosDestacados() async {
     );
   }
   @override
-void dispose() {     // ← ❌ ESTÁ FUERA DE LA CLASE
-  _busquedaController.dispose();
-  super.dispose();
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
   }
-  
 }
 
 // 🔥 Abre al instante; muestra lo guardado en caché y actualiza por detrás

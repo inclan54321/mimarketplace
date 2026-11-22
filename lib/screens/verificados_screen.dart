@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../l10n/generated/app_localizations.dart';
 
 class VerificadosScreen extends StatefulWidget {
   const VerificadosScreen({super.key});
@@ -15,17 +16,17 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
   bool _enviando = false;
   bool _enviado = false;
 
-  // 🔥 Número de SINPE del administrador
   final String _numeroSinpe = '87295743';
   final String _montoSinpe = '₡1';
 
   Future<void> _confirmarPago() async {
+    final l10n = AppLocalizations.of(context)!;
     final telefono = _telefonoController.text.trim();
 
     if (telefono.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, ingresá tu número de teléfono'),
+        SnackBar(
+          content: Text(l10n.porFavorIngresaTuTelefono),
           backgroundColor: Colors.orange,
         ),
       );
@@ -36,8 +37,8 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('No hay usuario logueado');
-      
+      if (user == null) throw Exception(l10n.usuarioNoLogueado);
+
       final idToken = await user.getIdToken();
 
       final response = await http.post(
@@ -59,13 +60,16 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
         });
       } else {
         final data = jsonDecode(response.body);
-        throw Exception(data['error'] ?? 'Error al enviar solicitud');
+        throw Exception(data['error'] ?? l10n.errorGenerico('Error al enviar solicitud'));
       }
     } catch (e) {
       setState(() => _enviando = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.errorGenerico('$e')),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -73,19 +77,20 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(
-        title: const Text('Verificar cuenta'),
+        title: Text(l10n.verificarCuenta),
         backgroundColor: const Color(0xFF087FE8),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: _enviado ? _buildExito() : _buildFormulario(),
+      body: _enviado ? _buildExito(l10n) : _buildFormulario(l10n),
     );
   }
 
-  Widget _buildFormulario() {
+  Widget _buildFormulario(AppLocalizations l10n) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -120,10 +125,10 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          const Center(
+          Center(
             child: Text(
-              'Verificá tu cuenta',
-              style: TextStyle(
+              l10n.verificaTuCuenta,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -133,7 +138,7 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'Obtené la insignia de verificado en tu perfil',
+              l10n.obteneLaInsigniaDeVerificado,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 15,
@@ -151,9 +156,9 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Paso 1: Enviá el SINPE Móvil',
-                  style: TextStyle(
+                Text(
+                  l10n.paso1EnviaSinpe,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -161,7 +166,7 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Realizá un SINPE Móvil de $_montoSinpe al número:',
+                  l10n.realizaSinpeDeMontoANumero(_montoSinpe),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 14,
@@ -193,9 +198,9 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Paso 2: Ingresá tu número',
-                  style: TextStyle(
+                Text(
+                  l10n.paso2IngresaTuNumero,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -203,7 +208,7 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Ingresá el número de teléfono desde el que enviaste el SINPE:',
+                  l10n.ingresaNumeroDesdeElQueEnviaste,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 14,
@@ -215,7 +220,7 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
                   keyboardType: TextInputType.phone,
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                   decoration: InputDecoration(
-                    hintText: 'Ej: 88888888',
+                    hintText: l10n.ejemploTelefono,
                     hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                     filled: true,
                     fillColor: const Color(0xFF0D1117),
@@ -250,7 +255,7 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
                     )
                   : const Icon(Icons.check_circle),
               label: Text(
-                _enviando ? 'Enviando...' : 'Confirmar pago',
+                _enviando ? l10n.enviando : l10n.confirmarPago,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -268,7 +273,7 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
     );
   }
 
-  Widget _buildExito() {
+  Widget _buildExito(AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -289,9 +294,9 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              '¡Solicitud enviada!',
-              style: TextStyle(
+            Text(
+              l10n.solicitudEnviada,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -299,7 +304,7 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Estamos verificando tu pago. En breve recibirás la insignia de verificado en tu perfil.',
+              l10n.estamosVerificandoTuPago,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.7),
@@ -320,7 +325,7 @@ class _VerificadosScreenState extends State<VerificadosScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Volver al perfil'),
+                child: Text(l10n.volverAlPerfil),
               ),
             ),
           ],

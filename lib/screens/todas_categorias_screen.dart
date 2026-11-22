@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/producto_service.dart';
 import 'productos_screen.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class TodasCategoriasScreen extends StatefulWidget {
   final List<String> bloqueados;
@@ -74,8 +75,29 @@ class _TodasCategoriasScreenState extends State<TodasCategoriasScreen> {
     super.dispose();
   }
 
+  String _traducirCategoria(String categoria, AppLocalizations l10n) {
+    switch (categoria) {
+      case 'Electrónicos': return l10n.catElectronicos;
+      case 'Deportes': return l10n.catDeportes;
+      case 'Hogar': return l10n.catHogar;
+      case 'Música': return l10n.catMusica;
+      case 'Cocina': return l10n.catCocina;
+      case 'Películas': return l10n.catPeliculas;
+      case 'Fotografía': return l10n.catFotografia;
+      case 'Videojuegos': return l10n.catVideojuegos;
+      case 'Juegos de Mesa': return l10n.catJuegosDeMesa;
+      case 'Juguetes': return l10n.catJuguetes;
+      case 'Figuras': return l10n.catFiguras;
+      case 'Automóviles': return l10n.catAutomoviles;
+      case 'Herramientas': return l10n.catHerramientas;
+      case 'Ropa y Calzado': return l10n.catRopaYCalzado;
+      default: return categoria;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     // 🔥 Filtrar categorías según lo que el usuario escribió
     final List<String> categoriasFiltradas = TodasCategoriasScreen.categorias
         .where((c) => c.toLowerCase().contains(_filtro.toLowerCase()))
@@ -83,7 +105,7 @@ class _TodasCategoriasScreenState extends State<TodasCategoriasScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Todas las Categorías'),
+        title: Text(l10n.todasLasCategorias),
         backgroundColor: const Color(0xFF087FE8),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -112,8 +134,8 @@ class _TodasCategoriasScreenState extends State<TodasCategoriasScreen> {
                           _filtro = value.trim();
                         });
                       },
-                      decoration: const InputDecoration(
-                        hintText: 'Buscar categoría...',
+                      decoration: InputDecoration(
+                        hintText: l10n.buscarCategoria,
                         hintStyle: TextStyle(
                           color: Colors.grey,
                           fontSize: 14,
@@ -156,7 +178,7 @@ class _TodasCategoriasScreenState extends State<TodasCategoriasScreen> {
                               size: 64, color: Colors.grey.shade400),
                           const SizedBox(height: 12),
                           Text(
-                            'No se encontraron categorías',
+                            l10n.noSeEncontraronCategorias,
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey.shade600,
@@ -196,6 +218,7 @@ class _TodasCategoriasScreenState extends State<TodasCategoriasScreen> {
 
   Widget _buildCategoryCard(
       BuildContext context, String categoria, int index) {
+    final l10n = AppLocalizations.of(context)!;
     final colorBase = TodasCategoriasScreen.coloresAtardecer[
         index % TodasCategoriasScreen.coloresAtardecer.length];
 
@@ -220,7 +243,7 @@ class _TodasCategoriasScreenState extends State<TodasCategoriasScreen> {
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al cargar productos: $e'),
+              content: Text(l10n.errorGenerico('$e')),
               backgroundColor: Colors.red,
             ),
           );
@@ -265,7 +288,7 @@ class _TodasCategoriasScreenState extends State<TodasCategoriasScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Text(
-                categoria,
+                _traducirCategoria(categoria, l10n),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 13,

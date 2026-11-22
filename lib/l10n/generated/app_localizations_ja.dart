@@ -462,6 +462,14 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String errorGenericoAlerta(String error) {
+    return 'エラー: $error';
+  }
+
+  @override
+  String get errorDesconocido => '不明';
+
+  @override
   String get catElectronicos => '家電・スマホ・カメラ';
 
   @override
@@ -493,6 +501,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get catFiguras => 'フィギュア';
+
+  @override
+  String get catAutomoviles => '自動車';
+
+  @override
+  String get catHerramientas => '工具';
+
+  @override
+  String get catRopaYCalzado => '衣類・靴';
 
   @override
   String get subElectronicos => 'スマホ、ノートPC、オーディオ';
@@ -610,11 +627,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get confirmasteAsistencia => '✅ 参加を確認しました。相手の確認を待っています。';
 
   @override
-  String errorGenericoAlerta(String error) {
-    return 'エラー: $error';
-  }
-
-  @override
   String get eliminarPublicidadTitulo => '広告を非表示';
 
   @override
@@ -706,7 +718,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get productoNoDisponible => '利用できない商品です';
 
   @override
-  String errorCompra(Object detalle) {
+  String errorCompra(String detalle) {
     return 'エラー: $detalle';
   }
 
@@ -794,9 +806,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get productoImpulsoNoDisponible => 'PR商品が利用できません。接続を確認してください。';
-
-  @override
-  String get errorDesconocido => '不明';
 
   @override
   String productoEstaPrimeroEnHome(String nombre) {
@@ -891,4 +900,373 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get ubicacionDelEncuentro => '待ち合わせ場所';
+
+  @override
+  String get verificarCuenta => 'Verificar cuenta';
+
+  @override
+  String get verificaTuCuenta => 'Verificá tu cuenta';
+
+  @override
+  String get obteneLaInsigniaDeVerificado =>
+      'Obtené la insignia de verificado en tu perfil';
+
+  @override
+  String get paso1EnviaSinpe => 'Paso 1: Enviá el SINPE Móvil';
+
+  @override
+  String realizaSinpeDeMontoANumero(String monto) {
+    return 'Realizá un SINPE Móvil de $monto al número:';
+  }
+
+  @override
+  String get paso2IngresaTuNumero => 'Paso 2: Ingresá tu número';
+
+  @override
+  String get ingresaNumeroDesdeElQueEnviaste =>
+      'Ingresá el número de teléfono desde el que enviaste el SINPE:';
+
+  @override
+  String get ejemploTelefono => 'Ej: 88888888';
+
+  @override
+  String get confirmarPago => 'Confirmar pago';
+
+  @override
+  String get enviando => 'Enviando...';
+
+  @override
+  String get porFavorIngresaTuTelefono =>
+      'Por favor, ingresá tu número de teléfono';
+
+  @override
+  String get solicitudEnviada => '¡Solicitud enviada!';
+
+  @override
+  String get estamosVerificandoTuPago =>
+      'Estamos verificando tu pago. En breve recibirás la insignia de verificado en tu perfil.';
+
+  @override
+  String get porFavorEscribeUnMensaje => 'メッセージを入力してください';
+
+  @override
+  String get porFavorEscribeUnAsunto => '件名を入力してください';
+
+  @override
+  String get mensajeEnviadoExito => '✅ メッセージを送信しました。すぐにご返信します。';
+
+  @override
+  String get necesitasAyuda => 'お困りですか？';
+
+  @override
+  String get cuentanosTuProblema => '問題を教えてください。解決をお手伝いします。';
+
+  @override
+  String get tipoDeConsulta => 'お問い合わせの種類';
+
+  @override
+  String get asunto => '件名';
+
+  @override
+  String get ejemploProblemaCuenta => '例：アカウントの問題';
+
+  @override
+  String get mensaje => 'メッセージ';
+
+  @override
+  String get describeTuProblema => '問題をできるだけ詳しく説明してください...';
+
+  @override
+  String get enviarMensaje => 'メッセージを送信';
+
+  @override
+  String get tiempoRespuestaEstimado => '返信予定時間：24〜48時間';
+
+  @override
+  String get mensajeEnviado => 'メッセージを送信しました！';
+
+  @override
+  String get hemosRecibidoTuConsulta =>
+      'お問い合わせを受け付けました。サポートチームが24〜48時間以内にご返信します。';
+
+  @override
+  String get enviarOtroMensaje => '別のメッセージを送信';
+
+  @override
+  String get volver => '戻る';
+
+  @override
+  String get categoria => 'カテゴリー';
+
+  @override
+  String get direccion => '住所';
+
+  @override
+  String get nombreDelProducto => '商品名';
+
+  @override
+  String get ejemploNombreProducto => '例：iPhone 13、ノートPCなど';
+
+  @override
+  String get ingresaNombreProducto => '商品名を入力してください';
+
+  @override
+  String get nombreMinimoCaracteres => '名前は3文字以上である必要があります';
+
+  @override
+  String get precio => '価格 (₡)';
+
+  @override
+  String get ingresePrecioProducto => '商品の価格を入力してください';
+
+  @override
+  String get ingresaPrecio => '価格を入力してください';
+
+  @override
+  String get ingresaPrecioValido => '有効な価格を入力してください';
+
+  @override
+  String get precioMayorCero => '価格は0より大きい必要があります';
+
+  @override
+  String get descripcion => '説明';
+
+  @override
+  String get escribeDescripcionDetallada => '商品の詳細な説明を書いてください...';
+
+  @override
+  String get ingresaDescripcion => '説明を入力してください';
+
+  @override
+  String get publicarProducto => '商品を出品';
+
+  @override
+  String get compartaProductoComunidad => '商品をコミュニティと共有しましょう';
+
+  @override
+  String get anuncioCompletado => '✅ 広告が完了しました。商品を出品中...';
+
+  @override
+  String get debesVerAnuncioParaPublicar => '❌ 出品するには広告を最後まで視聴する必要があります';
+
+  @override
+  String get productoEnviadoRevision => '📝 商品が審査に送信されました。承認されると通知が届きます。';
+
+  @override
+  String errorAlPublicar(String error) {
+    return '出品エラー: $error';
+  }
+
+  @override
+  String get paraPublicarNecesitasVerAnuncio => '商品を出品するには、短い広告を視聴する必要があります。';
+
+  @override
+  String get verAnuncio => '広告を見る';
+
+  @override
+  String get agregarImagenes => '画像を追加';
+
+  @override
+  String get imagenDestacada => 'メイン画像';
+
+  @override
+  String get estaImagenApareceraPortada => 'この画像は商品のカバーとおすすめセクションに表示されます。';
+
+  @override
+  String get soloImagenesCalidadEstudio =>
+      'スタジオ品質の写真（良好な照明、シャープなピント、きれいな背景）のみ受け付けます。';
+
+  @override
+  String get tocaParaSeleccionarImagen => 'タップして画像を選択';
+
+  @override
+  String get formatosImagenPermitidos => 'JPG、PNG、WEBP · 最大10MB';
+
+  @override
+  String get enRevisionPuntos => '🔍 審査中...';
+
+  @override
+  String get enviadoARevision => '🔄 審査に送信済み';
+
+  @override
+  String get enviarARevision => '🛡️ 審査に送信';
+
+  @override
+  String get imagenRevisadaIA => '画像はAIによって審査されます。承認されると通知が届きます。';
+
+  @override
+  String get imagenesRealesProducto => '商品の実物画像';
+
+  @override
+  String get subeHasta4Fotos => '商品の実物写真を最大4枚アップロードしてください（必須）';
+
+  @override
+  String get agregar => '追加';
+
+  @override
+  String get maximo4ImagenesReales => '⚠️ 実物画像は最大4枚までアップロードできます';
+
+  @override
+  String get escribeDescripcionMejorarImagen => '画像を改善するための説明を書いてください';
+
+  @override
+  String get primeroSeleccionaImagen => 'まず画像を選択してください';
+
+  @override
+  String get imagenMejoradaCorrectamente => '✅ 画像が正常に改善されました';
+
+  @override
+  String get errorGenerarImagen => '画像生成エラー';
+
+  @override
+  String get imagenEnviadaRevision => '🔄 画像が審査に送信されました。承認されると通知が届きます。';
+
+  @override
+  String errorEnviarImagen(String codigo) {
+    return '画像送信エラー: $codigo';
+  }
+
+  @override
+  String get revisionDeImagen => '🛡️ 画像審査';
+
+  @override
+  String get tuImagenSeraEnviadaModeracion =>
+      'あなたの画像は審査のためにモデレーションチームに送信されます。続行するには短い広告を視聴する必要があります。';
+
+  @override
+  String get revisionPuedeTomar24Horas => '審査には最大24時間かかる場合があります。';
+
+  @override
+  String get verAnuncioConEmoji => '広告を見る 🎬';
+
+  @override
+  String get anuncioCompletadoEnviandoImagen => '✅ 広告が完了しました。画像を審査に送信中...';
+
+  @override
+  String get debesVerAnuncioParaEnviarImagen => '❌ 画像を送信するには広告を最後まで視聴する必要があります';
+
+  @override
+  String get seleccionaAlMenos1Imagen => '少なくとも1枚の実物画像を選択してください';
+
+  @override
+  String get siguienteConFlecha => '次へ →';
+
+  @override
+  String get recoleccionDeDatos => 'データ収集';
+
+  @override
+  String get tuPrivacidadImportante =>
+      'あなたのプライバシーは私たちにとって重要です。パーソナライズされた商品提案を受け取るために、閲覧データと設定の収集を許可するかどうかを選択できます。';
+
+  @override
+  String get aceptoRecoleccionDatos =>
+      'パーソナライズされた商品提案を受け取るために、閲覧データと設定の収集に同意します。';
+
+  @override
+  String get guardarPreferencias => '設定を保存';
+
+  @override
+  String get preferenciasGuardadas => '✅ 設定を保存しました';
+
+  @override
+  String get errorAlGuardar => '保存エラー';
+
+  @override
+  String get historialDePagos => '支払い履歴';
+
+  @override
+  String get consultaTodosLosPagos =>
+      'アプリ内で行ったすべての支払いを確認できます：出品のPR、更新、広告非表示、その他のサービス。';
+
+  @override
+  String get verHistorialDePagos => '支払い履歴を見る';
+
+  @override
+  String get todosTusPagosTransacciones => 'すべての支払いと取引';
+
+  @override
+  String get estadoDeCuenta => 'アカウント状態';
+
+  @override
+  String get revisaTusAdvertencias => 'プラットフォーム上の警告と有効な停止を確認してください。';
+
+  @override
+  String get advertencias => '警告';
+
+  @override
+  String get suspensionesTemporales => '一時停止';
+
+  @override
+  String get asistenciaAEncuentros => '待ち合わせの出席';
+
+  @override
+  String get llegadasTardias => '遅刻';
+
+  @override
+  String get noVerificaste5Min => '5分以内に確認しませんでした。3回 = 警告1回';
+
+  @override
+  String get ausencias => '欠席';
+
+  @override
+  String get noLlegasteEncuentro => '待ち合わせに来ませんでした。1回 = 警告1回';
+
+  @override
+  String minutosTardeAcumulados(int cantidad) {
+    return '⏱️ 累積遅刻時間: $cantidad分';
+  }
+
+  @override
+  String get informacion => '情報';
+
+  @override
+  String get comoFunciona => '仕組みは？';
+
+  @override
+  String get comoFuncionaEstadoCuenta =>
+      'あなたのアカウントはコミュニティルール違反により警告と一時停止を蓄積します。\n\n待ち合わせの出席：\n• 遅刻3回（0/3）= 警告1回。\n• 欠席1回 = 警告1回。\n\nエスカレーション：\n• 警告3回 = 一時停止1回（7日間）。\n• 停止3回 = 永久BAN。\n\n回復：\n• 毎月遅刻2回が差し引かれます。\n• 3ヶ月ごとに警告1回が差し引かれます。';
+
+  @override
+  String get advertenciasInfo =>
+      '警告（最大3回）：不適切な言葉、誤解を招く出品、軽微なルール違反などの軽い報告で発生します。アカウントはブロックされません。';
+
+  @override
+  String get suspensionesInfo =>
+      '一時停止（最大3回）：詐欺、嫌がらせ、なりすまし、警告の繰り返しなど、より重大な違反に適用されます。各停止はアカウントを一定期間ブロックします。';
+
+  @override
+  String get baneoInfo => '停止3回に達すると、アカウントは永久にBANされ、そのメールアドレスは再登録できなくなります。';
+
+  @override
+  String get entendido => '了解';
+
+  @override
+  String get guardar => '保存';
+
+  @override
+  String get guardarCambios => '変更を保存';
+
+  @override
+  String get nombreCompleto => '氏名';
+
+  @override
+  String get telefono => '電話番号';
+
+  @override
+  String get usuarioNoAutenticado => 'ユーザーが認証されていません';
+
+  @override
+  String get errorAlCargarDatos => 'データの読み込みエラー';
+
+  @override
+  String get nombreNoPuedeEstarVacio => '名前は空にできません';
+
+  @override
+  String get perfilActualizadoCorrectamente => '✅ プロフィールが正常に更新されました';
+
+  @override
+  String get errorAlGuardarEnServidor => 'サーバーへの保存エラー';
+
+  @override
+  String get volverAlPerfil => 'Volver al perfil';
 }

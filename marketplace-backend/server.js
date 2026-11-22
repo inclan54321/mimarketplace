@@ -352,7 +352,10 @@ setInterval(() => {
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+    maxAge: '30d',
+    immutable: true,
+}));
 app.use('/uploads/grabaciones', express.static(path.join(__dirname, 'uploads', 'grabaciones')));
 
 const storage = multer.diskStorage({
@@ -365,7 +368,51 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024, files: 8 }, // 10 MB por archivo
+});
+
+// 🔥 OPTIMIZADOR: reduce, corrige rotación y convierte a WebP.
+// Reemplaza el archivo original, así el resto del código sigue funcionando igual.
+// Ignora los audios y, si algo falla, deja el archivo original.
+function optimizarImagenes(maxLado = 1280, calidad = 75) {
+    return async (req, res, next) => {
+        try {
+            const archivos = [];
+            if (req.file) archivos.push(req.file);
+            if (req.files) {
+                const grupos = Array.isArray(req.files) ? [req.files] : Object.values(req.files);
+                for (const g of grupos) archivos.push(...g);
+            }
+
+            for (const f of archivos) {
+                if (!f.mimetype || !f.mimetype.startsWith('image/')) continue;
+                try {
+                    const destino = f.path.replace(/\.[^./\\]+$/, '') + '.webp';
+                    const buf = await sharp(f.path)
+                        .rotate()
+                        .resize(maxLado, maxLado, { fit: 'inside', withoutEnlargement: true })
+                        .webp({ quality: calidad })
+                        .toBuffer();
+                    fs.writeFileSync(destino, buf);
+                    if (destino !== f.path) {
+                        try { fs.unlinkSync(f.path); } catch (_) {}
+                    }
+                    f.path = destino;
+                    f.filename = path.basename(destino);
+                    f.mimetype = 'image/webp';
+                    f.size = buf.length;
+                } catch (e) {
+                    console.log('>>> ⚠️ No se pudo optimizar, se deja el original:', e.message);
+                }
+            }
+        } catch (e) {
+            console.log('>>> ⚠️ Error en optimizarImagenes:', e.message);
+        }
+        next();
+    };
+}
 
 // ===== CONFIGURACIÓN PARA AUDIOS =====
 const audioDir = path.join(__dirname, 'uploads/audios');
@@ -2286,7 +2333,7 @@ app.post('/api/productos', rateLimitProductosCrear, verificarTokenFirebase, bloq
   { name: 'imagen_destacada', maxCount: 1 },
   { name: 'imagen_normal', maxCount: 1 },
   { name: 'imagenes_reales[]', maxCount: 5 }
-]), async (req, res) => {
+]), optimizarImagenes(1280), async (req, res) => {
     try {
         const { nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion } = req.body;
         
@@ -2326,7 +2373,7 @@ if (req.files['imagenes_reales[]'] && req.files['imagenes_reales[]'].length > 0)
     const outputPath = `uploads/destacadas/${file.filename}`;
     await sharp(file.path)
         .resize(400, 400, { fit: 'inside' })
-        .jpeg({ quality: 70 })
+        .webp({ quality: 70 })
         .toFile(outputPath);
     fs.unlinkSync(file.path);
     imagen_destacada_url = `/uploads/destacadas/${file.filename}`;
@@ -2350,7 +2397,7 @@ if (imagen_principal_url) {
         // 🔥 REDIMENSIONAR A 300x300 (RECORTAR PARA CUADRADO)
         await sharp(path.join(__dirname, imagen_principal_url.replace(/^\//, '')))
             .resize(300, 300, { fit: 'cover' })
-            .jpeg({ quality: 70 })
+            .webp({ quality: 70 })
             .toFile(path.join(__dirname, miniaturaPath));
         
         imagen_miniatura_url = `/${miniaturaPath}`;
@@ -3115,7 +3162,7 @@ RESPONDE ÚNICAMENTE CON ESTE JSON (sin texto adicional):
 }
 
 // RUTA PARA SUBIR FOTO DE PERFIL
-app.post('/api/perfil/foto', verificarTokenFirebase, upload.single('foto'), async (req, res) => {
+app.post('/api/perfil/foto', verificarTokenFirebase, upload.single('foto'), optimizarImagenes(1024, 85), async (req, res) => {
     console.log('Body:', req.body);
     console.log('File:', req.file);
     console.log('UID:', req.body.uid);
@@ -3281,6 +3328,7 @@ app.post('/api/registro/foto',
     rateLimitRegistro,
     verificarTokenFirebase,
     upload.single('foto'),
+    optimizarImagenes(1024, 85),
     async (req, res) => {
     console.log('>>> 📸 /api/registro/foto — Body:', req.body);
     console.log('>>> 📸 File:', req.file);
@@ -5669,7 +5717,7 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
     { name: 'imagen', maxCount: 1 },
     { name: 'imagenes_nuevas', maxCount: 5 },
     { name: 'audio', maxCount: 1 }
-]), async (req, res) => {
+]), optimizarImagenes(1280), async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, descripcion, precio, categoria, subcategoria, direccion, vendedor_id } = req.body;
@@ -5829,7 +5877,7 @@ imagenParaModerar = principal;
                         }
                         await sharp(path.join(__dirname, principal.replace(/^\//, '')))
                             .resize(300, 300, { fit: 'cover' })
-                            .jpeg({ quality: 70 })
+                            .webp({ quality: 70 })
                             .toFile(path.join(__dirname, miniRel));
                         query += `imagen_miniatura = $${paramIndex}, `;
                         params.push(`/${miniRel}`);
@@ -6307,7 +6355,7 @@ REGLAS:
     }
 }
 // ===== REVISAR IMAGEN DESTACADA CON IA =====
-app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single('imagen'), async (req, res) => {
+app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single('imagen'), optimizarImagenes(1280), async (req, res) => {
     console.log('>>> 🔥 LLEGÓ PETICIÓN A /api/revisar-imagen-destacada');
     console.log('>>> 🔥 BODY:', req.body);
     console.log('>>> 🔥 FILE:', req.file);
@@ -11816,6 +11864,20 @@ app.get(
         console.error('Error en /api/grabacion/:id/audios:', e);
         res.status(500).json({ error: e.message });
     }
+});
+
+app.use((err, req, res, next) => {
+    if (err && err.name === 'MulterError') {
+        const grande = err.code === 'LIMIT_FILE_SIZE';
+        return res.status(grande ? 413 : 400).json({
+            error: grande
+                ? 'El archivo es demasiado grande (máximo 10 MB).'
+                : 'Error al subir el archivo: ' + err.message,
+            codigo: err.code,
+        });
+    }
+    console.error('>>> ❌ Error no controlado:', err && err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
 });
 
 server.listen(3000, '0.0.0.0', () => {

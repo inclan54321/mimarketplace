@@ -470,6 +470,14 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String errorGenericoAlerta(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get errorDesconocido => 'Error desconocido';
+
+  @override
   String get catElectronicos => 'Electrónicos';
 
   @override
@@ -501,6 +509,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get catFiguras => 'Figuras';
+
+  @override
+  String get catAutomoviles => 'Automóviles';
+
+  @override
+  String get catHerramientas => 'Herramientas';
+
+  @override
+  String get catRopaYCalzado => 'Ropa y Calzado';
 
   @override
   String get subElectronicos => 'Móviles, Laptops, Audio';
@@ -623,11 +640,6 @@ class AppLocalizationsEs extends AppLocalizations {
       '✅ Confirmaste tu asistencia. Esperando al otro.';
 
   @override
-  String errorGenericoAlerta(String error) {
-    return 'Error: $error';
-  }
-
-  @override
   String get eliminarPublicidadTitulo => 'Eliminar publicidad';
 
   @override
@@ -721,7 +733,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get productoNoDisponible => 'Producto no disponible';
 
   @override
-  String errorCompra(Object detalle) {
+  String errorCompra(String detalle) {
     return 'Error: $detalle';
   }
 
@@ -818,9 +830,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Producto de impulso no disponible. Revisá tu conexión.';
 
   @override
-  String get errorDesconocido => 'Desconocido';
-
-  @override
   String productoEstaPrimeroEnHome(String nombre) {
     return '✅ \"$nombre\" está primero en el Home';
   }
@@ -914,4 +923,398 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ubicacionDelEncuentro => 'Ubicación del encuentro';
+
+  @override
+  String get verificarCuenta => 'Verificar cuenta';
+
+  @override
+  String get verificaTuCuenta => 'Verificá tu cuenta';
+
+  @override
+  String get obteneLaInsigniaDeVerificado =>
+      'Obtené la insignia de verificado en tu perfil';
+
+  @override
+  String get paso1EnviaSinpe => 'Paso 1: Enviá el SINPE Móvil';
+
+  @override
+  String realizaSinpeDeMontoANumero(String monto) {
+    return 'Realizá un SINPE Móvil de $monto al número:';
+  }
+
+  @override
+  String get paso2IngresaTuNumero => 'Paso 2: Ingresá tu número';
+
+  @override
+  String get ingresaNumeroDesdeElQueEnviaste =>
+      'Ingresá el número de teléfono desde el que enviaste el SINPE:';
+
+  @override
+  String get ejemploTelefono => 'Ej: 88888888';
+
+  @override
+  String get confirmarPago => 'Confirmar pago';
+
+  @override
+  String get enviando => 'Enviando...';
+
+  @override
+  String get porFavorIngresaTuTelefono =>
+      'Por favor, ingresá tu número de teléfono';
+
+  @override
+  String get solicitudEnviada => '¡Solicitud enviada!';
+
+  @override
+  String get estamosVerificandoTuPago =>
+      'Estamos verificando tu pago. En breve recibirás la insignia de verificado en tu perfil.';
+
+  @override
+  String get porFavorEscribeUnMensaje => 'Por favor, escribe un mensaje';
+
+  @override
+  String get porFavorEscribeUnAsunto => 'Por favor, escribe un asunto';
+
+  @override
+  String get mensajeEnviadoExito =>
+      '✅ Mensaje enviado. Te responderemos pronto.';
+
+  @override
+  String get necesitasAyuda => '¿Necesitas ayuda?';
+
+  @override
+  String get cuentanosTuProblema =>
+      'Cuéntanos tu problema y te ayudaremos a resolverlo.';
+
+  @override
+  String get tipoDeConsulta => 'Tipo de consulta';
+
+  @override
+  String get asunto => 'Asunto';
+
+  @override
+  String get ejemploProblemaCuenta => 'Ej: Problema con mi cuenta';
+
+  @override
+  String get mensaje => 'Mensaje';
+
+  @override
+  String get describeTuProblema =>
+      'Describe tu problema con el mayor detalle posible...';
+
+  @override
+  String get enviarMensaje => 'Enviar mensaje';
+
+  @override
+  String get tiempoRespuestaEstimado =>
+      'Tiempo de respuesta estimado: 24-48 horas';
+
+  @override
+  String get mensajeEnviado => '¡Mensaje enviado!';
+
+  @override
+  String get hemosRecibidoTuConsulta =>
+      'Hemos recibido tu consulta. Nuestro equipo de soporte te responderá en las próximas 24-48 horas.';
+
+  @override
+  String get enviarOtroMensaje => 'Enviar otro mensaje';
+
+  @override
+  String get volver => 'Volver';
+
+  @override
+  String get categoria => 'Categoría';
+
+  @override
+  String get direccion => 'Dirección';
+
+  @override
+  String get nombreDelProducto => 'Nombre del producto';
+
+  @override
+  String get ejemploNombreProducto => 'Ej. iPhone 13, Laptop, etc.';
+
+  @override
+  String get ingresaNombreProducto => 'Ingresa el nombre del producto';
+
+  @override
+  String get nombreMinimoCaracteres =>
+      'El nombre debe tener al menos 3 caracteres';
+
+  @override
+  String get precio => 'Precio (₡)';
+
+  @override
+  String get ingresePrecioProducto => 'Ingrese el precio del producto';
+
+  @override
+  String get ingresaPrecio => 'Ingresa el precio';
+
+  @override
+  String get ingresaPrecioValido => 'Ingresa un precio válido';
+
+  @override
+  String get precioMayorCero => 'El precio debe ser mayor a 0';
+
+  @override
+  String get descripcion => 'Descripción';
+
+  @override
+  String get escribeDescripcionDetallada =>
+      'Escriba una descripción detallada del producto...';
+
+  @override
+  String get ingresaDescripcion => 'Ingresa una descripción';
+
+  @override
+  String get publicarProducto => 'Publicar Producto';
+
+  @override
+  String get compartaProductoComunidad =>
+      'Comparta su producto con la comunidad';
+
+  @override
+  String get anuncioCompletado =>
+      '✅ Anuncio completado. Publicando producto...';
+
+  @override
+  String get debesVerAnuncioParaPublicar =>
+      '❌ Debes ver el anuncio completo para publicar';
+
+  @override
+  String get productoEnviadoRevision =>
+      '📝 Producto enviado para revisión. Recibirás notificación al aprobarse.';
+
+  @override
+  String errorAlPublicar(String error) {
+    return 'Error al publicar: $error';
+  }
+
+  @override
+  String get paraPublicarNecesitasVerAnuncio =>
+      'Para publicar tu producto, necesitas ver un breve anuncio.';
+
+  @override
+  String get verAnuncio => 'Ver anuncio';
+
+  @override
+  String get agregarImagenes => 'Agregar imágenes';
+
+  @override
+  String get imagenDestacada => 'Imagen Destacada';
+
+  @override
+  String get estaImagenApareceraPortada =>
+      'Esta imagen aparecerá en la portada del producto y en la sección de destacados.';
+
+  @override
+  String get soloImagenesCalidadEstudio =>
+      'Solo se aceptan imágenes con calidad de estudio fotográfico (buena iluminación, enfoque nítido, fondo limpio).';
+
+  @override
+  String get tocaParaSeleccionarImagen => 'Toca para seleccionar una imagen';
+
+  @override
+  String get formatosImagenPermitidos => 'JPG, PNG o WEBP · Máx. 10 MB';
+
+  @override
+  String get enRevisionPuntos => '🔍 En revisión...';
+
+  @override
+  String get enviadoARevision => '🔄 Enviado a revisión';
+
+  @override
+  String get enviarARevision => '🛡️ Enviar a revisión';
+
+  @override
+  String get imagenRevisadaIA =>
+      'La imagen será revisada por IA. Recibirás una notificación cuando sea aprobada.';
+
+  @override
+  String get imagenesRealesProducto => 'Imágenes Reales del Producto';
+
+  @override
+  String get subeHasta4Fotos =>
+      'Sube hasta 4 fotos reales del producto (obligatorio)';
+
+  @override
+  String get agregar => 'Agregar';
+
+  @override
+  String get maximo4ImagenesReales =>
+      '⚠️ Solo puedes subir máximo 4 imágenes reales';
+
+  @override
+  String get escribeDescripcionMejorarImagen =>
+      'Escribe una descripción para mejorar la imagen';
+
+  @override
+  String get primeroSeleccionaImagen => 'Primero selecciona una imagen';
+
+  @override
+  String get imagenMejoradaCorrectamente => '✅ Imagen mejorada correctamente';
+
+  @override
+  String get errorGenerarImagen => 'Error al generar imagen';
+
+  @override
+  String get imagenEnviadaRevision =>
+      '🔄 Imagen enviada a revisión. Recibirás una notificación cuando sea aprobada.';
+
+  @override
+  String errorEnviarImagen(String codigo) {
+    return 'Error al enviar imagen: $codigo';
+  }
+
+  @override
+  String get revisionDeImagen => '🛡️ Revisión de imagen';
+
+  @override
+  String get tuImagenSeraEnviadaModeracion =>
+      'Tu imagen será enviada a nuestro equipo de moderación para su revisión. Para continuar, necesitas ver un breve anuncio.';
+
+  @override
+  String get revisionPuedeTomar24Horas =>
+      'La revisión puede tomar hasta 24 horas.';
+
+  @override
+  String get verAnuncioConEmoji => 'Ver anuncio 🎬';
+
+  @override
+  String get anuncioCompletadoEnviandoImagen =>
+      '✅ Anuncio completado. Enviando imagen a revisión...';
+
+  @override
+  String get debesVerAnuncioParaEnviarImagen =>
+      '❌ Debes ver el anuncio completo para enviar la imagen';
+
+  @override
+  String get seleccionaAlMenos1Imagen => 'Selecciona al menos 1 imagen real';
+
+  @override
+  String get siguienteConFlecha => 'Siguiente →';
+
+  @override
+  String get recoleccionDeDatos => 'Recolección de datos';
+
+  @override
+  String get tuPrivacidadImportante =>
+      'Tu privacidad es importante para nosotros. Puedes elegir si permites que tus datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.';
+
+  @override
+  String get aceptoRecoleccionDatos =>
+      'Acepto que mis datos de navegación y preferencias sean recolectados para recibir sugerencias de productos personalizados.';
+
+  @override
+  String get guardarPreferencias => 'Guardar preferencias';
+
+  @override
+  String get preferenciasGuardadas => '✅ Preferencias guardadas';
+
+  @override
+  String get errorAlGuardar => 'Error al guardar';
+
+  @override
+  String get historialDePagos => 'Historial de pagos';
+
+  @override
+  String get consultaTodosLosPagos =>
+      'Consultá todos los pagos que hiciste dentro de la app: impulsos de publicaciones, renovaciones, eliminación de publicidad y otros servicios.';
+
+  @override
+  String get verHistorialDePagos => 'Ver historial de pagos';
+
+  @override
+  String get todosTusPagosTransacciones => 'Todos tus pagos y transacciones';
+
+  @override
+  String get estadoDeCuenta => 'Estado de cuenta';
+
+  @override
+  String get revisaTusAdvertencias =>
+      'Revisá tus advertencias y suspensiones activas en la plataforma.';
+
+  @override
+  String get advertencias => 'Advertencias';
+
+  @override
+  String get suspensionesTemporales => 'Suspensiones temporales';
+
+  @override
+  String get asistenciaAEncuentros => 'Asistencia a encuentros';
+
+  @override
+  String get llegadasTardias => 'Llegadas tardías';
+
+  @override
+  String get noVerificaste5Min =>
+      'No verificaste a 5 min o menos. 3 = 1 advertencia';
+
+  @override
+  String get ausencias => 'Ausencias';
+
+  @override
+  String get noLlegasteEncuentro =>
+      'No llegaste al encuentro. 1 = 1 advertencia';
+
+  @override
+  String minutosTardeAcumulados(int cantidad) {
+    return '⏱️ Minutos tarde acumulados: $cantidad';
+  }
+
+  @override
+  String get informacion => 'Información';
+
+  @override
+  String get comoFunciona => '¿Cómo funciona?';
+
+  @override
+  String get comoFuncionaEstadoCuenta =>
+      'Tu cuenta acumula advertencias y suspensiones temporales por incumplir las normas de la comunidad.\n\nAsistencia a encuentros:\n• 3 llegadas tardías (0/3) = 1 advertencia.\n• 1 ausencia = 1 advertencia.\n\nEscalado:\n• 3 advertencias = 1 suspensión temporal (7 días).\n• 3 suspensiones = baneo permanente.\n\nRecuperación:\n• Cada mes se descuentan 2 llegadas tardías.\n• Cada 3 meses se descuenta 1 advertencia.';
+
+  @override
+  String get advertenciasInfo =>
+      'Advertencias (máx. 3): se generan por reportes leves como lenguaje inapropiado, publicaciones con información engañosa o incumplimiento menor de las reglas. No bloquean tu cuenta.';
+
+  @override
+  String get suspensionesInfo =>
+      'Suspensiones temporales (máx. 3): se aplican por faltas más graves como estafas, acoso, suplantación de identidad o reincidencia en advertencias. Cada suspensión bloquea tu cuenta por un período.';
+
+  @override
+  String get baneoInfo =>
+      'Si llegás a 3 suspensiones, tu cuenta será baneada de forma permanente y su correo no podrá volver a registrarse.';
+
+  @override
+  String get entendido => 'Entendido';
+
+  @override
+  String get guardar => 'Guardar';
+
+  @override
+  String get guardarCambios => 'Guardar Cambios';
+
+  @override
+  String get nombreCompleto => 'Nombre completo';
+
+  @override
+  String get telefono => 'Teléfono';
+
+  @override
+  String get usuarioNoAutenticado => 'Usuario no autenticado';
+
+  @override
+  String get errorAlCargarDatos => 'Error al cargar datos';
+
+  @override
+  String get nombreNoPuedeEstarVacio => 'El nombre no puede estar vacío';
+
+  @override
+  String get perfilActualizadoCorrectamente =>
+      '✅ Perfil actualizado correctamente';
+
+  @override
+  String get errorAlGuardarEnServidor => 'Error al guardar en el servidor';
+
+  @override
+  String get volverAlPerfil => 'Volver al perfil';
 }

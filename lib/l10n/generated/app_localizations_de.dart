@@ -10,7 +10,7 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
-  String get appTitle => 'Mein Marktplatz';
+  String get appTitle => 'Mein Marketplace';
 
   @override
   String bienvenido(String nombre) {
@@ -21,10 +21,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get categorias => 'Kategorien';
 
   @override
-  String get productosDestacados => 'Empfohlene Produkte';
+  String get productosDestacados => 'Hervorgehobene Produkte';
 
   @override
-  String get verTodas => 'Alle anzeigen';
+  String get verTodas => 'Alle ansehen';
 
   @override
   String get buscarProductos => 'Produkte suchen...';
@@ -33,13 +33,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get noHayResultados => 'Keine Ergebnisse';
 
   @override
-  String get noHayProductosDestacados => 'Keine empfohlenen Produkte';
+  String get noHayProductosDestacados => 'Keine hervorgehobenen Produkte';
 
   @override
   String get noHayProductosConFiltros => 'Keine Produkte mit diesen Filtern';
 
   @override
-  String get quitarFiltros => 'Filter löschen';
+  String get quitarFiltros => 'Filter entfernen';
 
   @override
   String get filtrarProductos => 'Produkte filtern';
@@ -51,7 +51,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rangoPrecio => '💰 Preisspanne (₡)';
 
   @override
-  String get limpiar => 'Löschen';
+  String get limpiar => 'Leeren';
 
   @override
   String get aplicarFiltros => 'Filter anwenden';
@@ -78,13 +78,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get continuarConGoogle => 'Mit Google fortfahren';
 
   @override
-  String get noTienesCuenta => 'Kein Konto? Registrieren';
+  String get noTienesCuenta => 'Noch kein Konto? Registrieren';
 
   @override
   String get inicio => 'Start';
 
   @override
-  String get avisos => 'Benachrichtigungen';
+  String get avisos => 'Hinweise';
 
   @override
   String get vender => 'Verkaufen';
@@ -99,7 +99,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editarPerfil => 'Profil bearbeiten';
 
   @override
-  String get impulsar => 'Bewerben';
+  String get impulsar => 'Befördern';
 
   @override
   String get eliminarPublicidad => 'Werbung entfernen';
@@ -108,7 +108,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cerrarSesion => 'Abmelden';
 
   @override
-  String get privacidadYSeguridad => 'Datenschutz & Sicherheit';
+  String get privacidadYSeguridad => 'Datenschutz und Sicherheit';
 
   @override
   String get soporte => 'Support';
@@ -142,7 +142,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get desbloquear => 'Entsperren';
 
   @override
-  String get bloquear => 'Blockieren';
+  String get bloquear => 'Sperren';
 
   @override
   String desbloquearA(String nombre) {
@@ -151,7 +151,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String bloquearA(String nombre) {
-    return '$nombre blockieren';
+    return '$nombre sperren';
   }
 
   @override
@@ -172,25 +172,25 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String reportarA(String nombre) {
-    return '$nombre wegen Regelverstoßes melden';
+    return '$nombre wegen Regelverstoß melden';
   }
 
   @override
   String get vendedorBloqueadoCorrectamente =>
-      'Verkäufer erfolgreich blockiert. Neustart...';
+      'Verkäufer erfolgreich gesperrt. Neustart...';
 
   @override
   String get vendedorDesbloqueadoCorrectamente =>
       'Verkäufer erfolgreich entsperrt. Neustart...';
 
   @override
-  String get errorAlBloquear => 'Fehler beim Blockieren';
+  String get errorAlBloquear => 'Fehler beim Sperren';
 
   @override
   String get errorAlDesbloquear => 'Fehler beim Entsperren';
 
   @override
-  String get errorAlBloquearUsuario => 'Fehler beim Blockieren des Benutzers';
+  String get errorAlBloquearUsuario => 'Fehler beim Sperren des Benutzers';
 
   @override
   String get errorAlDesbloquearUsuario =>
@@ -200,7 +200,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get denunciarVendedorTitulo => '⚠️ Verkäufer melden';
 
   @override
-  String get seleccionaMotivoDenuncia => 'Wähle den Grund für die Meldung:';
+  String get seleccionaMotivoDenuncia => 'Wähle den Grund der Meldung:';
 
   @override
   String get denunciaRevisadaPorEquipo =>
@@ -215,7 +215,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get denunciaEnviada =>
-      '✅ Meldung gesendet. Sie wird von der Moderation geprüft.';
+      '✅ Meldung gesendet. Wird von der Moderation geprüft.';
 
   @override
   String errorAlEnviarDenuncia(String error) {
@@ -267,10 +267,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get noHasPublicadoNingunArticulo =>
-      'Du hast noch keine Artikel veröffentlicht';
+      'Du hast noch keinen Artikel veröffentlicht';
 
   @override
-  String get noTienesProductosFavoritos => 'Du hast keine Favoriten';
+  String get noTienesProductosFavoritos => 'Du hast keine Favoritenprodukte';
 
   @override
   String get reintentar => 'Erneut versuchen';
@@ -285,10 +285,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get usuario => 'Benutzer';
 
   @override
-  String get cerrarSesionExitoso => 'Abgemeldet';
+  String get cerrarSesionExitoso => 'Sitzung beendet';
 
   @override
-  String get estiloVisualDelPerfil => '🎨 Visueller Profilstil';
+  String get estiloVisualDelPerfil => '🎨 Visueller Stil des Profils';
 
   @override
   String get eligeElFondoQueMasTeGuste =>
@@ -372,7 +372,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get fijarChat => 'Chat anheften';
 
   @override
-  String get desfijarChat => 'Chat lösen';
+  String get desfijarChat => 'Chat loslösen';
 
   @override
   String get quitarDeLaParteSuperior => 'Von oben entfernen';
@@ -384,7 +384,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get chatFijado => '📌 Chat angeheftet';
 
   @override
-  String get chatDesfijado => '📌 Chat gelöst';
+  String get chatDesfijado => '📌 Chat losgelöst';
 
   @override
   String errorAlFijar(String codigo) {
@@ -423,7 +423,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tocaBotonParaGuardarContacto =>
-      'Tippe im Chat auf die Schaltfläche, um den Kontakt in deiner Agenda zu speichern';
+      'Tippe auf die Schaltfläche in einem Chat, um den Kontakt in deiner Agenda zu speichern';
 
   @override
   String get producto => 'Produkt';
@@ -476,6 +476,14 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String errorGenericoAlerta(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get errorDesconocido => 'Error desconocido';
+
+  @override
   String get catElectronicos => 'Elektronik';
 
   @override
@@ -509,13 +517,22 @@ class AppLocalizationsDe extends AppLocalizations {
   String get catFiguras => 'Figuren';
 
   @override
+  String get catAutomoviles => 'Autos';
+
+  @override
+  String get catHerramientas => 'Werkzeuge';
+
+  @override
+  String get catRopaYCalzado => 'Kleidung & Schuhe';
+
+  @override
   String get subElectronicos => 'Handys, Laptops, Audio';
 
   @override
   String get subDeportes => 'Fußball, Tennis, Laufen';
 
   @override
-  String get subHogar => 'Möbel, Deko, Küche';
+  String get subHogar => 'Möbel, Dekoration, Küche';
 
   @override
   String get subMusica => 'Gitarren, Klaviere, Audio';
@@ -536,7 +553,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get subJuegosDeMesa => 'Karten, Bretter, Strategie';
 
   @override
-  String get subJuguetes => 'Plüsch, Bausteine, Autos';
+  String get subJuguetes => 'Plüschtiere, Bausteine, Autos';
 
   @override
   String get subFiguras => 'Action, Sammlerstücke, Anime';
@@ -576,7 +593,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String errorAlLimpiarAlertas(String error) {
-    return 'Fehler beim Löschen: $error';
+    return 'Fehler beim Löschen der Benachrichtigungen: $error';
   }
 
   @override
@@ -596,25 +613,26 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get debesVerAnuncioCompleto =>
-      '❌ Du musst die ganze Anzeige sehen, um zu erneuern';
+      '❌ Du musst die Anzeige vollständig ansehen, um zu erneuern';
 
   @override
   String get renovarPor30Dias => 'Für 30 Tage erneuern';
 
   @override
-  String get ambosConfirmaron => 'Beide bestätigt';
+  String get ambosConfirmaron => 'Beide haben bestätigt';
 
   @override
-  String get esperandoAlOtro => 'Warten auf den anderen';
+  String get esperandoAlOtro => 'Warten auf die andere Person';
 
   @override
   String get confirmarEncuentro => 'Treffen bestätigen';
 
   @override
-  String get verificarIdentidad => 'Identität verifizieren';
+  String get verificarIdentidad => 'Identität überprüfen';
 
   @override
-  String get verificarIdentidadDelOtro => 'Identität des anderen verifizieren';
+  String get verificarIdentidadDelOtro =>
+      'Identität der anderen Person überprüfen';
 
   @override
   String get identidadRechazada => 'Identität abgelehnt';
@@ -623,29 +641,24 @@ class AppLocalizationsDe extends AppLocalizations {
   String get revisarComparacion => 'Vergleich prüfen';
 
   @override
-  String get ambosConfirmaronExito => '✅ Beide bestätigt. Bis bald!';
+  String get ambosConfirmaronExito => '✅ Beide haben bestätigt. Bis bald!';
 
   @override
   String get confirmasteAsistencia =>
-      '✅ Du hast deine Teilnahme bestätigt. Warten auf den anderen.';
-
-  @override
-  String errorGenericoAlerta(String error) {
-    return 'Fehler: $error';
-  }
+      '✅ Du hast deine Teilnahme bestätigt. Warten auf die andere Person.';
 
   @override
   String get eliminarPublicidadTitulo => 'Werbung entfernen';
 
   @override
-  String get eliminaLosAnuncios => 'Entferne die Werbung';
+  String get eliminaLosAnuncios => 'Werbung entfernen';
 
   @override
   String get descripcionEliminarPublicidad =>
-      'Zahle für einen Plan und surfe werbefrei in der ganzen App. Keine Werbung, keine Unterbrechungen.';
+      'Zahle einen Plan und navigiere werbefrei durch die gesamte App. Keine Werbung, keine Unterbrechungen.';
 
   @override
-  String get beneficioSinAnuncios => 'Keine Werbung in der ganzen App';
+  String get beneficioSinAnuncios => 'Keine Werbung in der gesamten App';
 
   @override
   String get beneficioNavegacionRapida => 'Schnellere Navigation';
@@ -663,10 +676,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get plan6Meses => '6 Monate';
 
   @override
-  String get sinAnunciosPor30Dias => 'Keine Werbung für 30 Tage';
+  String get sinAnunciosPor30Dias => '30 Tage werbefrei';
 
   @override
-  String get sinAnunciosPor180Dias => 'Keine Werbung für 180 Tage';
+  String get sinAnunciosPor180Dias => '180 Tage werbefrei';
 
   @override
   String ahorrasMonto(String monto) {
@@ -678,7 +691,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String pagarMonto(String monto) {
-    return '$monto zahlen';
+    return '$monto bezahlen';
   }
 
   @override
@@ -689,11 +702,11 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String confirmarCompraPregunta(String precio, String duracion) {
-    return 'Möchtest du $precio für $duracion ohne Werbung zahlen?';
+    return 'Möchtest du $precio für $duracion werbefrei bezahlen?';
   }
 
   @override
-  String get pagar => 'Zahlen';
+  String get pagar => 'Bezahlen';
 
   @override
   String get integracionPagoEnDesarrollo =>
@@ -704,13 +717,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get esperandoVerificacionDelOtro =>
-      'Warten darauf, dass die andere Person dein Selfie überprüft';
+      'Warten, bis die andere Person dein Selfie überprüft';
 
   @override
-  String get verificacionCompleta => 'Verifizierung abgeschlossen';
+  String get verificacionCompleta => 'Überprüfung abgeschlossen';
 
   @override
-  String get premiumActivoTitulo => 'Du bist Premium!';
+  String get premiumActivoTitulo => 'Du bist jetzt Premium!';
 
   @override
   String get premiumActivoDescripcion => 'Die Werbung wurde entfernt';
@@ -719,16 +732,17 @@ class AppLocalizationsDe extends AppLocalizations {
   String get planUnaSemana => '1 Woche';
 
   @override
-  String get sinAnunciosPor7Dias => '7 Tage ohne Werbung';
+  String get sinAnunciosPor7Dias => '7 Tage werbefrei';
 
   @override
-  String get yaTenesAnunciosEliminados => 'Die Werbung wurde bereits entfernt';
+  String get yaTenesAnunciosEliminados =>
+      'Du hast die Werbung bereits entfernt';
 
   @override
   String get productoNoDisponible => 'Produkt nicht verfügbar';
 
   @override
-  String errorCompra(Object detalle) {
+  String errorCompra(String detalle) {
     return 'Fehler: $detalle';
   }
 
@@ -736,23 +750,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get desconocido => 'Unbekannt';
 
   @override
-  String get usuarioNoLogueado => 'Kein Benutzer ist angemeldet';
+  String get usuarioNoLogueado => 'Kein Benutzer angemeldet';
 
   @override
   String get errorVerificarCompra => 'Fehler beim Überprüfen des Kaufs';
 
   @override
   String get compraExitosaAnunciosEliminados =>
-      '✅ Geschafft! Die Werbung wurde entfernt.';
+      '✅ Fertig! Die Werbung wurde entfernt.';
 
   @override
-  String get configurarImpulso => 'Bewerbung konfigurieren';
+  String get configurarImpulso => 'Beförderung konfigurieren';
 
   @override
-  String get impulsarTitulo => 'Bewerben';
+  String get impulsarTitulo => 'Befördern';
 
   @override
-  String get impulsarPublicacion => 'Anzeige bewerben';
+  String get impulsarPublicacion => 'Veröffentlichung befördern';
 
   @override
   String get poneTuProductoPrimero => 'Stelle dein Produkt an die erste Stelle';
@@ -762,38 +776,38 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get impulsarPunto1Desc =>
-      'Dein Produkt erscheint zuerst in der Liste der empfohlenen Produkte auf der Startseite.';
+      'Dein Produkt erscheint zuerst in der Liste der hervorgehobenen Produkte auf der Startseite.';
 
   @override
   String get impulsarPunto2Titulo => 'Mehr Sichtbarkeit';
 
   @override
   String get impulsarPunto2Desc =>
-      'Da es zuerst erscheint, sehen es mehr Leute und du hast bessere Chancen, es schnell zu verkaufen.';
+      'An erster Stelle sehen es mehr Leute und du hast bessere Chancen, es schnell zu verkaufen.';
 
   @override
   String get impulsarPunto3Titulo => 'Begrenzte Dauer';
 
   @override
   String get impulsarPunto3Desc =>
-      'Die Bewerbung dauert, bis ein anderer Verkäufer zahlt, um aufzusteigen. Dann gehst du einen Platz nach unten.';
+      'Die Beförderung dauert, bis ein anderer Verkäufer für das Hochstufen zahlt. Dann rückst du einen Platz nach unten.';
 
   @override
   String get seleccionarArticulo => 'Artikel auswählen';
 
   @override
   String get proximamenteDisponiblePagos =>
-      'Demnächst verfügbar. Wir aktivieren die Zahlungen.';
+      'Demnächst verfügbar. Wir aktivieren gerade die Zahlungen.';
 
   @override
-  String get articuloAImpulsar => 'Zu bewerbender Artikel';
+  String get articuloAImpulsar => 'Zu befördernder Artikel';
 
   @override
   String get comoFuncionaImpulso => 'Wie funktioniert es?';
 
   @override
   String get explicacionImpulso =>
-      'Beim Bewerben steigt dein Produkt an die erste Stelle der Startseite. Wenn ein anderer Verkäufer sein Produkt bewirbt, gehst du einen Platz nach unten. Wer zuletzt gezahlt hat, ist immer zuerst.';
+      'Beim Befördern rückt dein Produkt auf den ersten Platz der Startseite. Wenn ein anderer Verkäufer sein Produkt befördert, rückst du einen Platz nach unten. Wer zuletzt gezahlt hat, ist immer zuerst.';
 
   @override
   String get procesando => 'Wird verarbeitet...';
@@ -802,7 +816,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cargando => 'Wird geladen...';
 
   @override
-  String get impulsarAhora => 'Jetzt bewerben';
+  String get impulsarAhora => 'Jetzt befördern';
 
   @override
   String get cambiarProducto => 'Produkt ändern';
@@ -816,17 +830,14 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get elQueElijasApareceraPrimero =>
-      'Der Artikel, den du wählst, erscheint zuerst auf der Startseite';
+      'Der ausgewählte Artikel erscheint zuerst auf der Startseite';
 
   @override
   String get primeroElegiUnArticulo => 'Wähle zuerst einen Artikel';
 
   @override
   String get productoImpulsoNoDisponible =>
-      'Bewerbungsprodukt nicht verfügbar. Prüfe deine Verbindung.';
-
-  @override
-  String get errorDesconocido => 'Unbekannt';
+      'Beförderungsprodukt nicht verfügbar. Überprüfe deine Verbindung.';
 
   @override
   String productoEstaPrimeroEnHome(String nombre) {
@@ -838,36 +849,36 @@ class AppLocalizationsDe extends AppLocalizations {
       'Die Zahlung konnte nicht überprüft werden. Kontaktiere den Support.';
 
   @override
-  String get compraPendiente => 'Der Kauf ist ausstehend. Versuche es erneut.';
+  String get compraPendiente => 'Der Kauf steht aus. Versuche es erneut.';
 
   @override
-  String get errorAlImpulsar => 'Fehler beim Bewerben';
+  String get errorAlImpulsar => 'Fehler beim Befördern';
 
   @override
   String escudoActivoPor(String nombre) {
-    return '$nombre hat das Sicherheitsschild aktiviert';
+    return '$nombre hat den Sicherheitsschild aktiviert';
   }
 
   @override
-  String get escudoPaso0Titulo => 'Was ist das Sicherheitsschild?';
+  String get escudoPaso0Titulo => 'Was ist der Sicherheitsschild?';
 
   @override
   String get escudoPaso0Desc =>
-      'Es ist eine Reihe von Schutzmaßnahmen, die aktiviert werden, wenn beide Nutzer eines Geschäfts sie akzeptieren. Ziel ist es, Betrug zu verhindern und sicherzustellen, dass das Treffen sicher ist.\n\nWer sollte es aktivieren?\nBeide Nutzer des Geschäfts müssen das Schild akzeptieren. Wenn einer es aktiviert, erhält der andere eine Benachrichtigung, um es zu akzeptieren oder abzulehnen. Wenn der zweite Nutzer es ablehnt, wird der Chat für beide geschlossen.';
+      'Er ist eine Reihe von Schutzmaßnahmen, die aktiviert werden, wenn beide Nutzer eines Geschäfts ihn akzeptieren. Sein Ziel ist es, Betrug zu verhindern und sicherzustellen, dass das Treffen sicher ist.\n\nWer sollte ihn aktivieren?\nBeide Nutzer des Geschäfts müssen den Schild akzeptieren. Wenn einer ihn aktiviert, erhält der andere eine Benachrichtigung, um ihn zu akzeptieren oder abzulehnen. Wenn der zweite Nutzer ihn ablehnt, wird der Chat für beide geschlossen.';
 
   @override
-  String get escudoPaso1Titulo => 'Was passiert, wenn das Schild aktiv ist?';
+  String get escudoPaso1Titulo => 'Was passiert, wenn der Schild aktiv ist?';
 
   @override
   String get escudoPaso1Desc =>
-      '3.1. Blockierung von Links und Telefonnummern: Die App erkennt und blockiert automatisch Telefonnummern und externe Links in Nachrichten. Dies verhindert das Teilen von Kontaktdaten außerhalb der Plattform und reduziert das Betrugsrisiko.';
+      '3.1. Sperrung von Links und Telefonnummern: Die App erkennt und blockiert automatisch Telefonnummern und externe Links in Nachrichten. Dies verhindert das Teilen von Kontaktdaten außerhalb der Plattform und reduziert das Betrugsrisiko.';
 
   @override
   String get escudoPaso2Titulo => 'Wie man das Geschäft abschließt';
 
   @override
   String get escudoPaso2Desc =>
-      'Um das Geschäft abzuschließen, schlage zuerst ein Treffen vor: Tippe auf das Schild in der oberen Leiste des Chats und wähle \"Treffen vorschlagen\". Dort wählst du Provinz, Kanton, Bezirk, einen sicheren Ort und das Datum mit Uhrzeit. Sende den Vorschlag und der andere Nutzer erhält ihn als Karte im Chat. Wenn er akzeptiert, ist das Treffen geplant, aber der Chat bleibt offen: ihr könnt weiter reden. Um das Geschäft abzuschließen, tippe erneut auf das Schild und wähle \"Geschäft abschließen\". Ein Bestätigungsdialog öffnet sich. Wenn beide bestätigen, wird der Chat blockiert und die Schutzmaßnahmen aktiviert.';
+      'Um das Geschäft abzuschließen, schlage zuerst ein Treffen vor: Tippe auf den Schild in der oberen Leiste des Chats und wähle \"Treffen vorschlagen\". Dort wählst du Provinz, Kanton, Bezirk, einen sicheren Ort und Datum mit Uhrzeit. Du sendest den Vorschlag und der andere Nutzer erhält ihn als Karte im Chat. Wenn er ihn akzeptiert, ist das Treffen geplant, aber der Chat bleibt offen: Ihr könnt weiter reden. Um das Geschäft abzuschließen, tippe erneut auf den Schild und wähle \"Geschäft abschließen\". Es öffnet sich ein Dialog zur Bestätigung. Wenn beide bestätigen, wird der Chat gesperrt und die Schutzmaßnahmen werden aktiviert.';
 
   @override
   String get escudoPaso3Titulo => 'Teilnahmebestätigung';
@@ -881,21 +892,21 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get escudoPaso4Desc =>
-      '3.3. GPS-Verfolgung am Tag des Treffens: Am vereinbarten Tag müssen beide Nutzer 15 Minuten vor der Treffenszeit am Ort sein und das GPS aktivieren, um ihren Standort zu überprüfen. Wenn 5 Minuten vor der vereinbarten Zeit der Nutzer das GPS nicht aktiviert und seine Identität nicht überprüft hat, gilt er als zu spät. Wenn 15 Minuten nach der vereinbarten Zeit der Nutzer dies nicht getan hat, gilt er als nicht erschienen. In beiden Fällen wird es registriert und kann gemäß den MiMarketplace-Regeln sanktioniert werden.';
+      '3.3. GPS-Verfolgung am Tag des Treffens: Am vereinbarten Tag müssen beide Nutzer 15 Minuten vor der Treffenszeit am Ort sein und das GPS aktivieren, um ihren Standort zu überprüfen. Wenn 5 Minuten vor der vereinbarten Zeit der Nutzer das GPS nicht aktiviert und seine Identität nicht überprüft hat, gilt er als zu spät gekommen. Wenn der Nutzer es 15 Minuten nach der vereinbarten Zeit nicht getan hat, gilt er als nicht erschienen. In beiden Fällen wird es registriert und kann gemäß den Regeln von MiMarketplace sanktioniert werden.';
 
   @override
-  String get escudoPaso5Titulo => 'Gesichtsverifizierung';
+  String get escudoPaso5Titulo => 'Gesichtserkennung';
 
   @override
   String get escudoPaso5Desc =>
-      '3.4. Identitätsprüfung vor dem Chat: Um den Treffens-Chat freizuschalten, müssen beide Nutzer bestätigen, dass sie die sind, die sie vorgeben zu sein. Dies wird 15 Minuten vor der vereinbarten Zeit aktiviert und ist eine zwingende Voraussetzung, um den Chat zu öffnen. Das System fordert jeden auf, sofort ein Foto zu machen. Dann muss der andere Nutzer dieses Foto mit dem Profilfoto vergleichen, um zu bestätigen, dass sie übereinstimmen. Es ist wichtig, aufmerksam zu sein, denn die Verifizierung wird aktiviert, wenn der andere Nutzer sie startet, und du musst die Anweisungen auf dem Bildschirm befolgen. So wird verhindert, dass jemand anderes das Konto benutzt.';
+      '3.4. Identitätsüberprüfung vor dem Chat: Um den Chat des Treffens freizuschalten, müssen beide Nutzer bestätigen, dass sie die sind, die sie vorgeben zu sein. Dies wird 15 Minuten vor der vereinbarten Zeit aktiviert und ist eine Pflichtvoraussetzung, um den Chat öffnen zu können. Das System fordert jeden auf, ein Foto in diesem Moment zu machen. Dann muss der andere Nutzer dieses Foto mit dem Profilfoto vergleichen, um zu bestätigen, dass sie übereinstimmen. Es ist wichtig, aufmerksam zu sein, denn die Überprüfung wird aktiviert, wenn der andere Nutzer sie startet, und man muss den Anweisungen auf dem Bildschirm folgen. So wird verhindert, dass jemand anderes das Konto benutzt.';
 
   @override
   String get escudoPaso6Titulo => 'Zusätzliche Überlegungen';
 
   @override
   String get escudoPaso6Desc =>
-      '4.1. Freiwillige Stornierung: Jeder Nutzer kann seine Teilnahme am Treffen stornieren, solange mehr als eine Stunde vor der vereinbarten Zeit verbleibt. Sobald weniger als eine Stunde verbleibt, ist eine Stornierung nicht mehr möglich.\n\nWie stornieren? Gehe in den Artikel-Chat, tippe auf die Schild-Schaltfläche in der oberen Leiste und wähle \"Geschäft stornieren\". Ein Dialog öffnet sich, der das Treffensdatum zeigt und dir mitteilt, ob du noch stornieren kannst oder ob weniger als eine Stunde verbleibt. Wenn möglich, bestätige und das Treffen wird für beide annulliert.\n\nÜberprüfe immer den Benachrichtigungsbereich. Dort kommen Treffens-Erinnerungen, Teilnahmebestätigung, Identitätsprüfung und Statusänderungen an. Du musst sie oft überprüfen, um nichts Wichtiges zu verpassen.';
+      '4.1. Freiwillige Stornierung: Jeder Nutzer kann seine Teilnahme am Treffen absagen, solange mehr als eine Stunde bis zur vereinbarten Zeit verbleibt. Sobald weniger als eine Stunde verbleibt, ist die Stornierung nicht mehr verfügbar.\n\nWie stornieren? Gehe in den Chat des Artikels, tippe auf die Schild-Schaltfläche in der oberen Leiste und wähle \"Geschäft stornieren\". Es öffnet sich ein Dialog, der dir das Datum des Treffens zeigt und anzeigt, ob du noch stornieren kannst oder ob weniger als eine Stunde verbleibt. Wenn es möglich ist, bestätigst du und das Treffen wird für beide annulliert.\n\nÜberprüfe immer den Bereich Benachrichtigungen. Dort kommen die Erinnerungen an das Treffen, die Teilnahmebestätigung, die Identitätsüberprüfung und alle Statusänderungen an. Du musst sie regelmäßig prüfen, um nichts Wichtiges zu verpassen.';
 
   @override
   String get noAceptar => 'Nicht akzeptieren';
@@ -921,5 +932,398 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get ubicacionDelEncuentro => 'Treffensort';
+  String get ubicacionDelEncuentro => 'Ort des Treffens';
+
+  @override
+  String get verificarCuenta => 'Konto verifizieren';
+
+  @override
+  String get verificaTuCuenta => 'Verifiziere dein Konto';
+
+  @override
+  String get obteneLaInsigniaDeVerificado =>
+      'Erhalte das Verifiziert-Abzeichen in deinem Profil';
+
+  @override
+  String get paso1EnviaSinpe => 'Schritt 1: Sende das SINPE Móvil';
+
+  @override
+  String realizaSinpeDeMontoANumero(String monto) {
+    return 'Führe ein SINPE Móvil von $monto an die Nummer durch:';
+  }
+
+  @override
+  String get paso2IngresaTuNumero => 'Schritt 2: Gib deine Nummer ein';
+
+  @override
+  String get ingresaNumeroDesdeElQueEnviaste =>
+      'Gib die Telefonnummer ein, von der du das SINPE gesendet hast:';
+
+  @override
+  String get ejemploTelefono => 'Z.B.: 88888888';
+
+  @override
+  String get confirmarPago => 'Zahlung bestätigen';
+
+  @override
+  String get enviando => 'Wird gesendet...';
+
+  @override
+  String get porFavorIngresaTuTelefono => 'Bitte gib deine Telefonnummer ein';
+
+  @override
+  String get solicitudEnviada => 'Anfrage gesendet!';
+
+  @override
+  String get estamosVerificandoTuPago =>
+      'Wir überprüfen deine Zahlung. In Kürze erhältst du das Verifiziert-Abzeichen in deinem Profil.';
+
+  @override
+  String get porFavorEscribeUnMensaje => 'Bitte schreibe eine Nachricht';
+
+  @override
+  String get porFavorEscribeUnAsunto => 'Bitte schreibe einen Betreff';
+
+  @override
+  String get mensajeEnviadoExito =>
+      '✅ Nachricht gesendet. Wir melden uns bald.';
+
+  @override
+  String get necesitasAyuda => 'Brauchst du Hilfe?';
+
+  @override
+  String get cuentanosTuProblema =>
+      'Erzähl uns dein Problem und wir helfen dir, es zu lösen.';
+
+  @override
+  String get tipoDeConsulta => 'Art der Anfrage';
+
+  @override
+  String get asunto => 'Betreff';
+
+  @override
+  String get ejemploProblemaCuenta => 'Z.B.: Problem mit meinem Konto';
+
+  @override
+  String get mensaje => 'Nachricht';
+
+  @override
+  String get describeTuProblema =>
+      'Beschreibe dein Problem so detailliert wie möglich...';
+
+  @override
+  String get enviarMensaje => 'Nachricht senden';
+
+  @override
+  String get tiempoRespuestaEstimado => 'Geschätzte Antwortzeit: 24-48 Stunden';
+
+  @override
+  String get mensajeEnviado => 'Nachricht gesendet!';
+
+  @override
+  String get hemosRecibidoTuConsulta =>
+      'Wir haben deine Anfrage erhalten. Unser Support-Team antwortet innerhalb der nächsten 24-48 Stunden.';
+
+  @override
+  String get enviarOtroMensaje => 'Weitere Nachricht senden';
+
+  @override
+  String get volver => 'Zurück';
+
+  @override
+  String get categoria => 'Kategorie';
+
+  @override
+  String get direccion => 'Adresse';
+
+  @override
+  String get nombreDelProducto => 'Produktname';
+
+  @override
+  String get ejemploNombreProducto => 'Z.B. iPhone 13, Laptop, usw.';
+
+  @override
+  String get ingresaNombreProducto => 'Gib den Produktnamen ein';
+
+  @override
+  String get nombreMinimoCaracteres =>
+      'Der Name muss mindestens 3 Zeichen haben';
+
+  @override
+  String get precio => 'Preis (₡)';
+
+  @override
+  String get ingresePrecioProducto => 'Gib den Produktpreis ein';
+
+  @override
+  String get ingresaPrecio => 'Gib den Preis ein';
+
+  @override
+  String get ingresaPrecioValido => 'Gib einen gültigen Preis ein';
+
+  @override
+  String get precioMayorCero => 'Der Preis muss größer als 0 sein';
+
+  @override
+  String get descripcion => 'Beschreibung';
+
+  @override
+  String get escribeDescripcionDetallada =>
+      'Schreibe eine detaillierte Beschreibung des Produkts...';
+
+  @override
+  String get ingresaDescripcion => 'Gib eine Beschreibung ein';
+
+  @override
+  String get publicarProducto => 'Produkt veröffentlichen';
+
+  @override
+  String get compartaProductoComunidad =>
+      'Teile dein Produkt mit der Community';
+
+  @override
+  String get anuncioCompletado =>
+      '✅ Anzeige abgeschlossen. Produkt wird veröffentlicht...';
+
+  @override
+  String get debesVerAnuncioParaPublicar =>
+      '❌ Du musst die Anzeige vollständig ansehen, um zu veröffentlichen';
+
+  @override
+  String get productoEnviadoRevision =>
+      '📝 Produkt zur Überprüfung gesendet. Du wirst bei Genehmigung benachrichtigt.';
+
+  @override
+  String errorAlPublicar(String error) {
+    return 'Fehler beim Veröffentlichen: $error';
+  }
+
+  @override
+  String get paraPublicarNecesitasVerAnuncio =>
+      'Um dein Produkt zu veröffentlichen, musst du eine kurze Anzeige ansehen.';
+
+  @override
+  String get verAnuncio => 'Anzeige ansehen';
+
+  @override
+  String get agregarImagenes => 'Bilder hinzufügen';
+
+  @override
+  String get imagenDestacada => 'Hauptbild';
+
+  @override
+  String get estaImagenApareceraPortada =>
+      'Dieses Bild erscheint auf dem Produktcover und im Bereich der hervorgehobenen Produkte.';
+
+  @override
+  String get soloImagenesCalidadEstudio =>
+      'Es werden nur Bilder in Studioqualität akzeptiert (gute Beleuchtung, scharfer Fokus, sauberer Hintergrund).';
+
+  @override
+  String get tocaParaSeleccionarImagen => 'Tippe, um ein Bild auszuwählen';
+
+  @override
+  String get formatosImagenPermitidos => 'JPG, PNG oder WEBP · Max. 10 MB';
+
+  @override
+  String get enRevisionPuntos => '🔍 In Prüfung...';
+
+  @override
+  String get enviadoARevision => '🔄 Zur Prüfung gesendet';
+
+  @override
+  String get enviarARevision => '🛡️ Zur Prüfung senden';
+
+  @override
+  String get imagenRevisadaIA =>
+      'Das Bild wird von einer KI geprüft. Du wirst bei Genehmigung benachrichtigt.';
+
+  @override
+  String get imagenesRealesProducto => 'Echte Produktbilder';
+
+  @override
+  String get subeHasta4Fotos =>
+      'Lade bis zu 4 echte Produktfotos hoch (erforderlich)';
+
+  @override
+  String get agregar => 'Hinzufügen';
+
+  @override
+  String get maximo4ImagenesReales =>
+      '⚠️ Du kannst nur bis zu 4 echte Bilder hochladen';
+
+  @override
+  String get escribeDescripcionMejorarImagen =>
+      'Schreibe eine Beschreibung, um das Bild zu verbessern';
+
+  @override
+  String get primeroSeleccionaImagen => 'Wähle zuerst ein Bild aus';
+
+  @override
+  String get imagenMejoradaCorrectamente => '✅ Bild erfolgreich verbessert';
+
+  @override
+  String get errorGenerarImagen => 'Fehler beim Generieren des Bildes';
+
+  @override
+  String get imagenEnviadaRevision =>
+      '🔄 Bild zur Prüfung gesendet. Du wirst bei Genehmigung benachrichtigt.';
+
+  @override
+  String errorEnviarImagen(String codigo) {
+    return 'Fehler beim Senden des Bildes: $codigo';
+  }
+
+  @override
+  String get revisionDeImagen => '🛡️ Bildprüfung';
+
+  @override
+  String get tuImagenSeraEnviadaModeracion =>
+      'Dein Bild wird zur Prüfung an unser Moderationsteam gesendet. Um fortzufahren, musst du eine kurze Anzeige ansehen.';
+
+  @override
+  String get revisionPuedeTomar24Horas =>
+      'Die Prüfung kann bis zu 24 Stunden dauern.';
+
+  @override
+  String get verAnuncioConEmoji => 'Anzeige ansehen 🎬';
+
+  @override
+  String get anuncioCompletadoEnviandoImagen =>
+      '✅ Anzeige abgeschlossen. Bild wird zur Prüfung gesendet...';
+
+  @override
+  String get debesVerAnuncioParaEnviarImagen =>
+      '❌ Du musst die Anzeige vollständig ansehen, um das Bild zu senden';
+
+  @override
+  String get seleccionaAlMenos1Imagen => 'Wähle mindestens 1 echtes Bild aus';
+
+  @override
+  String get siguienteConFlecha => 'Weiter →';
+
+  @override
+  String get recoleccionDeDatos => 'Datenerfassung';
+
+  @override
+  String get tuPrivacidadImportante =>
+      'Deine Privatsphäre ist uns wichtig. Du kannst wählen, ob deine Surf-Daten und Präferenzen erfasst werden dürfen, um personalisierte Produktvorschläge zu erhalten.';
+
+  @override
+  String get aceptoRecoleccionDatos =>
+      'Ich stimme zu, dass meine Surf-Daten und Präferenzen erfasst werden, um personalisierte Produktvorschläge zu erhalten.';
+
+  @override
+  String get guardarPreferencias => 'Einstellungen speichern';
+
+  @override
+  String get preferenciasGuardadas => '✅ Einstellungen gespeichert';
+
+  @override
+  String get errorAlGuardar => 'Fehler beim Speichern';
+
+  @override
+  String get historialDePagos => 'Zahlungsverlauf';
+
+  @override
+  String get consultaTodosLosPagos =>
+      'Überprüfe alle Zahlungen, die du in der App vorgenommen hast: Anzeigen-Boosts, Verlängerungen, Werbeentfernung und andere Dienste.';
+
+  @override
+  String get verHistorialDePagos => 'Zahlungsverlauf ansehen';
+
+  @override
+  String get todosTusPagosTransacciones =>
+      'Alle deine Zahlungen und Transaktionen';
+
+  @override
+  String get estadoDeCuenta => 'Kontostatus';
+
+  @override
+  String get revisaTusAdvertencias =>
+      'Überprüfe deine Verwarnungen und aktiven Sperren auf der Plattform.';
+
+  @override
+  String get advertencias => 'Verwarnungen';
+
+  @override
+  String get suspensionesTemporales => 'Vorübergehende Sperren';
+
+  @override
+  String get asistenciaAEncuentros => 'Treffen-Teilnahme';
+
+  @override
+  String get llegadasTardias => 'Verspätungen';
+
+  @override
+  String get noVerificaste5Min =>
+      'Du hast nicht innerhalb von 5 Minuten verifiziert. 3 = 1 Verwarnung';
+
+  @override
+  String get ausencias => 'Abwesenheiten';
+
+  @override
+  String get noLlegasteEncuentro =>
+      'Du bist nicht zum Treffen erschienen. 1 = 1 Verwarnung';
+
+  @override
+  String minutosTardeAcumulados(int cantidad) {
+    return '⏱️ Angesammelte Verspätungsminuten: $cantidad';
+  }
+
+  @override
+  String get informacion => 'Information';
+
+  @override
+  String get comoFunciona => 'Wie funktioniert es?';
+
+  @override
+  String get comoFuncionaEstadoCuenta =>
+      'Dein Konto sammelt Verwarnungen und vorübergehende Sperren wegen Verstößen gegen die Community-Regeln.\n\nTreffen-Teilnahme:\n• 3 Verspätungen (0/3) = 1 Verwarnung.\n• 1 Abwesenheit = 1 Verwarnung.\n\nEskalation:\n• 3 Verwarnungen = 1 vorübergehende Sperre (7 Tage).\n• 3 Sperren = dauerhafte Sperrung.\n\nErholung:\n• Jeden Monat werden 2 Verspätungen abgezogen.\n• Alle 3 Monate wird 1 Verwarnung abgezogen.';
+
+  @override
+  String get advertenciasInfo =>
+      'Verwarnungen (max. 3): entstehen durch leichte Meldungen wie unangemessene Sprache, irreführende Anzeigen oder geringfügige Regelverstöße. Sie blockieren dein Konto nicht.';
+
+  @override
+  String get suspensionesInfo =>
+      'Vorübergehende Sperren (max. 3): werden bei schwereren Vergehen wie Betrug, Belästigung, Identitätsdiebstahl oder wiederholten Verwarnungen angewendet. Jede Sperre blockiert dein Konto für einen Zeitraum.';
+
+  @override
+  String get baneoInfo =>
+      'Wenn du 3 Sperren erreichst, wird dein Konto dauerhaft gesperrt und die E-Mail kann nicht erneut registriert werden.';
+
+  @override
+  String get entendido => 'Verstanden';
+
+  @override
+  String get guardar => 'Speichern';
+
+  @override
+  String get guardarCambios => 'Änderungen speichern';
+
+  @override
+  String get nombreCompleto => 'Vollständiger Name';
+
+  @override
+  String get telefono => 'Telefon';
+
+  @override
+  String get usuarioNoAutenticado => 'Benutzer nicht authentifiziert';
+
+  @override
+  String get errorAlCargarDatos => 'Fehler beim Laden der Daten';
+
+  @override
+  String get nombreNoPuedeEstarVacio => 'Der Name darf nicht leer sein';
+
+  @override
+  String get perfilActualizadoCorrectamente =>
+      '✅ Profil erfolgreich aktualisiert';
+
+  @override
+  String get errorAlGuardarEnServidor => 'Fehler beim Speichern auf dem Server';
+
+  @override
+  String get volverAlPerfil => 'Zurück zum Profil';
 }

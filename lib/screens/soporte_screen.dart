@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../l10n/generated/app_localizations.dart';
 
 class SoporteScreen extends StatefulWidget {
   const SoporteScreen({super.key});
@@ -16,7 +17,6 @@ class _SoporteScreenState extends State<SoporteScreen> {
   bool _isLoading = false;
   bool _mensajeEnviado = false;
 
-  // Tipos de consulta
   String _tipoConsulta = 'Problema técnico';
   final List<String> _tiposConsulta = [
     'Problema técnico',
@@ -29,10 +29,12 @@ class _SoporteScreenState extends State<SoporteScreen> {
   ];
 
   Future<void> _enviarMensaje() async {
+    final l10n = AppLocalizations.of(context)!;
+
     if (_mensajeController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, escribe un mensaje'),
+        SnackBar(
+          content: Text(l10n.porFavorEscribeUnMensaje),
           backgroundColor: Colors.orange,
         ),
       );
@@ -41,8 +43,8 @@ class _SoporteScreenState extends State<SoporteScreen> {
 
     if (_asuntoController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, escribe un asunto'),
+        SnackBar(
+          content: Text(l10n.porFavorEscribeUnAsunto),
           backgroundColor: Colors.orange,
         ),
       );
@@ -55,8 +57,8 @@ class _SoporteScreenState extends State<SoporteScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debes iniciar sesión'),
+          SnackBar(
+            content: Text(l10n.debesIniciarSesion),
             backgroundColor: Colors.red,
           ),
         );
@@ -64,10 +66,10 @@ class _SoporteScreenState extends State<SoporteScreen> {
         return;
       }
 
-      // 🔥 ENVIAR MENSAJE DE SOPORTE AL BACKEND REAL
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
-        Uri.parse('https://mimarketplace-production.up.railway.app/api/soporte/enviar'),
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/soporte/enviar'),
         headers: {
           'Content-Type': 'application/json',
           if (idToken != null) 'Authorization': 'Bearer $idToken',
@@ -88,8 +90,8 @@ class _SoporteScreenState extends State<SoporteScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Mensaje enviado. Te responderemos pronto.'),
+            SnackBar(
+              content: Text(l10n.mensajeEnviadoExito),
               backgroundColor: Colors.green,
             ),
           );
@@ -102,7 +104,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error al enviar: $e'),
+            content: Text(l10n.errorGenerico('$e')),
             backgroundColor: Colors.red,
           ),
         );
@@ -116,21 +118,21 @@ class _SoporteScreenState extends State<SoporteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Soporte'),
+        title: Text(l10n.soporte),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: _mensajeEnviado
-          ? _buildMensajeEnviado()
+          ? _buildMensajeEnviado(l10n)
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // INFO
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -146,16 +148,16 @@ class _SoporteScreenState extends State<SoporteScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                '¿Necesitas ayuda?',
-                                style: TextStyle(
+                              Text(
+                                l10n.necesitasAyuda,
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Cuéntanos tu problema y te ayudaremos a resolverlo.',
+                                l10n.cuentanosTuProblema,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey.shade700,
@@ -170,9 +172,9 @@ class _SoporteScreenState extends State<SoporteScreen> {
                   const SizedBox(height: 24),
 
                   // TIPO
-                  const Text(
-                    'Tipo de consulta',
-                    style: TextStyle(
+                  Text(
+                    l10n.tipoDeConsulta,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -206,9 +208,9 @@ class _SoporteScreenState extends State<SoporteScreen> {
                   const SizedBox(height: 20),
 
                   // ASUNTO
-                  const Text(
-                    'Asunto',
-                    style: TextStyle(
+                  Text(
+                    l10n.asunto,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -216,18 +218,19 @@ class _SoporteScreenState extends State<SoporteScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _asuntoController,
-                    decoration: const InputDecoration(
-                      hintText: 'Ej: Problema con mi cuenta',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    decoration: InputDecoration(
+                      hintText: l10n.ejemploProblemaCuenta,
+                      border: const OutlineInputBorder(),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12),
                     ),
                   ),
                   const SizedBox(height: 20),
 
                   // MENSAJE
-                  const Text(
-                    'Mensaje',
-                    style: TextStyle(
+                  Text(
+                    l10n.mensaje,
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -237,10 +240,10 @@ class _SoporteScreenState extends State<SoporteScreen> {
                     controller: _mensajeController,
                     maxLines: 8,
                     maxLength: 500,
-                    decoration: const InputDecoration(
-                      hintText: 'Describe tu problema con el mayor detalle posible...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(12),
+                    decoration: InputDecoration(
+                      hintText: l10n.describeTuProblema,
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.all(12),
                       alignLabelWithHint: true,
                     ),
                   ),
@@ -264,9 +267,9 @@ class _SoporteScreenState extends State<SoporteScreen> {
                               strokeWidth: 2,
                               color: Colors.white,
                             )
-                          : const Text(
-                              'Enviar mensaje',
-                              style: TextStyle(
+                          : Text(
+                              l10n.enviarMensaje,
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -292,7 +295,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Tiempo de respuesta estimado: 24-48 horas',
+                            l10n.tiempoRespuestaEstimado,
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade600,
@@ -308,7 +311,7 @@ class _SoporteScreenState extends State<SoporteScreen> {
     );
   }
 
-  Widget _buildMensajeEnviado() {
+  Widget _buildMensajeEnviado(AppLocalizations l10n) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
@@ -321,19 +324,19 @@ class _SoporteScreenState extends State<SoporteScreen> {
               size: 80,
             ),
             const SizedBox(height: 20),
-            const Text(
-              '¡Mensaje enviado!',
-              style: TextStyle(
+            Text(
+              l10n.mensajeEnviado,
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: Colors.green,
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Hemos recibido tu consulta. Nuestro equipo de soporte te responderá en las próximas 24-48 horas.',
+            Text(
+              l10n.hemosRecibidoTuConsulta,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
               ),
@@ -348,14 +351,15 @@ class _SoporteScreenState extends State<SoporteScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
               ),
-              child: const Text('Enviar otro mensaje'),
+              child: Text(l10n.enviarOtroMensaje),
             ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Volver'),
+              child: Text(l10n.volver),
             ),
           ],
         ),

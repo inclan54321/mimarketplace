@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class EditarPerfilScreen extends StatefulWidget {
   const EditarPerfilScreen({super.key});
@@ -21,16 +22,20 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarDatosUsuario();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _cargarDatosUsuario();
+    });
   }
 
   Future<void> _cargarDatosUsuario() async {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoading = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         setState(() {
-          _error = 'Usuario no autenticado';
+          _error = l10n.usuarioNoAutenticado;
           _isLoading = false;
         });
         return;
@@ -53,26 +58,27 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         });
       } else {
         setState(() {
-          _error = 'Error al cargar datos';
+          _error = l10n.errorAlCargarDatos;
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _error = 'Error: $e';
+        _error = l10n.errorGenerico('$e');
         _isLoading = false;
       });
     }
   }
 
   Future<void> _guardarCambios() async {
+    final l10n = AppLocalizations.of(context)!;
     final nombre = _nombreController.text.trim();
     final telefono = _telefonoController.text.trim();
 
     if (nombre.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('El nombre no puede estar vacío'),
+        SnackBar(
+          content: Text(l10n.nombreNoPuedeEstarVacio),
           backgroundColor: Colors.orange,
         ),
       );
@@ -83,7 +89,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('Usuario no autenticado');
+      if (user == null) throw Exception(l10n.usuarioNoAutenticado);
 
       // 🔥 ACTUALIZAR EN FIREBASE AUTH (displayName)
       await user.updateDisplayName(nombre);
@@ -110,21 +116,21 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Perfil actualizado correctamente'),
+            SnackBar(
+              content: Text(l10n.perfilActualizadoCorrectamente),
               backgroundColor: Colors.green,
             ),
           );
           Navigator.pop(context, true); // Devolver true para refrescar
         }
       } else {
-        throw Exception('Error al guardar en el servidor');
+        throw Exception(l10n.errorAlGuardarEnServidor);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(l10n.errorGenerico('$e')),
             backgroundColor: Colors.red,
           ),
         );
@@ -138,9 +144,10 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Editar Perfil'),
+        title: Text(l10n.editarPerfil),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -157,8 +164,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text(
-                      'Guardar',
+                  : Text(
+                      l10n.guardar,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -185,7 +192,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _cargarDatosUsuario,
-                        child: const Text('Reintentar'),
+                        child: Text(l10n.reintentar),
                       ),
                     ],
                   ),
@@ -220,8 +227,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                       // 🔥 CAMPO NOMBRE
                       TextField(
                         controller: _nombreController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nombre completo',
+                        decoration: InputDecoration(
+                          labelText: l10n.nombreCompleto,
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.person),
                         ),
@@ -231,8 +238,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                       // 🔥 CAMPO TELÉFONO
                       TextField(
                         controller: _telefonoController,
-                        decoration: const InputDecoration(
-                          labelText: 'Teléfono',
+                        decoration: InputDecoration(
+                          labelText: l10n.telefono,
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.phone),
                         ),
@@ -245,8 +252,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                         controller: TextEditingController(
                           text: FirebaseAuth.instance.currentUser?.email ?? '',
                         ),
-                        decoration: const InputDecoration(
-                          labelText: 'Correo electrónico',
+                        decoration: InputDecoration(
+                          labelText: l10n.correoElectronico,
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.email),
                           filled: true,
@@ -274,8 +281,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                                   strokeWidth: 2,
                                   color: Colors.white,
                                 )
-                              : const Text(
-                                  'Guardar Cambios',
+                              : Text(
+                                  l10n.guardarCambios,
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,

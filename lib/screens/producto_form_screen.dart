@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import '../l10n/generated/app_localizations.dart';
 
 // ============================================================
 // 🎨 CONSTANTES DE COLOR
@@ -64,6 +65,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   }
 
   Future<void> _mostrarPopupAnuncioPublicar() async {
+    final l10n = AppLocalizations.of(context)!;
     if (!_formKey.currentState!.validate()) return;
 
     final confirmar = await showDialog<bool>(
@@ -78,19 +80,20 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   }
 
   void _verAnuncioYPublicar() {
+    final l10n = AppLocalizations.of(context)!;
     if (!RewardedAdManager.isAdLoaded) {
       RewardedAdManager.loadRewardedAd();
-      _snack('⏳ Cargando anuncio... espera un momento', Colors.orange);
+      _snack(l10n.cargandoAnuncio, Colors.orange);
       return;
     }
 
     RewardedAdManager.showRewardedAd(
       onRewarded: () {
-        _snack('✅ Anuncio completado. Publicando producto...', Colors.green);
+        _snack(l10n.anuncioCompletado, Colors.green);
         _publicarProducto();
       },
       onDismissed: () {
-        _snack('❌ Debes ver el anuncio completo para publicar', Colors.red);
+        _snack(l10n.debesVerAnuncioParaPublicar, Colors.red);
       },
     );
   }
@@ -103,6 +106,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   }
 
   Future<void> _publicarProducto() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_publicandoNotifier.value) return;
     _publicandoNotifier.value = true;
 
@@ -157,7 +161,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
         final data = jsonDecode(await response.stream.bytesToString());
         debugPrint('>>> ✅ Producto enviado: ${data['mensaje']}');
         _snack(
-          '📝 Producto enviado para revisión. Recibirás notificación al aprobarse.',
+          l10n.productoEnviadoRevision,
           Colors.orange,
         );
         Navigator.popUntil(context, (route) => route.isFirst);
@@ -169,7 +173,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      _snack('Error al publicar: $e', Colors.red);
+      _snack(l10n.errorAlPublicar('$e'), Colors.red);
     } finally {
       _publicandoNotifier.value = false;
     }
@@ -177,6 +181,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     debugPrint('🔁 [PERF] ProductoFormScreen build');
     return Scaffold(
       backgroundColor: _AppColors.bg,
@@ -202,29 +207,29 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
               children: [
                 _InfoCard(
                   icono: Icons.grid_view_rounded,
-                  label: 'Categoría',
+                  label: l10n.categoria,
                   valor: widget.categoria,
                 ),
                 const SizedBox(height: 12),
                 _InfoCard(
                   icono: Icons.location_on_outlined,
-                  label: 'Dirección',
+                  label: l10n.direccion,
                   valor: widget.direccion,
                 ),
                 const SizedBox(height: 12),
                 RepaintBoundary(
                   child: _InputCard(
                     icono: Icons.inventory_2_outlined,
-                    label: 'Nombre del producto',
-                    hint: 'Ej. iPhone 13, Laptop, etc.',
+                    label: l10n.nombreDelProducto,
+                  hint: l10n.ejemploNombreProducto,
                     controller: _nombreController,
                     maxLength: 80,
                     validator: (v) {
                       if (v == null || v.isEmpty) {
-                        return 'Ingresa el nombre del producto';
+                        return l10n.ingresaNombreProducto;
                       }
                       if (v.trim().length < 3) {
-                        return 'El nombre debe tener al menos 3 caracteres';
+                        return l10n.nombreMinimoCaracteres;
                       }
                       return null;
                     },
@@ -234,16 +239,16 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                 RepaintBoundary(
                   child: _InputCard(
                     icono: Icons.monetization_on_outlined,
-                    label: 'Precio (₡)',
-                    hint: 'Ingrese el precio del producto',
+                    label: l10n.precio,
+                    hint: l10n.ingresePrecioProducto,
                     controller: _precioController,
                     keyboardType: TextInputType.number,
                     maxLength: 12,
                     validator: (v) {
-                      if (v == null || v.isEmpty) return 'Ingresa el precio';
+                      if (v == null || v.isEmpty) return l10n.ingresaPrecio;
                       final precio = double.tryParse(v);
-                      if (precio == null) return 'Ingresa un precio válido';
-                      if (precio <= 0) return 'El precio debe ser mayor a 0';
+                      if (precio == null) return l10n.ingresaPrecioValido;
+                      if (precio <= 0) return l10n.precioMayorCero;
                       return null;
                     },
                   ),
@@ -252,13 +257,13 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                 RepaintBoundary(
                   child: _InputCard(
                     icono: Icons.description_outlined,
-                    label: 'Descripción',
-                    hint: 'Escriba una descripción detallada del producto...',
+                    label: l10n.descripcion,
+                    hint: l10n.escribeDescripcionDetallada,
                     controller: _descripcionController,
                     maxLines: 4,
                     maxLength: 1000,
                     validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Ingresa una descripción' : null,
+                        (v == null || v.isEmpty) ? l10n.ingresaDescripcion : null,
                   ),
                 ),
                 const SizedBox(height: 28),
@@ -294,6 +299,7 @@ class _ProductoAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return RepaintBoundary(
       child: ClipPath(
         clipper: const _BottomWaveClipper(),
@@ -351,16 +357,16 @@ class _ProductoAppBar extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'Publicar Producto',
-                          style: TextStyle(
+                        Text(
+                          l10n.publicarProducto,
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
                         Text(
-                          'Comparta su producto con la comunidad',
+                          l10n.compartaProductoComunidad,
                           style: TextStyle(
                               fontSize: 12, color: _AppColors.white60),
                         ),
@@ -568,6 +574,7 @@ class _BotonPublicar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       height: 58,
       decoration: BoxDecoration(
@@ -601,15 +608,14 @@ class _BotonPublicar extends StatelessWidget {
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white),
                 )
-              : const Row(
+              : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.send_rounded, size: 22),
-                    SizedBox(width: 10),
+                    const Icon(Icons.send_rounded, size: 22),
+                    const SizedBox(width: 10),
                     Text(
-                      'Publicar Producto',
-                      style:
-                          TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      l10n.publicarProducto,
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -627,6 +633,7 @@ class _PopupAnuncioDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Dialog(
       backgroundColor: _AppColors.surface,
       shape: RoundedRectangleBorder(
@@ -656,8 +663,8 @@ class _PopupAnuncioDialog extends StatelessWidget {
               child: const Icon(Icons.storefront, size: 40, color: Colors.white),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Publicar Producto',
+            Text(
+              l10n.publicarProducto,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -666,7 +673,7 @@ class _PopupAnuncioDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Para publicar tu producto, necesitas ver un breve anuncio.',
+              l10n.paraPublicarNecesitasVerAnuncio,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: _AppColors.white70),
             ),
@@ -680,7 +687,7 @@ class _PopupAnuncioDialog extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: Text(
-                      'Cancelar',
+                      l10n.cancelar,
                       style: TextStyle(fontSize: 14, color: _AppColors.white60),
                     ),
                   ),
@@ -698,12 +705,12 @@ class _PopupAnuncioDialog extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.play_circle_filled, size: 18),
-                        SizedBox(width: 6),
-                        Text('Ver anuncio', style: TextStyle(fontSize: 14)),
+                        const Icon(Icons.play_circle_filled, size: 18),
+                        const SizedBox(width: 6),
+                        Text(l10n.verAnuncio, style: const TextStyle(fontSize: 14)),
                       ],
                     ),
                   ),
