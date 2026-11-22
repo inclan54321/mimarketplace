@@ -352,6 +352,53 @@ setInterval(() => {
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+// 🔐 Bloquear el acceso público a fotografías antiguas del chat.
+// Debe ejecutarse ANTES de express.static('/uploads').
+app.use('/uploads', async (req, res, next) => {
+    try {
+        const ruta = '/uploads' + req.path;
+
+        // 🔐 BLOQUEAR ACCESO DIRECTO A IMÁGENES PRIVADAS DEL CHAT
+        if (req.path.startsWith('/.chat_privado/')) {
+            console.warn(
+                '>>> 🚫 [SEGURIDAD CHAT] Intento de acceso directo a carpeta privada:',
+                req.path
+            );
+
+            res.setHeader('Cache-Control', 'no-store');
+
+            return res.status(403).json({
+                error: 'Archivo privado',
+                codigo: 'ARCHIVO_PRIVADO'
+            });
+        }
+
+        const imagenChat = await pool.query(
+            `SELECT 1
+             FROM mensajes_app
+             WHERE imagen = $1
+             LIMIT 1`,
+            [ruta]
+        );
+
+        if (imagenChat.rows.length > 0) {
+            console.warn('>>> 🔒 [CHAT] Acceso público bloqueado:', ruta);
+            res.setHeader('Cache-Control', 'no-store');
+            return res.status(403).json({
+                error: 'Esta imagen es privada',
+                codigo: 'IMAGEN_CHAT_PRIVADA'
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error('>>> ❌ Error comprobando imagen privada:', error.message);
+        return res.status(503).json({
+            error: 'No se pudo verificar el acceso al archivo'
+        });
+    }
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
     maxAge: '30d',
     immutable: true,
@@ -2736,7 +2783,7 @@ app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiS
     try {
         console.log('>>> Archivo recibido:', req.file);
         const { conversacion_id, usuario_id, texto } = req.body;
-        const imagen_url = req.file ? `/uploads/${req.file.filename}` : '';
+        let imagen_url = '';
 
         // 🔥 Verificar que el usuario_id del body coincida con el del token
         if (usuario_id !== req.usuarioAutenticado) {
@@ -2833,6 +2880,24 @@ app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiS
                 motivo: 'Con el Escudo activo no se puede compartir la ubicación',
                 codigo: 'UBICACION_BLOQUEADA_ESCUDO'
             });
+        }
+
+        // 🔐 Mover la fotografía validada a almacenamiento privado.
+        if (req.file) {
+            const destinoPrivado = path.join(
+                CHAT_IMAGENES_PRIVADAS,
+                req.file.filename
+            );
+
+            await fs.promises.rename(req.file.path, destinoPrivado);
+
+            req.file.path = destinoPrivado;
+            imagen_url = `/api/chat/imagen/${req.file.filename}`;
+
+            console.log(
+                '>>> 🔒 [CHAT PRIVADO] Imagen almacenada:',
+                req.file.filename
+            );
         }
 
         // 1. GUARDAR EL MENSAJE
@@ -3628,6 +3693,72 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
         res.json({ provincia: '', canton: '' });
     }
 });
+// 🔐 Carpeta privada para las nuevas fotografías del chat.
+const CHAT_IMAGENES_PRIVADAS = path.join(__dirname, 'uploads', '.chat_privado');
+fs.mkdirSync(CHAT_IMAGENES_PRIVADAS, { recursive: true });
+
+// 🔐 Solo los participantes de la conversación pueden descargar la imagen.
+app.get('/api/chat/imagen/:archivo', verificarTokenFirebase, async (req, res) => {
+    try {
+        const archivo = req.params.archivo;
+
+        if (!/^[a-zA-Z0-9_-]+\.(webp|jpg|jpeg|png)$/i.test(archivo)) {
+            return res.status(400).json({ error: 'Nombre de archivo inválido' });
+        }
+
+        const rutaPrivada = `/api/chat/imagen/${archivo}`;
+        const rutaAntigua = `/uploads/${archivo}`;
+
+        const resultado = await pool.query(
+            `SELECT m.id, m.imagen
+             FROM mensajes_app m
+             INNER JOIN conversaciones_app c
+                 ON c.id = m.conversacion_id
+             WHERE m.imagen IN ($1, $2)
+               AND (c.usuario1_id = $3 OR c.usuario2_id = $3)
+             LIMIT 1`,
+            [rutaPrivada, rutaAntigua, req.usuarioAutenticado]
+        );
+
+        if (resultado.rows.length === 0) {
+            console.warn(
+                '>>> 🚫 [CHAT PRIVADO] Acceso denegado:',
+                req.usuarioAutenticado,
+                archivo
+            );
+
+            return res.status(403).json({
+                error: 'No tienes permiso para ver esta imagen',
+                codigo: 'IMAGEN_NO_AUTORIZADA'
+            });
+        }
+
+        const esAntigua = resultado.rows[0].imagen === rutaAntigua;
+
+        const carpeta = esAntigua
+            ? path.join(__dirname, 'uploads')
+            : CHAT_IMAGENES_PRIVADAS;
+
+        res.setHeader('Cache-Control', 'private, no-store');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+
+        console.log(
+            '>>> ✅ [CHAT PRIVADO] Imagen autorizada:',
+            resultado.rows[0].id
+        );
+
+        return res.sendFile(archivo, { root: carpeta }, (error) => {
+            if (error && !res.headersSent) {
+                console.error('>>> ❌ Imagen privada no disponible:', error.message);
+                res.status(404).json({ error: 'Imagen no encontrada' });
+            }
+        });
+    } catch (error) {
+        console.error('>>> ❌ Error en imagen privada:', error.message);
+        return res.status(500).json({ error: 'Error verificando imagen privada' });
+    }
+});
+
 app.get('/api/mensajes/:conversacion_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id } = req.params;

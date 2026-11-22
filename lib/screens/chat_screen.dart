@@ -8117,7 +8117,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                           MaterialPageRoute(
                             builder: (context) => ImageViewerScreen(
                               imageUrl:
-                                  'https://mimarketplace-production.up.railway.app${mensaje['imagen']}',
+                                  'https://mimarketplace-production.up.railway.app/api/chat/imagen/${mensaje['imagen']!.split('/').last}',
                             ),
                           ),
                         );
@@ -8126,9 +8126,32 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                         margin: const EdgeInsets.only(bottom: 4),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: CachedNetworkImage(
-                            imageUrl:
-                                'https://mimarketplace-production.up.railway.app${mensaje['imagen']}',
+                          child: FutureBuilder<String?>(
+                            future: FirebaseAuth.instance.currentUser?.getIdToken(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState != ConnectionState.done) {
+                                return const SizedBox(
+                                  width: 200,
+                                  height: 200,
+                                  child: Center(child: CircularProgressIndicator()),
+                                );
+                              }
+
+                              final token = snapshot.data;
+                              if (token == null || token.isEmpty) {
+                                return const Icon(Icons.lock, size: 50);
+                              }
+
+                              final rutaOriginal = mensaje['imagen']!;
+                              final nombreArchivo = rutaOriginal.split('/').last;
+                              final urlPrivada =
+                                  'https://mimarketplace-production.up.railway.app/api/chat/imagen/$nombreArchivo';
+
+                              return CachedNetworkImage(
+                                imageUrl: urlPrivada,
+                                httpHeaders: {
+                                  'Authorization': 'Bearer $token',
+                                },
                             width: 200,
                             height: 200,
                             fit: BoxFit.cover,
@@ -8146,6 +8169,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                               color: Colors.grey.shade200,
                               child: const Icon(Icons.broken_image, size: 50),
                             ),
+                              );
+                            },
                           ),
                         ),
                       ),
