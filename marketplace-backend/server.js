@@ -5567,9 +5567,17 @@ app.get('/api/productos/ranking', async (req, res) => {
     }
 });
 // ===== OBTENER RANKING DE PRODUCTOS MÁS VISTOS DE UN USUARIO =====
-app.get('/api/estadisticas/usuario/:usuario_id/ranking', async (req, res) => {
+app.get('/api/estadisticas/usuario/:usuario_id/ranking', verificarTokenFirebase, async (req, res) => {
     try {
         const { usuario_id } = req.params;
+
+        if (usuario_id !== req.usuarioAutenticado) {
+            console.warn('>>> 🔒 [RANKING] Intento de consultar estadísticas ajenas');
+            return res.status(403).json({
+                error: 'No autorizado para consultar estas estadísticas',
+                codigo: 'UID_NO_COINCIDE'
+            });
+        }
 
         console.log('>>> Ranking para usuario:', usuario_id);
 

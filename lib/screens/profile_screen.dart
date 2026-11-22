@@ -129,8 +129,13 @@ Future<void> _cargarMasVistos() async {
       return;
     }
 
+    final idToken = await user.getIdToken();
+
     final response = await http.get(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/estadisticas/usuario/${user.uid}/ranking'),
+      headers: {
+        'Authorization': 'Bearer $idToken',
+      },
     );
 
     if (response.statusCode == 200) {
