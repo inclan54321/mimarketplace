@@ -2785,6 +2785,77 @@ app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiS
         const { conversacion_id, usuario_id, texto } = req.body;
         let imagen_url = '';
 
+        // ============================================================
+        // 🛡️ SEGURIDAD TEXTO - VALIDACIÓN DE ENTRADAS DEL CHAT
+        // ============================================================
+
+        console.log('>>> 🛡️ [SEGURIDAD TEXTO] Iniciando validación del chat');
+
+        const rechazarTexto = (motivo, codigo) => {
+            console.warn('>>> 🚫 [SEGURIDAD TEXTO] Entrada rechazada:', codigo);
+
+            // Eliminar cualquier imagen temporal si el mensaje es rechazado.
+            if (req.file?.path) {
+                try {
+                    fs.unlinkSync(req.file.path);
+                } catch (_) {}
+            }
+
+            return res.status(400).json({
+                error: motivo,
+                codigo
+            });
+        };
+
+        // Permitir mensajes que solo contienen una imagen.
+        const textoRecibido = texto == null ? '' : texto;
+
+        // Evitar objetos, arrays y otros tipos inesperados.
+        if (typeof textoRecibido !== 'string') {
+            return rechazarTexto(
+                'El mensaje debe contener texto válido.',
+                'TIPO_TEXTO_INVALIDO'
+            );
+        }
+
+        // Límite para evitar mensajes excesivamente grandes.
+        const MAX_CARACTERES_CHAT = 10000;
+
+        if (textoRecibido.length > MAX_CARACTERES_CHAT) {
+            return rechazarTexto(
+                'El mensaje supera la longitud máxima permitida.',
+                'TEXTO_DEMASIADO_LARGO'
+            );
+        }
+
+        // Bloquear caracteres de control no imprimibles.
+        // Se permiten tabulaciones, saltos de línea y retorno de carro.
+        const caracteresControlPeligrosos =
+            /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
+
+        if (caracteresControlPeligrosos.test(textoRecibido)) {
+            return rechazarTexto(
+                'El mensaje contiene caracteres no permitidos.',
+                'CARACTERES_CONTROL_INVALIDOS'
+            );
+        }
+
+        // Evitar mensajes completamente vacíos sin imagen.
+        if (textoRecibido.trim().length === 0 && !req.file) {
+            return rechazarTexto(
+                'No puedes enviar un mensaje vacío.',
+                'MENSAJE_VACIO'
+            );
+        }
+
+        console.log(
+            '>>> ✅ [SEGURIDAD TEXTO] Entrada validada correctamente:',
+            {
+                caracteres: textoRecibido.length,
+                contieneImagen: !!req.file
+            }
+        );
+
         // 🔥 Verificar que el usuario_id del body coincida con el del token
         if (usuario_id !== req.usuarioAutenticado) {
             if (req.file) { try { fs.unlinkSync(req.file.path); } catch (_) {} }
