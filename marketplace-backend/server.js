@@ -592,6 +592,88 @@ function optimizarImagenes(maxLado = 1280, calidad = 75) {
 }
 
 
+// ============================================================
+// 🛡️ SEGURIDAD DE TEXTO EN PRODUCTOS
+// ============================================================
+
+function validarTextoProducto(req, res, next) {
+    console.log('>>> 🛡️ [SEGURIDAD TEXTO PRODUCTO] Iniciando validación');
+
+    const campos = {
+        nombre: 150,
+        descripcion: 5000,
+        categoria: 100,
+        subcategoria: 100,
+        direccion: 500
+    };
+
+    const limpiarArchivos = () => {
+        const archivos = [];
+
+        if (req.file) archivos.push(req.file);
+
+        if (req.files) {
+            if (Array.isArray(req.files)) {
+                archivos.push(...req.files);
+            } else {
+                for (const grupo of Object.values(req.files)) {
+                    if (Array.isArray(grupo)) archivos.push(...grupo);
+                }
+            }
+        }
+
+        for (const archivo of archivos) {
+            if (archivo.path) {
+                try {
+                    fs.unlinkSync(archivo.path);
+                } catch (_) {}
+            }
+        }
+    };
+
+    const rechazar = (campo, codigo) => {
+        console.warn(
+            '>>> 🚫 [SEGURIDAD TEXTO PRODUCTO] Rechazado:',
+            { campo, codigo }
+        );
+
+        limpiarArchivos();
+
+        return res.status(400).json({
+            error: `El campo ${campo} contiene un valor inválido.`,
+            codigo,
+            campo
+        });
+    };
+
+    for (const [campo, limite] of Object.entries(campos)) {
+        const valor = req.body[campo];
+
+        // En edición se permiten campos omitidos.
+        if (valor === undefined || valor === null) continue;
+
+        if (typeof valor !== 'string') {
+            return rechazar(campo, 'TIPO_TEXTO_INVALIDO');
+        }
+
+        if (valor.length > limite) {
+            return rechazar(campo, 'TEXTO_DEMASIADO_LARGO');
+        }
+
+        // Bloquear caracteres de control no imprimibles.
+        // Mantener saltos de línea y tabulaciones legítimos.
+        if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(valor)) {
+            return rechazar(campo, 'CARACTERES_CONTROL_INVALIDOS');
+        }
+    }
+
+    console.log(
+        '>>> ✅ [SEGURIDAD TEXTO PRODUCTO] Campos validados correctamente'
+    );
+
+    next();
+}
+
 // ===== CONFIGURACIÓN PARA AUDIOS =====
 const audioDir = path.join(__dirname, 'uploads/audios');
 if (!fs.existsSync(audioDir)) {
@@ -2511,7 +2593,7 @@ app.post('/api/productos', rateLimitProductosCrear, verificarTokenFirebase, bloq
   { name: 'imagen_destacada', maxCount: 1 },
   { name: 'imagen_normal', maxCount: 1 },
   { name: 'imagenes_reales[]', maxCount: 5 }
-]), optimizarImagenes(1280), async (req, res) => {
+]), validarTextoProducto, optimizarImagenes(1280), async (req, res) => {
     try {
         const { nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion } = req.body;
         
@@ -6086,7 +6168,7 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
     { name: 'imagen', maxCount: 1 },
     { name: 'imagenes_nuevas', maxCount: 5 },
     { name: 'audio', maxCount: 1 }
-]), optimizarImagenes(1280), async (req, res) => {
+]), validarTextoProducto, optimizarImagenes(1280), async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, descripcion, precio, categoria, subcategoria, direccion, vendedor_id } = req.body;
@@ -6724,7 +6806,7 @@ REGLAS:
     }
 }
 // ===== REVISAR IMAGEN DESTACADA CON IA =====
-app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single('imagen'), optimizarImagenes(1280), async (req, res) => {
+app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single('imagen'), validarTextoProducto, optimizarImagenes(1280), async (req, res) => {
     console.log('>>> 🔥 LLEGÓ PETICIÓN A /api/revisar-imagen-destacada');
     console.log('>>> 🔥 BODY:', req.body);
     console.log('>>> 🔥 FILE:', req.file);
