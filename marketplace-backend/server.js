@@ -376,43 +376,151 @@ const upload = multer({
 // 🔥 OPTIMIZADOR: reduce, corrige rotación y convierte a WebP.
 // Reemplaza el archivo original, así el resto del código sigue funcionando igual.
 // Ignora los audios y, si algo falla, deja el archivo original.
+
+// 🔐 PROCESAMIENTO Y VALIDACIÓN SEGURA DE IMÁGENES
 function optimizarImagenes(maxLado = 1280, calidad = 75) {
     return async (req, res, next) => {
-        try {
-            const archivos = [];
-            if (req.file) archivos.push(req.file);
-            if (req.files) {
-                const grupos = Array.isArray(req.files) ? [req.files] : Object.values(req.files);
-                for (const g of grupos) archivos.push(...g);
-            }
+        const archivos = [];
 
-            for (const f of archivos) {
-                if (!f.mimetype || !f.mimetype.startsWith('image/')) continue;
+        if (req.file) archivos.push(req.file);
+
+        if (req.files) {
+            const grupos = Array.isArray(req.files)
+                ? [req.files]
+                : Object.values(req.files);
+
+            for (const grupo of grupos) {
+                archivos.push(...grupo);
+            }
+        }
+
+        const eliminarArchivos = () => {
+            for (const archivo of archivos) {
                 try {
+                    if (archivo.path && fs.existsSync(archivo.path)) {
+                        fs.unlinkSync(archivo.path);
+                    }
+                } catch (_) {}
+            }
+        };
+
+        try {
+            for (const f of archivos) {
+
+                // Los audios tienen su propio procesamiento.
+                if (f.fieldname === 'audio') continue;
+
+                // Solo se aceptan imágenes en los campos destinados a imágenes.
+               const camposImagen = [
+    'imagen',
+    'imagen_destacada',
+    'imagen_normal',
+    'imagenes_reales[]',
+    'imagenes_nuevas',
+    'foto'
+];
+
+                if (!camposImagen.includes(f.fieldname)) {
+                    eliminarArchivos();
+                    return res.status(400).json({
+                        error: 'Campo de archivo no permitido',
+                        codigo: 'ARCHIVO_NO_PERMITIDO'
+                    });
+                }
+
+                try {
+                    // No confiamos en el MIME ni en la extensión del archivo.
+                    const imagen = sharp(f.path, {
+                        failOn: 'error',
+                        limitInputPixels: 40000000,
+                        animated: false
+                    });
+
+                    const metadata = await imagen.metadata();
+
+                    const formatosPermitidos = [
+                        'jpeg',
+                        'png',
+                        'webp',
+                        'avif'
+                    ];
+
+                    if (!metadata.format ||
+                        !formatosPermitidos.includes(metadata.format)) {
+                        throw new Error('Formato de imagen no permitido');
+                    }
+
+                    if (!metadata.width || !metadata.height ||
+                        metadata.width > 10000 ||
+                        metadata.height > 10000) {
+                        throw new Error('Dimensiones de imagen no válidas');
+                    }
+
+                    // Decodificar y reconstruir completamente la imagen.
                     const destino = f.path.replace(/\.[^./\\]+$/, '') + '.webp';
-                    const buf = await sharp(f.path)
+
+                    const bufferSeguro = await sharp(f.path, {
+                        failOn: 'error',
+                        limitInputPixels: 40000000,
+                        animated: false
+                    })
                         .rotate()
-                        .resize(maxLado, maxLado, { fit: 'inside', withoutEnlargement: true })
+                        .resize(maxLado, maxLado, {
+                            fit: 'inside',
+                            withoutEnlargement: true
+                        })
                         .webp({ quality: calidad })
                         .toBuffer();
-                    fs.writeFileSync(destino, buf);
-                    if (destino !== f.path) {
-                        try { fs.unlinkSync(f.path); } catch (_) {}
+
+                    if (!bufferSeguro || bufferSeguro.length === 0) {
+                        throw new Error('La imagen procesada está vacía');
                     }
+
+                    fs.writeFileSync(destino, bufferSeguro);
+
+                    // Eliminar el archivo original.
+                    if (destino !== f.path) {
+                        fs.unlinkSync(f.path);
+                    }
+
                     f.path = destino;
                     f.filename = path.basename(destino);
                     f.mimetype = 'image/webp';
-                    f.size = buf.length;
-                } catch (e) {
-                    console.log('>>> ⚠️ No se pudo optimizar, se deja el original:', e.message);
+                    f.size = bufferSeguro.length;
+
+                } catch (errorImagen) {
+                    console.error(
+                        '>>> 🔐 Imagen rechazada:',
+                        errorImagen.message
+                    );
+
+                    eliminarArchivos();
+
+                    return res.status(400).json({
+                        error: 'La imagen no es válida o no se pudo procesar. Utiliza una imagen JPG, PNG, WebP o AVIF.',
+                        codigo: 'IMAGEN_INVALIDA'
+                    });
                 }
             }
-        } catch (e) {
-            console.log('>>> ⚠️ Error en optimizarImagenes:', e.message);
+
+            next();
+
+        } catch (error) {
+            console.error(
+                '>>> 🔐 Error procesando imágenes:',
+                error.message
+            );
+
+            eliminarArchivos();
+
+            return res.status(400).json({
+                error: 'No se pudieron validar los archivos enviados.',
+                codigo: 'ERROR_VALIDACION_ARCHIVOS'
+            });
         }
-        next();
     };
 }
+
 
 // ===== CONFIGURACIÓN PARA AUDIOS =====
 const audioDir = path.join(__dirname, 'uploads/audios');
@@ -2601,7 +2709,7 @@ function contieneNumeroTelefono(texto) {
     return patrones.some(p => p.test(texto));
 }
 
-app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiSuspendido, upload.single('imagen'), moderarImagenChatEscudo, async (req, res) => {
+app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiSuspendido, upload.single('imagen'), optimizarImagenes(1280), moderarImagenChatEscudo, async (req, res) => {
     try {
         console.log('>>> Archivo recibido:', req.file);
         const { conversacion_id, usuario_id, texto } = req.body;
