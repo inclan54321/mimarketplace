@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ImageViewerScreen extends StatelessWidget {
   final String imageUrl;
@@ -17,15 +18,29 @@ class ImageViewerScreen extends StatelessWidget {
               panEnabled: true,
               minScale: 0.5,
               maxScale: 4.0,
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Icon(
-                  Icons.broken_image,
-                  size: 80,
-                  color: Colors.grey,
-                ),
-              ),
+              child: FutureBuilder<String?>(
+  future: FirebaseAuth.instance.currentUser?.getIdToken(),
+  builder: (context, snapshot) {
+    if (!snapshot.hasData) {
+      return const CircularProgressIndicator(
+        color: Colors.white,
+      );
+    }
+
+    return Image.network(
+      imageUrl,
+      headers: {
+        'Authorization': 'Bearer ${snapshot.data}',
+      },
+      fit: BoxFit.contain,
+      errorBuilder: (_, _, _) => const Icon(
+        Icons.broken_image,
+        size: 80,
+        color: Colors.grey,
+      ),
+    );
+  },
+),
             ),
           ),
           // Botón de cerrar

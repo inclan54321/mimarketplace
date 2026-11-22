@@ -2747,6 +2747,42 @@ app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiS
             });
         }
 
+        // 🔐 VERIFICAR QUE EL USUARIO PERTENECE A LA CONVERSACIÓN
+        const conversacionSegura = await pool.query(
+            `SELECT id
+             FROM conversaciones_app
+             WHERE id = $1
+               AND (usuario1_id = $2 OR usuario2_id = $2)
+             LIMIT 1`,
+            [conversacion_id, req.usuarioAutenticado]
+        );
+
+        if (conversacionSegura.rows.length === 0) {
+            console.warn(
+                '>>> 🚫 [SEGURIDAD CHAT] Intento de enviar mensaje a conversación ajena:',
+                {
+                    conversacion: conversacion_id,
+                    usuario: req.usuarioAutenticado
+                }
+            );
+
+            if (req.file) {
+                try {
+                    await fs.promises.unlink(req.file.path);
+                } catch (_) {}
+            }
+
+            return res.status(403).json({
+                error: 'No tienes permiso para enviar mensajes a esta conversación.',
+                codigo: 'NO_ES_PARTICIPANTE'
+            });
+        }
+
+        console.log(
+            '>>> ✅ [SEGURIDAD CHAT] Participante verificado:',
+            conversacion_id
+        );
+
         // 🔥 BLOQUEAR SI HAY RECHAZO DE GRABACIÓN
         const rechazoGrabMsg = await pool.query(
             'SELECT cancelada_por_rechazo_grabacion FROM conversaciones_app WHERE id = $1',
