@@ -10420,18 +10420,26 @@ app.get('/api/encuentro/agendado/:conversacion_id', verificarTokenFirebase, asyn
 
 // CANCELAR ENCUENTRO (con regla de 1 hora mínima + desbloqueo de chat)
 app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res) => {
+    let cliente;
+    let transaccionActiva = false;
+
     try {
         const { id } = req.params;
 
-        // 🔥 Verificar que el usuario autenticado sea PARTE del encuentro
-        const encCheck = await pool.query(
-            'SELECT * FROM encuentros_agendados WHERE id = $1',
+        cliente = await pool.connect();
+        await cliente.query('BEGIN');
+        transaccionActiva = true;
+
+        // 🔒 Bloquear el encuentro antes de comprobar las asistencias
+        const encCheck = await cliente.query(
+            'SELECT * FROM encuentros_agendados WHERE id = $1 FOR UPDATE',
             [id]
         );
         if (encCheck.rows.length === 0) {
             return res.status(404).json({ error: 'Encuentro no encontrado' });
         }
         const enc = encCheck.rows[0];
+
         if (enc.usuario1_id !== req.usuarioAutenticado && enc.usuario2_id !== req.usuarioAutenticado) {
             console.log('>>> ❌ Intento de cancelar encuentro ajeno. User:', req.usuarioAutenticado);
             return res.status(403).json({
@@ -10440,11 +10448,24 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             });
         }
 
+        // 🔒 No permitir cancelar encuentros que ya no están activos
+        if (!['agendado', 'tarde'].includes(enc.estado)) {
+            console.warn('>>> 🚫 [CANCELACIÓN] Encuentro no cancelable:', {
+                encuentroId: id,
+                estado: enc.estado
+            });
+
+            return res.status(409).json({
+                error: 'Este encuentro ya no se puede cancelar.',
+                codigo: 'ENCUENTRO_NO_CANCELABLE'
+            });
+        }
+
         // 🔥 REGLAS DE CANCELACIÓN (3 casos)
         //   1) Nadie confirmó asistencia    → hasta 1 hora antes
         //   2) Solo YO confirmé, el otro no → hasta 10 minutos antes
         //   3) Ambos confirmaron            → NO se puede cancelar
-        const asist = await pool.query(
+        const asist = await cliente.query(
             `SELECT usuario_id, confirmado FROM asistencias_encuentro WHERE encuentro_id = $1`,
             [id]
         );
@@ -10455,7 +10476,7 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             r => r.usuario_id !== req.usuarioAutenticado && r.confirmado === true
         );
 
-        const faltan = await pool.query(
+        const faltan = await cliente.query(
             `SELECT EXTRACT(EPOCH FROM (fecha_encuentro - (NOW() AT TIME ZONE 'America/Costa_Rica'))) AS segundos
              FROM encuentros_agendados WHERE id = $1`,
             [id]
@@ -10504,17 +10525,35 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
             }
         }
 
-        // 🔥 Marcar encuentro como cancelado
-        const result = await pool.query(
-            `UPDATE encuentros_agendados 
-             SET estado = 'cancelado' 
+        // 🔒 Cancelar únicamente si el encuentro sigue activo
+        const result = await cliente.query(
+            `UPDATE encuentros_agendados
+             SET estado = 'cancelado'
              WHERE id = $1
+               AND estado IN ('agendado', 'tarde')
              RETURNING *`,
             [id]
         );
 
+        // 🔒 Si cambió de estado mientras procesábamos, detener
+        if (result.rows.length === 0) {
+            console.warn('>>> 🚫 [CANCELACIÓN] Estado cambió durante la solicitud:', {
+                encuentroId: id
+            });
+
+            return res.status(409).json({
+                error: 'El encuentro cambió de estado. Actualiza la información.',
+                codigo: 'ESTADO_ENCUENTRO_CAMBIO'
+            });
+        }
+
+        console.log('>>> ✅ [CANCELACIÓN] Estado actualizado:', {
+            encuentroId: id,
+            estado: 'cancelado'
+        });
+
         // 🔥 Anular la propuesta de encuentro aceptada
-        await pool.query(
+        await cliente.query(
             `UPDATE propuestas_encuentro
              SET estado = 'rechazada', fecha_actualizacion = NOW()
              WHERE conversacion_id = $1
@@ -10523,7 +10562,7 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
         );
 
         // 🔥 Desbloquear el chat
-        await pool.query(
+        await cliente.query(
             `UPDATE conversaciones_app 
              SET chat_bloqueado = false,
                  cerrado_por_escudo = false,
@@ -10533,7 +10572,7 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
         );
 
         // 🔥 Borrar confirmaciones de cerrar trato
-        await pool.query(
+        await cliente.query(
             `DELETE FROM mensajes_app 
              WHERE conversacion_id = $1 
                AND texto LIKE '||CERRAR_TRATO||%'`,
@@ -10542,7 +10581,7 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
 
         // 🔥 RESET: la propuesta aceptada vuelve a 'rechazada' para que no
         //    siga apareciendo como trato en pie al reabrir el chat.
-        await pool.query(
+        await cliente.query(
             `UPDATE propuestas_encuentro 
              SET estado = 'rechazada', fecha_actualizacion = NOW()
              WHERE conversacion_id = $1 
@@ -10551,7 +10590,7 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
         );
 
         // 🔥 Borrar el mensaje de "encuentro aceptado" del chat
-        await pool.query(
+        await cliente.query(
             `DELETE FROM mensajes_app 
              WHERE conversacion_id = $1 
                AND texto LIKE '||ENCUENTRO_ACEPTADO||%'`,
@@ -10560,7 +10599,7 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
 
         // 🔥 Borrar también los "seguir conversando" viejos para que no
         //    quede rastro del flujo anterior
-        await pool.query(
+        await cliente.query(
             `DELETE FROM mensajes_app 
              WHERE conversacion_id = $1 
                AND texto LIKE '||SEGUIR_CONVERSANDO||%'`,
@@ -10568,11 +10607,17 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
         );
 
         // 🔥 Insertar mensaje de sistema en el chat
-        await pool.query(
+        await cliente.query(
             `INSERT INTO mensajes_app (conversacion_id, usuario_id, texto, imagen, fecha) 
              VALUES ($1, 'SYSTEM', '||TRATO_CANCELADO||', '', NOW())`,
             [enc.conversacion_id]
         );
+
+        // 🔒 Guardar todos los cambios y liberar el bloqueo
+        await cliente.query('COMMIT');
+        transaccionActiva = false;
+
+        console.log('>>> 🔓 [CANCELACIÓN] Transacción completada');
 
         // 🔥 Avisar al otro (alerta + push)
         try {
@@ -10629,7 +10674,25 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
         res.json({ success: true, encuentro: result.rows[0] });
     } catch (error) {
         console.error('Error al cancelar encuentro:', error);
-        res.status(500).json({ error: error.message });
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Error interno al cancelar encuentro'
+            });
+        }
+    } finally {
+        if (cliente) {
+            if (transaccionActiva) {
+                try {
+                    await cliente.query('ROLLBACK');
+                    console.log('>>> 🔒 [CANCELACIÓN] Transacción revertida');
+                } catch (errorRollback) {
+                    console.error('>>> ❌ Error al revertir cancelación:', errorRollback);
+                }
+            }
+
+            cliente.release();
+        }
     }
 });
 
@@ -10638,31 +10701,153 @@ app.post('/api/encuentro/cancelar/:id', verificarTokenFirebase, async (req, res)
 // ============================================================
 
 app.post('/api/encuentro/:id/confirmar-asistencia', verificarTokenFirebase, async (req, res) => {
+    const cliente = await pool.connect();
+    let transaccionActiva = false;
     try {
         const { id } = req.params;
         const usuarioId = req.usuarioAutenticado;
 
-        const enc = await pool.query(
-            'SELECT usuario1_id, usuario2_id, lugar_nombre, fecha_encuentro FROM encuentros_agendados WHERE id = $1',
+        // 🔒 Iniciar transacción para proteger la confirmación
+        await cliente.query('BEGIN');
+        transaccionActiva = true;
+        // 🔒 Bloquear el encuentro mientras se verifica y confirma
+        const enc = await cliente.query(
+            `SELECT usuario1_id, usuario2_id, lugar_nombre,
+                    fecha_encuentro, estado
+             FROM encuentros_agendados
+             WHERE id = $1
+             FOR UPDATE`,
             [id]
         );
-        if (enc.rows.length === 0) return res.status(404).json({ error: 'Encuentro no encontrado' });
-        const e = enc.rows[0];
-        if (e.usuario1_id !== usuarioId && e.usuario2_id !== usuarioId) {
-            return res.status(403).json({ error: 'No autorizado' });
+
+        if (enc.rows.length === 0) {
+            await cliente.query('ROLLBACK');
+            transaccionActiva = false;
+
+            return res.status(404).json({ error: 'Encuentro no encontrado' });
         }
 
-        await pool.query(
-            `INSERT INTO asistencias_encuentro (encuentro_id, usuario_id, confirmado, fecha_confirmacion)
+        const e = enc.rows[0];
+
+        // 🔒 Solo los participantes pueden confirmar
+        if (e.usuario1_id !== usuarioId && e.usuario2_id !== usuarioId) {
+            console.warn('>>> 🚫 [ASISTENCIA] Usuario ajeno al encuentro:', usuarioId);
+
+            await cliente.query('ROLLBACK');
+            transaccionActiva = false;
+
+            return res.status(403).json({
+                error: 'No autorizado',
+                codigo: 'NO_ES_PARTICIPANTE'
+            });
+        }
+
+        // 🔒 No confirmar asistencia a encuentros cancelados o finalizados
+        if (e.estado !== 'agendado') {
+            console.warn('>>> 🚫 [ASISTENCIA] Encuentro no activo:', {
+                encuentroId: id,
+                estado: e.estado
+            });
+
+            await cliente.query('ROLLBACK');
+            transaccionActiva = false;
+
+            return res.status(409).json({
+                error: 'Este encuentro ya no permite confirmar asistencia.',
+                codigo: 'ENCUENTRO_NO_ACTIVO'
+            });
+        }
+
+        // 🔒 Confirmar únicamente durante la hora previa al encuentro
+        const horario = await cliente.query(
+            `SELECT EXTRACT(
+                EPOCH FROM (
+                    fecha_encuentro -
+                    (NOW() AT TIME ZONE 'America/Costa_Rica')
+                )
+            ) AS segundos
+            FROM encuentros_agendados
+            WHERE id = $1`,
+            [id]
+        );
+
+        const segundosRestantes = Number(horario.rows[0]?.segundos);
+
+        if (
+            !Number.isFinite(segundosRestantes) ||
+            segundosRestantes > 3600 ||
+            segundosRestantes < 0
+        ) {
+            console.warn('>>> 🚫 [ASISTENCIA] Confirmación fuera de horario:', {
+                encuentroId: id,
+                segundosRestantes
+            });
+
+            await cliente.query('ROLLBACK');
+            transaccionActiva = false;
+
+            return res.status(409).json({
+                error: 'Solo puedes confirmar tu asistencia durante la hora anterior al encuentro.',
+                codigo: 'CONFIRMACION_FUERA_DE_HORARIO'
+            });
+        }
+
+        console.log('>>> ✅ [ASISTENCIA] Confirmación dentro del horario permitido');
+
+        // 🔒 Confirmar una sola vez, incluso con solicitudes simultáneas
+        const confirmacion = await cliente.query(
+            `INSERT INTO asistencias_encuentro
+                (encuentro_id, usuario_id, confirmado, fecha_confirmacion)
              VALUES ($1, $2, TRUE, NOW())
-             ON CONFLICT (encuentro_id, usuario_id) 
-             DO UPDATE SET confirmado = TRUE, fecha_confirmacion = NOW()`,
+             ON CONFLICT (encuentro_id, usuario_id)
+             DO UPDATE SET
+                 confirmado = TRUE,
+                 fecha_confirmacion = NOW()
+             WHERE asistencias_encuentro.confirmado IS DISTINCT FROM TRUE
+             RETURNING usuario_id`,
             [id, usuarioId]
         );
 
+        // 🔒 Si ya estaba confirmado, no repetir alertas ni notificaciones
+        if (confirmacion.rows.length === 0) {
+            console.log('>>> 🔒 [ASISTENCIA] Confirmación duplicada ignorada:', {
+                encuentroId: id,
+                usuarioId
+            });
+
+            const existentes = await cliente.query(
+                `SELECT usuario_id
+                 FROM asistencias_encuentro
+                 WHERE encuentro_id = $1 AND confirmado = TRUE`,
+                [id]
+            );
+
+            await cliente.query('COMMIT');
+            transaccionActiva = false;
+
+            return res.json({
+                success: true,
+                ambos_confirmaron: existentes.rows.length >= 2,
+                ya_confirmado: true
+            });
+        }
+
+        console.log('>>> ✅ [ASISTENCIA] Primera confirmación registrada:', {
+            encuentroId: id,
+            usuarioId
+        });
+
+        // 🔒 Guardar la confirmación y liberar el bloqueo
+        // antes de enviar notificaciones.
+        await cliente.query('COMMIT');
+        transaccionActiva = false;
+
+        console.log('>>> 🔓 [ASISTENCIA] Transacción confirmada y bloqueo liberado');
+
         const otroId = e.usuario1_id === usuarioId ? e.usuario2_id : e.usuario1_id;
 
-        const quien = await pool.query('SELECT nombre FROM usuarios WHERE uid = $1', [usuarioId]);
+        try {
+            const quien = await pool.query('SELECT nombre FROM usuarios WHERE uid = $1', [usuarioId]);
         const nombreQuien = quien.rows[0]?.nombre || 'El otro usuario';
         const fechaTxt = new Date(e.fecha_encuentro).toLocaleString('es-CR', { timeZone: 'America/Costa_Rica' });
 
@@ -10690,18 +10875,44 @@ app.post('/api/encuentro/:id/confirmar-asistencia', verificarTokenFirebase, asyn
                     data: { tipo: 'confirmacion_asistencia', encuentro_id: id.toString() },
                 });
             }
-        } catch (err) { console.error('Error push:', err.message); }
+             } catch (err) { console.error('Error push:', err.message); }
 
-        const confirmaciones = await pool.query(
-            'SELECT usuario_id FROM asistencias_encuentro WHERE encuentro_id = $1 AND confirmado = TRUE',
-            [id]
-        );
-        const ambos = confirmaciones.rows.length >= 2;
+        } catch (errorNotificacion) {
+            console.error('>>> ⚠️ [ASISTENCIA] Confirmación guardada, pero falló la notificación:', errorNotificacion.message);
+        }
+
+        let ambos = false;
+
+        try {
+            const confirmaciones = await pool.query(
+                'SELECT usuario_id FROM asistencias_encuentro WHERE encuentro_id = $1 AND confirmado = TRUE',
+                [id]
+            );
+
+            ambos = confirmaciones.rows.length >= 2;
+        } catch (errorConsulta) {
+            console.error('>>> ⚠️ [ASISTENCIA] Error consultando confirmaciones:', errorConsulta.message);
+        }
 
         res.json({ success: true, ambos_confirmaron: ambos });
     } catch (err) {
+        if (transaccionActiva) {
+            try {
+                await cliente.query('ROLLBACK');
+            } catch (errorRollback) {
+                console.error('Error al revertir transacción:', errorRollback);
+            }
+        }
+
         console.error('Error al confirmar asistencia:', err);
-        res.status(500).json({ error: err.message });
+
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Error interno al confirmar asistencia'
+            });
+        }
+    } finally {
+        cliente.release();
     }
 });
 
