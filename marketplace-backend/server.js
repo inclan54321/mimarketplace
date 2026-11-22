@@ -2831,7 +2831,7 @@ app.post('/api/productos', rateLimitProductosCrear, verificarTokenFirebase, bloq
         console.log('>>> ✅ UID coincide, procediendo a publicar');
         
         // Obtener URLs de las imágenes
-        const imagen_destacada_url = req.files['imagen_destacada'] ? `/uploads/${req.files['imagen_destacada'][0].filename}` : '';
+        let imagen_destacada_url = req.files['imagen_destacada'] ? `/uploads/${req.files['imagen_destacada'][0].filename}` : '';
         // ===== IMAGEN PRINCIPAL: PRIMERO LA DESTACADA, SINO LA PRIMERA REAL =====
 let imagen_principal_url = '';
 // 🔥 PRIMERO INTENTAR USA LA PRIMERA IMAGEN REAL COMO PRINCIPAL
@@ -5493,7 +5493,18 @@ app.get('/api/productos/:id/estadisticas', async (req, res) => {
         const { id } = req.params;
         const { dias } = req.query; // Últimos N días (default: 30)
 
-        const limiteDias = parseInt(dias) || 30;
+        const limiteDias = dias === undefined ? 30 : Number(dias);
+
+        if (
+            !Number.isSafeInteger(limiteDias) ||
+            limiteDias < 1 ||
+            limiteDias > 365
+        ) {
+            return res.status(400).json({
+                error: 'El número de días debe estar entre 1 y 365',
+                codigo: 'DIAS_INVALIDOS'
+            });
+        }
 
         // 1. Total de vistas
         const totalResult = await pool.query(
@@ -5507,10 +5518,10 @@ app.get('/api/productos/:id/estadisticas', async (req, res) => {
         const diarioResult = await pool.query(
             `SELECT fecha, total_vistas
              FROM vistas_resumen_diario
-             WHERE producto_id = $1 
-               AND fecha >= NOW() - INTERVAL '${limiteDias} days'
+             WHERE producto_id = $1
+               AND fecha >= NOW() - ($2::int * INTERVAL '1 day')
              ORDER BY fecha ASC`,
-            [id]
+            [id, limiteDias]
         );
 
         // 3. Ranking de productos (para la gráfica de barras)
