@@ -355,6 +355,12 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
     maxAge: '30d',
     immutable: true,
+    setHeaders: (res, filePath) => {
+        // Evita que el navegador interprete archivos como otro tipo de contenido.
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+
+        console.log('>>> 🛡️ [ARCHIVOS] Sirviendo archivo:', path.basename(filePath));
+    }
 }));
 app.use('/uploads/grabaciones', express.static(path.join(__dirname, 'uploads', 'grabaciones')));
 
@@ -380,6 +386,8 @@ const upload = multer({
 // 🔐 PROCESAMIENTO Y VALIDACIÓN SEGURA DE IMÁGENES
 function optimizarImagenes(maxLado = 1280, calidad = 75) {
     return async (req, res, next) => {
+        console.log('\n>>> 🛡️ [SEGURIDAD IMÁGENES] Iniciando validación');
+
         const archivos = [];
 
         if (req.file) archivos.push(req.file);
@@ -406,6 +414,13 @@ function optimizarImagenes(maxLado = 1280, calidad = 75) {
 
         try {
             for (const f of archivos) {
+
+                console.log('>>> 📁 [IMAGEN] Archivo recibido:', {
+                    campo: f.fieldname,
+                    nombre: f.originalname,
+                    tipoDeclarado: f.mimetype,
+                    tamañoKB: Math.round(f.size / 1024)
+                });
 
                 // Los audios tienen su propio procesamiento.
                 if (f.fieldname === 'audio') continue;
@@ -437,6 +452,9 @@ function optimizarImagenes(maxLado = 1280, calidad = 75) {
                     });
 
                     const metadata = await imagen.metadata();
+
+                    console.log('>>> 🔍 [IMAGEN] Formato real detectado:', metadata.format);
+                    console.log('>>> 📐 [IMAGEN] Dimensiones:', metadata.width, 'x', metadata.height);
 
                     const formatosPermitidos = [
                         'jpeg',
@@ -488,9 +506,14 @@ function optimizarImagenes(maxLado = 1280, calidad = 75) {
                     f.mimetype = 'image/webp';
                     f.size = bufferSeguro.length;
 
+                    console.log('>>> ✅ [IMAGEN] Imagen validada y convertida a WebP:', {
+                        archivo: f.filename,
+                        tamañoFinalKB: Math.round(f.size / 1024)
+                    });
+
                 } catch (errorImagen) {
                     console.error(
-                        '>>> 🔐 Imagen rechazada:',
+                        '>>> ❌ [SEGURIDAD] IMAGEN RECHAZADA:',
                         errorImagen.message
                     );
 
