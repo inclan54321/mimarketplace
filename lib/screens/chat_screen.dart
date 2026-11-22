@@ -22,7 +22,7 @@ import 'image_viewer_screen.dart';
 import 'seleccionar_lugar_mapa_screen.dart';
 import 'ver_mapa_propuesta_screen.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
-import 'package:flutter_sound/flutter_sound.dart';
+import 'package:flutter_sound/flutter_sound.dart' hide PlayerState;
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -36,6 +36,7 @@ import 'package:shared_preferences/shared_preferences.dart';       // 🔥 NUEVO
 import 'package:intl/intl.dart';                                    // 🔥 NUEVO
 import 'dart:ui' as ui;
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 
 class ChatScreen extends StatefulWidget {
@@ -3086,52 +3087,156 @@ void _ocultarCirculoGrabacion() {
 }
 
 
-// ============ 🔥 NUEVO: REPRODUCIR AUDIO ============
+
+ // ============ 🔥 REPRODUCIR AUDIO PRIVADO CON FIREBASE ============
 Future<void> _reproducirAudio(String audioUrl, String mensajeId) async {
   try {
-    // Si ya se está reproduciendo este audio, pausar
+    // Si el audio está reproduciéndose, pausarlo.
     if (_audioPlayingId == mensajeId && _isAudioPlaying) {
       await _audioPlayer.pause();
-      setState(() {
-        _isAudioPlaying = false;
-      });
+
+      if (mounted) {
+        setState(() => _isAudioPlaying = false);
+      }
       return;
     }
-    
-    // Si se está reproduciendo otro audio, detenerlo primero
-    if (_isAudioPlaying) {
-      await _audioPlayer.stop();
-      setState(() {
-        _isAudioPlaying = false;
-        _audioPlayingId = null;
-      });
+
+    // Si el mismo audio estaba pausado, reanudarlo.
+    if (_audioPlayingId == mensajeId &&
+        !_isAudioPlaying &&
+        _audioPlayer.state == PlayerState.paused) {
+      await _audioPlayer.resume();
+
+      if (mounted) {
+        setState(() => _isAudioPlaying = true);
+      }
+      return;
     }
-    
-    // Reproducir el nuevo audio
+
+    // Detener cualquier reproducción anterior.
+    await _audioPlayer.stop();
+
+    if (!mounted) return;
+
+    setState(() {
+      _audioPlayingId = mensajeId;
+      _isAudioPlaying = false;
+    });
+
+    // 🛡️ Obtener token de Firebase.
+    final token =
+        await FirebaseAuth.instance.currentUser?.getIdToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('No se pudo obtener el token de Firebase');
+    }
+
+    // 🛡️ Extraer solamente el nombre del archivo.
+    final nombreArchivo = Uri.parse(audioUrl).pathSegments.last;
+
+    if (!RegExp(r'^[a-zA-Z0-9._-]+\.m4a$')
+        .hasMatch(nombreArchivo)) {
+      throw Exception('Nombre de audio inválido');
+    }
+
+    // 🛡️ Ruta privada del backend.
+    final urlPrivada = Uri.parse(
+      'https://mimarketplace-production.up.railway.app'
+      '/api/chat/audio/${Uri.encodeComponent(nombreArchivo)}',
+    );
+
+    print('>>> 🛡️ [AUDIO] Descargando audio autenticado');
+
+    // 🛡️ Descargar enviando el token Firebase.
+    final client = http.Client();
+    late final http.Response response;
+
+    try {
+      final request = http.Request('GET', urlPrivada);
+      request.headers['Authorization'] = 'Bearer $token';
+
+      final streamed = await client.send(request);
+
+      print(
+        '>>> 🛡️ [AUDIO] Respuesta del servidor: '
+        '${streamed.statusCode}',
+      );
+
+      if (streamed.statusCode != 200) {
+        throw Exception(
+          'Servidor rechazó el audio '
+          '(HTTP ${streamed.statusCode})',
+        );
+      }
+
+      // Limitar la descarga a 20 MB.
+      const maxBytes = 20 * 1024 * 1024;
+      final bytes = <int>[];
+
+      await for (final chunk in streamed.stream) {
+        if (bytes.length + chunk.length > maxBytes) {
+          throw Exception('El audio supera los 20 MB');
+        }
+        bytes.addAll(chunk);
+      }
+
+      if (bytes.isEmpty) {
+        throw Exception('El servidor devolvió un audio vacío');
+      }
+
+      response = http.Response.bytes(bytes, 200);
+    } finally {
+      client.close();
+    }
+
+    // Guardar en carpeta temporal privada de la aplicación.
+    final directorio = await getTemporaryDirectory();
+
+    final archivo = File(
+      '${directorio.path}/chat_audio_$nombreArchivo',
+    );
+
+    await archivo.writeAsBytes(
+      response.bodyBytes,
+      flush: true,
+    );
+
+    if (!mounted) return;
+
+    print('>>> ✅ [AUDIO] Descargado correctamente');
+
+    // Reproducir desde el archivo local.
+    await _audioPlayer.play(
+      DeviceFileSource(archivo.path),
+    );
+
+    if (!mounted) return;
+
     setState(() {
       _audioPlayingId = mensajeId;
       _isAudioPlaying = true;
     });
-    
-    await _audioPlayer.play(UrlSource(audioUrl));
-    
+
+    print('>>> ▶️ [AUDIO] Reproducción iniciada');
   } catch (e) {
-    print('Error al reproducir audio: $e');
+    print('>>> ❌ [AUDIO] Error: $e');
+
+    if (!mounted) return;
+
     setState(() {
       _isAudioPlaying = false;
       _audioPlayingId = null;
     });
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al reproducir audio: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error al reproducir audio: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 }
+
 
 // ============ 🔥 NUEVO: WIDGET DE AUDIO (CORREGIDO) ============
 Widget _buildAudioMessage({

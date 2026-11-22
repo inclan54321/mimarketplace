@@ -4006,6 +4006,98 @@ app.get('/api/chat/imagen/:archivo', verificarTokenFirebase, async (req, res) =>
     }
 });
 
+// ============================================================
+// 🛡️ REPRODUCCIÓN SEGURA DE AUDIOS PRIVADOS DEL CHAT
+// ============================================================
+app.get('/api/chat/audio/:archivo', verificarTokenFirebase, async (req, res) => {
+    try {
+        const archivo = req.params.archivo;
+
+        // Aceptar únicamente nombres generados para archivos M4A.
+        if (!/^[0-9]+-[0-9]+\.m4a$/.test(archivo)) {
+            return res.status(400).json({
+                error: 'Nombre de audio inválido',
+                codigo: 'AUDIO_NOMBRE_INVALIDO'
+            });
+        }
+
+        const rutaAudio = `/uploads/audios/${archivo}`;
+
+        // Comprobar que el archivo pertenece a un mensaje de una
+        // conversación en la que participa el usuario autenticado.
+        const resultado = await pool.query(
+            `SELECT m.id
+             FROM mensajes_app m
+             INNER JOIN conversaciones_app c
+                 ON c.id = m.conversacion_id
+             WHERE m.imagen = $1
+               AND (
+                   c.usuario1_id = $2
+                   OR c.usuario2_id = $2
+               )
+             LIMIT 1`,
+            [rutaAudio, req.usuarioAutenticado]
+        );
+
+        if (resultado.rows.length === 0) {
+            console.warn(
+                '>>> 🚫 [AUDIO PRIVADO] Acceso denegado:',
+                req.usuarioAutenticado,
+                archivo
+            );
+
+            return res.status(403).json({
+                error: 'No tienes permiso para escuchar este audio',
+                codigo: 'AUDIO_NO_AUTORIZADO'
+            });
+        }
+
+        res.setHeader('Cache-Control', 'private, no-store');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.type('audio/mp4');
+
+        console.log(
+            '>>> ✅ [AUDIO PRIVADO] Reproducción autorizada:',
+            resultado.rows[0].id
+        );
+
+        return res.sendFile(
+            archivo,
+            {
+                root: path.join(__dirname, 'uploads', 'audios'),
+                acceptRanges: true
+            },
+            (error) => {
+                if (error && !res.headersSent) {
+                    console.error(
+                        '>>> ❌ [AUDIO PRIVADO] Error enviando archivo:',
+                        error.message
+                    );
+
+                    res.status(error.statusCode || 404).json({
+                        error: 'Audio no disponible'
+                    });
+                }
+            }
+        );
+
+    } catch (error) {
+        console.error(
+            '>>> ❌ [AUDIO PRIVADO] Error:',
+            error.message
+        );
+
+        if (!res.headersSent) {
+            return res.status(500).json({
+                error: 'No se pudo verificar el acceso al audio'
+            });
+        }
+    }
+});
+
+// ============================================================
+// MENSAJES DE LA CONVERSACIÓN
+// ============================================================
 app.get('/api/mensajes/:conversacion_id', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id } = req.params;
