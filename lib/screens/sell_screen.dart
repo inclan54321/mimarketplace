@@ -72,6 +72,30 @@ class _SellScreenState extends State<SellScreen> {
       'colorInicio': Color(0xFFF97316),
       'colorFin': Color(0xFFF59E0B),
     },
+    'Ropa y Calzado': {
+      'imagen': 'ropa_calzado.jpg',
+      'subcategorias': ['Ropa de Hombre', 'Ropa de Mujer', 'Ropa Infantil', 'Zapatos', 'Bolsos y Accesorios'],
+      'icono': Icons.checkroom,
+      'subtitulo': 'Ropa, Zapatos, Accesorios',
+      'colorInicio': Color(0xFFEC4899),
+      'colorFin': Color(0xFF8B5CF6),
+    },
+    'Automóviles': {
+      'imagen': 'automoviles.jpg',
+      'subcategorias': ['Automóviles', 'Motocicletas', 'Repuestos', 'Llantas', 'Accesorios'],
+      'icono': Icons.directions_car,
+      'subtitulo': 'Autos, Motos, Repuestos',
+      'colorInicio': Color(0xFF64748B),
+      'colorFin': Color(0xFF3B82F6),
+    },
+    'Herramientas': {
+      'imagen': 'herramientas.jpg',
+      'subcategorias': ['Herramientas Eléctricas', 'Herramientas Manuales', 'Ferretería', 'Jardinería', 'Seguridad'],
+      'icono': Icons.handyman,
+      'subtitulo': 'Herramientas, Ferretería, Construcción',
+      'colorInicio': Color(0xFFF59E0B),
+      'colorFin': Color(0xFFEF4444),
+    },
     'Música': {
       'imagen': 'musica.png',
       'subcategorias': ['Guitarras', 'Pianos', 'Baterías', 'Vientos', 'Cuerdas'],
@@ -369,34 +393,6 @@ class _SellScreenState extends State<SellScreen> {
                     if (i < categorias.length - 1) const SizedBox(height: 14),
                   ],
 
-                const SizedBox(height: 24),
-
-                // ===== BOTÓN "TODAS LAS CATEGORÍAS" =====
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      print('Mostrar todas las categorías');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF087FE8),
-                      elevation: 2,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(40),
-                        side: BorderSide(color: Colors.grey.shade300, width: 1.5),
-                      ),
-                    ),
-                    child: Text(
-                      AppLocalizations.of(context)!.todasLasCategorias,
-                      style: const TextStyle(
-                        fontFamily: 'Roboto',
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 20),
               ],
             ),

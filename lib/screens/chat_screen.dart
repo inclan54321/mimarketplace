@@ -2086,6 +2086,21 @@ Future<void> _obtenerFotoVendedorReal() async {
     }
   }
 
+  Widget _envolverEscudo(Widget escudo) {
+    if (!_encuentroNoPresentado) return escudo;
+    return Stack(
+      children: [
+        escudo,
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _avisoNoPresentado,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _avisoNoPresentado() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -7060,7 +7075,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                 if (!_estadoEscudoCargado)
   const SizedBox(width: 52, height: 52)
 else
-  EscudoSeguridadWidget(
+  _envolverEscudo(EscudoSeguridadWidget(
                     estado: _conversationStatus,
                     isActive: _iaActiva,
                     videoVistoInicial: _iaActiva,
@@ -7126,7 +7141,7 @@ else
                       }
                       setState(() => _panelAnalisisAbierto = !_panelAnalisisAbierto);
                     },
-                  ),
+                  )),
               ],
             ),   // cierra Row
             ),   // cierra SizedBox(height: 70)

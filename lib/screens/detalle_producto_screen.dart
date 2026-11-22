@@ -1027,16 +1027,12 @@ Future<void> _enviarDenuncia(String motivo) async {
                   imagenes.length,
                   (index) => GestureDetector(
                     onTap: () {
+                      if (_pageController.hasClients) {
+                        _pageController.jumpToPage(index);
+                      }
                       setState(() {
                         _imagenActual = index;
                       });
-                      if (_pageController.hasClients) {
-                        _pageController.animateToPage(
-                          index,
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeInOut,
-                        );
-                      }
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(horizontal: 3),

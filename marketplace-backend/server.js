@@ -11113,38 +11113,43 @@ cron.schedule('0 0 * * *', async () => {
 
         console.log(`>>> 🧪 Testers sin conectarse hoy: ${pendientes.rows.length}`);
 
-        const { getMessaging } = require('firebase-admin/messaging');
-        for (const t of pendientes.rows) {
-            try {
-                await getMessaging().send({
-                    token: t.fcm_token,
-                    notification: {
-                        title: '🧪 Recordatorio de tester',
-                        body: '¡No olvides probar la app hoy! Tu feedback nos ayuda a mejorar.',
-                    },
-                    data: {
-                        tipo: 'recordatorio_tester',
-                    },
-                });
-                console.log(`>>> 📨 Push recordatorio enviada a ${t.usuario_id}`);
-            } catch (e) {
-                console.error(`>>> ❌ Error push a ${t.usuario_id}:`, e.message);
-            }
-        }
+        // 🔥 NOTIFICACIONES A TESTERS DESHABILITADAS
+        // Si quieres reactivarlas, descomenta los bloques de abajo.
+        console.log(`>>> 🧪 Testers pendientes (sin enviar notificación): ${pendientes.rows.length}`);
 
-        // También insertar la alerta en la app
-        for (const t of pendientes.rows) {
-            await pool.query(
-                `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha)
-                 VALUES ($1, 0, $2, 'recordatorio_tester', NOW())`,
-                [
-                    t.usuario_id,
-                    '🧪 No olvides entrar hoy a probar la app. Tu feedback es clave para nosotros.'
-                ]
-            );
-        }
+        // ❌ PUSH DESHABILITADO
+        // const { getMessaging } = require('firebase-admin/messaging');
+        // for (const t of pendientes.rows) {
+        //     try {
+        //         await getMessaging().send({
+        //             token: t.fcm_token,
+        //             notification: {
+        //                 title: '🧪 Recordatorio de tester',
+        //                 body: '¡No olvides probar la app hoy! Tu feedback nos ayuda a mejorar.',
+        //             },
+        //             data: {
+        //                 tipo: 'recordatorio_tester',
+        //             },
+        //         });
+        //         console.log(`>>> 📨 Push recordatorio enviada a ${t.usuario_id}`);
+        //     } catch (e) {
+        //         console.error(`>>> ❌ Error push a ${t.usuario_id}:`, e.message);
+        //     }
+        // }
 
-        console.log('>>> 🧪 CRON de recordatorio a testers FIN');
+        // ❌ ALERTA EN APP DESHABILITADA
+        // for (const t of pendientes.rows) {
+        //     await pool.query(
+        //         `INSERT INTO alertas (usuario_id, producto_id, mensaje, tipo, fecha)
+        //          VALUES ($1, 0, $2, 'recordatorio_tester', NOW())`,
+        //         [
+        //             t.usuario_id,
+        //             '🧪 No olvides entrar hoy a probar la app. Tu feedback es clave para nosotros.'
+        //         ]
+        //     );
+        // }
+
+        console.log('>>> 🧪 CRON de recordatorio a testers FIN (notificaciones deshabilitadas)');
     } catch (e) {
         console.error('>>> ❌ Error en cron de testers:', e.message);
     }

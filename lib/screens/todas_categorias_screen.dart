@@ -19,6 +19,9 @@ class TodasCategoriasScreen extends StatefulWidget {
     'Juegos de Mesa',
     'Juguetes',
     'Figuras',
+    'Automóviles',
+    'Herramientas',
+    'Ropa y Calzado',
   ];
 
   // Mismos íconos que el home
@@ -34,6 +37,9 @@ class TodasCategoriasScreen extends StatefulWidget {
     'Juegos de Mesa': Icons.casino,
     'Juguetes': Icons.toys,
     'Figuras': Icons.emoji_people,
+    'Automóviles': Icons.directions_car,
+    'Herramientas': Icons.handyman,
+    'Ropa y Calzado': Icons.checkroom,
   };
 
   // Misma paleta que el home
@@ -49,6 +55,9 @@ class TodasCategoriasScreen extends StatefulWidget {
     Color(0xFFF59E0B), // Juegos de Mesa
     Color(0xFFF472B6), // Juguetes
     Color(0xFF8B5CF6), // Figuras
+    Color(0xFF3B82F6), // Automóviles
+    Color(0xFFF59E0B), // Herramientas
+    Color(0xFFEC4899), // Ropa y Calzado
   ];
 
   @override

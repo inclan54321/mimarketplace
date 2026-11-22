@@ -12,7 +12,6 @@ import 'imagen_completa_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'todas_categorias_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -54,6 +53,9 @@ final TextEditingController _busquedaController = TextEditingController();
     'Juegos de Mesa',
     'Juguetes',
     'Figuras',
+    'Automóviles',
+    'Herramientas',
+    'Ropa y Calzado',
   ];
 
   @override
@@ -1646,6 +1648,9 @@ Future<void> _cargarProductosDestacados() async {
       'Electrónicos': Icons.memory,
       'Deportes': Icons.directions_run,
       'Hogar': Icons.home,
+      'Automóviles': Icons.directions_car,
+      'Herramientas': Icons.handyman,
+      'Ropa y Calzado': Icons.checkroom,
       'Música': Icons.music_note,
       'Cocina': Icons.restaurant,
       'Películas': Icons.movie,
@@ -1669,6 +1674,9 @@ Future<void> _cargarProductosDestacados() async {
       const Color(0xFFF59E0B), // Juegos de Mesa
       const Color(0xFFF472B6), // Juguetes
       const Color(0xFF8B5CF6), // Figuras
+      const Color(0xFF3B82F6), // Automóviles
+      const Color(0xFFF59E0B), // Herramientas
+      const Color(0xFFEC4899), // Ropa y Calzado
     ];
 
     // Obtener el índice de la categoría

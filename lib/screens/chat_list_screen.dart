@@ -1257,18 +1257,31 @@ class _ChatListScreenState extends State<ChatListScreen>
 
   // ===== TAB AGENDA =====
   Widget _buildTabAgenda() {
-    final agendaFiltrada = _busquedaAgenda.isEmpty
+    final query = _busquedaAgenda.toLowerCase().trim();
+
+    final agendaFiltrada = query.isEmpty
         ? _agenda
         : _agenda.where((item) {
+            // 🔥 El backend devuelve snake_case: otro_usuario
             final nombre =
-                (item['otroUsuario'] ?? '').toString().toLowerCase();
-            final productos = (item['productos'] as List?) ?? [];
-            final nombresProductos = productos
-                .map((p) =>
-                    (p['productoNombre'] ?? '').toString().toLowerCase())
-                .join(' ');
-            return nombre.contains(_busquedaAgenda.toLowerCase()) ||
-                nombresProductos.contains(_busquedaAgenda.toLowerCase());
+                (item['otro_usuario'] ?? item['otroUsuario'] ?? '')
+                    .toString()
+                    .toLowerCase();
+
+            // 🔥 El backend devuelve productos_lista
+            final lista = item['productos_lista'] ?? item['productos'];
+            final nombresProductos = lista is List
+                ? lista
+                    .map((p) => (p['productoNombre'] ??
+                            p['producto_nombre'] ??
+                            '')
+                        .toString()
+                        .toLowerCase())
+                    .join(' ')
+                : (item['producto_nombre'] ?? '').toString().toLowerCase();
+
+            return nombre.contains(query) ||
+                nombresProductos.contains(query);
           }).toList();
 
     return Column(
