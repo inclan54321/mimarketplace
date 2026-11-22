@@ -916,14 +916,13 @@ if (!fs.existsSync(GRABACIONES_DIR)) {
 
 const grabacionStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const { conversacion_id, usuario_id } = req.body;
-        const dir = path.join(GRABACIONES_DIR, `conv_${conversacion_id}`, `user_${usuario_id}`);
-        fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
+        // 🔒 Carpeta fija: nunca usar datos del usuario aquí.
+        cb(null, GRABACIONES_DIR);
     },
     filename: (req, file, cb) => {
-        const chunk = req.body.chunk_numero || Date.now();
-        cb(null, `chunk_${String(chunk).padStart(4, '0')}.m4a`);
+        // 🔒 Nombre temporal único, independiente del formulario.
+        const nombre = require('crypto').randomUUID();
+        cb(null, `temporal_${nombre}.m4a`);
     }
 });
 
@@ -12581,10 +12580,54 @@ app.post(
         const { conversacion_id, usuario_id, chunk_numero, duracion_ms } = req.body;
         const authUid = req.usuarioAutenticado;
 
-        if (usuario_id !== authUid) {
-            if (req.file) try { fs.unlinkSync(req.file.path); } catch (_) {}
+        const limpiarArchivo = () => {
+            if (req.file) {
+                try { fs.unlinkSync(req.file.path); } catch (_) {}
+            }
+        };
+
+        // 🔒 Verificar identidad.
+        if (!authUid || usuario_id !== authUid) {
+            limpiarArchivo();
             return res.status(403).json({ error: 'UID_NO_COINCIDE' });
         }
+
+        // 🔒 Validar todos los campos antes de utilizarlos.
+        const convId = Number(conversacion_id);
+        const chunkNum = Number(chunk_numero);
+        const duracion = Number(duracion_ms);
+
+        if (
+            !Number.isSafeInteger(convId) || convId <= 0 ||
+            !Number.isSafeInteger(chunkNum) || chunkNum < 0 ||
+            !Number.isSafeInteger(duracion) || duracion < 0 ||
+            duracion > 60000
+        ) {
+            limpiarArchivo();
+            return res.status(400).json({
+                error: 'DATOS_GRABACION_INVALIDOS'
+            });
+        }
+
+        // 🔒 Verificar que el usuario pertenece a la conversación.
+        const participante = await pool.query(
+            `SELECT id
+             FROM conversaciones_app
+             WHERE id = $1
+               AND (usuario1_id = $2 OR usuario2_id = $2)
+             LIMIT 1`,
+            [convId, authUid]
+        );
+
+        if (participante.rows.length === 0) {
+            limpiarArchivo();
+            console.warn('>>> 🔒 [GRABACION] Usuario no autorizado');
+            return res.status(403).json({
+                error: 'NO_PERTENECE_A_CONVERSACION'
+            });
+        }
+
+        console.log('>>> 🔒 [GRABACION] Identidad y conversación verificadas');
 
         const estado = await pool.query(
             `SELECT ambos_aceptaron, alguno_rechazo
@@ -12603,7 +12646,26 @@ app.post(
             return res.status(400).json({ error: 'No se recibió audio' });
         }
 
-        const archivo_url = `/uploads/grabaciones/conv_${conversacion_id}/user_${usuario_id}/${path.basename(req.file.path)}`;
+        // 🔒 Ya verificamos identidad, conversación y consentimiento.
+        // Ahora sí podemos mover el archivo a su carpeta definitiva.
+        const carpetaFinal = path.join(
+            GRABACIONES_DIR,
+            `conv_${convId}`,
+            `user_${authUid}`
+        );
+
+        fs.mkdirSync(carpetaFinal, { recursive: true });
+
+        // Nombre único para evitar sobrescribir grabaciones existentes.
+        const nombreFinal = path.basename(req.file.path);
+        const rutaFinal = path.join(carpetaFinal, nombreFinal);
+
+        fs.renameSync(req.file.path, rutaFinal);
+        req.file.path = rutaFinal;
+
+        const archivo_url =
+            `/uploads/grabaciones/conv_${convId}/user_${authUid}/${nombreFinal}`;
+
         const result = await pool.query(
             `INSERT INTO grabaciones_audio
              (conversacion_id, usuario_id, chunk_numero, archivo_url, duracion_ms, tamano_bytes, ip)
