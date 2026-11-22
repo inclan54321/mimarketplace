@@ -674,6 +674,100 @@ function validarTextoProducto(req, res, next) {
     next();
 }
 
+// ============================================================
+// 🛡️ SEGURIDAD: VALIDACIÓN DE ARCHIVOS M4A
+// ============================================================
+async function validarAudioM4A(req, res, next) {
+    console.log('>>> 🛡️ [SEGURIDAD AUDIO] Iniciando validación');
+
+    const archivo = req.file;
+
+    if (!archivo) {
+        console.warn('>>> 🚫 [SEGURIDAD AUDIO] No se recibió archivo');
+        return res.status(400).json({
+            error: 'No se recibió un archivo de audio.',
+            codigo: 'AUDIO_NO_RECIBIDO'
+        });
+    }
+
+    const borrarArchivo = async () => {
+        try {
+            await fs.promises.unlink(archivo.path);
+        } catch (_) {}
+    };
+
+    try {
+        if (!archivo.size || archivo.size < 16) {
+            throw new Error('Archivo vacío o demasiado pequeño');
+        }
+
+        // Leer la cabecera real, no confiar en la extensión o MIME.
+        const handle = await fs.promises.open(archivo.path, 'r');
+        const cabecera = Buffer.alloc(32);
+
+        try {
+            await handle.read(cabecera, 0, 32, 0);
+        } finally {
+            await handle.close();
+        }
+
+        // Los archivos MP4/M4A contienen una caja "ftyp".
+        const tipoCaja = cabecera.toString('ascii', 4, 8);
+        const tamanoCaja = cabecera.readUInt32BE(0);
+        const marca = cabecera.toString('ascii', 8, 12);
+
+        console.log('>>> 🔍 [SEGURIDAD AUDIO] Cabecera:', {
+            tipoCaja,
+            marca,
+            tamanoCaja,
+            tamanoBytes: archivo.size
+        });
+
+        if (
+            tipoCaja !== 'ftyp' ||
+            tamanoCaja < 16 ||
+            tamanoCaja > archivo.size
+        ) {
+            throw new Error('Cabecera MP4/M4A inválida');
+        }
+
+        const marcasPermitidas = [
+            'M4A ',
+            'M4B ',
+            'isom',
+            'iso2',
+            'iso5',
+            'iso6',
+            'mp41',
+            'mp42'
+        ];
+
+        if (!marcasPermitidas.includes(marca)) {
+            throw new Error('Contenedor de audio no permitido');
+        }
+
+        console.log(
+            '>>> ✅ [SEGURIDAD AUDIO] Cabecera M4A válida:',
+            archivo.filename
+        );
+
+        next();
+
+    } catch (error) {
+        console.warn(
+            '>>> 🚫 [SEGURIDAD AUDIO] Archivo rechazado:',
+            error.message
+        );
+
+        await borrarArchivo();
+
+        return res.status(400).json({
+            error: 'El archivo no tiene un formato M4A válido.',
+            codigo: 'AUDIO_INVALIDO'
+        });
+    }
+}
+
 // ===== CONFIGURACIÓN PARA AUDIOS =====
 const audioDir = path.join(__dirname, 'uploads/audios');
 if (!fs.existsSync(audioDir)) {
@@ -3195,7 +3289,7 @@ app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiS
 
 
 // ===== RUTA PARA SUBIR AUDIO EN EL CHAT =====
-app.post('/api/mensajes/audio', verificarTokenFirebase, uploadAudio.single('audio'), moderarAudioChatEscudo, async (req, res) => {
+app.post('/api/mensajes/audio', verificarTokenFirebase, uploadAudio.single('audio'), validarAudioM4A, moderarAudioChatEscudo, async (req, res) => {
     try {
         const { conversacion_id, usuario_id, texto } = req.body;
         const audio_url = req.file ? `/uploads/audios/${req.file.filename}` : '';
@@ -12272,6 +12366,7 @@ app.post(
     rateLimitMensajes,
     verificarTokenFirebase,
     uploadGrabacion.single('audio'),
+    validarAudioM4A,
     async (req, res) => {
     try {
         const { conversacion_id, usuario_id, chunk_numero, duracion_ms } = req.body;

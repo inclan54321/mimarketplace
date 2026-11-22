@@ -168,6 +168,9 @@ class _ChatScreenState extends State<ChatScreen>
   FlutterSoundRecorder? _audioRecorder;
   bool _isRecording = false;
   String? _audioPath;
+
+  // 🛡️ Evita solicitar un token nuevo en cada repintado del chat.
+  late Future<String?> _tokenImagenesFuture;
   // ============ 🔥 NUEVO: AUDIO REPRODUCCIÓN ============
   final AudioPlayer _audioPlayer = AudioPlayer();
   String? _audioPlayingId;
@@ -795,6 +798,12 @@ Future<void> _verificarCalificacion() async {
 @override
 void initState() {
   super.initState();
+
+  // 🛡️ Mantener estable el Future de las imágenes privadas.
+  _tokenImagenesFuture =
+      FirebaseAuth.instance.currentUser?.getIdToken() ??
+      Future<String?>.value(null);
+
   print('>>> 🔥 ====== INITSTATE - CHATSCREEN ======');
   print('>>> 🔥 widget.conversacionId: ${widget.conversacionId}');
     _verificarCalificacion();
@@ -8127,7 +8136,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: FutureBuilder<String?>(
-                            future: FirebaseAuth.instance.currentUser?.getIdToken(),
+                            future: _tokenImagenesFuture,
                             builder: (context, snapshot) {
                               if (snapshot.connectionState != ConnectionState.done) {
                                 return const SizedBox(
