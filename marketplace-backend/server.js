@@ -235,45 +235,136 @@ process.on('SIGTERM', () => {
 
 global.broadcast = broadcast; // para usarlo desde otras funciones
 
-// 🔥 MANEJO DE CONEXIONES
+// 🔐 WEBSOCKET: AUTENTICACIÓN FIREBASE Y AUTORIZACIÓN DE SALA
 wss.on('connection', (ws, req) => {
     try {
         const params = new URLSearchParams(req.url.split('?')[1] || '');
         const conversacionId = params.get('conversacion_id');
-        const usuarioId = params.get('usuario_id');
 
-        if (!conversacionId || !usuarioId) {
-            ws.close(1008, 'Faltan parámetros');
+        if (!conversacionId || !/^[1-9]\d*$/.test(conversacionId)) {
+            ws.close(1008, 'Conversación inválida');
             return;
         }
 
-        ws.conversacionId = String(conversacionId);
-        ws.usuarioId = usuarioId;
-        ws.isAlive = true;  // 🔥 HEARTBEAT
+        ws.isAlive = true;
+        ws.autenticado = false;
+        ws.autenticando = false;
 
-        // 🔥 MARCAR USUARIO COMO EN LÍNEA
-        usuariosEnLinea.set(usuarioId, Date.now());
-        console.log(`>>> 🟢 Usuario ${usuarioId} EN LÍNEA (total: ${usuariosEnLinea.size})`);
-        broadcastPresencia(usuarioId, true);
+        // Si no se autentica en 10 segundos, cerrar.
+        const temporizadorAuth = setTimeout(() => {
+            if (!ws.autenticado) {
+                console.warn('>>> 🚫 [WS SEGURIDAD] Tiempo de autenticación agotado');
+                ws.close(1008, 'Autenticación requerida');
+            }
+        }, 10000);
 
-        // 🔥 GUARDAR ÚLTIMA CONEXIÓN EN BD
-        pool.query(
-            'UPDATE usuarios SET ultima_conexion = NOW() WHERE uid = $1',
-            [usuarioId]
-        ).catch(e => console.log('>>> Error guardando ultima_conexion:', e.message));
+        ws.on('close', () => clearTimeout(temporizadorAuth));
 
-        if (!salas.has(ws.conversacionId)) {
-            salas.set(ws.conversacionId, new Set());
-        }
-        salas.get(ws.conversacionId).add(ws);
-
-        console.log(`>>> 🔌 WS conectado: conv=${conversacionId}, user=${usuarioId} (total en sala: ${salas.get(ws.conversacionId).size})`);
-
-        ws.send(JSON.stringify({ tipo: 'conectado' }));
-
-        ws.on('message', (raw) => {
+        ws.on('message', async (raw) => {
             try {
+                if (raw.length > 16 * 1024) {
+                    ws.close(1009, 'Mensaje demasiado grande');
+                    return;
+                }
+
                 const data = JSON.parse(raw.toString());
+
+                // 🔐 No aceptar ningún evento antes de autenticar.
+                if (!ws.autenticado) {
+                    if (ws.autenticando) {
+                        ws.close(1008, 'Autenticación en curso');
+                        return;
+                    }
+
+                    if (
+                        data.tipo !== 'autenticacion' ||
+                        typeof data.token !== 'string' ||
+                        data.token.length < 20 ||
+                        data.token.length > 8192
+                    ) {
+                        console.warn('>>> 🚫 [WS SEGURIDAD] Token ausente o inválido');
+                        ws.close(1008, 'Autenticación requerida');
+                        return;
+                    }
+
+                    ws.autenticando = true;
+
+                    try {
+                        const decoded = await getAuth().verifyIdToken(
+                            data.token,
+                            true
+                        );
+
+                        if (ws.readyState !== WebSocket.OPEN) return;
+
+                        const usuarioId = decoded.uid;
+
+                        const resultado = await pool.query(
+                            `SELECT id
+                             FROM conversaciones_app
+                             WHERE id = $1
+                               AND (
+                                   usuario1_id = $2
+                                   OR usuario2_id = $2
+                               )
+                             LIMIT 1`,
+                            [conversacionId, usuarioId]
+                        );
+
+                        if (ws.readyState !== WebSocket.OPEN) return;
+
+                        if (resultado.rows.length === 0) {
+                            console.warn(
+                                '>>> 🚫 [WS SEGURIDAD] Usuario ajeno a conversación:',
+                                { conversacionId, usuarioId }
+                            );
+                            ws.close(1008, 'Acceso no autorizado');
+                            return;
+                        }
+
+                        ws.conversacionId = String(conversacionId);
+                        ws.usuarioId = usuarioId;
+                        ws.autenticado = true;
+                        ws.autenticando = false;
+                        clearTimeout(temporizadorAuth);
+
+                        if (!salas.has(ws.conversacionId)) {
+                            salas.set(ws.conversacionId, new Set());
+                        }
+
+                        salas.get(ws.conversacionId).add(ws);
+
+                        usuariosEnLinea.set(usuarioId, Date.now());
+                        broadcastPresencia(usuarioId, true);
+
+                        pool.query(
+                            'UPDATE usuarios SET ultima_conexion = NOW() WHERE uid = $1',
+                            [usuarioId]
+                        ).catch(e => console.log(
+                            '>>> Error guardando ultima_conexion:',
+                            e.message
+                        ));
+
+                        console.log(
+                            '>>> ✅ [WS SEGURIDAD] Conexión autorizada:',
+                            { conversacionId, usuarioId }
+                        );
+
+                        ws.send(JSON.stringify({ tipo: 'conectado' }));
+                        return;
+
+                    } catch (errorAuth) {
+                        console.warn(
+                            '>>> 🚫 [WS SEGURIDAD] Autenticación fallida:',
+                            errorAuth.message
+                        );
+
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.close(1008, 'Acceso denegado');
+                        }
+                        return;
+                    }
+                }
 
                 // 🔥 ACTUALIZAR ÚLTIMA ACTIVIDAD
                 usuariosEnLinea.set(ws.usuarioId, Date.now());
@@ -292,6 +383,10 @@ wss.on('connection', (ws, req) => {
         });
 
         ws.on('close', () => {
+            clearTimeout(temporizadorAuth);
+
+            if (!ws.autenticado) return;
+
             const sala = salas.get(ws.conversacionId);
             if (sala) {
                 sala.delete(ws);
@@ -318,7 +413,10 @@ wss.on('connection', (ws, req) => {
 
         ws.on('pong', () => {
             ws.isAlive = true;
-            usuariosEnLinea.set(ws.usuarioId, Date.now()); // 🔥 NUEVO
+
+            if (ws.autenticado && ws.usuarioId) {
+                usuariosEnLinea.set(ws.usuarioId, Date.now());
+            }
         });
 
         ws.on('error', (e) => {

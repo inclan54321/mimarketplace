@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 
@@ -39,14 +40,46 @@ class ChatWebSocketService {
     _abrir();
   }
 
-  void _abrir() {
+  Future<void> _abrir() async {
     try {
-      final uri = Uri.parse(
-        '$_baseUrl?conversacion_id=$conversacionId&usuario_id=$usuarioId',
-      );
-      _channel = WebSocketChannel.connect(uri);
+      final usuario = FirebaseAuth.instance.currentUser;
 
-      _sub = _channel!.stream.listen(
+      if (!_activo || usuario == null || usuario.uid != usuarioId) {
+        print('>>> 🚫 [WS] Sesión no válida');
+        desconectar();
+        return;
+      }
+
+      final token = await usuario.getIdToken();
+
+      if (!_activo || token == null || token.isEmpty) {
+        print('>>> 🚫 [WS] No se pudo obtener token Firebase');
+        if (_activo) _programarReconexion();
+        return;
+      }
+
+      final uri = Uri.parse(
+        '$_baseUrl?conversacion_id=${Uri.encodeComponent(conversacionId)}',
+      );
+
+      final canal = WebSocketChannel.connect(uri);
+      _channel = canal;
+
+      await canal.ready;
+
+      if (!_activo ||
+          FirebaseAuth.instance.currentUser?.uid != usuarioId) {
+        await canal.sink.close(status.goingAway);
+        return;
+      }
+
+      // Primer mensaje obligatorio: autenticación.
+      canal.sink.add(jsonEncode({
+        'tipo': 'autenticacion',
+        'token': token,
+      }));
+
+      _sub = canal.stream.listen(
         (raw) {
           _intentosReconexion = 0;
           try {
