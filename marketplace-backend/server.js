@@ -5488,10 +5488,28 @@ app.post('/api/productos/:id/vista', verificarTokenFirebase, async (req, res) =>
 });
 
 // ===== OBTENER ESTADÍSTICAS DE UN PRODUCTO =====
-app.get('/api/productos/:id/estadisticas', async (req, res) => {
+app.get('/api/productos/:id/estadisticas', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const { dias } = req.query; // Últimos N días (default: 30)
+
+        const productoResult = await pool.query(
+            'SELECT vendedor_id FROM productos_app WHERE id = $1',
+            [id]
+        );
+
+        if (productoResult.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Producto no encontrado'
+            });
+        }
+
+        if (productoResult.rows[0].vendedor_id !== req.usuarioAutenticado) {
+            console.warn('>>> 🔒 [ESTADÍSTICAS] Acceso no autorizado');
+            return res.status(403).json({
+                error: 'No puedes consultar estadísticas de otro vendedor'
+            });
+        }
 
         const limiteDias = dias === undefined ? 30 : Number(dias);
 
@@ -9048,23 +9066,46 @@ app.get('/api/encuentro/horarios-ocupados/:usuario1/:usuario2', verificarTokenFi
         res.status(500).json({ error: error.message });
     }
 });
-// 🔥 OBTENER PROPUESTA POR ID
-app.get('/api/encuentro/propuesta/:id', async (req, res) => {
+// 🔒 OBTENER PROPUESTA SOLO SI EL USUARIO PARTICIPA
+app.get('/api/encuentro/propuesta/:id', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
+
         const result = await pool.query(
             `SELECT * FROM propuestas_encuentro WHERE id = $1`,
             [id]
         );
 
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Propuesta no encontrada' });
+            return res.status(404).json({
+                error: 'Propuesta no encontrada'
+            });
         }
 
-        res.json(result.rows[0]);
+        const propuesta = result.rows[0];
+
+        // 🔒 Solo quien propone o recibe puede consultar
+        if (
+            propuesta.usuario_propone_id !== usuarioId &&
+            propuesta.usuario_recibe_id !== usuarioId
+        ) {
+            console.warn('>>> 🔒 [PROPUESTA] Acceso no autorizado');
+
+            return res.status(403).json({
+                error: 'No tienes permiso para consultar esta propuesta'
+            });
+        }
+
+        console.log('>>> ✅ [PROPUESTA] Acceso autorizado');
+
+        res.json(propuesta);
+
     } catch (error) {
         console.error('Error al obtener propuesta:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: 'Error interno al obtener propuesta'
+        });
     }
 });
 

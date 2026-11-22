@@ -1510,9 +1510,15 @@ void dispose() {
         // 🔥 SI NO ESTÁ EN CACHÉ, PEDIRLA AL SERVER
         if (!_cachePropuestas.containsKey(propuestaId)) {
           try {
+            final idTokenPropuesta = await FirebaseAuth.instance.currentUser?.getIdToken();
+
             final response = await http.get(
               Uri.parse(
                   'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'),
+              headers: {
+                if (idTokenPropuesta != null)
+                  'Authorization': 'Bearer $idTokenPropuesta',
+              },
             );
             if (response.statusCode == 200) {
               final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -1557,8 +1563,16 @@ void dispose() {
         final propuestaId = _extraerPropuestaId(texto);
         if (!_cachePropuestas.containsKey(propuestaId)) {
           try {
-            final r = await http.get(Uri.parse(
-                'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'));
+            final idTokenPropuesta = await FirebaseAuth.instance.currentUser?.getIdToken();
+
+            final r = await http.get(
+              Uri.parse(
+                  'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'),
+              headers: {
+                if (idTokenPropuesta != null)
+                  'Authorization': 'Bearer $idTokenPropuesta',
+              },
+            );
             if (r.statusCode == 200) {
               _cachePropuestas[propuestaId] = jsonDecode(r.body);
             }
@@ -5605,10 +5619,15 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     }
 
     // 🔥 SI NO, PEDIR AL SERVER
-    return http.get(
-      Uri.parse(
-          'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'),
-    ).then<Map<String, dynamic>?>((response) {
+    return FirebaseAuth.instance.currentUser!.getIdToken().then((idToken) {
+      return http.get(
+        Uri.parse(
+            'https://mimarketplace-production.up.railway.app/api/encuentro/propuesta/$propuestaId'),
+        headers: {
+          'Authorization': 'Bearer $idToken',
+        },
+      );
+    }).then<Map<String, dynamic>?>((response) {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _cachePropuestas[propuestaId] = data;
