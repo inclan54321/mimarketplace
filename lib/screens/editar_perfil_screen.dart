@@ -91,10 +91,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception(l10n.usuarioNoAutenticado);
 
-      // 🔥 ACTUALIZAR EN FIREBASE AUTH (displayName)
-      await user.updateDisplayName(nombre);
-
-      // 🔥 ACTUALIZAR EN EL BACKEND
+      // 🛡️ PRIMERO VALIDAR Y GUARDAR EN EL BACKEND
+      // Firebase se actualizará únicamente si el servidor acepta.
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       print('>>> 👤 Editar perfil. Token: ${idToken != null ? "SÍ" : "NO"}');
       final response = await http.put(
@@ -110,6 +108,16 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       );
 
       if (response.statusCode == 200) {
+        print('>>> ✅ [SEGURIDAD PERFIL] Backend aceptó los cambios');
+
+        // Actualizar Firebase únicamente después de que el backend acepte.
+        try {
+          await user.updateDisplayName(nombre);
+          print('>>> ✅ [SEGURIDAD PERFIL] Nombre actualizado en Firebase');
+        } catch (e) {
+          print('>>> ⚠️ [SEGURIDAD PERFIL] Error sincronizando Firebase: $e');
+        }
+
         // 🔥 ACTUALIZAR CACHÉ LOCAL
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('nombre_usuario', nombre);
@@ -227,7 +235,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                       // 🔥 CAMPO NOMBRE
                       TextField(
                         controller: _nombreController,
-                        decoration: InputDecoration(
+maxLength: 150,
+decoration: InputDecoration(
                           labelText: l10n.nombreCompleto,
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.person),
@@ -238,7 +247,8 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                       // 🔥 CAMPO TELÉFONO
                       TextField(
                         controller: _telefonoController,
-                        decoration: InputDecoration(
+maxLength: 30,
+decoration: InputDecoration(
                           labelText: l10n.telefono,
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.phone),

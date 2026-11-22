@@ -3998,8 +3998,66 @@ app.get('/api/mensajes/:conversacion_id', verificarTokenFirebase, async (req, re
     }
 });
 
+// ============================================================
+// 🛡️ SEGURIDAD DE TEXTO EN PERFILES
+// ============================================================
+function validarDatosPerfil(req, res, next) {
+    console.log('>>> 🛡️ [SEGURIDAD PERFIL] Iniciando validación');
+
+    const campos = {
+        nombre: 150,
+        telefono: 30
+    };
+
+    for (const [campo, limite] of Object.entries(campos)) {
+        const valor = req.body[campo];
+
+        // Permitir campos omitidos en actualizaciones parciales.
+        if (valor === undefined || valor === null) continue;
+
+        if (typeof valor !== 'string') {
+            console.warn('>>> 🚫 [SEGURIDAD PERFIL] Tipo inválido:', campo);
+            return res.status(400).json({
+                error: `El campo ${campo} debe ser texto.`,
+                codigo: 'TIPO_TEXTO_INVALIDO'
+            });
+        }
+
+        if (valor.length > limite) {
+            console.warn('>>> 🚫 [SEGURIDAD PERFIL] Longitud excesiva:', campo);
+            return res.status(400).json({
+                error: `El campo ${campo} supera el límite permitido.`,
+                codigo: 'TEXTO_DEMASIADO_LARGO'
+            });
+        }
+
+        if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(valor)) {
+            console.warn('>>> 🚫 [SEGURIDAD PERFIL] Caracteres inválidos:', campo);
+            return res.status(400).json({
+                error: `El campo ${campo} contiene caracteres no permitidos.`,
+                codigo: 'CARACTERES_CONTROL_INVALIDOS'
+            });
+        }
+    }
+
+    if (
+        req.body.acepta_recoleccion !== undefined &&
+        req.body.acepta_recoleccion !== null &&
+        typeof req.body.acepta_recoleccion !== 'boolean'
+    ) {
+        console.warn('>>> 🚫 [SEGURIDAD PERFIL] Booleano inválido');
+        return res.status(400).json({
+            error: 'El valor de acepta_recoleccion no es válido.',
+            codigo: 'BOOLEANO_INVALIDO'
+        });
+    }
+
+    console.log('>>> ✅ [SEGURIDAD PERFIL] Datos validados correctamente');
+    next();
+}
+
 // RUTA PARA CREAR USUARIO
-app.post('/api/usuarios', rateLimitRegistroUsuario, verificarTokenFirebase, async (req, res) => {
+app.post('/api/usuarios', rateLimitRegistroUsuario, verificarTokenFirebase, validarDatosPerfil, async (req, res) => {
     try {
         const { uid, email, nombre, telefono, acepta_recoleccion } = req.body;
         console.log('>>> Creando usuario:', { uid, email, nombre, telefono, acepta_recoleccion });
@@ -7643,7 +7701,7 @@ app.get('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
 // ============================================================
 // 🔥 ACTUALIZAR DATOS DE UN USUARIO
 // ============================================================
-app.put('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
+app.put('/api/usuarios/:uid', verificarTokenFirebase, validarDatosPerfil, async (req, res) => {
     try {
          const { uid } = req.params;
         const { nombre, telefono, acepta_recoleccion } = req.body;
