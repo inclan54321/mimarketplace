@@ -1504,13 +1504,18 @@ Future<void> _precargarImagenPerfil() async {
         ),
       );
     }
+
+    // 🔤 Ordenar alfabéticamente (sin modificar la lista original)
+    final productosOrdenados = List<Producto>.from(_misProductos)
+      ..sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+
     return RefreshIndicator(
       onRefresh: _cargarMisProductos,
       child: ListView.builder(
         padding: const EdgeInsets.only(top: 4, bottom: 20),
-        itemCount: _misProductos.length,
+        itemCount: productosOrdenados.length,
         itemBuilder: (context, index) {
-          final producto = _misProductos[index];
+          final producto = productosOrdenados[index];
           return GestureDetector(
             // 🔥 DEJAR PRESIONADO PARA PREGUNTAR SI SE VENDIÓ
             onLongPress: () => _preguntarSiSeVendio(producto),

@@ -6,6 +6,14 @@ const path = require('path');
 const axios = require('axios');
 const cron = require('node-cron');
 require('dotenv').config();
+
+// 🔥 USUARIOS EXENTOS DE MODERACIÓN (se identifican por UID, nunca por nombre)
+const UIDS_SIN_MODERACION = [
+    'oJyBfNlBeeeQ4BzfUvGuAuAUQJ43',
+];
+function esUsuarioExentoModeracion(uid) {
+    return !!uid && UIDS_SIN_MODERACION.includes(uid);
+}
 console.log('>>> 🔥 GEMINI_KEY configurada:', process.env.GEMINI_API_KEY ? 'SÍ ✅' : 'NO ❌');
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -1680,7 +1688,11 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO. NO agregues texto adicional. NO uses c
     }
 }
 // ===== MODERACIÓN CON DEEPSEEK VISION =====
-async function moderarProductoConGemini(nombre, descripcion, categoria, imagenPath) {
+async function moderarProductoConGemini(nombre, descripcion, categoria, imagenPath, usuarioId) {
+    if (esUsuarioExentoModeracion(usuarioId)) {
+        console.log('>>> 🛡️ Usuario exento de moderación (imagen):', usuarioId);
+        return { aprobado: true, motivo: '' };
+    }
     try {
         console.log('>>> 🚨🚨🚨 DEEPSEEK LLAMADO DESDE moderarProductoConGemini');
         console.log('>>> 🚨 Producto:', nombre);
@@ -2448,7 +2460,8 @@ const imagenes_reales_json = JSON.stringify(imagenes_reales_urls);
                         producto.nombre,
                         producto.descripcion,
                         producto.categoria,
-                        primeraImagenLocal
+                        primeraImagenLocal,
+                        producto.vendedor_id
                     );
 
                     if (resultadoModeracion.aprobado) {
@@ -5078,7 +5091,11 @@ Responde ÚNICAMENTE con este JSON:
 
 
 // ===== ANALIZAR AUDIO DEL PRODUCTO CON QWEN (DashScope) =====
-async function analizarAudioConQwen(audioPath, nombre, descripcion, categoria) {
+async function analizarAudioConQwen(audioPath, nombre, descripcion, categoria, usuarioId) {
+    if (esUsuarioExentoModeracion(usuarioId)) {
+        console.log('>>> 🛡️ Usuario exento de moderación (audio):', usuarioId);
+        return { aprobado: true, motivo: '' };
+    }
     const RECHAZO_GENERICO = { aprobado: false, motivo: 'No se pudo verificar el audio. Inténtalo nuevamente.' };
     const BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions';
 
@@ -5849,7 +5866,8 @@ const resultadoModeracion = await moderarProductoConGemini(
     nombreModeracion,
     descripcionModeracion,
     categoriaModeracion,
-    imagenParaModerar
+    imagenParaModerar,
+    req.usuarioAutenticado
 );
 
 if (!resultadoModeracion.aprobado) {
@@ -5940,7 +5958,8 @@ const productoModerado = result.rows[0];
             productoModerado.nombre,
             productoModerado.descripcion,
             productoModerado.categoria,
-            imagenModeracion
+            imagenModeracion,
+            productoModerado.vendedor_id
         );
 
         if (resultadoModeracion.aprobado) {
@@ -6020,7 +6039,8 @@ const productoModerado = result.rows[0];
                         audioParaAnalizar,
                         prod.nombre,
                         prod.descripcion,
-                        prod.categoria
+                        prod.categoria,
+                        prod.vendedor_id
                     );
 
                     if (!v.aprobado) {
@@ -6168,7 +6188,14 @@ RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO:
     }
 }
 // ===== ANALIZAR IMAGEN COMPLETA CON DEEPSEEK VISION =====
-async function analizarImagenCompleta(imagenPath) {
+async function analizarImagenCompleta(imagenPath, usuarioId) {
+    if (esUsuarioExentoModeracion(usuarioId)) {
+        console.log('>>> 🛡️ Usuario exento de moderación (imagen destacada):', usuarioId);
+        return {
+            moderacion: { aprobado: true, motivo: '' },
+            calidad: { aprobado: true, motivo: '' }
+        };
+    }
     try {
         console.log('>>> 🚨🚨🚨 DEEPSEEK LLAMADO DESDE analizarImagenCompleta');
         console.log('>>> 🚨 Imagen:', imagenPath);
@@ -6379,7 +6406,7 @@ app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single(
                 console.log('>>> Iniciando análisis IA para imagen destacada...');
                 
                 // 🔥 UNIFICAR AMBAS REVISIONES EN UNA SOLA LLAMADA
-                const resultadoUnificado = await analizarImagenCompleta(imagenPath);
+                const resultadoUnificado = await analizarImagenCompleta(imagenPath, vendedor_id);
                 console.log('>>> Resultado unificado:', resultadoUnificado);
 
                 const aprobado = resultadoUnificado.moderacion.aprobado && resultadoUnificado.calidad.aprobado;
