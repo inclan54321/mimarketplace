@@ -456,6 +456,24 @@ app.use('/uploads', async (req, res, next) => {
     try {
         const ruta = '/uploads' + req.path;
 
+        // 🔐 BLOQUEAR ACCESO PÚBLICO A GRABACIONES DE SEGURIDAD
+        if (
+            req.path === '/grabaciones' ||
+            req.path.startsWith('/grabaciones/')
+        ) {
+            console.warn(
+                '>>> 🔒 [GRABACIONES] Acceso público bloqueado:',
+                req.path
+            );
+
+            res.setHeader('Cache-Control', 'no-store');
+
+            return res.status(403).json({
+                error: 'Grabación privada',
+                codigo: 'GRABACION_PRIVADA'
+            });
+        }
+
         // 🔐 BLOQUEAR ACCESO DIRECTO A IMÁGENES PRIVADAS DEL CHAT
         if (req.path.startsWith('/.chat_privado/')) {
             console.warn(
@@ -507,7 +525,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
         console.log('>>> 🛡️ [ARCHIVOS] Sirviendo archivo:', path.basename(filePath));
     }
 }));
-app.use('/uploads/grabaciones', express.static(path.join(__dirname, 'uploads', 'grabaciones')));
+// 🔐 Las grabaciones de seguridad no se publican mediante express.static.
+// Su acceso debe realizarse únicamente por rutas autenticadas.
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -12646,7 +12665,7 @@ app.get(
         }
 
         const r = await pool.query(
-            `SELECT usuario_id, chunk_numero, archivo_url, duracion_ms, tamano_bytes, fecha
+            `SELECT id, usuario_id, chunk_numero, archivo_url, duracion_ms, tamano_bytes, fecha
              FROM grabaciones_audio
              WHERE conversacion_id = $1
              ORDER BY usuario_id, chunk_numero ASC`,
@@ -12659,6 +12678,135 @@ app.get(
         res.status(500).json({ error: e.message });
     }
 });
+
+// 🔐 DESCARGA PRIVADA DE GRABACIONES DE SEGURIDAD
+app.get(
+    '/api/grabacion/audio/:id',
+    verificarTokenFirebase,
+    async (req, res) => {
+        try {
+            const audioId = req.params.id;
+            const usuarioId = req.usuarioAutenticado;
+
+            if (!/^[1-9]\d*$/.test(audioId)) {
+                return res.status(400).json({
+                    error: 'ID de grabación inválido'
+                });
+            }
+
+            const resultado = await pool.query(
+                `SELECT g.archivo_url, g.conversacion_id,
+                        c.usuario1_id, c.usuario2_id
+                 FROM grabaciones_audio g
+                 JOIN conversaciones_app c
+                   ON c.id = g.conversacion_id
+                 WHERE g.id = $1
+                 LIMIT 1`,
+                [audioId]
+            );
+
+            if (resultado.rows.length === 0) {
+                return res.status(404).json({
+                    error: 'Grabación no encontrada'
+                });
+            }
+
+            const grabacion = resultado.rows[0];
+
+            const admin = await pool.query(
+                'SELECT email FROM usuarios WHERE uid = $1',
+                [usuarioId]
+            );
+
+            const esAdmin =
+                admin.rows[0]?.email?.trim().toLowerCase() ===
+                'universo3dcr@gmail.com';
+
+            const esParticipante =
+                grabacion.usuario1_id === usuarioId ||
+                grabacion.usuario2_id === usuarioId;
+
+            if (!esAdmin && !esParticipante) {
+                console.warn(
+                    '>>> 🚫 [GRABACIONES] Acceso no autorizado:',
+                    { audioId, usuarioId }
+                );
+
+                return res.status(403).json({
+                    error: 'No autorizado'
+                });
+            }
+
+            const carpetaBase = path.resolve(
+                __dirname,
+                'uploads',
+                'grabaciones'
+            );
+
+            const rutaPublica = grabacion.archivo_url;
+
+            if (
+                typeof rutaPublica !== 'string' ||
+                !rutaPublica.startsWith('/uploads/grabaciones/')
+            ) {
+                return res.status(404).json({
+                    error: 'Ruta de grabación inválida'
+                });
+            }
+
+            const rutaRelativa = rutaPublica.substring(
+                '/uploads/grabaciones/'.length
+            );
+
+            const archivo = path.resolve(
+                carpetaBase,
+                rutaRelativa
+            );
+
+            if (!archivo.startsWith(carpetaBase + path.sep)) {
+                return res.status(403).json({
+                    error: 'Ruta no permitida'
+                });
+            }
+
+            res.setHeader('Cache-Control', 'no-store');
+            res.setHeader('X-Content-Type-Options', 'nosniff');
+            res.type('audio/mp4');
+
+            console.log(
+                '>>> 🔐 [GRABACIONES] Descarga autorizada:',
+                { audioId, usuarioId }
+            );
+
+            return res.sendFile(archivo, (error) => {
+                if (error) {
+                    console.error(
+                        '>>> ❌ [GRABACIONES] Error enviando archivo:',
+                        error.message
+                    );
+
+                    if (!res.headersSent) {
+                        res.status(error.status || 500).json({
+                            error: 'No se pudo entregar la grabación'
+                        });
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error(
+                '>>> ❌ [GRABACIONES] Error:',
+                error.message
+            );
+
+            if (!res.headersSent) {
+                return res.status(500).json({
+                    error: 'Error consultando grabación'
+                });
+            }
+        }
+    }
+);
 
 app.use((err, req, res, next) => {
     if (err && err.name === 'MulterError') {
