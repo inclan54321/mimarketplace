@@ -4461,14 +4461,26 @@ app.put('/api/conversaciones/:id/fijar', verificarTokenFirebase, async (req, res
 });
 
 // 🔥 OBTENER ESTADO DE BLOQUEO DE LA CONVERSACIÓN
-app.get('/api/conversaciones/:id/estado-bloqueo', async (req, res) => {
+app.get('/api/conversaciones/:id/estado-bloqueo', verificarTokenFirebase, async (req, res) => {
     try {
         const { id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
+
         const result = await pool.query(
-            `SELECT chat_bloqueado, cerrado_por_escudo, cerrado_por_no_presentado 
-             FROM conversaciones_app WHERE id = $1`,
-            [id]
+            `SELECT chat_bloqueado, cerrado_por_escudo,
+                    cerrado_por_no_presentado
+             FROM conversaciones_app
+             WHERE id = $1
+               AND (usuario1_id = $2 OR usuario2_id = $2)`,
+            [id, usuarioId]
         );
+
+        if (result.rows.length === 0) {
+            console.warn('>>> 🔒 [ESTADO BLOQUEO] Acceso no autorizado');
+            return res.status(404).json({
+                error: 'Conversación no encontrada o sin acceso'
+            });
+        }
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Conversación no encontrada' });
         }
@@ -7334,15 +7346,26 @@ app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single(
     }
 });
 // ===== OBTENER ANÁLISIS DE UNA CONVERSACIÓN =====
-app.get('/api/conversaciones/:conversacion_id/analisis', async (req, res) => {
+app.get('/api/conversaciones/:conversacion_id/analisis', verificarTokenFirebase, async (req, res) => {
     try {
         const { conversacion_id } = req.params;
+        const usuarioId = req.usuarioAutenticado;
+
         const result = await pool.query(
-            `SELECT analisis_ia, estado_ia, quiere_encuentro, acuerdo_cerrado, quiere_cerrar_trato, fecha_analisis 
-             FROM conversaciones_app 
-             WHERE id = $1`,
-            [conversacion_id]
+            `SELECT analisis_ia, estado_ia, quiere_encuentro,
+                    acuerdo_cerrado, quiere_cerrar_trato, fecha_analisis
+             FROM conversaciones_app
+             WHERE id = $1
+               AND (usuario1_id = $2 OR usuario2_id = $2)`,
+            [conversacion_id, usuarioId]
         );
+
+        if (result.rows.length === 0) {
+            console.warn('>>> 🔒 [ANALISIS] Acceso no autorizado');
+            return res.status(404).json({
+                error: 'Conversación no encontrada o sin acceso'
+            });
+        }
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Conversación no encontrada' });

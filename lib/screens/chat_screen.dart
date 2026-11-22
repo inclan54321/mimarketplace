@@ -1153,8 +1153,13 @@ void dispose() {
   // 🔥 Se hace ANTES de _cargarEstadoEscudo para que el AppBar se pinte
   // 🔥 una sola vez con el botón correcto (escudo o emergencia).
   try {
+    final tokenBloqueo = await user.getIdToken();
+
     final rBloqueo = await http.get(
       Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/estado-bloqueo'),
+      headers: {
+        'Authorization': 'Bearer $tokenBloqueo',
+      },
     );
     if (rBloqueo.statusCode == 200) {
       final dataBloqueo = jsonDecode(rBloqueo.body);
@@ -1979,8 +1984,16 @@ Future<void> _obtenerFotoVendedorReal() async {
     if (_conversacionIdActual.isEmpty) return;
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final tokenAnalisis = await user.getIdToken();
+
       final response = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/conversaciones/$_conversacionIdActual/analisis'),
+        headers: {
+          'Authorization': 'Bearer $tokenAnalisis',
+        },
       );
 
       if (response.statusCode == 200) {
