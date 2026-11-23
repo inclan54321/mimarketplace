@@ -931,10 +931,15 @@ const uploadGrabacion = multer({
     limits: { fileSize: 2 * 1024 * 1024 }
 });
 
-const postgresCA = process.env.POSTGRES_CA_CERT;
+// 🔐 CA de PostgreSQL para la prueba TLS
+const postgresCA = (process.env.POSTGRES_CA_CERT || '')
+    .replace(/\\n/g, '\n')
+    .trim();
 
-if (!postgresCA || !postgresCA.includes('-----BEGIN CERTIFICATE-----')) {
-    throw new Error('❌ POSTGRES_CA_CERT no está configurado correctamente');
+if (!postgresCA.includes('-----BEGIN CERTIFICATE-----')) {
+    console.warn(
+        '>>> ⚠️ [TLS] POSTGRES_CA_CERT ausente o con formato inválido. Se omitirá la prueba estricta.'
+    );
 }
 
 // 🔐 CONEXIÓN PRINCIPAL: mantener temporalmente la configuración anterior
@@ -944,7 +949,7 @@ const pool = new Pool({
 });
 
 // 🔐 PRUEBA TEMPORAL: verificar el certificado sin afectar al pool principal
-(async () => {
+if (postgresCA.includes('-----BEGIN CERTIFICATE-----')) (async () => {
     const poolPruebaTLS = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: {
