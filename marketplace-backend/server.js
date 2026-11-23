@@ -942,10 +942,14 @@ if (!postgresCA.includes('-----BEGIN CERTIFICATE-----')) {
     );
 }
 
-// 🔐 CONEXIÓN PRINCIPAL: mantener temporalmente la configuración anterior
+// 🔐 CONEXIÓN PRINCIPAL POSTGRESQL CON TLS VERIFICADO
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: {
+        ca: postgresCA,
+        rejectUnauthorized: true,
+        servername: 'postgres.railway.internal'
+    }
 });
 
 // 🔐 PRUEBA TEMPORAL: verificar el certificado sin afectar al pool principal
