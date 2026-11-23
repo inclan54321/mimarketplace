@@ -931,10 +931,52 @@ const uploadGrabacion = multer({
     limits: { fileSize: 2 * 1024 * 1024 }
 });
 
+const postgresCA = process.env.POSTGRES_CA_CERT;
+
+if (!postgresCA || !postgresCA.includes('-----BEGIN CERTIFICATE-----')) {
+    throw new Error('❌ POSTGRES_CA_CERT no está configurado correctamente');
+}
+
+// 🔐 CONEXIÓN PRINCIPAL: mantener temporalmente la configuración anterior
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
+
+// 🔐 PRUEBA TEMPORAL: verificar el certificado sin afectar al pool principal
+(async () => {
+    const poolPruebaTLS = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: {
+            ca: postgresCA.replace(/\\n/g, '\n'),
+            rejectUnauthorized: true,
+            servername: 'postgres.railway.internal'
+        },
+        connectionTimeoutMillis: 10000,
+        max: 1
+    });
+
+    try {
+        const cliente = await poolPruebaTLS.connect();
+
+        try {
+            const stream = cliente.connection.stream;
+
+            console.log('\n>>> 🔐 [PRUEBA TLS ESTRICTA]');
+            console.log('>>> ✅ Conexión PostgreSQL verificada correctamente');
+            console.log('>>> 🔒 TLS:', stream.getProtocol());
+            console.log('>>> 🔒 Certificado autorizado:', stream.authorized);
+            console.log('>>> 🔐 [FIN PRUEBA TLS ESTRICTA]\n');
+        } finally {
+            cliente.release();
+        }
+
+    } catch (error) {
+        console.error('>>> ❌ [PRUEBA TLS ESTRICTA] Falló:', error.message);
+    } finally {
+        await poolPruebaTLS.end();
+    }
+})();
 
 // 🔐 DIAGNÓSTICO TEMPORAL DE SEGURIDAD TLS POSTGRESQL
 (async () => {
