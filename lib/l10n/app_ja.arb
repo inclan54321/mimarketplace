@@ -427,5 +427,347 @@
   "nombreNoPuedeEstarVacio": "名前は空にできません",
   "perfilActualizadoCorrectamente": "✅ プロフィールが正常に更新されました",
   "errorAlGuardarEnServidor": "サーバーへの保存エラー",
-  "ubicacionDelEncuentro": "待ち合わせ場所"
+  "ubicacionDelEncuentro": "待ち合わせ場所",
+  "chatShieldAccepted": "🛡️ シールドを承認しました",
+  "chatShieldRejected": "🚫 シールドが拒否されました。チャットは閉じられました。",
+  "chatRatingSent": "評価を送信しました！ご意見ありがとうございます。",
+  "chatMessageBlocked": "メッセージがブロックされました",
+  "chatPhoneBlocked": "セキュリティシールドがこのメッセージをブロックしました。\n\n理由：電話番号は許可されていません。",
+  "chatUnderstood": "了解",
+  "chatMeetingNotHeld": "待ち合わせは行われませんでした。会話を続けるには、このチャットを削除して開き直してください。",
+  "chatGallery": "ギャラリー",
+  "chatCamera": "カメラ",
+  "chatShareLocation": "位置情報を共有",
+  "chatSharePortfolio": "ポートフォリオを共有",
+  "chatEnableGps": "位置情報を共有するにはスマートフォンのGPSをオンにしてください",
+  "chatLocationPermission": "位置情報へのアクセス許可が必要です",
+  "chatGettingLocation": "📍 位置情報を取得しています...",
+  "chatCannotOpenApp": "アプリを開けませんでした",
+  "chatOpenLocationWith": "位置情報を開くアプリ...",
+  "chatPortfolioShared": "📤 ポートフォリオを共有しました",
+  "chatDontShowAgain": "今後表示しない",
+  "chatCancel": "キャンセル",
+  "chatContinue": "続行",
+  "chatOtherUser": "相手のユーザー",
+  "chatGenericError": "エラー: {error}",
+  "@chatGenericError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatLocationSendError": "位置情報を送信できませんでした（{statusCode}）",
+  "@chatLocationSendError": {
+    "placeholders": {
+      "statusCode": {"type": "String"}
+    }
+  },
+  "chatLocationGetError": "位置情報の取得中にエラーが発生しました: {error}",
+  "@chatLocationGetError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatImageSendError": "画像の送信中にエラーが発生しました: {error}",
+  "@chatImageSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatAudioPermissionRequired": "音声を録音するにはマイクへのアクセス許可が必要です",
+  "chatRecordingTapToStop": "🎤 録音中...もう一度タップすると停止します",
+  "chatRecordingError": "録音中にエラーが発生しました: {error}",
+  "@chatRecordingError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatVerifyingAudio": "🛡️ 音声を確認しています...",
+  "chatAudioSent": "🎤 音声を送信しました",
+  "chatAudioSendError": "音声の送信中にエラーが発生しました: {error}",
+  "@chatAudioSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatRecordingLimitReached": "⏱️ 録音時間が25秒の上限に達しました",
+  "chatRecordingCancelled": "🗑️ 録音をキャンセルしました",
+  "chatSendingAudio": "📤 音声を送信しています...",
+  "chatStopRecordingError": "録音の停止中にエラーが発生しました: {error}",
+  "@chatStopRecordingError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatAudioPlaybackError": "音声の再生中にエラーが発生しました: {error}",
+  "@chatAudioPlaybackError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatSellerBlocked": "出品者をブロックしました",
+  "chatSellerBlockError": "出品者のブロック中にエラーが発生しました",
+  "chatSellerUnblocked": "出品者のブロックを解除しました",
+  "chatSellerUnblockError": "出品者のブロック解除中にエラーが発生しました",
+  "chatReportSeller": "出品者を通報",
+  "chatReport": "通報する",
+  "chatReportLoginRequired": "通報するにはログインが必要です",
+  "chatReportSent": "通報を送信しました。モデレーションチームが確認します。",
+  "chatReportSendError": "通報の送信中にエラーが発生しました: {error}",
+  "@chatReportSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatInternetSearchComingSoon": "「インターネットで検索」機能は開発中です",
+  "chatSelectText": "テキストを選択",
+  "chatSelectTextToCopy": "コピーしたいテキストを選択してください:",
+  "chatClose": "閉じる",
+  "chatAccept": "承諾する",
+  "chatReject": "拒否する",
+  "chatConfirmMeetingQuestion": "待ち合わせを確定しますか？",
+  "chatConfirm": "確定する",
+  "chatMeetingConfirmed": "待ち合わせが確定しました",
+  "chatMeetingNotFound": "予定されている待ち合わせが見つかりませんでした",
+  "chatMeetingCancelledReopened": "待ち合わせがキャンセルされました。チャットを再開しました。",
+  "chatCannotCancelMeeting": "キャンセルできませんでした",
+  "chatRecordingNotActive": "録音は開始されていません",
+  "chatRecordingStopped": "録音を停止しました",
+  "chatWriteMessage": "メッセージを入力...",
+  "chatSellerBlockException": "ブロック中にエラーが発生しました: {error}",
+  "@chatSellerBlockException": {"placeholders": {"error": {"type": "String"}}},
+  "chatSellerUnblockException": "ブロック解除中にエラーが発生しました: {error}",
+  "@chatSellerUnblockException": {"placeholders": {"error": {"type": "String"}}},
+  "chatSelectReportReason": "通報の理由を選択してください:",
+  "chatReportModerationNotice": "この通報はモデレーションチームが確認します。",
+  "chatSellerOptions": "出品者のオプション",
+  "chatUnblock": "ブロック解除",
+  "chatBlock": "ブロック",
+  "chatUnblockUser": "{userName}のブロックを解除",
+  "@chatUnblockUser": {"placeholders": {"userName": {"type": "String"}}},
+  "chatBlockUser": "{userName}をブロック",
+  "@chatBlockUser": {"placeholders": {"userName": {"type": "String"}}},
+  "chatViewProfileInfo": "プロフィール情報を見る",
+  "chatViewUserDetails": "{userName}の詳細を見る",
+  "@chatViewUserDetails": {"placeholders": {"userName": {"type": "String"}}},
+  "chatViewPortfolio": "ポートフォリオを見る",
+  "chatViewUserProducts": "{userName}のすべての商品を見る",
+  "@chatViewUserProducts": {"placeholders": {"userName": {"type": "String"}}},
+  "chatReportUserRules": "ルール違反で{userName}を通報",
+  "@chatReportUserRules": {"placeholders": {"userName": {"type": "String"}}},
+  "chatStrikeMessage": "メッセージに取り消し線を付ける",
+  "chatStrikeMessageDescription": "解決済みであることを示すためにメッセージに取り消し線を付ける",
+  "chatMessageStruck": "メッセージに取り消し線を付けました",
+  "chatStrikeRemoved": "取り消し線を削除しました",
+  "chatSearchInternet": "インターネットで検索",
+  "chatSearchMessageGoogle": "このメッセージをGoogleで検索",
+  "chatOnline": "オンライン",
+  "chatLastSeen": "最終オンライン",
+  "chatLastSeenToday": "最終オンライン：今日",
+  "chatLastSeenYesterday": "最終オンライン：昨日",
+  "chatLastSeenOn": "最終オンライン：{date}",
+  "@chatLastSeenOn": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "chatPortfolioSharedByYou": "ポートフォリオを共有しました",
+  "chatPortfolioOfUser": "{userName}のポートフォリオ",
+  "@chatPortfolioOfUser": {
+    "placeholders": {
+      "userName": {"type": "String"}
+    }
+  },
+  "chatTapToViewProducts": "タップして商品を見る",
+  "chatView": "見る",
+  "chatYou": "あなた",
+  "chatShieldAudioTitle": "セキュリティシールドによる音声保護",
+  "chatShieldImageTitle": "セキュリティシールドによる画像保護",
+  "chatShieldAudioInstructions": "• 録音できる時間は最大25秒です。\n• 音声はAIによって確認され、\"{productName}\"についてのみ話すことができます。\n• 電話番号、SNS、アプリ外での支払い、暴言、その他の話題は禁止されています。\n\nこの画面を閉じたら、マイクを長押しして録音してください。",
+  "@chatShieldAudioInstructions": {
+    "placeholders": {
+      "productName": {"type": "String"}
+    }
+  },
+  "chatShieldImageInstructions": "• このチャットで送信できる画像は1枚のみです。\n• 画像はAIによって確認され、商品\"{productName}\"が写っている必要があります。\n• 電話番号、QRコード、SNS、アプリ外での支払い、性的・暴力的・不適切なコンテンツは禁止されています。",
+  "@chatShieldImageInstructions": {
+    "placeholders": {
+      "productName": {"type": "String"}
+    }
+  },
+  "chatImageLimitTitle": "画像の送信制限",
+  "chatImageLimitBody": "セキュリティシールドが有効な場合、このチャットで送信できる画像は1枚のみです。",
+  "chatCropImage": "画像をトリミング",
+  "chatDone": "完了",
+  "chatImageRejected": "画像が拒否されました",
+  "chatAudioRejected": "音声が拒否されました",
+  "chatStatusNeutral": "中立状態",
+  "chatNeutralDescription": "会話は進行中です。取引の状態を判断するには、まだ十分な情報がありません。",
+  "chatNeutralRecommendation": "引き続き、相手を尊重し、明確にコミュニケーションを取ってください。",
+  "chatStatusHealthy": "良好な会話",
+  "chatHealthyDescription": "会話は良好に進んでいます。双方のユーザーが互いを尊重し、明確にコミュニケーションを取っています。",
+  "chatHealthyRecommendation": "その調子です！取引が成功する可能性は高いでしょう。",
+  "chatStatusWarning": "注意が必要です",
+  "chatWarningDescription": "会話にいくつかの警告サインが検出されました。誤解や緊張が生じている可能性があります。",
+  "chatWarningRecommendation": "これまでのメッセージを確認し、より明確で思いやりのある返答を心がけてください。",
+  "chatStatusDanger": "差し迫った危険",
+  "chatDangerDescription": "会話に対立やリスクの兆候が見られます。コミュニケーションの問題や深刻な意見の相違がある可能性があります。",
+  "chatDangerRecommendation": "いったん立ち止まって状況を確認してください。必要に応じてサポートへの連絡を検討してください。",
+  "chatCancelMeetingQuestion": "待ち合わせをキャンセルしますか？",
+  "chatRecordingRejectionWarning": "安全のための音声録音を拒否すると、双方のユーザーの待ち合わせがキャンセルされ、チャットが閉じられます。\n\nこの操作は取り消せません。",
+  "chatGoBack": "戻る",
+  "chatYesCancelMeeting": "はい、待ち合わせをキャンセルする",
+  "chatSecurityVoiceRecording": "安全のための音声録音",
+  "chatSecurityRecordingConsentBody": "この時点から、ユーザーの安全を守ることのみを目的として、アプリは双方のデバイスでこの会話の音声を録音します。\n\n• 音声は10秒ごとに保存されます。\n• 通報や事件が発生した場合、録音は第三者（当局またはセキュリティ専門家）に共有されることがあります。\n• あなたの許可または法的命令がない限り、他の人が録音を聞くことはできません。\n\n⚠️ 重要：待ち合わせを行うには、安全のための録音への同意が必須です。\n\n録音を拒否すると、双方のユーザーの待ち合わせは自動的にキャンセルされ、チャットが閉じられます。アプリを通じて対面での待ち合わせを続行することはできません。",
+  "chatRejectAndCancel": "拒否してキャンセル",
+  "chatAcceptAndContinue": "同意して続行",
+  "chatProposeMeeting": "待ち合わせを提案",
+  "chatChooseSafePlace": "一覧から安全な場所を選んでください。",
+  "chatProposalNumber": "候補 {number}/3",
+  "@chatProposalNumber": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "chatChoosePlaceOnMap": "地図で場所を選択",
+  "chatPlaceSelected": "場所を選択しました",
+  "chatTapToOpenMap": "タップして地図を開く",
+  "chatChooseTime": "時間を選択（午前7時〜午後6時）",
+  "chatSelectDateTime": "日時を選択",
+  "chatSelectPlaceAndDate": "⚠️ 地図で場所と日付を選択してください",
+  "chatTimeSlotOccupiedChooseAnother": "⛔ その日時はすでに埋まっています。別の時間を選択してください。",
+  "chatAddProposal": "候補を追加",
+  "chatAddAndViewSummary": "追加して概要を表示",
+  "chatViewSummaryCount": "概要を見る（{count}件）",
+  "@chatViewSummaryCount": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "chatProposalsSummary": "候補の概要",
+  "chatProposalsAddedCount": "3件中{count}件の候補を追加しました",
+  "@chatProposalsAddedCount": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "chatMaxThreeProposals": "候補は最大3件まで",
+  "chatAddAnotherProposal": "別の候補を追加",
+  "chatProposalCancelled": "キャンセル済み",
+  "chatProposalAccepted": "承認済み",
+  "chatProposalPending": "保留中",
+  "chatMeetingDetails": "待ち合わせの詳細",
+  "chatDistrict": "地区",
+  "chatPlace": "場所",
+  "chatDateAndTime": "日時",
+  "chatMeetingStatus": "状態",
+  "chatAcceptProposalQuestion": "この提案を承認しますか？",
+  "chatWaitingOtherResponse": "相手の返答を待っています...",
+  "chatMeetingConfirmationNotice": "確定後は、直接会うまでチャットでメッセージを送れなくなります。\n\n• 遅刻しないでください\n• 顔認証が必要になります\n• 待ち合わせ当日にGPSが有効になります",
+  "chatCancelDealQuestion": "取引をキャンセルしますか？",
+  "chatMeetingLabel": "待ち合わせ",
+  "chatCancellationRule": "キャンセル規則",
+  "chatCancellationNotification": "キャンセルすると双方の待ち合わせが取り消され、チャットが再開されます。相手には通知が届きます。",
+  "chatOtherConfirmedCannotCancel": "相手は出席を確認済みです。この待ち合わせはもうキャンセルできません。",
+  "chatCannotCancelWithinHour": "待ち合わせまで1時間を切っているため、キャンセルできません。双方とも約束の場所に来る必要があります。",
+  "chatBothConfirmedCannotCancel": "双方が出席を確認済みです。待ち合わせはキャンセルできません。",
+  "chatOnlyOtherCanCancel": "相手は出席を確認済みです。相手のみ待ち合わせの10分前までキャンセルできます。",
+  "chatYouCanCancelUntilTenMinutes": "出席を確認しました。待ち合わせの10分前までキャンセルできます。",
+  "chatCancellationDeadlineRule": "取引をキャンセルできるのは待ち合わせの1時間前までです。1時間を切るとキャンセルできず、双方とも約束の場所に来る必要があります。",
+  "chatBack": "戻る",
+  "chatYesCancel": "はい、キャンセルする",
+  "chatMeetingCancelError": "エラー: {error}",
+  "@chatMeetingCancelError": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "chatDealClosedTitle": "🤝 取引成立",
+  "chatDealClosedDescription": "チャットはロックされました。待ち合わせでお会いしましょう。",
+  "chatViewChatMessages": "チャットのメッセージを見る",
+  "chatReviewAlertsStep": "1. 通知を確認",
+  "chatReviewAlertsDescription": "通知画面で、確定した待ち合わせの日時と場所を確認してください。",
+  "chatFacialRecognitionStep": "2. 顔認証",
+  "chatFacialRecognitionStepDescription": "待ち合わせ当日、出発前に本人確認のためアプリから自撮り写真の撮影を求められます。",
+  "chatEnableGpsStep": "3. GPSを有効にする",
+  "chatEnableGpsStepDescription": "到着したら位置情報を有効にしてください。アプリが安全な待ち合わせ場所にいることを確認します。",
+  "chatUnlockChatStep": "4. チャットのロック解除",
+  "chatUnlockChatStepDescription": "双方が到着し、本人確認が完了するとチャットが再開されます。",
+  "chatArriveEarlyWarning": "10分前に到着してください。現れなかった場合、待ち合わせは「不参加」と記録され、チャットは閉じたままになります。",
+  "chatShieldAlreadyActive": "🛡️ シールドはすでに有効で、無効にできません",
+  "chatShieldAnalyzingMessages": "🛡️ シールドを有効にしました。メッセージを分析しています...",
+  "chatActivateShieldToViewAnalysis": "🛡️ 会話の分析を見るにはシールドを有効にしてください",
+  "chatDealInfo": "取引情報",
+  "chatProposePlaceBeforeClosingDeal": "📍 まず待ち合わせの場所と日付を提案してください。\n相手が承認すると取引を確定できます。",
+  "chatDealClosedWaitingMeeting": "✅ 取引が成立しました。待ち合わせをお待ちください。",
+  "chatWaitingDealConfirmation": "⏳ 相手の確認を待っています...",
+  "chatConfirmDeal": "確認する",
+  "chatMoreQuestions": "まだ質問があります",
+  "chatNoMessagesYet": "メッセージはまだありません",
+  "chatItemSold": "商品は売却済みです",
+  "chatMeetingHasBeenAccepted": "待ち合わせが承認されました",
+  "chatDealClosedBothConfirmed": "✅ 取引成立。双方が確認しました。待ち合わせ当日にお会いしましょう！",
+  "chatBothContinueTalking": "✅ 双方が会話を続けることにしました",
+  "chatUserWantsToContinueTalking": "相手は会話を続けたいと思っています",
+  "chatRatingThankYou": "✅ 評価を送信しました。ご意見ありがとうございます！",
+  "chatRatingVisibleAfterWeek": "送信から1週間後に、あなたの評価が{userName}さんのプロフィールに表示されます。",
+  "@chatRatingVisibleAfterWeek": {
+    "placeholders": {"userName": {"type": "String"}}
+  },
+  "chatYouSharedLocation": "位置情報を共有しました",
+  "chatLocationShared": "位置情報が共有されました",
+  "chatTapToOpenMaps": "タップして地図で開く",
+  "chatMeetingCouldNotTakePlace": "待ち合わせは実施できませんでした",
+  "chatMeetingCancelledChatReopened": "❌ 待ち合わせがキャンセルされました。チャットが再開されました。",
+  "chatConfirmedDealWaitingResponse": "⏳ 取引成立を確認しました。相手の返答を待っています...",
+  "chatWaitingOtherDecision": "⏳ 相手の判断を待っています...",
+  "chatMeetingProposalPendingWrite": "待ち合わせの提案が保留中です。決定するまでメッセージを送れません。",
+  "chatRecordingSlideToCancel": "🎤 録音中...スライドしてキャンセル",
+  "chatReleaseToCancel": "指を離してキャンセル",
+  "chatRecordingRejectedMeetingCancelled": "❌ 録音を拒否しました。双方の待ち合わせがキャンセルされ、チャットが閉じられました。",
+  "chatRecordingEnabledBothAccepted": "🎙️ 録音が有効になりました。双方が同意しました。",
+  "chatRecordingAcceptedWaitingOther": "🎙️ 同意しました。相手の同意を待っています。",
+  "chatRecordingMeetingCancelledTitle": "🚫 待ち合わせがキャンセルされました",
+  "chatRecordingMeetingCancelledReason": "一方のユーザーが安全のための音声録音を拒否したため、待ち合わせがキャンセルされました。",
+  "chatRecordingMandatoryExplanation": "アプリを通じて対面で待ち合わせを行うには、安全のための音声録音が必須です。この措置は双方のユーザーを保護するためのものです。",
+"chatReportSuspiciousProduct": "不審な商品",
+"chatReportProhibitedProducts": "禁止商品の出品",
+"chatReportFraud": "詐欺または不正行為",
+"chatReportHarassment": "嫌がらせや虐待",
+"chatReportMisleadingInfo": "虚偽または誤解を招く情報",
+"chatReportOtherReason": "その他の理由",
+"chatLocation": "場所",
+"chatClosedShieldRejected": "チャットは終了しました。参加者の一人がセキュリティシールドを承諾しませんでした。",
+"chatLockedForMeeting": "チャットはロックされています。直接会う予定です。遅刻しないでください。",
+"chatSendProposals": "{count, plural, other{{count}件の提案を送信}}",
+"@chatSendProposals": {
+  "placeholders": {
+    "count": {"type": "int"}
+  }
+},
+"chatMapCoordinates": "緯度: {latitude}、経度: {longitude}",
+"@chatMapCoordinates": {
+  "placeholders": {
+    "latitude": {"type": "String"},
+    "longitude": {"type": "String"}
+  }
+},
+"chatClosedShieldRejected": "チャットは終了しました。参加者の一人がセキュリティシールドを承諾しませんでした。",
+"chatLockedForMeeting": "チャットはロックされています。直接会う予定です。遅刻しないでください。",
+"chatAnalyzingConversation": "会話を分析しています...",
+"chatAnalysisNotAvailable": "まだ分析結果はありません。",
+"chatMeetingTimeOccupied": "その日時はすでに予約されています。",
+"chatYourPortfolio": "あなたのポートフォリオ",
+"chatHideProducts": "商品を非表示",
+"chatViewProducts": "商品を表示",
+"chatViewProduct": "商品を見る",
+"chatSelectMessagePart": "コピーするメッセージの一部を選択",
+"chatMeetingProposalTitle": "待ち合わせの提案",
+"chatWaitingProposalResponse": "返答を待っています...",
+"chatTapProposalDetails": "タップして詳細を確認し、返答する",
+"chatProposalAcceptedNotice": "✅ 提案を承諾しました",
+"chatProposalRejected": "❌ 提案を拒否しました",
+"chatOtherUserMeetingReady": "{userName}さんが待ち合わせの準備が整ったか確認しています",
+"@chatOtherUserMeetingReady": {
+  "placeholders": {
+    "userName": {"type": "String"}
+  }
+},
+"chatMeetingEverythingReady": "待ち合わせの準備はすべて整いましたか？",
+"chatMeetingBothConfirmLock": "双方が確認すると、直接会うまでチャットがロックされます。",
+"chatConversationAgreement": "会話の中で合意に達したようです。",
+"chatCancelMeetingBoth": "この操作により、双方の待ち合わせがキャンセルされます。",
+"chatMeetingNotCompletedExplanation": "ご不便をおかけして申し訳ありません。すべての待ち合わせが実現するとは限りませんが、大切なのはお互いの安全を守ることです。\n\nチャットは閉じられました。会話を続けるには、このチャットを削除して再度開いてください。"
+  
 }

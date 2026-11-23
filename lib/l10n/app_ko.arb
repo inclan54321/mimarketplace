@@ -427,5 +427,347 @@
   "nombreNoPuedeEstarVacio": "이름은 비워둘 수 없습니다",
   "perfilActualizadoCorrectamente": "✅ 프로필이 성공적으로 업데이트되었습니다",
   "errorAlGuardarEnServidor": "서버 저장 오류",
-  "ubicacionDelEncuentro": "만남 장소"
+  "ubicacionDelEncuentro": "만남 장소",
+  "chatShieldAccepted": "🛡️ 보호 기능을 수락했습니다",
+  "chatShieldRejected": "🚫 보호 기능이 거부되어 채팅이 종료되었습니다.",
+  "chatRatingSent": "평가가 제출되었습니다! 의견 감사합니다.",
+  "chatMessageBlocked": "메시지가 차단되었습니다",
+  "chatPhoneBlocked": "보안 보호 기능이 이 메시지를 차단했습니다.\n\n사유: 전화번호는 허용되지 않습니다.",
+  "chatUnderstood": "알겠습니다",
+  "chatMeetingNotHeld": "만남이 이루어지지 않았습니다. 대화를 계속하려면 이 채팅을 삭제하고 다시 여세요.",
+  "chatGallery": "갤러리",
+  "chatCamera": "카메라",
+  "chatShareLocation": "위치 공유",
+  "chatSharePortfolio": "포트폴리오 공유",
+  "chatEnableGps": "위치를 공유하려면 휴대전화의 GPS를 켜세요",
+  "chatLocationPermission": "위치 권한이 필요합니다",
+  "chatGettingLocation": "📍 위치를 확인하는 중...",
+  "chatCannotOpenApp": "앱을 열 수 없습니다",
+  "chatOpenLocationWith": "위치를 열 앱...",
+  "chatPortfolioShared": "📤 포트폴리오를 공유했습니다",
+  "chatDontShowAgain": "다시 표시하지 않기",
+  "chatCancel": "취소",
+  "chatContinue": "계속",
+  "chatOtherUser": "상대 사용자",
+  "chatGenericError": "오류: {error}",
+  "@chatGenericError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatLocationSendError": "위치를 전송할 수 없습니다 ({statusCode})",
+  "@chatLocationSendError": {
+    "placeholders": {
+      "statusCode": {"type": "String"}
+    }
+  },
+  "chatLocationGetError": "위치 정보를 가져오는 중 오류가 발생했습니다: {error}",
+  "@chatLocationGetError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatImageSendError": "이미지 전송 중 오류가 발생했습니다: {error}",
+  "@chatImageSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatAudioPermissionRequired": "오디오를 녹음하려면 마이크 권한이 필요합니다",
+  "chatRecordingTapToStop": "🎤 녹음 중... 다시 탭하면 중지됩니다",
+  "chatRecordingError": "녹음 중 오류가 발생했습니다: {error}",
+  "@chatRecordingError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatVerifyingAudio": "🛡️ 오디오 확인 중...",
+  "chatAudioSent": "🎤 오디오를 전송했습니다",
+  "chatAudioSendError": "오디오 전송 중 오류가 발생했습니다: {error}",
+  "@chatAudioSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatRecordingLimitReached": "⏱️ 25초 녹음 제한에 도달했습니다",
+  "chatRecordingCancelled": "🗑️ 녹음이 취소되었습니다",
+  "chatSendingAudio": "📤 오디오 전송 중...",
+  "chatStopRecordingError": "녹음 중지 중 오류가 발생했습니다: {error}",
+  "@chatStopRecordingError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatAudioPlaybackError": "오디오 재생 중 오류가 발생했습니다: {error}",
+  "@chatAudioPlaybackError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatSellerBlocked": "판매자를 차단했습니다",
+  "chatSellerBlockError": "판매자 차단 중 오류가 발생했습니다",
+  "chatSellerUnblocked": "판매자 차단을 해제했습니다",
+  "chatSellerUnblockError": "판매자 차단 해제 중 오류가 발생했습니다",
+  "chatReportSeller": "판매자 신고",
+  "chatReport": "신고하기",
+  "chatReportLoginRequired": "신고하려면 로그인해야 합니다",
+  "chatReportSent": "신고가 접수되었습니다. 운영팀에서 검토할 예정입니다.",
+  "chatReportSendError": "신고 전송 중 오류가 발생했습니다: {error}",
+  "@chatReportSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatInternetSearchComingSoon": "\"인터넷 검색\" 기능은 개발 중입니다",
+  "chatSelectText": "텍스트 선택",
+  "chatSelectTextToCopy": "복사할 텍스트를 선택하세요:",
+  "chatClose": "닫기",
+  "chatAccept": "수락",
+  "chatReject": "거절",
+  "chatConfirmMeetingQuestion": "만남을 확정하시겠습니까?",
+  "chatConfirm": "확인",
+  "chatMeetingConfirmed": "만남이 확정되었습니다",
+  "chatMeetingNotFound": "예정된 만남을 찾을 수 없습니다",
+  "chatMeetingCancelledReopened": "만남이 취소되었습니다. 채팅이 다시 열렸습니다.",
+  "chatCannotCancelMeeting": "취소할 수 없습니다",
+  "chatRecordingNotActive": "녹음이 활성화되어 있지 않습니다",
+  "chatRecordingStopped": "녹음이 중지되었습니다",
+  "chatWriteMessage": "메시지를 입력하세요...",
+  "chatSellerBlockException": "차단 중 오류가 발생했습니다: {error}",
+  "@chatSellerBlockException": {"placeholders": {"error": {"type": "String"}}},
+  "chatSellerUnblockException": "차단 해제 중 오류가 발생했습니다: {error}",
+  "@chatSellerUnblockException": {"placeholders": {"error": {"type": "String"}}},
+  "chatSelectReportReason": "신고 사유를 선택하세요:",
+  "chatReportModerationNotice": "이 신고는 운영팀에서 검토합니다.",
+  "chatSellerOptions": "판매자 옵션",
+  "chatUnblock": "차단 해제",
+  "chatBlock": "차단",
+  "chatUnblockUser": "{userName} 차단 해제",
+  "@chatUnblockUser": {"placeholders": {"userName": {"type": "String"}}},
+  "chatBlockUser": "{userName} 차단",
+  "@chatBlockUser": {"placeholders": {"userName": {"type": "String"}}},
+  "chatViewProfileInfo": "프로필 정보 보기",
+  "chatViewUserDetails": "{userName}의 상세 정보 보기",
+  "@chatViewUserDetails": {"placeholders": {"userName": {"type": "String"}}},
+  "chatViewPortfolio": "포트폴리오 보기",
+  "chatViewUserProducts": "{userName}의 모든 상품 보기",
+  "@chatViewUserProducts": {"placeholders": {"userName": {"type": "String"}}},
+  "chatReportUserRules": "규칙 위반으로 {userName} 신고",
+  "@chatReportUserRules": {"placeholders": {"userName": {"type": "String"}}},
+  "chatStrikeMessage": "메시지 취소선 표시",
+  "chatStrikeMessageDescription": "해결된 메시지임을 표시하기 위해 취소선을 적용합니다",
+  "chatMessageStruck": "메시지에 취소선이 적용되었습니다",
+  "chatStrikeRemoved": "취소선이 제거되었습니다",
+  "chatSearchInternet": "인터넷 검색",
+  "chatSearchMessageGoogle": "Google에서 이 메시지 검색",
+  "chatOnline": "온라인",
+  "chatLastSeen": "마지막 접속",
+  "chatLastSeenToday": "오늘 마지막 접속",
+  "chatLastSeenYesterday": "어제 마지막 접속",
+  "chatLastSeenOn": "마지막 접속: {date}",
+  "@chatLastSeenOn": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "chatPortfolioSharedByYou": "내 포트폴리오를 공유했습니다",
+  "chatPortfolioOfUser": "{userName}의 포트폴리오",
+  "@chatPortfolioOfUser": {
+    "placeholders": {
+      "userName": {"type": "String"}
+    }
+  },
+  "chatTapToViewProducts": "탭하여 상품 보기",
+  "chatView": "보기",
+  "chatYou": "나",
+  "chatShieldAudioTitle": "보안 실드를 통한 오디오 보호",
+  "chatShieldImageTitle": "보안 실드를 통한 이미지 보호",
+  "chatShieldAudioInstructions": "• 최대 25초까지 녹음할 수 있습니다.\n• 오디오는 AI가 검토하며 \"{productName}\"에 관한 내용만 포함해야 합니다.\n• 전화번호, 소셜 미디어, 앱 외부 결제, 욕설 및 관련 없는 주제는 허용되지 않습니다.\n\n이 창을 닫은 후 마이크를 길게 눌러 녹음하세요.",
+  "@chatShieldAudioInstructions": {
+    "placeholders": {
+      "productName": {"type": "String"}
+    }
+  },
+  "chatShieldImageInstructions": "• 이 채팅에서는 이미지를 1장만 전송할 수 있습니다.\n• 이미지는 AI가 검토하며 \"{productName}\" 상품이 표시되어야 합니다.\n• 전화번호, QR 코드, 소셜 미디어, 앱 외부 결제, 성적·폭력적·모욕적인 콘텐츠는 허용되지 않습니다.",
+  "@chatShieldImageInstructions": {
+    "placeholders": {
+      "productName": {"type": "String"}
+    }
+  },
+  "chatImageLimitTitle": "이미지 전송 제한",
+  "chatImageLimitBody": "보안 실드가 활성화된 상태에서는 이 채팅에 이미지를 1장만 전송할 수 있습니다.",
+  "chatCropImage": "이미지 자르기",
+  "chatDone": "완료",
+  "chatImageRejected": "이미지가 거부되었습니다",
+  "chatAudioRejected": "오디오가 거부되었습니다",
+  "chatStatusNeutral": "중립 상태",
+  "chatNeutralDescription": "대화가 진행 중입니다. 아직 거래 상태를 판단하기에 충분한 정보가 없습니다.",
+  "chatNeutralRecommendation": "상대방을 존중하며 명확하게 대화를 이어가세요.",
+  "chatStatusHealthy": "건전한 대화",
+  "chatHealthyDescription": "대화가 긍정적으로 진행되고 있습니다. 양측 사용자가 서로 존중하며 명확하게 소통하고 있습니다.",
+  "chatHealthyRecommendation": "좋습니다! 거래가 성공적으로 이루어질 가능성이 높습니다.",
+  "chatStatusWarning": "주의 권장",
+  "chatWarningDescription": "대화에서 몇 가지 경고 신호가 감지되었습니다. 오해나 긴장이 발생했을 수 있습니다.",
+  "chatWarningRecommendation": "이전 메시지를 검토하세요. 더 명확하고 공감하는 태도로 답변해 보세요.",
+  "chatStatusDanger": "임박한 위험",
+  "chatDangerDescription": "대화에서 갈등이나 위험의 징후가 나타납니다. 의사소통 문제나 심각한 의견 충돌이 있을 수 있습니다.",
+  "chatDangerRecommendation": "잠시 멈추고 상황을 평가하세요. 필요한 경우 고객지원팀에 문의하세요.",
+  "chatCancelMeetingQuestion": "만남을 취소하시겠습니까?",
+  "chatRecordingRejectionWarning": "보안을 위한 음성 녹음을 거부하면 양측 사용자의 만남이 취소되고 채팅이 종료됩니다.\n\n이 작업은 되돌릴 수 없습니다.",
+  "chatGoBack": "돌아가기",
+  "chatYesCancelMeeting": "예, 만남 취소",
+  "chatSecurityVoiceRecording": "보안을 위한 음성 녹음",
+  "chatSecurityRecordingConsentBody": "지금부터 앱은 사용자 보호만을 목적으로 양측 기기에서 이 대화의 음성을 녹음합니다.\n\n• 음성은 10초마다 저장됩니다.\n• 신고나 사건이 발생한 경우 녹음 내용은 제3자(당국 또는 보안 전문가)에게 제공될 수 있습니다.\n• 귀하의 허가 또는 법적 명령 없이는 다른 사람이 녹음 내용을 들을 수 없습니다.\n\n⚠️ 중요: 만남을 진행하려면 보안 녹음에 반드시 동의해야 합니다.\n\n녹음을 거부하면 양측 사용자의 만남이 자동으로 취소되고 채팅이 종료됩니다. 앱을 통한 대면 만남을 계속 진행할 수 없습니다.",
+  "chatRejectAndCancel": "거부하고 취소",
+  "chatAcceptAndContinue": "동의하고 계속",
+  "chatProposeMeeting": "만남 제안하기",
+  "chatChooseSafePlace": "목록에서 안전한 장소를 선택하세요.",
+  "chatProposalNumber": "제안 {number}/3",
+  "@chatProposalNumber": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "chatChoosePlaceOnMap": "지도에서 장소 선택",
+  "chatPlaceSelected": "장소 선택됨",
+  "chatTapToOpenMap": "탭하여 지도 열기",
+  "chatChooseTime": "시간 선택(오전 7시~오후 6시)",
+  "chatSelectDateTime": "날짜와 시간 선택",
+  "chatSelectPlaceAndDate": "⚠️ 지도에서 장소와 날짜를 선택하세요",
+  "chatTimeSlotOccupiedChooseAnother": "⛔ 해당 날짜와 시간은 이미 예약되어 있습니다. 다른 시간을 선택하세요.",
+  "chatAddProposal": "제안 추가",
+  "chatAddAndViewSummary": "추가하고 요약 보기",
+  "chatViewSummaryCount": "요약 보기 ({count})",
+  "@chatViewSummaryCount": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "chatProposalsSummary": "제안 요약",
+  "chatProposalsAddedCount": "3개 중 {count}개 제안 추가됨",
+  "@chatProposalsAddedCount": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "chatMaxThreeProposals": "최대 3개까지 제안 가능",
+  "chatAddAnotherProposal": "다른 제안 추가",
+  "chatProposalCancelled": "취소됨",
+  "chatProposalAccepted": "수락됨",
+  "chatProposalPending": "대기 중",
+  "chatMeetingDetails": "만남 상세 정보",
+  "chatDistrict": "지역",
+  "chatPlace": "장소",
+  "chatDateAndTime": "날짜 및 시간",
+  "chatMeetingStatus": "상태",
+  "chatAcceptProposalQuestion": "이 제안을 수락하시겠습니까?",
+  "chatWaitingOtherResponse": "상대방의 응답을 기다리는 중...",
+  "chatMeetingConfirmationNotice": "확정 후에는 직접 만날 때까지 채팅으로 메시지를 보낼 수 없습니다.\n\n• 늦지 마세요\n• 얼굴 인식이 필요합니다\n• 만남 당일 GPS가 활성화됩니다",
+  "chatCancelDealQuestion": "거래를 취소하시겠습니까?",
+  "chatMeetingLabel": "만남",
+  "chatCancellationRule": "취소 규정",
+  "chatCancellationNotification": "취소하면 양쪽 모두의 만남이 취소되고 채팅이 다시 열립니다. 상대방에게 알림이 전송됩니다.",
+  "chatOtherConfirmedCannotCancel": "상대방이 참석을 확인했습니다. 더 이상 이 만남을 취소할 수 없습니다.",
+  "chatCannotCancelWithinHour": "만남까지 1시간도 남지 않아 취소할 수 없습니다. 양쪽 모두 약속된 장소에 참석해야 합니다.",
+  "chatBothConfirmedCannotCancel": "양쪽 모두 참석을 확인했습니다. 만남을 취소할 수 없습니다.",
+  "chatOnlyOtherCanCancel": "상대방이 참석을 확인했습니다. 상대방만 만남 10분 전까지 취소할 수 있습니다.",
+  "chatYouCanCancelUntilTenMinutes": "참석을 확인했습니다. 만남 10분 전까지 취소할 수 있습니다.",
+  "chatCancellationDeadlineRule": "거래는 만남 1시간 전까지만 취소할 수 있습니다. 1시간 미만으로 남으면 취소할 수 없으며 양쪽 모두 약속된 장소에 참석해야 합니다.",
+  "chatBack": "뒤로",
+  "chatYesCancel": "예, 취소합니다",
+  "chatMeetingCancelError": "오류: {error}",
+  "@chatMeetingCancelError": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "chatDealClosedTitle": "🤝 거래 성사",
+  "chatDealClosedDescription": "채팅이 잠겼습니다. 만남 장소에서 뵙겠습니다.",
+  "chatViewChatMessages": "채팅 메시지 보기",
+  "chatReviewAlertsStep": "1. 알림 확인",
+  "chatReviewAlertsDescription": "알림 메뉴에서 확정된 만남의 날짜, 시간 및 장소를 확인하세요.",
+  "chatFacialRecognitionStep": "2. 얼굴 인식",
+  "chatFacialRecognitionStepDescription": "만남 당일 출발하기 전에 앱에서 본인 확인을 위한 셀카 촬영을 요청합니다.",
+  "chatEnableGpsStep": "3. GPS 활성화",
+  "chatEnableGpsStepDescription": "도착하면 위치 서비스를 활성화하세요. 앱에서 안전한 만남 장소에 있는지 확인합니다.",
+  "chatUnlockChatStep": "4. 채팅 잠금 해제",
+  "chatUnlockChatStepDescription": "양쪽 모두 도착하고 본인 확인을 마치면 채팅이 다시 열립니다.",
+  "chatArriveEarlyWarning": "10분 일찍 도착하세요. 나타나지 않으면 만남이 \"불참\"으로 표시되고 채팅은 닫힌 상태로 유지됩니다.",
+  "chatShieldAlreadyActive": "🛡️ 보호막이 이미 활성화되어 있으며 비활성화할 수 없습니다",
+  "chatShieldAnalyzingMessages": "🛡️ 보호막이 활성화되었습니다. 메시지 분석 중...",
+  "chatActivateShieldToViewAnalysis": "🛡️ 대화 분석을 보려면 보호막을 활성화하세요",
+  "chatDealInfo": "거래 정보",
+  "chatProposePlaceBeforeClosingDeal": "📍 먼저 만남 장소와 날짜를 제안하세요.\n상대방이 수락하면 거래를 확정할 수 있습니다.",
+  "chatDealClosedWaitingMeeting": "✅ 거래가 성사되었습니다. 만남을 기다리는 중입니다.",
+  "chatWaitingDealConfirmation": "⏳ 상대방의 확인을 기다리는 중...",
+  "chatConfirmDeal": "확인",
+  "chatMoreQuestions": "질문이 더 있어요",
+  "chatNoMessagesYet": "아직 메시지가 없습니다",
+  "chatItemSold": "상품 판매 완료",
+  "chatMeetingHasBeenAccepted": "만남이 수락되었습니다",
+  "chatDealClosedBothConfirmed": "✅ 거래 성사. 양쪽 모두 확인했습니다. 만남 당일에 뵙겠습니다!",
+  "chatBothContinueTalking": "✅ 양쪽 모두 대화를 계속하기로 했습니다",
+  "chatUserWantsToContinueTalking": "상대방이 대화를 계속하고 싶어 합니다",
+  "chatRatingThankYou": "✅ 평가를 제출했습니다. 의견을 보내주셔서 감사합니다!",
+  "chatRatingVisibleAfterWeek": "평가를 제출한 지 일주일 후 {userName}님의 프로필에 반영됩니다.",
+  "@chatRatingVisibleAfterWeek": {
+    "placeholders": {"userName": {"type": "String"}}
+  },
+  "chatYouSharedLocation": "위치를 공유했습니다",
+  "chatLocationShared": "위치가 공유되었습니다",
+  "chatTapToOpenMaps": "탭하여 지도에서 열기",
+  "chatMeetingCouldNotTakePlace": "만남이 이루어지지 못했습니다",
+  "chatMeetingCancelledChatReopened": "❌ 만남이 취소되었습니다. 채팅이 다시 열렸습니다.",
+  "chatConfirmedDealWaitingResponse": "⏳ 거래 성사를 확인했습니다. 상대방의 응답을 기다리는 중...",
+  "chatWaitingOtherDecision": "⏳ 상대방의 결정을 기다리는 중...",
+  "chatMeetingProposalPendingWrite": "만남 제안이 대기 중입니다. 결정될 때까지 메시지를 보낼 수 없습니다.",
+"chatRecordingSlideToCancel": "🎤 녹음 중... 밀어서 취소",
+"chatReleaseToCancel": "놓으면 취소",
+"chatRecordingRejectedMeetingCancelled": "❌ 녹음을 거부했습니다. 양측의 만남이 취소되고 채팅이 종료되었습니다.",
+"chatRecordingEnabledBothAccepted": "🎙️ 녹음이 활성화되었습니다. 양측 모두 동의했습니다.",
+"chatRecordingAcceptedWaitingOther": "🎙️ 동의했습니다. 상대방의 동의를 기다리는 중입니다.",
+"chatRecordingMeetingCancelledTitle": "🚫 만남 취소됨",
+"chatRecordingMeetingCancelledReason": "참여자 중 한 명이 안전을 위한 음성 녹음을 거부하여 만남이 취소되었습니다.",
+"chatRecordingMandatoryExplanation": "앱을 통한 대면 만남에는 안전을 위한 음성 녹음이 필수입니다. 이 조치는 양측 모두를 보호합니다.",
+"chatReportSuspiciousProduct": "의심스러운 상품",
+"chatReportProhibitedProducts": "금지 상품 게시",
+"chatReportFraud": "사기 또는 부정행위",
+"chatReportHarassment": "괴롭힘 또는 학대",
+"chatReportMisleadingInfo": "허위 또는 오해의 소지가 있는 정보",
+"chatReportOtherReason": "기타 사유",
+"chatLocation": "위치",
+"chatClosedShieldRejected": "채팅이 종료되었습니다. 참여자 중 한 명이 보안 실드를 수락하지 않았습니다.",
+"chatLockedForMeeting": "채팅이 잠겼습니다. 직접 만날 예정입니다. 늦지 마세요.",
+"chatSendProposals": "{count, plural, other{제안 {count}개 보내기}}",
+"@chatSendProposals": {
+  "placeholders": {
+    "count": {"type": "int"}
+  }
+},
+"chatMapCoordinates": "위도: {latitude}, 경도: {longitude}",
+"@chatMapCoordinates": {
+  "placeholders": {
+    "latitude": {"type": "String"},
+    "longitude": {"type": "String"}
+  }
+},
+"chatClosedShieldRejected": "채팅이 종료되었습니다. 참여자 중 한 명이 보안 실드를 수락하지 않았습니다.",
+"chatLockedForMeeting": "채팅이 잠겼습니다. 직접 만날 예정입니다. 늦지 마세요.",
+"chatAnalyzingConversation": "대화를 분석하는 중...",
+"chatAnalysisNotAvailable": "아직 분석 결과가 없습니다.",
+"chatMeetingTimeOccupied": "해당 날짜와 시간은 이미 예약되어 있습니다.",
+"chatYourPortfolio": "내 포트폴리오",
+"chatHideProducts": "상품 숨기기",
+"chatViewProducts": "상품 보기",
+"chatViewProduct": "상품 보기",
+"chatSelectMessagePart": "복사할 메시지 부분 선택",
+"chatMeetingProposalTitle": "만남 제안",
+"chatWaitingProposalResponse": "응답을 기다리는 중...",
+"chatTapProposalDetails": "탭하여 세부 정보를 확인하고 응답하기",
+"chatProposalAcceptedNotice": "✅ 제안 수락됨",
+"chatProposalRejected": "❌ 제안 거절됨",
+"chatOtherUserMeetingReady": "{userName}님이 만남 준비가 모두 완료되었는지 확인하고 싶어 합니다",
+"@chatOtherUserMeetingReady": {
+  "placeholders": {
+    "userName": {"type": "String"}
+  }
+},
+"chatMeetingEverythingReady": "만남 준비가 모두 완료되었나요?",
+"chatMeetingBothConfirmLock": "양측 모두 확인하면 직접 만날 때까지 채팅이 잠깁니다.",
+"chatConversationAgreement": "대화에서 합의에 도달한 것 같습니다.",
+"chatCancelMeetingBoth": "이 작업은 양측의 만남을 취소합니다.",
+"chatMeetingNotCompletedExplanation": "불편을 드려 죄송합니다. 모든 만남이 성사되는 것은 아니며, 가장 중요한 것은 서로의 안전을 지키는 것입니다.\n\n채팅이 종료되었습니다. 대화를 계속하려면 이 채팅을 삭제한 후 다시 열어 주세요."
+  
 }

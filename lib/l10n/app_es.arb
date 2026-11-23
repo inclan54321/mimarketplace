@@ -487,5 +487,353 @@
   "nombreNoPuedeEstarVacio": "El nombre no puede estar vacío",
   "perfilActualizadoCorrectamente": "✅ Perfil actualizado correctamente",
   "errorAlGuardarEnServidor": "Error al guardar en el servidor",
-  "volverAlPerfil": "Volver al perfil"
+  "volverAlPerfil": "Volver al perfil",
+  "chatShieldAccepted": "🛡️ Escudo aceptado",
+  "chatShieldRejected": "🚫 Escudo rechazado. El chat quedó cerrado.",
+  "chatRatingSent": "¡Calificación enviada! Gracias por tu opinión.",
+  "chatMessageBlocked": "Mensaje bloqueado",
+  "chatPhoneBlocked": "El Escudo de Seguridad bloqueó este mensaje.\n\nMotivo: No se permiten números de teléfono.",
+  "chatUnderstood": "Entendido",
+  "chatMeetingNotHeld": "El encuentro no se realizó. Eliminá este chat y volvé a abrirlo para seguir conversando.",
+  "chatGallery": "Galería",
+  "chatCamera": "Cámara",
+  "chatShareLocation": "Compartir ubicación",
+  "chatSharePortfolio": "Compartir portafolio",
+  "chatEnableGps": "Activa el GPS del teléfono para compartir tu ubicación",
+  "chatLocationPermission": "Se necesita permiso de ubicación",
+  "chatGettingLocation": "📍 Obteniendo tu ubicación...",
+  "chatCannotOpenApp": "No se pudo abrir la aplicación",
+  "chatOpenLocationWith": "Abrir ubicación con...",
+  "chatPortfolioShared": "📤 Portafolio compartido",
+  "chatDontShowAgain": "No volver a mostrar",
+  "chatCancel": "Cancelar",
+  "chatContinue": "Continuar",
+  "chatOtherUser": "El otro usuario",
+  "chatGenericError": "Error: {error}",
+  "@chatGenericError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatLocationSendError": "No se pudo enviar la ubicación ({statusCode})",
+  "@chatLocationSendError": {
+    "placeholders": {
+      "statusCode": {"type": "String"}
+    }
+  },
+  "chatLocationGetError": "Error al obtener la ubicación: {error}",
+  "@chatLocationGetError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatImageSendError": "Error al enviar imagen: {error}",
+  "@chatImageSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatAudioPermissionRequired": "Se necesita permiso para grabar audio",
+  "chatRecordingTapToStop": "🎤 Grabando... toca de nuevo para detener",
+  "chatRecordingError": "Error al grabar: {error}",
+  "@chatRecordingError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatVerifyingAudio": "🛡️ Verificando audio...",
+  "chatAudioSent": "🎤 Audio enviado",
+  "chatAudioSendError": "Error al enviar audio: {error}",
+  "@chatAudioSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatRecordingLimitReached": "⏱️ Límite de 25 segundos alcanzado",
+  "chatRecordingCancelled": "🗑️ Grabación cancelada",
+  "chatSendingAudio": "📤 Enviando audio...",
+  "chatStopRecordingError": "Error al detener grabación: {error}",
+  "@chatStopRecordingError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatAudioPlaybackError": "Error al reproducir audio: {error}",
+  "@chatAudioPlaybackError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatSellerBlocked": "Vendedor bloqueado correctamente",
+  "chatSellerBlockError": "Error al bloquear",
+  "chatSellerUnblocked": "Vendedor desbloqueado correctamente",
+  "chatSellerUnblockError": "Error al desbloquear",
+  "chatReportSeller": "Denunciar vendedor",
+  "chatReport": "Denunciar",
+  "chatReportLoginRequired": "Debes iniciar sesión para denunciar",
+  "chatReportSent": "Denuncia enviada. Será revisada por moderación.",
+  "chatReportSendError": "Error al enviar denuncia: {error}",
+  "@chatReportSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatInternetSearchComingSoon": "La función \"Buscar en internet\" está en desarrollo",
+  "chatSelectText": "Seleccionar texto",
+  "chatSelectTextToCopy": "Selecciona el texto que quieres copiar:",
+  "chatClose": "Cerrar",
+  "chatAccept": "Aceptar",
+  "chatReject": "Rechazar",
+  "chatConfirmMeetingQuestion": "¿Confirmar encuentro?",
+  "chatConfirm": "Confirmar",
+  "chatMeetingConfirmed": "Encuentro confirmado",
+  "chatMeetingNotFound": "No se encontró el encuentro agendado",
+  "chatMeetingCancelledReopened": "Encuentro cancelado. El chat volvió a abrirse.",
+  "chatCannotCancelMeeting": "No se pudo cancelar",
+  "chatRecordingNotActive": "La grabación no está activa",
+  "chatRecordingStopped": "Grabación detenida",
+  "chatWriteMessage": "Escribe un mensaje...",
+  "chatSellerBlockException": "Error al bloquear: {error}",
+  "@chatSellerBlockException": {"placeholders": {"error": {"type": "String"}}},
+  "chatSellerUnblockException": "Error al desbloquear: {error}",
+  "@chatSellerUnblockException": {"placeholders": {"error": {"type": "String"}}},
+  "chatSelectReportReason": "Selecciona el motivo de la denuncia:",
+  "chatReportModerationNotice": "Esta denuncia será revisada por nuestro equipo de moderación.",
+  "chatSellerOptions": "Opciones del Vendedor",
+  "chatUnblock": "Desbloquear",
+  "chatBlock": "Bloquear",
+  "chatUnblockUser": "Desbloquear a {userName}",
+  "@chatUnblockUser": {"placeholders": {"userName": {"type": "String"}}},
+  "chatBlockUser": "Bloquear a {userName}",
+  "@chatBlockUser": {"placeholders": {"userName": {"type": "String"}}},
+  "chatViewProfileInfo": "Ver información de perfil",
+  "chatViewUserDetails": "Ver detalles de {userName}",
+  "@chatViewUserDetails": {"placeholders": {"userName": {"type": "String"}}},
+  "chatViewPortfolio": "Ver Portafolio",
+  "chatViewUserProducts": "Ver todos los productos de {userName}",
+  "@chatViewUserProducts": {"placeholders": {"userName": {"type": "String"}}},
+  "chatReportUserRules": "Reportar a {userName} por incumplir las reglas",
+  "@chatReportUserRules": {"placeholders": {"userName": {"type": "String"}}},
+  "chatStrikeMessage": "Tachar mensaje",
+  "chatStrikeMessageDescription": "Tachar este mensaje para indicar que está resuelto",
+  "chatMessageStruck": "Mensaje tachado",
+  "chatStrikeRemoved": "Tachado eliminado",
+  "chatSearchInternet": "Buscar en internet",
+  "chatSearchMessageGoogle": "Buscar este mensaje en Google",
+  "chatOnline": "en línea",
+  "chatLastSeen": "última vez",
+  "chatLastSeenToday": "última vez hoy",
+  "chatLastSeenYesterday": "última vez ayer",
+  "chatLastSeenOn": "última vez el {date}",
+  "@chatLastSeenOn": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "chatPortfolioSharedByYou": "Compartiste tu portafolio",
+  "chatPortfolioOfUser": "Portafolio de {userName}",
+  "@chatPortfolioOfUser": {
+    "placeholders": {
+      "userName": {"type": "String"}
+    }
+  },
+  "chatTapToViewProducts": "Toca para ver los productos",
+  "chatView": "Ver",
+  "chatYou": "Tú",
+  "chatShieldAudioTitle": "Audios con el Escudo",
+  "chatShieldImageTitle": "Imágenes con el Escudo",
+  "chatShieldAudioInstructions": "• Solo puedes grabar 25 segundos.\n• El audio se revisa con IA: debe hablar únicamente de \"{productName}\".\n• No se permiten teléfonos, redes sociales, pagos fuera de la app, insultos ni otros temas.\n\nCuando cierres esta ventana, mantén presionado el micrófono para grabar.",
+  "@chatShieldAudioInstructions": {
+    "placeholders": {
+      "productName": {"type": "String"}
+    }
+  },
+  "chatShieldImageInstructions": "• Solo puedes enviar 1 imagen en este chat.\n• La imagen se revisa con IA: debe mostrar el producto \"{productName}\".\n• No se permiten teléfonos, QR, redes sociales, pagos fuera de la app, contenido sexual, violento u ofensivo.",
+  "@chatShieldImageInstructions": {
+    "placeholders": {
+      "productName": {"type": "String"}
+    }
+  },
+  "chatImageLimitTitle": "Límite de imágenes",
+  "chatImageLimitBody": "Con el Escudo activo solo puedes enviar 1 imagen en este chat.",
+  "chatCropImage": "Recortar imagen",
+  "chatDone": "Listo",
+  "chatImageRejected": "Imagen rechazada",
+  "chatAudioRejected": "Audio rechazado",
+  "chatStatusNeutral": "Estado Neutral",
+  "chatNeutralDescription": "La conversación está en curso. Aún no hay suficiente información para determinar el estado de la transacción.",
+  "chatNeutralRecommendation": "Continúa conversando de forma respetuosa y clara.",
+  "chatStatusHealthy": "Conversación Saludable",
+  "chatHealthyDescription": "La conversación fluye de manera positiva. Ambos usuarios se están comunicando de forma respetuosa y clara.",
+  "chatHealthyRecommendation": "¡Sigue así! La transacción tiene buenas probabilidades de éxito.",
+  "chatStatusWarning": "Precaución Recomendada",
+  "chatWarningDescription": "Se han detectado algunos signos de alerta en la conversación. Podría haber malentendidos o tensión.",
+  "chatWarningRecommendation": "Revisa los mensajes anteriores. Intenta ser más claro y empático en tus respuestas.",
+  "chatStatusDanger": "Peligro Inminente",
+  "chatDangerDescription": "La conversación muestra signos de conflicto o riesgo. Podría haber mala comunicación o desacuerdos serios.",
+  "chatDangerRecommendation": "Detente y evalúa la situación. Considera contactar a soporte si es necesario.",
+  "chatCancelMeetingQuestion": "¿Cancelar el encuentro?",
+  "chatRecordingRejectionWarning": "Si rechazás la grabación de voz por seguridad, el encuentro se cancela para AMBOS usuarios y el chat queda cerrado.\n\nEsta acción no se puede deshacer.",
+  "chatGoBack": "Volver",
+  "chatYesCancelMeeting": "Sí, cancelar el encuentro",
+  "chatSecurityVoiceRecording": "Grabación de voz por seguridad",
+  "chatSecurityRecordingConsentBody": "A partir de este momento, la app GRABARÁ el audio que se emita en esta conversación desde AMBOS dispositivos, con el único fin de proteger a los usuarios.\n\n• Los fragmentos de audio se guardan cada 10 segundos.\n• Esa grabación puede ser compartida con un tercero (autoridad o perito de seguridad) si hay una denuncia o incidente.\n• Nadie más puede escuchar los audios sin tu permiso o una orden legal.\n\n⚠️ IMPORTANTE: La grabación por seguridad es OBLIGATORIA para poder realizar el encuentro.\n\nSi RECHAZÁS la grabación, el encuentro se CANCELA automáticamente para ambos usuarios y el chat queda cerrado. No se podrá continuar con el encuentro presencial a través de la app.",
+  "chatRejectAndCancel": "Rechazar y cancelar",
+  "chatAcceptAndContinue": "Aceptar y continuar",
+  "chatProposeMeeting": "Proponer encuentro",
+  "chatChooseSafePlace": "Elegí un lugar seguro de la lista.",
+  "chatProposalNumber": "Propuesta {number} de 3",
+  "@chatProposalNumber": {
+    "placeholders": {
+      "number": {"type": "int"}
+    }
+  },
+  "chatChoosePlaceOnMap": "Elegir lugar en el mapa",
+  "chatPlaceSelected": "Lugar seleccionado",
+  "chatTapToOpenMap": "Tocá para abrir el mapa",
+  "chatChooseTime": "Elegí una hora (7:00 AM – 6:00 PM)",
+  "chatSelectDateTime": "Seleccionar fecha y hora",
+  "chatSelectPlaceAndDate": "⚠️ Elegí un lugar en el mapa y una fecha",
+  "chatTimeSlotOccupiedChooseAnother": "⛔ Ese día y hora ya está ocupado. Elegí otro horario.",
+  "chatAddProposal": "Agregar propuesta",
+  "chatAddAndViewSummary": "Agregar y ver resumen",
+  "chatViewSummaryCount": "Ver resumen ({count})",
+  "@chatViewSummaryCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "chatProposalsSummary": "Resumen de propuestas",
+  "chatProposalsAddedCount": "{count} de 3 propuestas agregadas",
+  "@chatProposalsAddedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "chatMaxThreeProposals": "Máximo 3 propuestas",
+  "chatAddAnotherProposal": "Agregar otra propuesta",
+  "chatProposalCancelled": "ANULADA",
+  "chatProposalAccepted": "ACEPTADA",
+  "chatProposalPending": "PENDIENTE",
+  "chatMeetingDetails": "Detalle del encuentro",
+  "chatDistrict": "Distrito",
+  "chatPlace": "Lugar",
+  "chatDateAndTime": "Fecha y hora",
+  "chatMeetingStatus": "Estado",
+  "chatAcceptProposalQuestion": "¿Aceptas esta propuesta?",
+  "chatWaitingOtherResponse": "Esperando respuesta del otro usuario...",
+  "chatMeetingConfirmationNotice": "Una vez confirmado, no podrán escribir por chat hasta que se vean en persona.\n\n• No llegues tarde\n• Se pedirá reconocimiento facial\n• Se activará el GPS el día del encuentro",
+  "chatCancelDealQuestion": "¿Cancelar el trato?",
+  "chatMeetingLabel": "ENCUENTRO",
+  "chatCancellationRule": "Regla de cancelación",
+  "chatCancellationNotification": "Al cancelar, el encuentro se anula para los dos y el chat vuelve a abrirse. El otro usuario recibirá una notificación.",
+  "chatOtherConfirmedCannotCancel": "El otro usuario confirmó asistencia. Ya no podés cancelar este encuentro.",
+  "chatCannotCancelWithinHour": "Ya no podés cancelar este encuentro porque falta menos de 1 hora. Deben presentarse en el lugar acordado.",
+  "chatBothConfirmedCannotCancel": "Ambos ya confirmaron asistencia. El encuentro no se puede cancelar.",
+  "chatOnlyOtherCanCancel": "El otro usuario confirmó asistencia. Solo él puede cancelar hasta 10 minutos antes.",
+  "chatYouCanCancelUntilTenMinutes": "Confirmaste asistencia. Podés cancelar hasta 10 minutos antes del encuentro.",
+  "chatCancellationDeadlineRule": "Solo podés cancelar el trato hasta 1 hora antes del encuentro. Si falta menos de 1 hora, ya no se permite cancelar y deben presentarse en el lugar acordado.",
+  "chatBack": "Volver",
+  "chatYesCancel": "Sí, cancelar",
+  "chatMeetingCancelError": "Error: {error}",
+  "@chatMeetingCancelError": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "chatDealClosedTitle": "🤝 Trato cerrado",
+  "chatDealClosedDescription": "El chat quedó bloqueado. Nos vemos en el encuentro.",
+  "chatViewChatMessages": "Ver mensajes del chat",
+  "chatReviewAlertsStep": "1. Revisá tus alertas",
+  "chatReviewAlertsDescription": "Entrá a la sección de Alertas para ver la fecha, hora y lugar del encuentro confirmado.",
+  "chatFacialRecognitionStep": "2. Reconocimiento facial",
+  "chatFacialRecognitionStepDescription": "El día del encuentro, la app te va a pedir una selfie para verificar tu identidad antes de salir.",
+  "chatEnableGpsStep": "3. Activá el GPS",
+  "chatEnableGpsStepDescription": "Al llegar al lugar, activá la ubicación. La app confirma que estás en el punto seguro.",
+  "chatUnlockChatStep": "4. Se desbloquea el chat",
+  "chatUnlockChatStepDescription": "Cuando ambos estén presentes y verificados, el chat vuelve a abrirse.",
+  "chatArriveEarlyWarning": "Llegá 10 minutos antes. Si no llegás, el encuentro se marca como \"no presentado\" y el chat queda cerrado.",
+  "chatShieldAlreadyActive": "🛡️ El Escudo ya está activo y no se puede desactivar",
+  "chatShieldAnalyzingMessages": "🛡️ Escudo activado. Analizando mensajes...",
+  "chatActivateShieldToViewAnalysis": "🛡️ Activa el Escudo para ver el análisis de la conversación",
+  "chatDealInfo": "Info del trato",
+  "chatProposePlaceBeforeClosingDeal": "📍 Primero proponé un lugar y una fecha para el encuentro.\nCuando el otro acepte, vas a poder cerrar el trato.",
+  "chatDealClosedWaitingMeeting": "✅ Trato cerrado. Esperando el encuentro.",
+  "chatWaitingDealConfirmation": "⏳ Esperando que el otro usuario confirme...",
+  "chatConfirmDeal": "Confirmar",
+  "chatMoreQuestions": "Tengo más preguntas",
+  "chatNoMessagesYet": "No hay mensajes aún",
+  "chatItemSold": "ARTÍCULO VENDIDO",
+  "chatMeetingHasBeenAccepted": "El encuentro ha sido aceptado",
+  "chatDealClosedBothConfirmed": "✅ Trato cerrado. Ambos confirmaron. ¡Nos vemos el día del encuentro!",
+  "chatBothContinueTalking": "✅ Ambos decidieron seguir conversando",
+  "chatUserWantsToContinueTalking": "El usuario quiere seguir conversando",
+  "chatRatingThankYou": "✅ Has calificado. ¡Gracias por tu opinión!",
+  "chatRatingVisibleAfterWeek": "Tu calificación se reflejará en el perfil de {userName} una semana después de enviarla.",
+  "@chatRatingVisibleAfterWeek": {
+    "placeholders": {"userName": {"type": "String"}}
+  },
+  "chatYouSharedLocation": "Compartiste tu ubicación",
+  "chatLocationShared": "Ubicación compartida",
+  "chatTapToOpenMaps": "Toca para abrir en mapas",
+  "chatMeetingCouldNotTakePlace": "El encuentro no se pudo realizar",
+  "chatMeetingCancelledChatReopened": "❌ El encuentro fue cancelado. El chat volvió a abrirse.",
+  "chatConfirmedDealWaitingResponse": "⏳ Confirmaste cerrar el trato. Esperando la respuesta del otro usuario...",
+  "chatWaitingOtherDecision": "⏳ Esperando que el otro usuario decida...",
+  "chatMeetingProposalPendingWrite": "Propuesta de encuentro pendiente. Esperá a que se resuelva para escribir.",
+"chatRecordingSlideToCancel": "🎤 Grabando... desliza para cancelar",
+"chatReleaseToCancel": "Suelta para cancelar",
+"chatRecordingRejectedMeetingCancelled": "❌ Rechazaste la grabación. El encuentro se canceló para ambos y el chat quedó cerrado.",
+"chatRecordingEnabledBothAccepted": "🎙️ Grabación habilitada. Ambos aceptaron.",
+"chatRecordingAcceptedWaitingOther": "🎙️ Aceptaste. Esperando que el otro usuario acepte.",
+"chatRecordingMeetingCancelledTitle": "🚫 Encuentro cancelado",
+"chatRecordingMeetingCancelledReason": "El encuentro se canceló porque una de las partes rechazó la grabación de voz por seguridad.",
+"chatRecordingMandatoryExplanation": "La grabación por seguridad es obligatoria para realizar encuentros presenciales a través de la app. Esta medida protege a ambos usuarios.",
+"chatReportSuspiciousProduct": "Producto sospechoso",
+"chatReportProhibitedProducts": "Publicación de productos prohibidos",
+"chatReportFraud": "Estafa o fraude",
+"chatReportHarassment": "Acoso o maltrato",
+"chatReportMisleadingInfo": "Información falsa o engañosa",
+"chatReportOtherReason": "Otro motivo",
+"chatLocation": "Ubicación",
+"chatClosedShieldRejected": "Chat cerrado. Uno de los participantes no aceptó el Escudo de Seguridad.",
+"chatLockedForMeeting": "Chat bloqueado. Se verán en persona. No llegues tarde.",
+"chatSendProposals": "{count, plural, =1{Enviar 1 propuesta} other{Enviar {count} propuestas}}",
+"@chatSendProposals": {
+  "placeholders": {
+    "count": {"type": "int"}
+  }
+},
+"chatMapCoordinates": "Lat: {latitude}, Lng: {longitude}",
+"@chatMapCoordinates": {
+  "placeholders": {
+    "latitude": {"type": "String"},
+    "longitude": {"type": "String"}
+  }
+},
+"chatClosedShieldRejected": "Chat cerrado. Uno de los participantes no aceptó el Escudo de Seguridad.",
+"chatLockedForMeeting": "Chat bloqueado. Se verán en persona. No llegues tarde.",
+"chatAnalyzingConversation": "Analizando conversación...",
+"chatAnalysisNotAvailable": "No hay análisis disponible aún.",
+"chatMeetingTimeOccupied": "Ese día y hora ya está ocupado.",
+"chatYourPortfolio": "Tu portafolio",
+"chatHideProducts": "Ocultar productos",
+"chatViewProducts": "Ver productos",
+"chatViewProduct": "Ver producto",
+"chatSelectMessagePart": "Seleccionar parte del mensaje para copiar",
+"chatMeetingProposalTitle": "Propuesta de encuentro",
+"chatWaitingProposalResponse": "Esperando respuesta...",
+"chatTapProposalDetails": "Toca para ver detalles y responder",
+"chatProposalAcceptedNotice": "✅ Propuesta aceptada",
+"chatProposalRejected": "❌ Propuesta rechazada",
+"chatOtherUserMeetingReady": "{userName} desea saber si ya todo está listo para el encuentro",
+"@chatOtherUserMeetingReady": {
+  "placeholders": {
+    "userName": {"type": "String"}
+  }
+},
+"chatMeetingEverythingReady": "¿Ya está todo listo para el encuentro?",
+"chatMeetingBothConfirmLock": "Si ambos confirman, el chat se bloquea hasta que se vean en persona.",
+"chatConversationAgreement": "La conversación parece haber llegado a un acuerdo.",
+"chatCancelMeetingBoth": "Esta acción anula el encuentro para ambos.",
+"chatMeetingNotCompletedExplanation": "Lamentamos las molestias. No todos los encuentros se pueden concretar, y eso está bien: lo importante es cuidarnos entre todos.\n\nEl chat quedó cerrado. Eliminá este chat y volvé a abrirlo para seguir conversando."
+  
 }

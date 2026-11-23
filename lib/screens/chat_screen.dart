@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/generated/app_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/cupertino.dart';
@@ -312,14 +313,14 @@ class _ChatScreenState extends State<ChatScreen>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    String nombreQuienActivo = 'El otro usuario';
+    String nombreQuienActivo = AppLocalizations.of(context)!.chatOtherUser;
     try {
       final r = await http.get(
         Uri.parse('https://mimarketplace-production.up.railway.app/api/usuarios/$_escudoActivadoPor'),
       );
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body);
-        nombreQuienActivo = data['nombre'] ?? 'El otro usuario';
+        nombreQuienActivo = data['nombre'] ?? AppLocalizations.of(context)!.chatOtherUser;
       }
     } catch (e) {
       print('Error al obtener nombre de quien activó: $e');
@@ -390,8 +391,8 @@ class _ChatScreenState extends State<ChatScreen>
         await _cargarEstadoEscudo();   // 🔥 sincroniza con el backend
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🛡️ Escudo aceptado'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.chatShieldAccepted),
               backgroundColor: Color(0xFF00E676),
             ),
           );
@@ -431,8 +432,8 @@ class _ChatScreenState extends State<ChatScreen>
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🚫 Escudo rechazado. El chat quedó cerrado.'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.chatShieldRejected),
               backgroundColor: Colors.red,
             ),
           );
@@ -1672,8 +1673,8 @@ void dispose() {
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Calificación enviada! Gracias por tu opinión.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatRatingSent),
             backgroundColor: Colors.green,
           ),
         );
@@ -1688,7 +1689,7 @@ void dispose() {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text(AppLocalizations.of(context)!.chatGenericError(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -1820,8 +1821,10 @@ void dispose() {
 
   // 🔥 FORMATEAR TEXTO DE ÚLTIMA CONEXIÓN (corto: sin "hace X min")
   String _formatearUltimaConexion() {
-    if (_otroUsuarioEnLinea) return 'en línea';
-    if (_ultimaConexion == null) return 'última vez';
+    final l10n = AppLocalizations.of(context)!;
+
+    if (_otroUsuarioEnLinea) return l10n.chatOnline;
+    if (_ultimaConexion == null) return l10n.chatLastSeen;
 
     try {
       final fecha = DateTime.parse(_ultimaConexion!).toLocal();
@@ -1829,15 +1832,15 @@ void dispose() {
       final diferencia = ahora.difference(fecha);
 
       if (diferencia.inHours < 24 && ahora.day == fecha.day) {
-        return 'última vez hoy';
+        return l10n.chatLastSeenToday;
       } else if (diferencia.inDays < 2) {
-        return 'última vez ayer';
+        return l10n.chatLastSeenYesterday;
       } else {
         final dia = DateFormat('dd/MM/yyyy').format(fecha);
-        return 'última vez el $dia';
+        return l10n.chatLastSeenOn(dia);
       }
     } catch (e) {
-      return 'última vez';
+      return l10n.chatLastSeen;
     }
   }
   // 🔥 FORMATEAR SOLO LA HORA DE ÚLTIMA CONEXIÓN
@@ -1916,21 +1919,20 @@ Future<void> _obtenerFotoVendedorReal() async {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.shield, color: Colors.blue),
-              SizedBox(width: 8),
-              Text('Mensaje bloqueado'),
+              const Icon(Icons.shield, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(AppLocalizations.of(context)!.chatMessageBlocked),
             ],
           ),
-          content: const Text(
-            'El Escudo de Seguridad bloqueó este mensaje.\n\n'
-            'Motivo: No se permiten números de teléfono.',
+          content: Text(
+            AppLocalizations.of(context)!.chatPhoneBlocked,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Entendido'),
+              child: Text(AppLocalizations.of(context)!.chatUnderstood),
             ),
           ],
         ),
@@ -2025,7 +2027,7 @@ Future<void> _obtenerFotoVendedorReal() async {
         if (analisis.isEmpty || analisis == null) {
           // Todavía no hay análisis
           setState(() {
-            _analisisIA = 'Analizando conversación...';
+            _analisisIA = AppLocalizations.of(context)!.chatAnalyzingConversation;
           });
           return;
         }
@@ -2146,8 +2148,8 @@ Future<void> _obtenerFotoVendedorReal() async {
 
   void _avisoNoPresentado() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('El encuentro no se realizó. Eliminá este chat y volvé a abrirlo para seguir conversando.'),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.chatMeetingNotHeld),
         backgroundColor: Colors.orange,
         duration: Duration(seconds: 4),
       ),
@@ -2169,7 +2171,7 @@ Future<void> _obtenerFotoVendedorReal() async {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library, color: Colors.blue),
-              title: const Text('Galería'),
+              title: Text(AppLocalizations.of(context)!.chatGallery),
               onTap: () {
                 Navigator.pop(context);
                 _seleccionarImagen(ImageSource.gallery);
@@ -2177,7 +2179,7 @@ Future<void> _obtenerFotoVendedorReal() async {
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Colors.black),
-              title: const Text('Cámara'),
+              title: Text(AppLocalizations.of(context)!.chatCamera),
               onTap: () {
                 Navigator.pop(context);
                 _seleccionarImagen(ImageSource.camera);
@@ -2187,7 +2189,7 @@ Future<void> _obtenerFotoVendedorReal() async {
             if (!_iaActiva)
               ListTile(
                 leading: const Icon(Icons.location_on, color: Colors.red),
-                title: const Text('Compartir ubicación'),
+                title: Text(AppLocalizations.of(context)!.chatShareLocation),
                 onTap: () {
                   Navigator.pop(context);
                   _enviarUbicacion();
@@ -2197,7 +2199,7 @@ Future<void> _obtenerFotoVendedorReal() async {
             if (esVendedor)
               ListTile(
                 leading: const Icon(Icons.storefront, color: Colors.amber),
-                title: const Text('Compartir portafolio'),
+                title: Text(AppLocalizations.of(context)!.chatSharePortfolio),
                 onTap: () {
                   Navigator.pop(context);
                   _enviarPortafolio();
@@ -2218,8 +2220,8 @@ Future<void> _obtenerFotoVendedorReal() async {
       if (!await Geolocator.isLocationServiceEnabled()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Activa el GPS del teléfono para compartir tu ubicación'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.chatEnableGps),
               backgroundColor: Colors.orange,
             ),
           );
@@ -2235,8 +2237,8 @@ Future<void> _obtenerFotoVendedorReal() async {
           permiso == LocationPermission.deniedForever) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Se necesita permiso de ubicación'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.chatLocationPermission),
               backgroundColor: Colors.orange,
             ),
           );
@@ -2246,8 +2248,8 @@ Future<void> _obtenerFotoVendedorReal() async {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('📍 Obteniendo tu ubicación...'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatGettingLocation),
             duration: Duration(seconds: 2),
           ),
         );
@@ -2283,7 +2285,7 @@ Future<void> _obtenerFotoVendedorReal() async {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('No se pudo enviar la ubicación (${response.statusCode})'),
+            content: Text(AppLocalizations.of(context)!.chatLocationSendError(response.statusCode.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -2292,7 +2294,7 @@ Future<void> _obtenerFotoVendedorReal() async {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al obtener la ubicación: $e'),
+            content: Text(AppLocalizations.of(context)!.chatLocationGetError(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -2309,8 +2311,8 @@ Future<void> _obtenerFotoVendedorReal() async {
       );
       if (!ok && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo abrir la aplicación'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatCannotOpenApp),
             backgroundColor: Colors.orange,
           ),
         );
@@ -2341,8 +2343,8 @@ Future<void> _obtenerFotoVendedorReal() async {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Abrir ubicación con...',
+            Text(
+              AppLocalizations.of(context)!.chatOpenLocationWith,
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -2407,8 +2409,8 @@ Future<void> _obtenerFotoVendedorReal() async {
         await _cargarMensajes(_conversacionIdActual);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('📤 Portafolio compartido'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.chatPortfolioShared),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 1),
             ),
@@ -2418,7 +2420,7 @@ Future<void> _obtenerFotoVendedorReal() async {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(AppLocalizations.of(context)!.chatMeetingCancelError(e.toString())), backgroundColor: Colors.red),
         );
       }
     }
@@ -2441,7 +2443,7 @@ Future<void> _obtenerFotoVendedorReal() async {
     final user = FirebaseAuth.instance.currentUser;
     final esMio = vendedorId == user?.uid;
     final nombreMostrar = esMio
-        ? 'Tu portafolio'
+        ? AppLocalizations.of(context)!.chatYourPortfolio
         : widget.otroUsuario;
 
     return Container(
@@ -2480,8 +2482,8 @@ Future<void> _obtenerFotoVendedorReal() async {
               children: [
                 Text(
                   esMio
-                      ? 'Compartiste tu portafolio'
-                      : 'Portafolio de $nombreMostrar',
+                      ? AppLocalizations.of(context)!.chatPortfolioSharedByYou
+                      : AppLocalizations.of(context)!.chatPortfolioOfUser(nombreMostrar),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -2489,9 +2491,9 @@ Future<void> _obtenerFotoVendedorReal() async {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Toca para ver los productos',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                Text(
+                  AppLocalizations.of(context)!.chatTapToViewProducts,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
                 ),
               ],
             ),
@@ -2505,7 +2507,7 @@ Future<void> _obtenerFotoVendedorReal() async {
                   builder: (context) => PortafolioVendedorScreen(
                     vendedorId: vendedorId,
                     vendedorNombre: esMio
-                        ? (user?.displayName ?? 'Tú')
+                        ? (user?.displayName ?? AppLocalizations.of(context)!.chatYou)
                         : widget.otroUsuario,
                     vendedorFoto: _fotoVendedorReal,
                   ),
@@ -2521,9 +2523,9 @@ Future<void> _obtenerFotoVendedorReal() async {
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
-            child: const Text(
-              'Ver',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            child: Text(
+              AppLocalizations.of(context)!.chatView,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -2550,7 +2552,9 @@ Future<void> _obtenerFotoVendedorReal() async {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  esAudio ? 'Audios con el Escudo' : 'Imágenes con el Escudo',
+                  esAudio
+                      ? AppLocalizations.of(context)!.chatShieldAudioTitle
+                      : AppLocalizations.of(context)!.chatShieldImageTitle,
                   style: const TextStyle(fontSize: 18),
                 ),
               ),
@@ -2562,13 +2566,8 @@ Future<void> _obtenerFotoVendedorReal() async {
             children: [
               Text(
                 esAudio
-                    ? '• Solo puedes grabar 25 segundos.\n'
-                      '• El audio se revisa con IA: debe hablar únicamente de "${widget.nombreProducto}".\n'
-                      '• No se permiten teléfonos, redes sociales, pagos fuera de la app, insultos ni otros temas.\n\n'
-                      'Cuando cierres esta ventana, mantén presionado el micrófono para grabar.'
-                    : '• Solo puedes enviar 1 imagen en este chat.\n'
-                      '• La imagen se revisa con IA: debe mostrar el producto "${widget.nombreProducto}".\n'
-                      '• No se permiten teléfonos, QR, redes sociales, pagos fuera de la app, contenido sexual, violento u ofensivo.',
+                    ? AppLocalizations.of(context)!.chatShieldAudioInstructions(widget.nombreProducto)
+                    : AppLocalizations.of(context)!.chatShieldImageInstructions(widget.nombreProducto),
                 style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 12),
@@ -2580,7 +2579,7 @@ Future<void> _obtenerFotoVendedorReal() async {
                       value: noMostrar,
                       onChanged: (v) => setD(() => noMostrar = v ?? false),
                     ),
-                    const Expanded(child: Text('No volver a mostrar')),
+                    Expanded(child: Text(AppLocalizations.of(context)!.chatDontShowAgain)),
                   ],
                 ),
               ),
@@ -2590,11 +2589,11 @@ Future<void> _obtenerFotoVendedorReal() async {
             if (!esAudio)
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar'),
+                child: Text(AppLocalizations.of(context)!.chatCancel),
               ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text(esAudio ? 'Entendido' : 'Continuar'),
+              child: Text(esAudio ? AppLocalizations.of(context)!.chatUnderstood : AppLocalizations.of(context)!.chatContinue),
             ),
           ],
         ),
@@ -2622,7 +2621,7 @@ Future<void> _obtenerFotoVendedorReal() async {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Entendido'),
+            child: Text(AppLocalizations.of(context)!.chatUnderstood),
           ),
         ],
       ),
@@ -2643,8 +2642,8 @@ Future<void> _obtenerFotoVendedorReal() async {
     if (_iaActiva) {
       if (_yaEnvieImagenEnChat()) {
         await _mostrarRechazoModeracion(
-          'Límite de imágenes',
-          'Con el Escudo activo solo puedes enviar 1 imagen en este chat.',
+          AppLocalizations.of(context)!.chatImageLimitTitle,
+          AppLocalizations.of(context)!.chatImageLimitBody,
         );
         return;
       }
@@ -2665,7 +2664,7 @@ Future<void> _obtenerFotoVendedorReal() async {
       uiSettings: [
         // 🔥 Configuración Android
         AndroidUiSettings(
-          toolbarTitle: 'Recortar imagen',
+          toolbarTitle: AppLocalizations.of(context)!.chatCropImage,
           toolbarColor: Colors.blue.shade700,   // igual que tu AppBar
           toolbarWidgetColor: Colors.white,
           initAspectRatio: CropAspectRatioPreset.original,
@@ -2674,9 +2673,9 @@ Future<void> _obtenerFotoVendedorReal() async {
         ),
         // 🔥 Configuración iOS
         IOSUiSettings(
-          title: 'Recortar imagen',
-          cancelButtonTitle: 'Cancelar',
-          doneButtonTitle: 'Listo',
+          title: AppLocalizations.of(context)!.chatCropImage,
+          cancelButtonTitle: AppLocalizations.of(context)!.chatCancel,
+          doneButtonTitle: AppLocalizations.of(context)!.chatDone,
           aspectRatioLockEnabled: false,
         ),
       ],
@@ -2717,7 +2716,10 @@ Future<void> _obtenerFotoVendedorReal() async {
         if ((response.statusCode == 403 || response.statusCode == 500) &&
             motivo != null &&
             motivo.isNotEmpty) {
-          await _mostrarRechazoModeracion('Imagen rechazada', motivo);
+          await _mostrarRechazoModeracion(
+            AppLocalizations.of(context)!.chatImageRejected,
+            motivo,
+          );
           return;
         }
         throw Exception('Error al enviar (status ${response.statusCode})');
@@ -2727,7 +2729,7 @@ Future<void> _obtenerFotoVendedorReal() async {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al enviar imagen: $e'),
+            content: Text(AppLocalizations.of(context)!.chatImageSendError(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -2741,7 +2743,7 @@ Future<void> _obtenerFotoVendedorReal() async {
   final status = await Permission.microphone.request();
   if (status != PermissionStatus.granted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Se necesita permiso para grabar audio')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.chatAudioPermissionRequired)),
     );
     return;
   }
@@ -2770,8 +2772,8 @@ Future<void> _obtenerFotoVendedorReal() async {
         _isRecording = true;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🎤 Grabando... toca de nuevo para detener'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.chatRecordingTapToStop),
           backgroundColor: Colors.orange,
           duration: Duration(seconds: 1),
         ),
@@ -2779,7 +2781,7 @@ Future<void> _obtenerFotoVendedorReal() async {
     } catch (e) {
       print('Error al grabar: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al grabar: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(AppLocalizations.of(context)!.chatRecordingError(e.toString())), backgroundColor: Colors.red),
       );
     }
   }
@@ -2792,8 +2794,8 @@ Future<void> _enviarAudio(String audioPath) async {
     print('>>> Enviando audio: $audioPath');
     if (_iaActiva) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🛡️ Verificando audio...'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.chatVerifyingAudio),
           duration: Duration(seconds: 30),
         ),
       );
@@ -2824,8 +2826,8 @@ Future<void> _enviarAudio(String audioPath) async {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       print('>>> Audio enviado correctamente');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🎤 Audio enviado'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.chatAudioSent),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 1),
         ),
@@ -2842,7 +2844,10 @@ Future<void> _enviarAudio(String audioPath) async {
       if ((response.statusCode == 403 || response.statusCode == 500) &&
           motivo != null &&
           motivo.isNotEmpty) {
-        await _mostrarRechazoModeracion('Audio rechazado', motivo);
+        await _mostrarRechazoModeracion(
+          AppLocalizations.of(context)!.chatAudioRejected,
+          motivo,
+        );
         return;
       }
       throw Exception('Error al enviar audio');
@@ -2851,7 +2856,7 @@ Future<void> _enviarAudio(String audioPath) async {
     print('Error al enviar audio: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Error al enviar audio: $e'),
+        content: Text(AppLocalizations.of(context)!.chatAudioSendError(e.toString())),
         backgroundColor: Colors.red,
       ),
     );
@@ -2863,7 +2868,7 @@ Future<void> _startRecording() async {
   final status = await Permission.microphone.request();
   if (status != PermissionStatus.granted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Se necesita permiso para grabar audio')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.chatAudioPermissionRequired)),
     );
     return;
   }
@@ -2906,8 +2911,8 @@ Future<void> _startRecording() async {
       if (_iaActiva && seconds >= 25) {
         timer.cancel();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⏱️ Límite de 25 segundos alcanzado'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatRecordingLimitReached),
             duration: Duration(seconds: 2),
           ),
         );
@@ -2926,7 +2931,7 @@ Future<void> _startRecording() async {
     print('Error al iniciar grabación: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Error al grabar: $e'),
+        content: Text(AppLocalizations.of(context)!.chatRecordingError(e.toString())),
         backgroundColor: Colors.red,
       ),
     );
@@ -2969,8 +2974,8 @@ Future<void> _stopRecordingAndSend() async {
     // 🔥 Si se deslizó para cancelar, NO enviar
     if (_isSwipedToCancel) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🗑️ Grabación cancelada'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.chatRecordingCancelled),
           backgroundColor: Colors.grey,
           duration: Duration(seconds: 1),
         ),
@@ -2984,8 +2989,8 @@ Future<void> _stopRecordingAndSend() async {
     // Si hay audio, enviarlo
     if (path != null && path.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📤 Enviando audio...'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.chatSendingAudio),
           backgroundColor: Colors.blue,
           duration: Duration(seconds: 1),
         ),
@@ -3001,7 +3006,7 @@ Future<void> _stopRecordingAndSend() async {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Error al detener grabación: $e'),
+        content: Text(AppLocalizations.of(context)!.chatStopRecordingError(e.toString())),
         backgroundColor: Colors.red,
       ),
     );
@@ -3263,7 +3268,7 @@ Future<void> _reproducirAudio(String audioUrl, String mensajeId) async {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Error al reproducir audio: $e'),
+        content: Text(AppLocalizations.of(context)!.chatAudioPlaybackError(e.toString())),
         backgroundColor: Colors.red,
       ),
     );
@@ -3391,7 +3396,9 @@ Widget _buildAudioMessage({
             ),
             const SizedBox(width: 6),
             Text(
-              _headerExpandido ? 'Ocultar productos' : 'Ver productos',
+              _headerExpandido
+    ? AppLocalizations.of(context)!.chatHideProducts
+    : AppLocalizations.of(context)!.chatViewProducts,
               style: const TextStyle(
                 color: Color(0xFF0A5BE0),
                 fontSize: 13,
@@ -3680,8 +3687,8 @@ Widget _buildAudioMessage({
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
-                      'Ver producto',
+                    child: Text(
+  AppLocalizations.of(context)!.chatViewProduct,
                       style: TextStyle(
                         color: Color(0xFF3B82F6),
                         fontSize: 12,
@@ -3738,8 +3745,8 @@ Widget _buildAudioMessage({
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vendedor bloqueado correctamente'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatSellerBlocked),
             backgroundColor: Colors.green,
           ),
         );
@@ -3748,7 +3755,7 @@ Widget _buildAudioMessage({
         final error = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(error['error'] ?? 'Error al bloquear'),
+            content: Text(error['error'] ?? AppLocalizations.of(context)!.chatSellerBlockError),
             backgroundColor: Colors.red,
           ),
         );
@@ -3756,7 +3763,7 @@ Widget _buildAudioMessage({
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al bloquear: $e'),
+          content: Text(AppLocalizations.of(context)!.chatSellerBlockException(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -3779,8 +3786,8 @@ Widget _buildAudioMessage({
 
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vendedor desbloqueado correctamente'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatSellerUnblocked),
             backgroundColor: Colors.green,
           ),
         );
@@ -3789,7 +3796,7 @@ Widget _buildAudioMessage({
         final error = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(error['error'] ?? 'Error al desbloquear'),
+            content: Text(error['error'] ?? AppLocalizations.of(context)!.chatSellerUnblockError),
             backgroundColor: Colors.red,
           ),
         );
@@ -3797,7 +3804,7 @@ Widget _buildAudioMessage({
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al desbloquear: $e'),
+          content: Text(AppLocalizations.of(context)!.chatSellerUnblockException(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -3821,18 +3828,28 @@ Widget _buildAudioMessage({
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('⚠️ Denunciar vendedor'),
+              title: Text('⚠️ ${AppLocalizations.of(context)!.chatReportSeller}'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Selecciona el motivo de la denuncia:',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Text(
+                    AppLocalizations.of(context)!.chatSelectReportReason,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   ...motivos.map((motivo) => RadioListTile<String>(
-                    title: Text(motivo),
+                    title: Text(
+                      switch (motivo) {
+                        'Producto sospechoso' => AppLocalizations.of(context)!.chatReportSuspiciousProduct,
+                        'Publicación de productos prohibidos' => AppLocalizations.of(context)!.chatReportProhibitedProducts,
+                        'Estafa o fraude' => AppLocalizations.of(context)!.chatReportFraud,
+                        'Acoso o maltrato' => AppLocalizations.of(context)!.chatReportHarassment,
+                        'Información falsa o engañosa' => AppLocalizations.of(context)!.chatReportMisleadingInfo,
+                        'Otro motivo' => AppLocalizations.of(context)!.chatReportOtherReason,
+                        _ => motivo,
+                      },
+                    ),
                     value: motivo,
                     groupValue: motivoSeleccionado,
                     onChanged: (value) {
@@ -3845,16 +3862,16 @@ Widget _buildAudioMessage({
                     contentPadding: EdgeInsets.zero,
                   )),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Esta denuncia será revisada por nuestro equipo de moderación.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    AppLocalizations.of(context)!.chatReportModerationNotice,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
+                  child: Text(AppLocalizations.of(context)!.chatCancel),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -3865,7 +3882,7 @@ Widget _buildAudioMessage({
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Denunciar'),
+                  child: Text(AppLocalizations.of(context)!.chatReport),
                 ),
               ],
             );
@@ -3880,8 +3897,8 @@ Widget _buildAudioMessage({
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debes iniciar sesión para denunciar'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatReportLoginRequired),
             backgroundColor: Colors.orange,
           ),
         );
@@ -3905,8 +3922,8 @@ Widget _buildAudioMessage({
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Denuncia enviada. Será revisada por moderación.'),
+          SnackBar(
+            content: Text('✅ ${AppLocalizations.of(context)!.chatReportSent}'),
             backgroundColor: Colors.green,
           ),
         );
@@ -3916,7 +3933,7 @@ Widget _buildAudioMessage({
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al enviar denuncia: $e'),
+          content: Text(AppLocalizations.of(context)!.chatReportSendError(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -3951,11 +3968,11 @@ Widget _buildAudioMessage({
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'Opciones del Vendedor',
-                      style: TextStyle(
+                      AppLocalizations.of(context)!.chatSellerOptions,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -3969,13 +3986,15 @@ Widget _buildAudioMessage({
                       size: 28,
                     ),
                     title: Text(
-                      estaBloqueado ? 'Desbloquear' : 'Bloquear',
+                      estaBloqueado
+                          ? AppLocalizations.of(context)!.chatUnblock
+                          : AppLocalizations.of(context)!.chatBlock,
                       style: const TextStyle(fontSize: 16),
                     ),
                     subtitle: Text(
-                      estaBloqueado 
-                          ? 'Desbloquear a ${widget.otroUsuario}'
-                          : 'Bloquear a ${widget.otroUsuario}',
+                      estaBloqueado
+                          ? AppLocalizations.of(context)!.chatUnblockUser(widget.otroUsuario)
+                          : AppLocalizations.of(context)!.chatBlockUser(widget.otroUsuario),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     onTap: () async {
@@ -3994,12 +4013,12 @@ Widget _buildAudioMessage({
                       color: Colors.green,
                       size: 28,
                     ),
-                    title: const Text(
-                      'Ver información de perfil',
-                      style: TextStyle(fontSize: 16),
+                    title: Text(
+                      AppLocalizations.of(context)!.chatViewProfileInfo,
+                      style: const TextStyle(fontSize: 16),
                     ),
                     subtitle: Text(
-                      'Ver detalles de ${widget.otroUsuario}',
+                      AppLocalizations.of(context)!.chatViewUserDetails(widget.otroUsuario),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     onTap: () {
@@ -4023,12 +4042,12 @@ ListTile(
     color: Colors.blue,
     size: 28,
   ),
-  title: const Text(
-    'Ver Portafolio',
-    style: TextStyle(fontSize: 16),
+  title: Text(
+    AppLocalizations.of(context)!.chatViewPortfolio,
+    style: const TextStyle(fontSize: 16),
   ),
   subtitle: Text(
-    'Ver todos los productos de ${widget.otroUsuario}',
+    AppLocalizations.of(context)!.chatViewUserProducts(widget.otroUsuario),
     style: const TextStyle(fontSize: 12, color: Colors.grey),
   ),
   onTap: () {
@@ -4052,12 +4071,12 @@ ListTile(
     color: Colors.red,
     size: 28,
   ),
-  title: const Text(
-    'Denunciar vendedor',
-    style: TextStyle(fontSize: 16),
+  title: Text(
+    AppLocalizations.of(context)!.chatReportSeller,
+    style: const TextStyle(fontSize: 16),
   ),
   subtitle: Text(
-    'Reportar a ${widget.otroUsuario} por incumplir las reglas',
+    AppLocalizations.of(context)!.chatReportUserRules(widget.otroUsuario),
     style: const TextStyle(fontSize: 12, color: Colors.grey),
   ),
   onTap: () {
@@ -4101,13 +4120,13 @@ ListTile(
                   Icons.format_strikethrough,
                   color: Colors.orange,
                 ),
-                title: const Text(
-                  'Tachar mensaje',
-                  style: TextStyle(fontSize: 16),
+                title: Text(
+                  AppLocalizations.of(context)!.chatStrikeMessage,
+                  style: const TextStyle(fontSize: 16),
                 ),
-                subtitle: const Text(
-                  'Tachar este mensaje para indicar que está resuelto',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                subtitle: Text(
+                  AppLocalizations.of(context)!.chatStrikeMessageDescription,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -4126,8 +4145,8 @@ ListTile(
                     SnackBar(
                       content: Text(
                         _mensajesTachados.contains(int.tryParse(mensajeId))
-                            ? '✅ Mensaje tachado'
-                            : '❌ Tachado eliminado',
+                            ? '✅ ${AppLocalizations.of(context)!.chatMessageStruck}'
+                            : '❌ ${AppLocalizations.of(context)!.chatStrikeRemoved}',
                       ),
                       backgroundColor: Colors.green,
                       duration: Duration(seconds: 1),
@@ -4142,13 +4161,13 @@ ListTile(
                   Icons.search,
                   color: Colors.blue,
                 ),
-                title: const Text(
-                  'Buscar en internet',
-                  style: TextStyle(fontSize: 16),
+                title: Text(
+                  AppLocalizations.of(context)!.chatSearchInternet,
+                  style: const TextStyle(fontSize: 16),
                 ),
-                subtitle: const Text(
-                  'Buscar este mensaje en Google',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                subtitle: Text(
+                  AppLocalizations.of(context)!.chatSearchMessageGoogle,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -4156,8 +4175,8 @@ ListTile(
                     _mensajeSeleccionadoId = null; // 🔥 Limpiar borde
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('🔍 Función "Buscar en internet" en desarrollo'),
+                    SnackBar(
+                      content: Text('🔍 ${AppLocalizations.of(context)!.chatInternetSearchComingSoon}'),
                       backgroundColor: Colors.blue,
                       duration: Duration(seconds: 2),
                     ),
@@ -4171,12 +4190,12 @@ ListTile(
                   Icons.select_all,
                   color: Colors.purple,
                 ),
-                title: const Text(
-                  'Seleccionar texto',
+              title: Text(
+  AppLocalizations.of(context)!.chatSelectText,
                   style: TextStyle(fontSize: 16),
                 ),
-                subtitle: const Text(
-                  'Seleccionar parte del mensaje para copiar',
+                subtitle: Text(
+  AppLocalizations.of(context)!.chatSelectMessagePart,
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 onTap: () {
@@ -4200,15 +4219,15 @@ ListTile(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('📝 Seleccionar texto'),
+          title: Text('📝 ${AppLocalizations.of(context)!.chatSelectText}'),
           content: SizedBox(
             width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Selecciona el texto que quieres copiar:',
+                Text(
+                  AppLocalizations.of(context)!.chatSelectTextToCopy,
                   style: TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 12),
@@ -4230,7 +4249,7 @@ ListTile(
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar'),
+              child: Text(AppLocalizations.of(context)!.chatClose),
             ),
           ],
         );
@@ -4240,42 +4259,37 @@ ListTile(
 
   // 🔥 PANEL DE ANÁLISIS DEL CHAT (reemplaza al modal)
   Widget _buildPanelAnalisis({Key? key}) {
-    String analisisTexto = _analisisIA ?? 'No hay análisis disponible aún.';
+    String analisisTexto = _analisisIA ?? AppLocalizations.of(context)!.chatAnalysisNotAvailable;
+
+    final l10n = AppLocalizations.of(context)!;
 
     final Map<ConversationStatus, Map<String, String>> infoEstados = {
       ConversationStatus.neutral: {
-        'titulo': '⚪ Estado Neutral',
+        'titulo': '⚪ ${l10n.chatStatusNeutral}',
         'color': '#9E9E9E',
-        'descripcion':
-            'La conversación está en curso. Aún no hay suficiente información para determinar el estado de la transacción.',
-        'recomendacion': 'Continúa conversando de forma respetuosa y clara.',
+        'descripcion': l10n.chatNeutralDescription,
+        'recomendacion': l10n.chatNeutralRecommendation,
         'icono': 'info',
       },
       ConversationStatus.good: {
-        'titulo': '✅ Conversación Saludable',
+        'titulo': '✅ ${l10n.chatStatusHealthy}',
         'color': '#4CAF50',
-        'descripcion':
-            'La conversación fluye de manera positiva. Ambos usuarios se están comunicando de forma respetuosa y clara.',
-        'recomendacion':
-            '¡Sigue así! La transacción tiene buenas probabilidades de éxito.',
+        'descripcion': l10n.chatHealthyDescription,
+        'recomendacion': l10n.chatHealthyRecommendation,
         'icono': 'check',
       },
       ConversationStatus.warning: {
-        'titulo': '⚠️ Precaución Recomendada',
+        'titulo': '⚠️ ${l10n.chatStatusWarning}',
         'color': '#FF9800',
-        'descripcion':
-            'Se han detectado algunos signos de alerta en la conversación. Podría haber malentendidos o tensión.',
-        'recomendacion':
-            'Revisa los mensajes anteriores. Intenta ser más claro y empático en tus respuestas.',
+        'descripcion': l10n.chatWarningDescription,
+        'recomendacion': l10n.chatWarningRecommendation,
         'icono': 'warning',
       },
       ConversationStatus.danger: {
-        'titulo': '🚨 Peligro Inminente',
+        'titulo': '🚨 ${l10n.chatStatusDanger}',
         'color': '#F44336',
-        'descripcion':
-            'La conversación muestra signos de conflicto o riesgo. Podría haber mala comunicación o desacuerdos serios.',
-        'recomendacion':
-            'Detente y evalúa la situación. Considera contactar a soporte si es necesario.',
+        'descripcion': l10n.chatDangerDescription,
+        'recomendacion': l10n.chatDangerRecommendation,
         'icono': 'danger',
       },
     };
@@ -4350,7 +4364,7 @@ ListTile(
                     _panelAnalisisAbierto = false;
                   });
                 },
-                tooltip: 'Cerrar',
+                tooltip: AppLocalizations.of(context)!.chatClose,
               ),
             ],
           ),
@@ -4442,8 +4456,8 @@ ListTile(
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Calificación enviada! Gracias por tu opinión.'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatRatingSent),
             backgroundColor: Colors.green,
           ),
         );
@@ -4461,7 +4475,7 @@ ListTile(
       print('>>> 4. EXCEPCIÓN: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text(AppLocalizations.of(context)!.chatGenericError(e.toString())),
           backgroundColor: Colors.red,
         ),
       );
@@ -4608,7 +4622,7 @@ ListTile(
                                   // 🔥 Horario ocupado detectado por el backend
                                   final err = jsonDecode(response.body);
                                   errorHorarioOcupado = err['error'] ??
-                                      'Ese día y hora ya está ocupado.';
+                                      AppLocalizations.of(context)!.chatMeetingTimeOccupied;
                                 }
                               }
 
@@ -4640,7 +4654,7 @@ ListTile(
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Error: $e'),
+                                    content: Text(AppLocalizations.of(context)!.chatMeetingCancelError(e.toString())),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
@@ -4657,10 +4671,10 @@ ListTile(
                                 children: [
                                   const Icon(Icons.event, color: Colors.blue, size: 28),
                                   const SizedBox(width: 8),
-                                  const Expanded(
+                                  Expanded(
                                     child: Text(
-                                      'Proponer encuentro',
-                                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                      AppLocalizations.of(context)!.chatProposeMeeting,
+                                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                   IconButton(
@@ -4672,8 +4686,8 @@ ListTile(
                               const SizedBox(height: 8),
                               Text(
                                 propuestasTemporales.isEmpty
-                                    ? 'Elegí un lugar seguro de la lista.'
-                                    : 'Propuesta ${propuestasTemporales.length + 1} de 3',
+                                    ? AppLocalizations.of(context)!.chatChooseSafePlace
+                                    : AppLocalizations.of(context)!.chatProposalNumber(propuestasTemporales.length + 1),
                                 style: const TextStyle(fontSize: 13, color: Colors.grey),
                               ),
                               const SizedBox(height: 20),
@@ -4735,8 +4749,8 @@ ListTile(
                                           children: [
                                             Text(
                                               lugarLat == null
-                                                  ? 'Elegir lugar en el mapa'
-                                                  : 'Lugar seleccionado',
+                                                  ? AppLocalizations.of(context)!.chatChoosePlaceOnMap
+                                                  : AppLocalizations.of(context)!.chatPlaceSelected,
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 color: lugarLat == null
@@ -4746,14 +4760,17 @@ ListTile(
                                             ),
                                             if (lugarLat != null)
                                               Text(
-                                                'Lat: ${lugarLat!.toStringAsFixed(5)}, Lng: ${lugarLng!.toStringAsFixed(5)}',
+                                                AppLocalizations.of(context)!.chatMapCoordinates(
+                                                  lugarLat!.toStringAsFixed(5),
+                                                  lugarLng!.toStringAsFixed(5),
+                                                ),
                                                 style: const TextStyle(
                                                     fontSize: 12),
                                               )
                                             else
-                                              const Text(
-                                                'Tocá para abrir el mapa',
-                                                style: TextStyle(
+                                              Text(
+                                                AppLocalizations.of(context)!.chatTapToOpenMap,
+                                                style: const TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.grey),
                                               ),
@@ -4825,9 +4842,9 @@ ListTile(
                                                   ),
                                                 ),
                                                 const SizedBox(height: 12),
-                                                const Text(
-                                                  'Elegí una hora (7:00 AM – 6:00 PM)',
-                                                  style: TextStyle(
+                                                Text(
+                                                  AppLocalizations.of(context)!.chatChooseTime,
+                                                  style: const TextStyle(
                                                     fontSize: 16,
                                                     fontWeight: FontWeight.bold,
                                                   ),
@@ -4882,7 +4899,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                                                       Expanded(
                                                         child: OutlinedButton(
                                                           onPressed: () => Navigator.pop(ctx),
-                                                          child: const Text('Cancelar'),
+                                                          child: Text(AppLocalizations.of(context)!.chatCancel),
                                                         ),
                                                       ),
                                                       const SizedBox(width: 12),
@@ -4904,7 +4921,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                                                             backgroundColor: Colors.blue,
                                                             foregroundColor: Colors.white,
                                                           ),
-                                                          child: const Text('Aceptar'),
+                                                          child: Text(AppLocalizations.of(context)!.chatAccept),
                                                         ),
                                                       ),
                                                     ],
@@ -4940,7 +4957,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                                       const SizedBox(width: 12),
                                       Text(
                                         fechaSeleccionada == null
-                                            ? 'Seleccionar fecha y hora'
+                                            ? AppLocalizations.of(context)!.chatSelectDateTime
                                             : DateFormat('dd/MM/yyyy HH:mm').format(fechaSeleccionada!),
                                         style: const TextStyle(fontSize: 16),
                                       ),
@@ -4959,9 +4976,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                                         lugarLng == null ||
                                         fechaSeleccionada == null) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
-                                              '⚠️ Elegí un lugar en el mapa y una fecha'),
+                                              AppLocalizations.of(context)!.chatSelectPlaceAndDate),
                                           backgroundColor: Colors.orange,
                                         ),
                                       );
@@ -4974,9 +4991,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                                         '${fechaSeleccionada!.year}-${p(fechaSeleccionada!.month)}-${p(fechaSeleccionada!.day)}T${p(fechaSeleccionada!.hour)}:${p(fechaSeleccionada!.minute)}';
                                     if (horariosOcupados.contains(keyElegida)) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
+                                        SnackBar(
                                           content: Text(
-                                              '⛔ Ese día y hora ya está ocupado. Elegí otro horario.'),
+                                              AppLocalizations.of(context)!.chatTimeSlotOccupiedChooseAnother),
                                           backgroundColor: Colors.red,
                                         ),
                                       );
@@ -5005,8 +5022,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                                   ),
                                   child: Text(
                                     propuestasTemporales.isEmpty
-                                        ? 'Agregar propuesta'
-                                        : 'Agregar y ver resumen',
+                                        ? AppLocalizations.of(context)!.chatAddProposal
+                                        : AppLocalizations.of(context)!.chatAddAndViewSummary,
                                   ),
                                 ),
                               ),
@@ -5021,7 +5038,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                                       setModalState(() => paso = 'resumen');
                                     },
                                     child: Text(
-                                      'Ver resumen (${propuestasTemporales.length})',
+                                      AppLocalizations.of(context)!.chatViewSummaryCount(propuestasTemporales.length),
                                       style: const TextStyle(fontSize: 14),
                                     ),
                                   ),
@@ -5055,10 +5072,10 @@ final estaOcupada = horariosOcupados.contains(keyHora);
           children: [
             const Icon(Icons.checklist, color: Colors.blue, size: 28),
             const SizedBox(width: 8),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Resumen de propuestas',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                AppLocalizations.of(context)!.chatProposalsSummary,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
             ),
             IconButton(
@@ -5069,7 +5086,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
         ),
         const SizedBox(height: 8),
         Text(
-          '${propuestasTemporales.length} de 3 propuestas agregadas',
+          AppLocalizations.of(context)!.chatProposalsAddedCount(propuestasTemporales.length),
           style: const TextStyle(fontSize: 13, color: Colors.grey),
         ),
         const SizedBox(height: 20),
@@ -5167,8 +5184,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
             icon: const Icon(Icons.add),
             label: Text(
               propuestasTemporales.length >= 3
-                  ? 'Máximo 3 propuestas'
-                  : 'Agregar otra propuesta',
+                  ? AppLocalizations.of(context)!.chatMaxThreeProposals
+                  : AppLocalizations.of(context)!.chatAddAnotherProposal,
             ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -5186,7 +5203,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
             onPressed: onEnviar,
             icon: const Icon(Icons.send),
             label: Text(
-              'Enviar ${propuestasTemporales.length} propuesta${propuestasTemporales.length == 1 ? '' : 's'}',
+              AppLocalizations.of(context)!.chatSendProposals(propuestasTemporales.length),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
@@ -5279,10 +5296,10 @@ final estaOcupada = horariosOcupados.contains(keyHora);
               right: 10,
               child: Text(
                 estado == 'rechazada'
-                    ? 'ANULADA'
+                    ? AppLocalizations.of(context)!.chatProposalCancelled
                     : (estado == 'aceptada' || estado == 'confirmada')
-                        ? 'ACEPTADA'
-                        : 'PENDIENTE',
+                        ? AppLocalizations.of(context)!.chatProposalAccepted
+                        : AppLocalizations.of(context)!.chatProposalPending,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -5316,7 +5333,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
               builder: (_) => VerMapaPropuestaScreen(
                 lat: latP,
                 lng: lngP,
-                titulo: (propuesta['lugar_nombre'] ?? 'Ubicación').toString(),
+                titulo: (propuesta['lugar_nombre'] ?? AppLocalizations.of(context)!.chatLocation).toString(),
               ),
             ),
           );
@@ -5370,7 +5387,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                             builder: (_) => VerMapaPropuestaScreen(
                               lat: latP,
                               lng: lngP,
-                              titulo: (propuesta['lugar_nombre'] ?? 'Ubicación')
+                              titulo: (propuesta['lugar_nombre'] ?? AppLocalizations.of(context)!.chatLocation)
                                   .toString(),
                             ),
                           ),
@@ -5505,7 +5522,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Propuesta de encuentro',
+                        AppLocalizations.of(context)!.chatMeetingProposalTitle,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -5530,7 +5547,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                       ),
                       child: Text(
                         estado == 'rechazada'
-                            ? 'ANULADA'
+                            ? AppLocalizations.of(context)!.chatProposalCancelled
                             : estado.toUpperCase(),
                         style: TextStyle(
                           fontSize: 10,
@@ -5577,8 +5594,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                       : estado == 'confirmada'
                           ? '✅ Esta propuesta fue aceptada'
                           : yoPropuse
-                              ? 'Esperando respuesta...'
-                              : 'Toca para ver detalles y responder',
+                             ? AppLocalizations.of(context)!.chatWaitingProposalResponse
+                          : AppLocalizations.of(context)!.chatTapProposalDetails,
                   style: TextStyle(
                     fontSize: 12,
                     fontStyle: FontStyle.italic,
@@ -5673,9 +5690,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                   children: [
                     const Icon(Icons.event, color: Colors.blue, size: 28),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Detalle del encuentro',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context)!.chatMeetingDetails,
+                      style: const TextStyle(
                           fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const Spacer(),
@@ -5687,25 +5704,25 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                 ),
                 const SizedBox(height: 16),
                 // 🔥 DISTRITO (primero) — ahora muestra el nombre del lugar
-                _buildInfoRow(Icons.map, 'Distrito',
+                _buildInfoRow(Icons.map, AppLocalizations.of(context)!.chatDistrict,
                     propuesta['lugar_nombre'] ?? ''),
                 const SizedBox(height: 8),
                 // 🔥 LUGAR (después) — ahora muestra distrito, cantón, provincia
-                _buildInfoRow(Icons.location_on, 'Lugar',
+                _buildInfoRow(Icons.location_on, AppLocalizations.of(context)!.chatPlace,
                     '${propuesta['distrito'] ?? ''}, ${propuesta['canton'] ?? ''}, ${propuesta['provincia'] ?? ''}'),
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.access_time, 'Fecha y hora',
+                _buildInfoRow(Icons.access_time, AppLocalizations.of(context)!.chatDateAndTime,
                     _formatearFechaPropuesta(propuesta['fecha_encuentro'])),
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.info, 'Estado', propuesta['estado'] ?? ''),
+                _buildInfoRow(Icons.info, AppLocalizations.of(context)!.chatMeetingStatus, propuesta['estado'] ?? ''),
                 const SizedBox(height: 20),
 
                 // 🔥 BOTONES DE ACCIÓN
                 if (propuesta['estado'] == 'pendiente' &&
                     propuesta['usuario_recibe_id'] ==
                         FirebaseAuth.instance.currentUser?.uid) ...[
-                  const Text(
-                    '¿Aceptas esta propuesta?',
+                  Text(
+                    AppLocalizations.of(context)!.chatAcceptProposalQuestion,
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
@@ -5720,7 +5737,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text('Rechazar'),
+                          child: Text(AppLocalizations.of(context)!.chatReject),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -5733,7 +5750,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text('Aceptar'),
+                          child: Text(AppLocalizations.of(context)!.chatAccept),
                         ),
                       ),
                     ],
@@ -5745,14 +5762,14 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                       color: Colors.orange.shade50,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.hourglass_top, color: Colors.orange),
-                        SizedBox(width: 8),
+                        const Icon(Icons.hourglass_top, color: Colors.orange),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Esperando respuesta del otro usuario...',
-                            style: TextStyle(color: Colors.orange),
+                            AppLocalizations.of(context)!.chatWaitingOtherResponse,
+                            style: const TextStyle(color: Colors.orange),
                           ),
                         ),
                       ],
@@ -5805,22 +5822,19 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('¿Confirmar encuentro?'),
-        content: const Text(
-          'Una vez confirmado, no podrán escribir por chat hasta que se vean en persona.\n\n'
-          '• No llegues tarde\n'
-          '• Se pedirá reconocimiento facial\n'
-          '• Se activará el GPS el día del encuentro',
+        title: Text(AppLocalizations.of(context)!.chatConfirmMeetingQuestion),
+        content: Text(
+          AppLocalizations.of(context)!.chatMeetingConfirmationNotice,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text(AppLocalizations.of(context)!.chatCancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Confirmar'),
+            child: Text(AppLocalizations.of(context)!.chatConfirm),
           ),
         ],
       ),
@@ -5850,8 +5864,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
             _usuarioConfirmoCerrarTrato = true;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Encuentro confirmado'),
+            SnackBar(
+              content: Text('✅ ${AppLocalizations.of(context)!.chatMeetingConfirmed}'),
               backgroundColor: Colors.green,
             ),
           );
@@ -5862,7 +5876,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(AppLocalizations.of(context)!.chatMeetingCancelError(e.toString())), backgroundColor: Colors.red),
         );
       }
     }
@@ -5886,9 +5900,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  accion == 'aceptar'
-                      ? '✅ Propuesta aceptada'
-                      : '❌ Propuesta rechazada'),
+    accion == 'aceptar'
+        ? AppLocalizations.of(context)!.chatProposalAcceptedNotice
+        : AppLocalizations.of(context)!.chatProposalRejected),
               backgroundColor:
                   accion == 'aceptar' ? Colors.green : Colors.red,
             ),
@@ -5908,7 +5922,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(AppLocalizations.of(context)!.chatMeetingCancelError(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -5928,9 +5942,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
   // - Si el modal lo disparó la confirmación del OTRO        → "{Nombre del otro} desea saber..."
   String get _tituloModalCerrarTrato {
     if (_cerrarTratoForzado && !_yoAbriCerrarTrato) {
-      return '${widget.otroUsuario} desea saber si ya todo está listo para el encuentro';
+      return AppLocalizations.of(context)!.chatOtherUserMeetingReady(widget.otroUsuario);
     }
-    return '¿Ya está todo listo para el encuentro?';
+    return AppLocalizations.of(context)!.chatMeetingEverythingReady;
   }
 
   // 🔥 SUBTÍTULO DEL MODAL
@@ -5938,9 +5952,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
   // - Si es el genérico          → explicación de acuerdo
   String get _subtituloModalCerrarTrato {
     if (_cerrarTratoForzado && !_yoAbriCerrarTrato) {
-      return 'Si ambos confirman, el chat se bloquea hasta que se vean en persona.';
+      return AppLocalizations.of(context)!.chatMeetingBothConfirmLock;
     }
-    return 'La conversación parece haber llegado a un acuerdo.';
+    return AppLocalizations.of(context)!.chatConversationAgreement;
   }
 
   // 🔥 SI YA HAY UNA PROPUESTA DE ENCUENTRO ACEPTADA O CONFIRMADA
@@ -5982,8 +5996,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     if (encuentro == null || encuentro['id'] == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se encontró el encuentro agendado'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.chatMeetingNotFound),
             backgroundColor: Colors.orange,
           ),
         );
@@ -6039,21 +6053,19 @@ final estaOcupada = horariosOcupados.contains(keyHora);
     if (yoConfirmado && otroConfirmado) {
       puedeCancelar = false;
       otroConfirmoYNoYo = false;
-      textoRegla = 'Ambos ya confirmaron asistencia. El encuentro no se puede cancelar.';
+      textoRegla = AppLocalizations.of(context)!.chatBothConfirmedCannotCancel;
     } else if (!yoConfirmado && otroConfirmado) {
       puedeCancelar = false;
       otroConfirmoYNoYo = true;
-      textoRegla = 'El otro usuario confirmó asistencia. Solo él puede cancelar hasta 10 minutos antes.';
+      textoRegla = AppLocalizations.of(context)!.chatOnlyOtherCanCancel;
     } else if (yoConfirmado && !otroConfirmado) {
       puedeCancelar = minutosParaMostrar >= 10;
       otroConfirmoYNoYo = false;
-      textoRegla = 'Confirmaste asistencia. Podés cancelar hasta 10 minutos antes del encuentro.';
+      textoRegla = AppLocalizations.of(context)!.chatYouCanCancelUntilTenMinutes;
     } else {
       puedeCancelar = minutosParaMostrar >= 60;
       otroConfirmoYNoYo = false;
-      textoRegla = 'Solo podés cancelar el trato hasta 1 hora antes del encuentro. '
-          'Si falta menos de 1 hora, ya no se permite cancelar y deben '
-          'presentarse en el lugar acordado.';
+      textoRegla = AppLocalizations.of(context)!.chatCancellationDeadlineRule;
     }
 
     debugPrint('>>> CANCELAR: yo=$yoConfirmado otro=$otroConfirmado '
@@ -6135,8 +6147,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                       Color(0xFF7CC4FF),
                     ],
                   ).createShader(bounds),
-                  child: const Text(
-                    '¿Cancelar el trato?',
+                  child: Text(
+                    AppLocalizations.of(context)!.chatCancelDealQuestion,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 19,
@@ -6157,9 +6169,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                 const SizedBox(height: 6),
 
                 // 🔥 SUBTÍTULO
-                const Text(
-                  'Esta acción anula el encuentro para ambos.',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.chatCancelMeetingBoth,
+                  style: const TextStyle(
                     fontSize: 12,
                     color: Colors.white70,
                     height: 1.3,
@@ -6207,8 +6219,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'ENCUENTRO',
+                              Text(
+                                AppLocalizations.of(context)!.chatMeetingLabel,
                                 style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
@@ -6270,9 +6282,9 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'Regla de cancelación',
+                              AppLocalizations.of(context)!.chatCancellationRule,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -6342,12 +6354,10 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                       Expanded(
                         child: Text(
                           puedeCancelar
-                              ? 'Al cancelar, el encuentro se anula para los dos y el chat vuelve a abrirse. '
-                                'El otro usuario recibirá una notificación.'
+                              ? AppLocalizations.of(context)!.chatCancellationNotification
                               : otroConfirmoYNoYo
-                                  ? 'El otro usuario confirmó asistencia. Ya no podés cancelar este encuentro.'
-                                  : 'Ya no podés cancelar este encuentro porque falta menos de 1 hora. '
-                                    'Deben presentarse en el lugar acordado.',
+                                  ? AppLocalizations.of(context)!.chatOtherConfirmedCannotCancel
+                                  : AppLocalizations.of(context)!.chatCannotCancelWithinHour,
                           style: TextStyle(
                             fontSize: 12,
                             height: 1.45,
@@ -6375,8 +6385,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                           size: 18,
                           color: Color(0xFFBFDBFE),
                         ),
-                        label: const Text(
-                          'Volver',
+                        label: Text(
+                          AppLocalizations.of(context)!.chatBack,
                           style: TextStyle(
                             color: Color(0xFFBFDBFE),
                             fontWeight: FontWeight.bold,
@@ -6437,18 +6447,18 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                             child: InkWell(
                               borderRadius: BorderRadius.circular(26),
                               onTap: () => Navigator.pop(ctx, true),
-                              child: const Center(
+                              child: Center(
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.event_busy,
                                       size: 18,
                                       color: Colors.white,
                                     ),
                                     SizedBox(width: 6),
                                     Text(
-                                      'Sí, cancelar',
+                                      AppLocalizations.of(context)!.chatYesCancel,
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -6505,8 +6515,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
           _cachePropuestas.clear();
           _guardarEstadoBloqueo();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ Encuentro cancelado. El chat volvió a abrirse.'),
+            SnackBar(
+              content: Text('❌ ${AppLocalizations.of(context)!.chatMeetingCancelledReopened}'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -6517,7 +6527,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(err['error'] ?? 'No se pudo cancelar'),
+              content: Text(err['error'] ?? AppLocalizations.of(context)!.chatCannotCancelMeeting),
               backgroundColor: Colors.red,
             ),
           );
@@ -6527,7 +6537,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text(AppLocalizations.of(context)!.chatMeetingCancelError(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -6745,8 +6755,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
       onTap: () async {
         if (!_grabandoChunks) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('La grabación no está activa'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.chatRecordingNotActive),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 2),
             ),
@@ -6758,8 +6768,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
         if (mounted) {
           setState(() {});
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('⏹️ Grabación detenida'),
+            SnackBar(
+              content: Text('⏹️ ${AppLocalizations.of(context)!.chatRecordingStopped}'),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 2),
             ),
@@ -6899,8 +6909,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            '🤝 Trato cerrado',
+          Text(
+            AppLocalizations.of(context)!.chatDealClosedTitle,
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -6909,8 +6919,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          const Text(
-            'El chat quedó bloqueado. Nos vemos en el encuentro.',
+          Text(
+            AppLocalizations.of(context)!.chatDealClosedDescription,
             style: TextStyle(fontSize: 14, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
@@ -6927,8 +6937,8 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                 });
               },
               icon: const Icon(Icons.chat_bubble_outline, size: 22),
-              label: const Text(
-                'Ver mensajes del chat',
+              label: Text(
+                AppLocalizations.of(context)!.chatViewChatMessages,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               style: ElevatedButton.styleFrom(
@@ -6947,30 +6957,30 @@ final estaOcupada = horariosOcupados.contains(keyHora);
           // 🔥 PASOS DEL PROCESO
           _buildPasoTratoCerrado(
             icono: Icons.notifications_active,
-            titulo: '1. Revisá tus alertas',
+            titulo: AppLocalizations.of(context)!.chatReviewAlertsStep,
             descripcion:
-                'Entrá a la sección de Alertas para ver la fecha, hora y lugar del encuentro confirmado.',
+                AppLocalizations.of(context)!.chatReviewAlertsDescription,
           ),
           const SizedBox(height: 14),
           _buildPasoTratoCerrado(
             icono: Icons.face,
-            titulo: '2. Reconocimiento facial',
+            titulo: AppLocalizations.of(context)!.chatFacialRecognitionStep,
             descripcion:
-                'El día del encuentro, la app te va a pedir una selfie para verificar tu identidad antes de salir.',
+                AppLocalizations.of(context)!.chatFacialRecognitionStepDescription,
           ),
           const SizedBox(height: 14),
           _buildPasoTratoCerrado(
             icono: Icons.location_on,
-            titulo: '3. Activá el GPS',
+            titulo: AppLocalizations.of(context)!.chatEnableGpsStep,
             descripcion:
-                'Al llegar al lugar, activá la ubicación. La app confirma que estás en el punto seguro.',
+                AppLocalizations.of(context)!.chatEnableGpsStepDescription,
           ),
           const SizedBox(height: 14),
           _buildPasoTratoCerrado(
             icono: Icons.lock_open,
-            titulo: '4. Se desbloquea el chat',
+            titulo: AppLocalizations.of(context)!.chatUnlockChatStep,
             descripcion:
-                'Cuando ambos estén presentes y verificados, el chat vuelve a abrirse.',
+                AppLocalizations.of(context)!.chatUnlockChatStepDescription,
           ),
           const SizedBox(height: 32),
 
@@ -6982,15 +6992,15 @@ final estaOcupada = horariosOcupados.contains(keyHora);
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.orange.shade200),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.warning_amber_rounded,
+                const Icon(Icons.warning_amber_rounded,
                     color: Colors.orange, size: 22),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Llegá 10 minutos antes. Si no llegás, el encuentro se marca como "no presentado" y el chat queda cerrado.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                    AppLocalizations.of(context)!.chatArriveEarlyWarning,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
                   ),
                 ),
               ],
@@ -7210,7 +7220,7 @@ final estaOcupada = horariosOcupados.contains(keyHora);
                             Flexible(
                               child: Text(
                                 _otroUsuarioEnLinea
-                                    ? 'en línea'
+                                    ? AppLocalizations.of(context)!.chatOnline
                                     : (_ultimaConexion == null
                                         ? ''
                                         : _formatearUltimaConexion()),
@@ -7276,9 +7286,9 @@ else
                       }
                       if (_iaActiva) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                                '🛡️ El Escudo ya está activo y no se puede desactivar'),
+                                AppLocalizations.of(context)!.chatShieldAlreadyActive),
                             backgroundColor: Colors.blue,
                             duration: Duration(seconds: 2),
                           ),
@@ -7290,7 +7300,7 @@ else
                     },
                     onAdCompleted: () {
                       setState(() {
-                        _analisisIA = '🛡️ Escudo activado. Analizando mensajes...';
+                        _analisisIA = AppLocalizations.of(context)!.chatShieldAnalyzingMessages;
                         _iaActiva = true;
                         _panelAnalisisAbierto = false;
                       });
@@ -7303,9 +7313,9 @@ else
                       }
                       if (!_iaActiva) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                                '🛡️ Activa el Escudo para ver el análisis de la conversación'),
+                                AppLocalizations.of(context)!.chatActivateShieldToViewAnalysis),
                             backgroundColor: Colors.orange,
                             duration: Duration(seconds: 2),
                           ),
@@ -7342,8 +7352,8 @@ else
               },
               backgroundColor: const Color(0xFF0A5BE0),
               icon: const Icon(Icons.info_outline, color: Colors.white),
-              label: const Text(
-                'Info del trato',
+              label: Text(
+                AppLocalizations.of(context)!.chatDealInfo,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -7489,10 +7499,9 @@ else
 
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
+                                    SnackBar(
                                       content: Text(
-                                        '📍 Primero proponé un lugar y una fecha para el encuentro.\n'
-                                        'Cuando el otro acepte, vas a poder cerrar el trato.',
+                                        AppLocalizations.of(context)!.chatProposePlaceBeforeClosingDeal,
                                       ),
                                       backgroundColor: Colors.blue,
                                       duration: Duration(seconds: 4),
@@ -7541,8 +7550,8 @@ else
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(ambos
-                                            ? '✅ Trato cerrado. Esperando el encuentro.'
-                                            : '⏳ Esperando que el otro usuario confirme...'),
+                                            ? AppLocalizations.of(context)!.chatDealClosedWaitingMeeting
+                                            : AppLocalizations.of(context)!.chatWaitingDealConfirmation),
                                         backgroundColor: ambos ? Colors.green : Colors.blue,
                                       ),
                                     );
@@ -7572,14 +7581,14 @@ else
                                   ),
                                 ],
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(Icons.check_circle, size: 18, color: Colors.white),
                                     SizedBox(width: 6),
                                     Text(
-                                      'Confirmar',
+                                      AppLocalizations.of(context)!.chatConfirmDeal,
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -7667,7 +7676,7 @@ else
                                   ),
                                 ],
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   mainAxisSize: MainAxisSize.min,
@@ -7676,7 +7685,7 @@ else
                                     SizedBox(width: 4),
                                     Flexible(
                                       child: Text(
-                                        'Tengo más preguntas',
+                                        AppLocalizations.of(context)!.chatMoreQuestions,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -7705,9 +7714,9 @@ else
                 : (_chatBloqueado && !_viendoMensajesEnTratoCerrado && !_encuentroNoPresentado)
                     ? _buildPantallaTratoCerrado()
                     : _mensajes.isEmpty
-                        ? const Center(
+                        ? Center(
                             child: Text(
-                              'No hay mensajes aún',
+                              AppLocalizations.of(context)!.chatNoMessagesYet,
                               style: TextStyle(color: Colors.grey),
                             ),
                           )
@@ -7754,8 +7763,8 @@ else
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'ARTÍCULO VENDIDO',
+                Text(
+                  AppLocalizations.of(context)!.chatItemSold,
                   style: TextStyle(
                     color: Colors.red,
                     fontWeight: FontWeight.bold,
@@ -7815,9 +7824,9 @@ else
               children: [
                 const Icon(Icons.check_circle, color: Color(0xFF166534), size: 20),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'El encuentro ha sido aceptado',
+                    AppLocalizations.of(context)!.chatMeetingHasBeenAccepted,
                     style: TextStyle(color: Color(0xFF166534), fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                 ),
@@ -7845,13 +7854,13 @@ else
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green.shade200, width: 2),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.handshake, color: Colors.green, size: 24),
-          SizedBox(width: 8),
+          const Icon(Icons.handshake, color: Colors.green, size: 24),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '✅ Trato cerrado. Ambos confirmaron. ¡Nos vemos el día del encuentro!',
+              AppLocalizations.of(context)!.chatDealClosedBothConfirmed,
               style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
             ),
           ),
@@ -7875,13 +7884,13 @@ else
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green.shade200),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.check_circle, color: Colors.green),
-          SizedBox(width: 8),
+          const Icon(Icons.check_circle, color: Colors.green),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '✅ Ambos decidieron seguir conversando',
+              AppLocalizations.of(context)!.chatBothContinueTalking,
               style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
             ),
           ),
@@ -7930,9 +7939,9 @@ else
               children: [
                 const Icon(Icons.chat_bubble_outline, color: Color(0xFF92400E), size: 20),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'El usuario quiere seguir conversando',
+                    AppLocalizations.of(context)!.chatUserWantsToContinueTalking,
                     style: TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                 ),
@@ -7962,13 +7971,13 @@ else
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green.shade200),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.check_circle, color: Colors.green),
-          SizedBox(width: 8),
+          const Icon(Icons.check_circle, color: Colors.green),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '✅ Has calificado. ¡Gracias por tu opinión!',
+              AppLocalizations.of(context)!.chatRatingThankYou,
               style: TextStyle(color: Colors.green),
             ),
           ),
@@ -8018,7 +8027,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Tu calificación se reflejará en el perfil de ${widget.otroUsuario} una semana después de enviarla.',
+                AppLocalizations.of(context)!.chatRatingVisibleAfterWeek(widget.otroUsuario),
                 style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
               ),
             ),
@@ -8088,7 +8097,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        esMio ? 'Compartiste tu ubicación' : 'Ubicación compartida',
+                        esMio ? AppLocalizations.of(context)!.chatYouSharedLocation : AppLocalizations.of(context)!.chatLocationShared,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -8096,8 +8105,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        'Toca para abrir en mapas',
+                      Text(
+                        AppLocalizations.of(context)!.chatTapToOpenMaps,
                         style: TextStyle(color: Color(0xFFBBD7FF), fontSize: 11),
                       ),
                     ],
@@ -8132,13 +8141,13 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.sentiment_dissatisfied, color: Color(0xFF92400E), size: 22),
-              SizedBox(width: 8),
+              const Icon(Icons.sentiment_dissatisfied, color: Color(0xFF92400E), size: 22),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'El encuentro no se pudo realizar',
+                  AppLocalizations.of(context)!.chatMeetingCouldNotTakePlace,
                   style: TextStyle(
                     color: Color(0xFF92400E),
                     fontWeight: FontWeight.bold,
@@ -8149,12 +8158,9 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             ],
           ),
           const SizedBox(height: 10),
-          const Text(
-            'Lamentamos las molestias. No todos los encuentros se pueden concretar, '
-            'y eso está bien: lo importante es cuidarnos entre todos.\n\n'
-            'El chat quedó cerrado. Eliminá este chat y volvé a abrirlo '
-            'para seguir conversando.',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.chatMeetingNotCompletedExplanation,
+            style: const TextStyle(
               color: Color(0xFF78350F),
               fontSize: 12.5,
               height: 1.45,
@@ -8175,13 +8181,13 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.orange.shade300, width: 2),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.event_busy, color: Colors.orange, size: 24),
-          SizedBox(width: 8),
+          const Icon(Icons.event_busy, color: Colors.orange, size: 24),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '❌ El encuentro fue cancelado. El chat volvió a abrirse.',
+              AppLocalizations.of(context)!.chatMeetingCancelledChatReopened,
               style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
             ),
           ),
@@ -8428,13 +8434,13 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.blue.shade200),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.hourglass_top, color: Colors.blue),
-              SizedBox(width: 8),
+              const Icon(Icons.hourglass_top, color: Colors.blue),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '⏳ Confirmaste cerrar el trato. Esperando la respuesta del otro usuario...',
+                  AppLocalizations.of(context)!.chatConfirmedDealWaitingResponse,
                   style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -8451,13 +8457,13 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.orange.shade200),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.hourglass_top, color: Colors.orange),
-              SizedBox(width: 8),
+              const Icon(Icons.hourglass_top, color: Colors.orange),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '⏳ Esperando que el otro usuario decida...',
+                  AppLocalizations.of(context)!.chatWaitingOtherDecision,
                   style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -8493,10 +8499,10 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
               Expanded(
                 child: Text(
                   _encuentroNoPresentado
-                      ? 'El encuentro no se realizó. Eliminá este chat y volvé a abrirlo para seguir conversando.'
+                      ? AppLocalizations.of(context)!.chatMeetingNotHeld
                       : _escudoOtroRechazo
-                          ? 'Chat cerrado. Uno de los participantes no aceptó el Escudo de Seguridad.'
-                          : 'Chat bloqueado. Se verán en persona. No llegues tarde.',
+                          ? AppLocalizations.of(context)!.chatClosedShieldRejected
+                          : AppLocalizations.of(context)!.chatLockedForMeeting,
                   style: const TextStyle(color: Colors.red, fontSize: 13),
                 ),
               ),
@@ -8506,8 +8512,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
 
       // 🔥 BLOQUEAR TODO EL INPUT SI HAY PROPUESTA PENDIENTE
       else if (_propuestaEncuentroPendiente && !_isRecording)
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -8515,7 +8521,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Propuesta de encuentro pendiente. Esperá a que se resuelva para escribir.',
+                  AppLocalizations.of(context)!.chatMeetingProposalPendingWrite,
                   style: TextStyle(color: Colors.orange, fontSize: 13),
                 ),
               ),
@@ -8581,9 +8587,9 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                 keyboardType: TextInputType.multiline,
                 textInputAction: TextInputAction.newline,
                 style: const TextStyle(fontSize: 15, height: 1.2),
-                decoration: const InputDecoration(
-                  hintText: 'Escribe un mensaje...',
-                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: AppLocalizations.of(context)!.chatWriteMessage,
+                  hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -8659,8 +8665,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                     },
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    '🎤 Grabando... desliza para cancelar',
+                  Text(
+                    AppLocalizations.of(context)!.chatRecordingSlideToCancel,
                     style: TextStyle(
                       color: Colors.red,
                       fontSize: 13,
@@ -8679,16 +8685,16 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                     textAlign: TextAlign.center,
                   ),
                   if (_mostrarMensajeCancelar)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.delete_outline,
+                          const Icon(Icons.delete_outline,
                               color: Colors.green, size: 16),
-                          SizedBox(width: 4),
+                          const SizedBox(width: 4),
                           Text(
-                            'Suelta para cancelar',
+                            AppLocalizations.of(context)!.chatReleaseToCancel,
                             style: TextStyle(
                               color: Colors.green,
                               fontSize: 13,
@@ -8855,28 +8861,26 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
-            SizedBox(width: 8),
+            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '¿Cancelar el encuentro?',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                AppLocalizations.of(context)!.chatCancelMeetingQuestion,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               ),
             ),
           ],
         ),
-        content: const Text(
-          'Si rechazás la grabación de voz por seguridad, el encuentro '
-          'se cancela para AMBOS usuarios y el chat queda cerrado.\n\n'
-          'Esta acción no se puede deshacer.',
-          style: TextStyle(fontSize: 14, height: 1.4),
+        content: Text(
+          AppLocalizations.of(context)!.chatRecordingRejectionWarning,
+          style: const TextStyle(fontSize: 14, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Volver'),
+            child: Text(AppLocalizations.of(context)!.chatGoBack),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -8884,7 +8888,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Sí, cancelar el encuentro'),
+            child: Text(AppLocalizations.of(context)!.chatYesCancelMeeting),
           ),
         ],
       ),
@@ -8937,10 +8941,10 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                     child: const Icon(Icons.mic, color: Colors.redAccent, size: 42),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Grabación de voz por seguridad',
+                  Text(
+                    AppLocalizations.of(context)!.chatSecurityVoiceRecording,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -8954,20 +8958,9 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                     ),
-                    child: const Text(
-                      'A partir de este momento, la app GRABARÁ el audio '
-                      'que se emita en esta conversación desde AMBOS dispositivos, '
-                      'con el único fin de proteger a los usuarios.\n\n'
-                      '• Los fragmentos de audio se guardan cada 10 segundos.\n'
-                      '• Esa grabación puede ser compartida con un tercero '
-                      '(autoridad o perito de seguridad) si hay una denuncia o incidente.\n'
-                      '• Nadie más puede escuchar los audios sin tu permiso o una orden legal.\n\n'
-                      '⚠️ IMPORTANTE: La grabación por seguridad es OBLIGATORIA '
-                      'para poder realizar el encuentro.\n\n'
-                      'Si RECHAZÁS la grabación, el encuentro se CANCELA automáticamente '
-                      'para ambos usuarios y el chat queda cerrado. No se podrá continuar '
-                      'con el encuentro presencial a través de la app.',
-                      style: TextStyle(
+                    child: Text(
+                      AppLocalizations.of(context)!.chatSecurityRecordingConsentBody,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
                         height: 1.45,
@@ -8981,9 +8974,9 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                         child: OutlinedButton.icon(
                           onPressed: () => _confirmarRechazoGrabacion(ctx),
                           icon: const Icon(Icons.close, color: Colors.redAccent, size: 18),
-                          label: const Text(
-                            'Rechazar y cancelar',
-                            style: TextStyle(
+                          label: Text(
+                            AppLocalizations.of(context)!.chatRejectAndCancel,
+                            style: const TextStyle(
                               color: Colors.redAccent,
                               fontWeight: FontWeight.bold,
                               fontSize: 11,
@@ -9006,9 +8999,9 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                         child: ElevatedButton.icon(
                           onPressed: () => Navigator.pop(ctx, true),
                           icon: const Icon(Icons.check, color: Colors.white, size: 18),
-                          label: const Text(
-                            'Aceptar y continuar',
-                            style: TextStyle(
+                          label: Text(
+                            AppLocalizations.of(context)!.chatAcceptAndContinue,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 11,
@@ -9057,9 +9050,9 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                '❌ Rechazaste la grabación. El encuentro se canceló para ambos y el chat quedó cerrado.',
+                AppLocalizations.of(context)!.chatRecordingRejectedMeetingCancelled,
               ),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 5),
@@ -9071,8 +9064,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
           SnackBar(
             content: Text(
               r['grabacion_habilitada'] == true
-                  ? '🎙️ Grabación habilitada. Ambos aceptaron.'
-                  : '🎙️ Aceptaste. Esperando que el otro usuario acepte.',
+                  ? AppLocalizations.of(context)!.chatRecordingEnabledBothAccepted
+                  : AppLocalizations.of(context)!.chatRecordingAcceptedWaitingOther,
             ),
             backgroundColor: r['grabacion_habilitada'] == true
                 ? Colors.green
@@ -9087,7 +9080,7 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(AppLocalizations.of(context)!.chatMeetingCancelError(e.toString())), backgroundColor: Colors.red),
         );
       }
     }
@@ -9215,8 +9208,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                 const Icon(Icons.mic_off, size: 72, color: Colors.red),
           ),
           const SizedBox(height: 16),
-          const Text(
-            '🚫 Encuentro cancelado',
+          Text(
+            AppLocalizations.of(context)!.chatRecordingMeetingCancelledTitle,
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -9225,9 +9218,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          const Text(
-            'El encuentro se canceló porque una de las partes rechazó '
-            'la grabación de voz por seguridad.',
+          Text(
+            AppLocalizations.of(context)!.chatRecordingMeetingCancelledReason,
             style: TextStyle(fontSize: 14, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
@@ -9239,16 +9231,14 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.red.shade200),
             ),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(Icons.info_outline, color: Colors.red, size: 22),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'La grabación por seguridad es obligatoria para realizar '
-                    'encuentros presenciales a través de la app. Esta medida '
-                    'protege a ambos usuarios.',
+                    AppLocalizations.of(context)!.chatRecordingMandatoryExplanation,
                     style: TextStyle(fontSize: 12, color: Color(0xFF7F1D1D)),
                   ),
                 ),
@@ -9263,8 +9253,8 @@ if (_esSolicitudCalificacion(mensaje['texto'] ?? '')) {
                 setState(() => _viendoMensajesEnTratoCerrado = true);
               },
               icon: const Icon(Icons.chat_bubble_outline, size: 22),
-              label: const Text(
-                'Ver mensajes del chat',
+              label: Text(
+                AppLocalizations.of(context)!.chatViewChatMessages,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               style: ElevatedButton.styleFrom(

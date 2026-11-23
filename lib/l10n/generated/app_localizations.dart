@@ -2461,6 +2461,1422 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Volver al perfil'**
   String get volverAlPerfil;
+
+  /// No description provided for @chatShieldAccepted.
+  ///
+  /// In es, this message translates to:
+  /// **'🛡️ Escudo aceptado'**
+  String get chatShieldAccepted;
+
+  /// No description provided for @chatShieldRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'🚫 Escudo rechazado. El chat quedó cerrado.'**
+  String get chatShieldRejected;
+
+  /// No description provided for @chatRatingSent.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Calificación enviada! Gracias por tu opinión.'**
+  String get chatRatingSent;
+
+  /// No description provided for @chatMessageBlocked.
+  ///
+  /// In es, this message translates to:
+  /// **'Mensaje bloqueado'**
+  String get chatMessageBlocked;
+
+  /// No description provided for @chatPhoneBlocked.
+  ///
+  /// In es, this message translates to:
+  /// **'El Escudo de Seguridad bloqueó este mensaje.\n\nMotivo: No se permiten números de teléfono.'**
+  String get chatPhoneBlocked;
+
+  /// No description provided for @chatUnderstood.
+  ///
+  /// In es, this message translates to:
+  /// **'Entendido'**
+  String get chatUnderstood;
+
+  /// No description provided for @chatMeetingNotHeld.
+  ///
+  /// In es, this message translates to:
+  /// **'El encuentro no se realizó. Eliminá este chat y volvé a abrirlo para seguir conversando.'**
+  String get chatMeetingNotHeld;
+
+  /// No description provided for @chatGallery.
+  ///
+  /// In es, this message translates to:
+  /// **'Galería'**
+  String get chatGallery;
+
+  /// No description provided for @chatCamera.
+  ///
+  /// In es, this message translates to:
+  /// **'Cámara'**
+  String get chatCamera;
+
+  /// No description provided for @chatShareLocation.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir ubicación'**
+  String get chatShareLocation;
+
+  /// No description provided for @chatSharePortfolio.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartir portafolio'**
+  String get chatSharePortfolio;
+
+  /// No description provided for @chatEnableGps.
+  ///
+  /// In es, this message translates to:
+  /// **'Activa el GPS del teléfono para compartir tu ubicación'**
+  String get chatEnableGps;
+
+  /// No description provided for @chatLocationPermission.
+  ///
+  /// In es, this message translates to:
+  /// **'Se necesita permiso de ubicación'**
+  String get chatLocationPermission;
+
+  /// No description provided for @chatGettingLocation.
+  ///
+  /// In es, this message translates to:
+  /// **'📍 Obteniendo tu ubicación...'**
+  String get chatGettingLocation;
+
+  /// No description provided for @chatCannotOpenApp.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo abrir la aplicación'**
+  String get chatCannotOpenApp;
+
+  /// No description provided for @chatOpenLocationWith.
+  ///
+  /// In es, this message translates to:
+  /// **'Abrir ubicación con...'**
+  String get chatOpenLocationWith;
+
+  /// No description provided for @chatPortfolioShared.
+  ///
+  /// In es, this message translates to:
+  /// **'📤 Portafolio compartido'**
+  String get chatPortfolioShared;
+
+  /// No description provided for @chatDontShowAgain.
+  ///
+  /// In es, this message translates to:
+  /// **'No volver a mostrar'**
+  String get chatDontShowAgain;
+
+  /// No description provided for @chatCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'Cancelar'**
+  String get chatCancel;
+
+  /// No description provided for @chatContinue.
+  ///
+  /// In es, this message translates to:
+  /// **'Continuar'**
+  String get chatContinue;
+
+  /// No description provided for @chatOtherUser.
+  ///
+  /// In es, this message translates to:
+  /// **'El otro usuario'**
+  String get chatOtherUser;
+
+  /// No description provided for @chatGenericError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error: {error}'**
+  String chatGenericError(String error);
+
+  /// No description provided for @chatLocationSendError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo enviar la ubicación ({statusCode})'**
+  String chatLocationSendError(String statusCode);
+
+  /// No description provided for @chatLocationGetError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al obtener la ubicación: {error}'**
+  String chatLocationGetError(String error);
+
+  /// No description provided for @chatImageSendError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al enviar imagen: {error}'**
+  String chatImageSendError(String error);
+
+  /// No description provided for @chatAudioPermissionRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Se necesita permiso para grabar audio'**
+  String get chatAudioPermissionRequired;
+
+  /// No description provided for @chatRecordingTapToStop.
+  ///
+  /// In es, this message translates to:
+  /// **'🎤 Grabando... toca de nuevo para detener'**
+  String get chatRecordingTapToStop;
+
+  /// No description provided for @chatRecordingError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al grabar: {error}'**
+  String chatRecordingError(String error);
+
+  /// No description provided for @chatVerifyingAudio.
+  ///
+  /// In es, this message translates to:
+  /// **'🛡️ Verificando audio...'**
+  String get chatVerifyingAudio;
+
+  /// No description provided for @chatAudioSent.
+  ///
+  /// In es, this message translates to:
+  /// **'🎤 Audio enviado'**
+  String get chatAudioSent;
+
+  /// No description provided for @chatAudioSendError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al enviar audio: {error}'**
+  String chatAudioSendError(String error);
+
+  /// No description provided for @chatRecordingLimitReached.
+  ///
+  /// In es, this message translates to:
+  /// **'⏱️ Límite de 25 segundos alcanzado'**
+  String get chatRecordingLimitReached;
+
+  /// No description provided for @chatRecordingCancelled.
+  ///
+  /// In es, this message translates to:
+  /// **'🗑️ Grabación cancelada'**
+  String get chatRecordingCancelled;
+
+  /// No description provided for @chatSendingAudio.
+  ///
+  /// In es, this message translates to:
+  /// **'📤 Enviando audio...'**
+  String get chatSendingAudio;
+
+  /// No description provided for @chatStopRecordingError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al detener grabación: {error}'**
+  String chatStopRecordingError(String error);
+
+  /// No description provided for @chatAudioPlaybackError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al reproducir audio: {error}'**
+  String chatAudioPlaybackError(String error);
+
+  /// No description provided for @chatSellerBlocked.
+  ///
+  /// In es, this message translates to:
+  /// **'Vendedor bloqueado correctamente'**
+  String get chatSellerBlocked;
+
+  /// No description provided for @chatSellerBlockError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al bloquear'**
+  String get chatSellerBlockError;
+
+  /// No description provided for @chatSellerUnblocked.
+  ///
+  /// In es, this message translates to:
+  /// **'Vendedor desbloqueado correctamente'**
+  String get chatSellerUnblocked;
+
+  /// No description provided for @chatSellerUnblockError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al desbloquear'**
+  String get chatSellerUnblockError;
+
+  /// No description provided for @chatReportSeller.
+  ///
+  /// In es, this message translates to:
+  /// **'Denunciar vendedor'**
+  String get chatReportSeller;
+
+  /// No description provided for @chatReport.
+  ///
+  /// In es, this message translates to:
+  /// **'Denunciar'**
+  String get chatReport;
+
+  /// No description provided for @chatReportLoginRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Debes iniciar sesión para denunciar'**
+  String get chatReportLoginRequired;
+
+  /// No description provided for @chatReportSent.
+  ///
+  /// In es, this message translates to:
+  /// **'Denuncia enviada. Será revisada por moderación.'**
+  String get chatReportSent;
+
+  /// No description provided for @chatReportSendError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al enviar denuncia: {error}'**
+  String chatReportSendError(String error);
+
+  /// No description provided for @chatInternetSearchComingSoon.
+  ///
+  /// In es, this message translates to:
+  /// **'La función \"Buscar en internet\" está en desarrollo'**
+  String get chatInternetSearchComingSoon;
+
+  /// No description provided for @chatSelectText.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccionar texto'**
+  String get chatSelectText;
+
+  /// No description provided for @chatSelectTextToCopy.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona el texto que quieres copiar:'**
+  String get chatSelectTextToCopy;
+
+  /// No description provided for @chatClose.
+  ///
+  /// In es, this message translates to:
+  /// **'Cerrar'**
+  String get chatClose;
+
+  /// No description provided for @chatAccept.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar'**
+  String get chatAccept;
+
+  /// No description provided for @chatReject.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazar'**
+  String get chatReject;
+
+  /// No description provided for @chatConfirmMeetingQuestion.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Confirmar encuentro?'**
+  String get chatConfirmMeetingQuestion;
+
+  /// No description provided for @chatConfirm.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar'**
+  String get chatConfirm;
+
+  /// No description provided for @chatMeetingConfirmed.
+  ///
+  /// In es, this message translates to:
+  /// **'Encuentro confirmado'**
+  String get chatMeetingConfirmed;
+
+  /// No description provided for @chatMeetingNotFound.
+  ///
+  /// In es, this message translates to:
+  /// **'No se encontró el encuentro agendado'**
+  String get chatMeetingNotFound;
+
+  /// No description provided for @chatMeetingCancelledReopened.
+  ///
+  /// In es, this message translates to:
+  /// **'Encuentro cancelado. El chat volvió a abrirse.'**
+  String get chatMeetingCancelledReopened;
+
+  /// No description provided for @chatCannotCancelMeeting.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo cancelar'**
+  String get chatCannotCancelMeeting;
+
+  /// No description provided for @chatRecordingNotActive.
+  ///
+  /// In es, this message translates to:
+  /// **'La grabación no está activa'**
+  String get chatRecordingNotActive;
+
+  /// No description provided for @chatRecordingStopped.
+  ///
+  /// In es, this message translates to:
+  /// **'Grabación detenida'**
+  String get chatRecordingStopped;
+
+  /// No description provided for @chatWriteMessage.
+  ///
+  /// In es, this message translates to:
+  /// **'Escribe un mensaje...'**
+  String get chatWriteMessage;
+
+  /// No description provided for @chatSellerBlockException.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al bloquear: {error}'**
+  String chatSellerBlockException(String error);
+
+  /// No description provided for @chatSellerUnblockException.
+  ///
+  /// In es, this message translates to:
+  /// **'Error al desbloquear: {error}'**
+  String chatSellerUnblockException(String error);
+
+  /// No description provided for @chatSelectReportReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Selecciona el motivo de la denuncia:'**
+  String get chatSelectReportReason;
+
+  /// No description provided for @chatReportModerationNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta denuncia será revisada por nuestro equipo de moderación.'**
+  String get chatReportModerationNotice;
+
+  /// No description provided for @chatSellerOptions.
+  ///
+  /// In es, this message translates to:
+  /// **'Opciones del Vendedor'**
+  String get chatSellerOptions;
+
+  /// No description provided for @chatUnblock.
+  ///
+  /// In es, this message translates to:
+  /// **'Desbloquear'**
+  String get chatUnblock;
+
+  /// No description provided for @chatBlock.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloquear'**
+  String get chatBlock;
+
+  /// No description provided for @chatUnblockUser.
+  ///
+  /// In es, this message translates to:
+  /// **'Desbloquear a {userName}'**
+  String chatUnblockUser(String userName);
+
+  /// No description provided for @chatBlockUser.
+  ///
+  /// In es, this message translates to:
+  /// **'Bloquear a {userName}'**
+  String chatBlockUser(String userName);
+
+  /// No description provided for @chatViewProfileInfo.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver información de perfil'**
+  String get chatViewProfileInfo;
+
+  /// No description provided for @chatViewUserDetails.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver detalles de {userName}'**
+  String chatViewUserDetails(String userName);
+
+  /// No description provided for @chatViewPortfolio.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver Portafolio'**
+  String get chatViewPortfolio;
+
+  /// No description provided for @chatViewUserProducts.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver todos los productos de {userName}'**
+  String chatViewUserProducts(String userName);
+
+  /// No description provided for @chatReportUserRules.
+  ///
+  /// In es, this message translates to:
+  /// **'Reportar a {userName} por incumplir las reglas'**
+  String chatReportUserRules(String userName);
+
+  /// No description provided for @chatStrikeMessage.
+  ///
+  /// In es, this message translates to:
+  /// **'Tachar mensaje'**
+  String get chatStrikeMessage;
+
+  /// No description provided for @chatStrikeMessageDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Tachar este mensaje para indicar que está resuelto'**
+  String get chatStrikeMessageDescription;
+
+  /// No description provided for @chatMessageStruck.
+  ///
+  /// In es, this message translates to:
+  /// **'Mensaje tachado'**
+  String get chatMessageStruck;
+
+  /// No description provided for @chatStrikeRemoved.
+  ///
+  /// In es, this message translates to:
+  /// **'Tachado eliminado'**
+  String get chatStrikeRemoved;
+
+  /// No description provided for @chatSearchInternet.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar en internet'**
+  String get chatSearchInternet;
+
+  /// No description provided for @chatSearchMessageGoogle.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar este mensaje en Google'**
+  String get chatSearchMessageGoogle;
+
+  /// No description provided for @chatOnline.
+  ///
+  /// In es, this message translates to:
+  /// **'en línea'**
+  String get chatOnline;
+
+  /// No description provided for @chatLastSeen.
+  ///
+  /// In es, this message translates to:
+  /// **'última vez'**
+  String get chatLastSeen;
+
+  /// No description provided for @chatLastSeenToday.
+  ///
+  /// In es, this message translates to:
+  /// **'última vez hoy'**
+  String get chatLastSeenToday;
+
+  /// No description provided for @chatLastSeenYesterday.
+  ///
+  /// In es, this message translates to:
+  /// **'última vez ayer'**
+  String get chatLastSeenYesterday;
+
+  /// No description provided for @chatLastSeenOn.
+  ///
+  /// In es, this message translates to:
+  /// **'última vez el {date}'**
+  String chatLastSeenOn(String date);
+
+  /// No description provided for @chatPortfolioSharedByYou.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartiste tu portafolio'**
+  String get chatPortfolioSharedByYou;
+
+  /// No description provided for @chatPortfolioOfUser.
+  ///
+  /// In es, this message translates to:
+  /// **'Portafolio de {userName}'**
+  String chatPortfolioOfUser(String userName);
+
+  /// No description provided for @chatTapToViewProducts.
+  ///
+  /// In es, this message translates to:
+  /// **'Toca para ver los productos'**
+  String get chatTapToViewProducts;
+
+  /// No description provided for @chatView.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver'**
+  String get chatView;
+
+  /// No description provided for @chatYou.
+  ///
+  /// In es, this message translates to:
+  /// **'Tú'**
+  String get chatYou;
+
+  /// No description provided for @chatShieldAudioTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Audios con el Escudo'**
+  String get chatShieldAudioTitle;
+
+  /// No description provided for @chatShieldImageTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Imágenes con el Escudo'**
+  String get chatShieldImageTitle;
+
+  /// No description provided for @chatShieldAudioInstructions.
+  ///
+  /// In es, this message translates to:
+  /// **'• Solo puedes grabar 25 segundos.\n• El audio se revisa con IA: debe hablar únicamente de \"{productName}\".\n• No se permiten teléfonos, redes sociales, pagos fuera de la app, insultos ni otros temas.\n\nCuando cierres esta ventana, mantén presionado el micrófono para grabar.'**
+  String chatShieldAudioInstructions(String productName);
+
+  /// No description provided for @chatShieldImageInstructions.
+  ///
+  /// In es, this message translates to:
+  /// **'• Solo puedes enviar 1 imagen en este chat.\n• La imagen se revisa con IA: debe mostrar el producto \"{productName}\".\n• No se permiten teléfonos, QR, redes sociales, pagos fuera de la app, contenido sexual, violento u ofensivo.'**
+  String chatShieldImageInstructions(String productName);
+
+  /// No description provided for @chatImageLimitTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Límite de imágenes'**
+  String get chatImageLimitTitle;
+
+  /// No description provided for @chatImageLimitBody.
+  ///
+  /// In es, this message translates to:
+  /// **'Con el Escudo activo solo puedes enviar 1 imagen en este chat.'**
+  String get chatImageLimitBody;
+
+  /// No description provided for @chatCropImage.
+  ///
+  /// In es, this message translates to:
+  /// **'Recortar imagen'**
+  String get chatCropImage;
+
+  /// No description provided for @chatDone.
+  ///
+  /// In es, this message translates to:
+  /// **'Listo'**
+  String get chatDone;
+
+  /// No description provided for @chatImageRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'Imagen rechazada'**
+  String get chatImageRejected;
+
+  /// No description provided for @chatAudioRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'Audio rechazado'**
+  String get chatAudioRejected;
+
+  /// No description provided for @chatStatusNeutral.
+  ///
+  /// In es, this message translates to:
+  /// **'Estado Neutral'**
+  String get chatStatusNeutral;
+
+  /// No description provided for @chatNeutralDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'La conversación está en curso. Aún no hay suficiente información para determinar el estado de la transacción.'**
+  String get chatNeutralDescription;
+
+  /// No description provided for @chatNeutralRecommendation.
+  ///
+  /// In es, this message translates to:
+  /// **'Continúa conversando de forma respetuosa y clara.'**
+  String get chatNeutralRecommendation;
+
+  /// No description provided for @chatStatusHealthy.
+  ///
+  /// In es, this message translates to:
+  /// **'Conversación Saludable'**
+  String get chatStatusHealthy;
+
+  /// No description provided for @chatHealthyDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'La conversación fluye de manera positiva. Ambos usuarios se están comunicando de forma respetuosa y clara.'**
+  String get chatHealthyDescription;
+
+  /// No description provided for @chatHealthyRecommendation.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Sigue así! La transacción tiene buenas probabilidades de éxito.'**
+  String get chatHealthyRecommendation;
+
+  /// No description provided for @chatStatusWarning.
+  ///
+  /// In es, this message translates to:
+  /// **'Precaución Recomendada'**
+  String get chatStatusWarning;
+
+  /// No description provided for @chatWarningDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Se han detectado algunos signos de alerta en la conversación. Podría haber malentendidos o tensión.'**
+  String get chatWarningDescription;
+
+  /// No description provided for @chatWarningRecommendation.
+  ///
+  /// In es, this message translates to:
+  /// **'Revisa los mensajes anteriores. Intenta ser más claro y empático en tus respuestas.'**
+  String get chatWarningRecommendation;
+
+  /// No description provided for @chatStatusDanger.
+  ///
+  /// In es, this message translates to:
+  /// **'Peligro Inminente'**
+  String get chatStatusDanger;
+
+  /// No description provided for @chatDangerDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'La conversación muestra signos de conflicto o riesgo. Podría haber mala comunicación o desacuerdos serios.'**
+  String get chatDangerDescription;
+
+  /// No description provided for @chatDangerRecommendation.
+  ///
+  /// In es, this message translates to:
+  /// **'Detente y evalúa la situación. Considera contactar a soporte si es necesario.'**
+  String get chatDangerRecommendation;
+
+  /// No description provided for @chatCancelMeetingQuestion.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cancelar el encuentro?'**
+  String get chatCancelMeetingQuestion;
+
+  /// No description provided for @chatRecordingRejectionWarning.
+  ///
+  /// In es, this message translates to:
+  /// **'Si rechazás la grabación de voz por seguridad, el encuentro se cancela para AMBOS usuarios y el chat queda cerrado.\n\nEsta acción no se puede deshacer.'**
+  String get chatRecordingRejectionWarning;
+
+  /// No description provided for @chatGoBack.
+  ///
+  /// In es, this message translates to:
+  /// **'Volver'**
+  String get chatGoBack;
+
+  /// No description provided for @chatYesCancelMeeting.
+  ///
+  /// In es, this message translates to:
+  /// **'Sí, cancelar el encuentro'**
+  String get chatYesCancelMeeting;
+
+  /// No description provided for @chatSecurityVoiceRecording.
+  ///
+  /// In es, this message translates to:
+  /// **'Grabación de voz por seguridad'**
+  String get chatSecurityVoiceRecording;
+
+  /// No description provided for @chatSecurityRecordingConsentBody.
+  ///
+  /// In es, this message translates to:
+  /// **'A partir de este momento, la app GRABARÁ el audio que se emita en esta conversación desde AMBOS dispositivos, con el único fin de proteger a los usuarios.\n\n• Los fragmentos de audio se guardan cada 10 segundos.\n• Esa grabación puede ser compartida con un tercero (autoridad o perito de seguridad) si hay una denuncia o incidente.\n• Nadie más puede escuchar los audios sin tu permiso o una orden legal.\n\n⚠️ IMPORTANTE: La grabación por seguridad es OBLIGATORIA para poder realizar el encuentro.\n\nSi RECHAZÁS la grabación, el encuentro se CANCELA automáticamente para ambos usuarios y el chat queda cerrado. No se podrá continuar con el encuentro presencial a través de la app.'**
+  String get chatSecurityRecordingConsentBody;
+
+  /// No description provided for @chatRejectAndCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'Rechazar y cancelar'**
+  String get chatRejectAndCancel;
+
+  /// No description provided for @chatAcceptAndContinue.
+  ///
+  /// In es, this message translates to:
+  /// **'Aceptar y continuar'**
+  String get chatAcceptAndContinue;
+
+  /// No description provided for @chatProposeMeeting.
+  ///
+  /// In es, this message translates to:
+  /// **'Proponer encuentro'**
+  String get chatProposeMeeting;
+
+  /// No description provided for @chatChooseSafePlace.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegí un lugar seguro de la lista.'**
+  String get chatChooseSafePlace;
+
+  /// No description provided for @chatProposalNumber.
+  ///
+  /// In es, this message translates to:
+  /// **'Propuesta {number} de 3'**
+  String chatProposalNumber(int number);
+
+  /// No description provided for @chatChoosePlaceOnMap.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegir lugar en el mapa'**
+  String get chatChoosePlaceOnMap;
+
+  /// No description provided for @chatPlaceSelected.
+  ///
+  /// In es, this message translates to:
+  /// **'Lugar seleccionado'**
+  String get chatPlaceSelected;
+
+  /// No description provided for @chatTapToOpenMap.
+  ///
+  /// In es, this message translates to:
+  /// **'Tocá para abrir el mapa'**
+  String get chatTapToOpenMap;
+
+  /// No description provided for @chatChooseTime.
+  ///
+  /// In es, this message translates to:
+  /// **'Elegí una hora (7:00 AM – 6:00 PM)'**
+  String get chatChooseTime;
+
+  /// No description provided for @chatSelectDateTime.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccionar fecha y hora'**
+  String get chatSelectDateTime;
+
+  /// No description provided for @chatSelectPlaceAndDate.
+  ///
+  /// In es, this message translates to:
+  /// **'⚠️ Elegí un lugar en el mapa y una fecha'**
+  String get chatSelectPlaceAndDate;
+
+  /// No description provided for @chatTimeSlotOccupiedChooseAnother.
+  ///
+  /// In es, this message translates to:
+  /// **'⛔ Ese día y hora ya está ocupado. Elegí otro horario.'**
+  String get chatTimeSlotOccupiedChooseAnother;
+
+  /// No description provided for @chatAddProposal.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar propuesta'**
+  String get chatAddProposal;
+
+  /// No description provided for @chatAddAndViewSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar y ver resumen'**
+  String get chatAddAndViewSummary;
+
+  /// No description provided for @chatViewSummaryCount.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver resumen ({count})'**
+  String chatViewSummaryCount(int count);
+
+  /// No description provided for @chatProposalsSummary.
+  ///
+  /// In es, this message translates to:
+  /// **'Resumen de propuestas'**
+  String get chatProposalsSummary;
+
+  /// No description provided for @chatProposalsAddedCount.
+  ///
+  /// In es, this message translates to:
+  /// **'{count} de 3 propuestas agregadas'**
+  String chatProposalsAddedCount(int count);
+
+  /// No description provided for @chatMaxThreeProposals.
+  ///
+  /// In es, this message translates to:
+  /// **'Máximo 3 propuestas'**
+  String get chatMaxThreeProposals;
+
+  /// No description provided for @chatAddAnotherProposal.
+  ///
+  /// In es, this message translates to:
+  /// **'Agregar otra propuesta'**
+  String get chatAddAnotherProposal;
+
+  /// No description provided for @chatProposalCancelled.
+  ///
+  /// In es, this message translates to:
+  /// **'ANULADA'**
+  String get chatProposalCancelled;
+
+  /// No description provided for @chatProposalAccepted.
+  ///
+  /// In es, this message translates to:
+  /// **'ACEPTADA'**
+  String get chatProposalAccepted;
+
+  /// No description provided for @chatProposalPending.
+  ///
+  /// In es, this message translates to:
+  /// **'PENDIENTE'**
+  String get chatProposalPending;
+
+  /// No description provided for @chatMeetingDetails.
+  ///
+  /// In es, this message translates to:
+  /// **'Detalle del encuentro'**
+  String get chatMeetingDetails;
+
+  /// No description provided for @chatDistrict.
+  ///
+  /// In es, this message translates to:
+  /// **'Distrito'**
+  String get chatDistrict;
+
+  /// No description provided for @chatPlace.
+  ///
+  /// In es, this message translates to:
+  /// **'Lugar'**
+  String get chatPlace;
+
+  /// No description provided for @chatDateAndTime.
+  ///
+  /// In es, this message translates to:
+  /// **'Fecha y hora'**
+  String get chatDateAndTime;
+
+  /// No description provided for @chatMeetingStatus.
+  ///
+  /// In es, this message translates to:
+  /// **'Estado'**
+  String get chatMeetingStatus;
+
+  /// No description provided for @chatAcceptProposalQuestion.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Aceptas esta propuesta?'**
+  String get chatAcceptProposalQuestion;
+
+  /// No description provided for @chatWaitingOtherResponse.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperando respuesta del otro usuario...'**
+  String get chatWaitingOtherResponse;
+
+  /// No description provided for @chatMeetingConfirmationNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'Una vez confirmado, no podrán escribir por chat hasta que se vean en persona.\n\n• No llegues tarde\n• Se pedirá reconocimiento facial\n• Se activará el GPS el día del encuentro'**
+  String get chatMeetingConfirmationNotice;
+
+  /// No description provided for @chatCancelDealQuestion.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Cancelar el trato?'**
+  String get chatCancelDealQuestion;
+
+  /// No description provided for @chatMeetingLabel.
+  ///
+  /// In es, this message translates to:
+  /// **'ENCUENTRO'**
+  String get chatMeetingLabel;
+
+  /// No description provided for @chatCancellationRule.
+  ///
+  /// In es, this message translates to:
+  /// **'Regla de cancelación'**
+  String get chatCancellationRule;
+
+  /// No description provided for @chatCancellationNotification.
+  ///
+  /// In es, this message translates to:
+  /// **'Al cancelar, el encuentro se anula para los dos y el chat vuelve a abrirse. El otro usuario recibirá una notificación.'**
+  String get chatCancellationNotification;
+
+  /// No description provided for @chatOtherConfirmedCannotCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'El otro usuario confirmó asistencia. Ya no podés cancelar este encuentro.'**
+  String get chatOtherConfirmedCannotCancel;
+
+  /// No description provided for @chatCannotCancelWithinHour.
+  ///
+  /// In es, this message translates to:
+  /// **'Ya no podés cancelar este encuentro porque falta menos de 1 hora. Deben presentarse en el lugar acordado.'**
+  String get chatCannotCancelWithinHour;
+
+  /// No description provided for @chatBothConfirmedCannotCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'Ambos ya confirmaron asistencia. El encuentro no se puede cancelar.'**
+  String get chatBothConfirmedCannotCancel;
+
+  /// No description provided for @chatOnlyOtherCanCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'El otro usuario confirmó asistencia. Solo él puede cancelar hasta 10 minutos antes.'**
+  String get chatOnlyOtherCanCancel;
+
+  /// No description provided for @chatYouCanCancelUntilTenMinutes.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmaste asistencia. Podés cancelar hasta 10 minutos antes del encuentro.'**
+  String get chatYouCanCancelUntilTenMinutes;
+
+  /// No description provided for @chatCancellationDeadlineRule.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo podés cancelar el trato hasta 1 hora antes del encuentro. Si falta menos de 1 hora, ya no se permite cancelar y deben presentarse en el lugar acordado.'**
+  String get chatCancellationDeadlineRule;
+
+  /// No description provided for @chatBack.
+  ///
+  /// In es, this message translates to:
+  /// **'Volver'**
+  String get chatBack;
+
+  /// No description provided for @chatYesCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'Sí, cancelar'**
+  String get chatYesCancel;
+
+  /// No description provided for @chatMeetingCancelError.
+  ///
+  /// In es, this message translates to:
+  /// **'Error: {error}'**
+  String chatMeetingCancelError(String error);
+
+  /// No description provided for @chatDealClosedTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'🤝 Trato cerrado'**
+  String get chatDealClosedTitle;
+
+  /// No description provided for @chatDealClosedDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'El chat quedó bloqueado. Nos vemos en el encuentro.'**
+  String get chatDealClosedDescription;
+
+  /// No description provided for @chatViewChatMessages.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver mensajes del chat'**
+  String get chatViewChatMessages;
+
+  /// No description provided for @chatReviewAlertsStep.
+  ///
+  /// In es, this message translates to:
+  /// **'1. Revisá tus alertas'**
+  String get chatReviewAlertsStep;
+
+  /// No description provided for @chatReviewAlertsDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Entrá a la sección de Alertas para ver la fecha, hora y lugar del encuentro confirmado.'**
+  String get chatReviewAlertsDescription;
+
+  /// No description provided for @chatFacialRecognitionStep.
+  ///
+  /// In es, this message translates to:
+  /// **'2. Reconocimiento facial'**
+  String get chatFacialRecognitionStep;
+
+  /// No description provided for @chatFacialRecognitionStepDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'El día del encuentro, la app te va a pedir una selfie para verificar tu identidad antes de salir.'**
+  String get chatFacialRecognitionStepDescription;
+
+  /// No description provided for @chatEnableGpsStep.
+  ///
+  /// In es, this message translates to:
+  /// **'3. Activá el GPS'**
+  String get chatEnableGpsStep;
+
+  /// No description provided for @chatEnableGpsStepDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Al llegar al lugar, activá la ubicación. La app confirma que estás en el punto seguro.'**
+  String get chatEnableGpsStepDescription;
+
+  /// No description provided for @chatUnlockChatStep.
+  ///
+  /// In es, this message translates to:
+  /// **'4. Se desbloquea el chat'**
+  String get chatUnlockChatStep;
+
+  /// No description provided for @chatUnlockChatStepDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Cuando ambos estén presentes y verificados, el chat vuelve a abrirse.'**
+  String get chatUnlockChatStepDescription;
+
+  /// No description provided for @chatArriveEarlyWarning.
+  ///
+  /// In es, this message translates to:
+  /// **'Llegá 10 minutos antes. Si no llegás, el encuentro se marca como \"no presentado\" y el chat queda cerrado.'**
+  String get chatArriveEarlyWarning;
+
+  /// No description provided for @chatShieldAlreadyActive.
+  ///
+  /// In es, this message translates to:
+  /// **'🛡️ El Escudo ya está activo y no se puede desactivar'**
+  String get chatShieldAlreadyActive;
+
+  /// No description provided for @chatShieldAnalyzingMessages.
+  ///
+  /// In es, this message translates to:
+  /// **'🛡️ Escudo activado. Analizando mensajes...'**
+  String get chatShieldAnalyzingMessages;
+
+  /// No description provided for @chatActivateShieldToViewAnalysis.
+  ///
+  /// In es, this message translates to:
+  /// **'🛡️ Activa el Escudo para ver el análisis de la conversación'**
+  String get chatActivateShieldToViewAnalysis;
+
+  /// No description provided for @chatDealInfo.
+  ///
+  /// In es, this message translates to:
+  /// **'Info del trato'**
+  String get chatDealInfo;
+
+  /// No description provided for @chatProposePlaceBeforeClosingDeal.
+  ///
+  /// In es, this message translates to:
+  /// **'📍 Primero proponé un lugar y una fecha para el encuentro.\nCuando el otro acepte, vas a poder cerrar el trato.'**
+  String get chatProposePlaceBeforeClosingDeal;
+
+  /// No description provided for @chatDealClosedWaitingMeeting.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Trato cerrado. Esperando el encuentro.'**
+  String get chatDealClosedWaitingMeeting;
+
+  /// No description provided for @chatWaitingDealConfirmation.
+  ///
+  /// In es, this message translates to:
+  /// **'⏳ Esperando que el otro usuario confirme...'**
+  String get chatWaitingDealConfirmation;
+
+  /// No description provided for @chatConfirmDeal.
+  ///
+  /// In es, this message translates to:
+  /// **'Confirmar'**
+  String get chatConfirmDeal;
+
+  /// No description provided for @chatMoreQuestions.
+  ///
+  /// In es, this message translates to:
+  /// **'Tengo más preguntas'**
+  String get chatMoreQuestions;
+
+  /// No description provided for @chatNoMessagesYet.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay mensajes aún'**
+  String get chatNoMessagesYet;
+
+  /// No description provided for @chatItemSold.
+  ///
+  /// In es, this message translates to:
+  /// **'ARTÍCULO VENDIDO'**
+  String get chatItemSold;
+
+  /// No description provided for @chatMeetingHasBeenAccepted.
+  ///
+  /// In es, this message translates to:
+  /// **'El encuentro ha sido aceptado'**
+  String get chatMeetingHasBeenAccepted;
+
+  /// No description provided for @chatDealClosedBothConfirmed.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Trato cerrado. Ambos confirmaron. ¡Nos vemos el día del encuentro!'**
+  String get chatDealClosedBothConfirmed;
+
+  /// No description provided for @chatBothContinueTalking.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Ambos decidieron seguir conversando'**
+  String get chatBothContinueTalking;
+
+  /// No description provided for @chatUserWantsToContinueTalking.
+  ///
+  /// In es, this message translates to:
+  /// **'El usuario quiere seguir conversando'**
+  String get chatUserWantsToContinueTalking;
+
+  /// No description provided for @chatRatingThankYou.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Has calificado. ¡Gracias por tu opinión!'**
+  String get chatRatingThankYou;
+
+  /// No description provided for @chatRatingVisibleAfterWeek.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu calificación se reflejará en el perfil de {userName} una semana después de enviarla.'**
+  String chatRatingVisibleAfterWeek(String userName);
+
+  /// No description provided for @chatYouSharedLocation.
+  ///
+  /// In es, this message translates to:
+  /// **'Compartiste tu ubicación'**
+  String get chatYouSharedLocation;
+
+  /// No description provided for @chatLocationShared.
+  ///
+  /// In es, this message translates to:
+  /// **'Ubicación compartida'**
+  String get chatLocationShared;
+
+  /// No description provided for @chatTapToOpenMaps.
+  ///
+  /// In es, this message translates to:
+  /// **'Toca para abrir en mapas'**
+  String get chatTapToOpenMaps;
+
+  /// No description provided for @chatMeetingCouldNotTakePlace.
+  ///
+  /// In es, this message translates to:
+  /// **'El encuentro no se pudo realizar'**
+  String get chatMeetingCouldNotTakePlace;
+
+  /// No description provided for @chatMeetingCancelledChatReopened.
+  ///
+  /// In es, this message translates to:
+  /// **'❌ El encuentro fue cancelado. El chat volvió a abrirse.'**
+  String get chatMeetingCancelledChatReopened;
+
+  /// No description provided for @chatConfirmedDealWaitingResponse.
+  ///
+  /// In es, this message translates to:
+  /// **'⏳ Confirmaste cerrar el trato. Esperando la respuesta del otro usuario...'**
+  String get chatConfirmedDealWaitingResponse;
+
+  /// No description provided for @chatWaitingOtherDecision.
+  ///
+  /// In es, this message translates to:
+  /// **'⏳ Esperando que el otro usuario decida...'**
+  String get chatWaitingOtherDecision;
+
+  /// No description provided for @chatMeetingProposalPendingWrite.
+  ///
+  /// In es, this message translates to:
+  /// **'Propuesta de encuentro pendiente. Esperá a que se resuelva para escribir.'**
+  String get chatMeetingProposalPendingWrite;
+
+  /// No description provided for @chatRecordingSlideToCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'🎤 Grabando... desliza para cancelar'**
+  String get chatRecordingSlideToCancel;
+
+  /// No description provided for @chatReleaseToCancel.
+  ///
+  /// In es, this message translates to:
+  /// **'Suelta para cancelar'**
+  String get chatReleaseToCancel;
+
+  /// No description provided for @chatRecordingRejectedMeetingCancelled.
+  ///
+  /// In es, this message translates to:
+  /// **'❌ Rechazaste la grabación. El encuentro se canceló para ambos y el chat quedó cerrado.'**
+  String get chatRecordingRejectedMeetingCancelled;
+
+  /// No description provided for @chatRecordingEnabledBothAccepted.
+  ///
+  /// In es, this message translates to:
+  /// **'🎙️ Grabación habilitada. Ambos aceptaron.'**
+  String get chatRecordingEnabledBothAccepted;
+
+  /// No description provided for @chatRecordingAcceptedWaitingOther.
+  ///
+  /// In es, this message translates to:
+  /// **'🎙️ Aceptaste. Esperando que el otro usuario acepte.'**
+  String get chatRecordingAcceptedWaitingOther;
+
+  /// No description provided for @chatRecordingMeetingCancelledTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'🚫 Encuentro cancelado'**
+  String get chatRecordingMeetingCancelledTitle;
+
+  /// No description provided for @chatRecordingMeetingCancelledReason.
+  ///
+  /// In es, this message translates to:
+  /// **'El encuentro se canceló porque una de las partes rechazó la grabación de voz por seguridad.'**
+  String get chatRecordingMeetingCancelledReason;
+
+  /// No description provided for @chatRecordingMandatoryExplanation.
+  ///
+  /// In es, this message translates to:
+  /// **'La grabación por seguridad es obligatoria para realizar encuentros presenciales a través de la app. Esta medida protege a ambos usuarios.'**
+  String get chatRecordingMandatoryExplanation;
+
+  /// No description provided for @chatReportSuspiciousProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Producto sospechoso'**
+  String get chatReportSuspiciousProduct;
+
+  /// No description provided for @chatReportProhibitedProducts.
+  ///
+  /// In es, this message translates to:
+  /// **'Publicación de productos prohibidos'**
+  String get chatReportProhibitedProducts;
+
+  /// No description provided for @chatReportFraud.
+  ///
+  /// In es, this message translates to:
+  /// **'Estafa o fraude'**
+  String get chatReportFraud;
+
+  /// No description provided for @chatReportHarassment.
+  ///
+  /// In es, this message translates to:
+  /// **'Acoso o maltrato'**
+  String get chatReportHarassment;
+
+  /// No description provided for @chatReportMisleadingInfo.
+  ///
+  /// In es, this message translates to:
+  /// **'Información falsa o engañosa'**
+  String get chatReportMisleadingInfo;
+
+  /// No description provided for @chatReportOtherReason.
+  ///
+  /// In es, this message translates to:
+  /// **'Otro motivo'**
+  String get chatReportOtherReason;
+
+  /// No description provided for @chatLocation.
+  ///
+  /// In es, this message translates to:
+  /// **'Ubicación'**
+  String get chatLocation;
+
+  /// No description provided for @chatClosedShieldRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'Chat cerrado. Uno de los participantes no aceptó el Escudo de Seguridad.'**
+  String get chatClosedShieldRejected;
+
+  /// No description provided for @chatLockedForMeeting.
+  ///
+  /// In es, this message translates to:
+  /// **'Chat bloqueado. Se verán en persona. No llegues tarde.'**
+  String get chatLockedForMeeting;
+
+  /// No description provided for @chatSendProposals.
+  ///
+  /// In es, this message translates to:
+  /// **'{count, plural, =1{Enviar 1 propuesta} other{Enviar {count} propuestas}}'**
+  String chatSendProposals(int count);
+
+  /// No description provided for @chatMapCoordinates.
+  ///
+  /// In es, this message translates to:
+  /// **'Lat: {latitude}, Lng: {longitude}'**
+  String chatMapCoordinates(String latitude, String longitude);
+
+  /// No description provided for @chatAnalyzingConversation.
+  ///
+  /// In es, this message translates to:
+  /// **'Analizando conversación...'**
+  String get chatAnalyzingConversation;
+
+  /// No description provided for @chatAnalysisNotAvailable.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay análisis disponible aún.'**
+  String get chatAnalysisNotAvailable;
+
+  /// No description provided for @chatMeetingTimeOccupied.
+  ///
+  /// In es, this message translates to:
+  /// **'Ese día y hora ya está ocupado.'**
+  String get chatMeetingTimeOccupied;
+
+  /// No description provided for @chatYourPortfolio.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu portafolio'**
+  String get chatYourPortfolio;
+
+  /// No description provided for @chatHideProducts.
+  ///
+  /// In es, this message translates to:
+  /// **'Ocultar productos'**
+  String get chatHideProducts;
+
+  /// No description provided for @chatViewProducts.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver productos'**
+  String get chatViewProducts;
+
+  /// No description provided for @chatViewProduct.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver producto'**
+  String get chatViewProduct;
+
+  /// No description provided for @chatSelectMessagePart.
+  ///
+  /// In es, this message translates to:
+  /// **'Seleccionar parte del mensaje para copiar'**
+  String get chatSelectMessagePart;
+
+  /// No description provided for @chatMeetingProposalTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Propuesta de encuentro'**
+  String get chatMeetingProposalTitle;
+
+  /// No description provided for @chatWaitingProposalResponse.
+  ///
+  /// In es, this message translates to:
+  /// **'Esperando respuesta...'**
+  String get chatWaitingProposalResponse;
+
+  /// No description provided for @chatTapProposalDetails.
+  ///
+  /// In es, this message translates to:
+  /// **'Toca para ver detalles y responder'**
+  String get chatTapProposalDetails;
+
+  /// No description provided for @chatProposalAcceptedNotice.
+  ///
+  /// In es, this message translates to:
+  /// **'✅ Propuesta aceptada'**
+  String get chatProposalAcceptedNotice;
+
+  /// No description provided for @chatProposalRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'❌ Propuesta rechazada'**
+  String get chatProposalRejected;
+
+  /// No description provided for @chatOtherUserMeetingReady.
+  ///
+  /// In es, this message translates to:
+  /// **'{userName} desea saber si ya todo está listo para el encuentro'**
+  String chatOtherUserMeetingReady(String userName);
+
+  /// No description provided for @chatMeetingEverythingReady.
+  ///
+  /// In es, this message translates to:
+  /// **'¿Ya está todo listo para el encuentro?'**
+  String get chatMeetingEverythingReady;
+
+  /// No description provided for @chatMeetingBothConfirmLock.
+  ///
+  /// In es, this message translates to:
+  /// **'Si ambos confirman, el chat se bloquea hasta que se vean en persona.'**
+  String get chatMeetingBothConfirmLock;
+
+  /// No description provided for @chatConversationAgreement.
+  ///
+  /// In es, this message translates to:
+  /// **'La conversación parece haber llegado a un acuerdo.'**
+  String get chatConversationAgreement;
+
+  /// No description provided for @chatCancelMeetingBoth.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta acción anula el encuentro para ambos.'**
+  String get chatCancelMeetingBoth;
+
+  /// No description provided for @chatMeetingNotCompletedExplanation.
+  ///
+  /// In es, this message translates to:
+  /// **'Lamentamos las molestias. No todos los encuentros se pueden concretar, y eso está bien: lo importante es cuidarnos entre todos.\n\nEl chat quedó cerrado. Eliminá este chat y volvé a abrirlo para seguir conversando.'**
+  String get chatMeetingNotCompletedExplanation;
 }
 
 class _AppLocalizationsDelegate

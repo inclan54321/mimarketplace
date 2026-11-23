@@ -530,9 +530,9 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
     final picker = ImagePicker();
     final imagen = await picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 70,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 95,
     );
     if (imagen != null) {
       setState(() {
@@ -557,9 +557,9 @@ class _ImagenesProductoScreenState extends State<ImagenesProductoScreen> {
     final picker = ImagePicker();
     final imagen = await picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 70,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 95,
     );
     if (imagen != null) {
       setState(() {

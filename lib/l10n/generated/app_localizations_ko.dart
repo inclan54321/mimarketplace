@@ -1274,4 +1274,809 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get volverAlPerfil => 'Volver al perfil';
+
+  @override
+  String get chatShieldAccepted => '🛡️ 보호 기능을 수락했습니다';
+
+  @override
+  String get chatShieldRejected => '🚫 보호 기능이 거부되어 채팅이 종료되었습니다.';
+
+  @override
+  String get chatRatingSent => '평가가 제출되었습니다! 의견 감사합니다.';
+
+  @override
+  String get chatMessageBlocked => '메시지가 차단되었습니다';
+
+  @override
+  String get chatPhoneBlocked =>
+      '보안 보호 기능이 이 메시지를 차단했습니다.\n\n사유: 전화번호는 허용되지 않습니다.';
+
+  @override
+  String get chatUnderstood => '알겠습니다';
+
+  @override
+  String get chatMeetingNotHeld =>
+      '만남이 이루어지지 않았습니다. 대화를 계속하려면 이 채팅을 삭제하고 다시 여세요.';
+
+  @override
+  String get chatGallery => '갤러리';
+
+  @override
+  String get chatCamera => '카메라';
+
+  @override
+  String get chatShareLocation => '위치 공유';
+
+  @override
+  String get chatSharePortfolio => '포트폴리오 공유';
+
+  @override
+  String get chatEnableGps => '위치를 공유하려면 휴대전화의 GPS를 켜세요';
+
+  @override
+  String get chatLocationPermission => '위치 권한이 필요합니다';
+
+  @override
+  String get chatGettingLocation => '📍 위치를 확인하는 중...';
+
+  @override
+  String get chatCannotOpenApp => '앱을 열 수 없습니다';
+
+  @override
+  String get chatOpenLocationWith => '위치를 열 앱...';
+
+  @override
+  String get chatPortfolioShared => '📤 포트폴리오를 공유했습니다';
+
+  @override
+  String get chatDontShowAgain => '다시 표시하지 않기';
+
+  @override
+  String get chatCancel => '취소';
+
+  @override
+  String get chatContinue => '계속';
+
+  @override
+  String get chatOtherUser => '상대 사용자';
+
+  @override
+  String chatGenericError(String error) {
+    return '오류: $error';
+  }
+
+  @override
+  String chatLocationSendError(String statusCode) {
+    return '위치를 전송할 수 없습니다 ($statusCode)';
+  }
+
+  @override
+  String chatLocationGetError(String error) {
+    return '위치 정보를 가져오는 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String chatImageSendError(String error) {
+    return '이미지 전송 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String get chatAudioPermissionRequired => '오디오를 녹음하려면 마이크 권한이 필요합니다';
+
+  @override
+  String get chatRecordingTapToStop => '🎤 녹음 중... 다시 탭하면 중지됩니다';
+
+  @override
+  String chatRecordingError(String error) {
+    return '녹음 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String get chatVerifyingAudio => '🛡️ 오디오 확인 중...';
+
+  @override
+  String get chatAudioSent => '🎤 오디오를 전송했습니다';
+
+  @override
+  String chatAudioSendError(String error) {
+    return '오디오 전송 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String get chatRecordingLimitReached => '⏱️ 25초 녹음 제한에 도달했습니다';
+
+  @override
+  String get chatRecordingCancelled => '🗑️ 녹음이 취소되었습니다';
+
+  @override
+  String get chatSendingAudio => '📤 오디오 전송 중...';
+
+  @override
+  String chatStopRecordingError(String error) {
+    return '녹음 중지 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String chatAudioPlaybackError(String error) {
+    return '오디오 재생 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String get chatSellerBlocked => '판매자를 차단했습니다';
+
+  @override
+  String get chatSellerBlockError => '판매자 차단 중 오류가 발생했습니다';
+
+  @override
+  String get chatSellerUnblocked => '판매자 차단을 해제했습니다';
+
+  @override
+  String get chatSellerUnblockError => '판매자 차단 해제 중 오류가 발생했습니다';
+
+  @override
+  String get chatReportSeller => '판매자 신고';
+
+  @override
+  String get chatReport => '신고하기';
+
+  @override
+  String get chatReportLoginRequired => '신고하려면 로그인해야 합니다';
+
+  @override
+  String get chatReportSent => '신고가 접수되었습니다. 운영팀에서 검토할 예정입니다.';
+
+  @override
+  String chatReportSendError(String error) {
+    return '신고 전송 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String get chatInternetSearchComingSoon => '\"인터넷 검색\" 기능은 개발 중입니다';
+
+  @override
+  String get chatSelectText => '텍스트 선택';
+
+  @override
+  String get chatSelectTextToCopy => '복사할 텍스트를 선택하세요:';
+
+  @override
+  String get chatClose => '닫기';
+
+  @override
+  String get chatAccept => '수락';
+
+  @override
+  String get chatReject => '거절';
+
+  @override
+  String get chatConfirmMeetingQuestion => '만남을 확정하시겠습니까?';
+
+  @override
+  String get chatConfirm => '확인';
+
+  @override
+  String get chatMeetingConfirmed => '만남이 확정되었습니다';
+
+  @override
+  String get chatMeetingNotFound => '예정된 만남을 찾을 수 없습니다';
+
+  @override
+  String get chatMeetingCancelledReopened => '만남이 취소되었습니다. 채팅이 다시 열렸습니다.';
+
+  @override
+  String get chatCannotCancelMeeting => '취소할 수 없습니다';
+
+  @override
+  String get chatRecordingNotActive => '녹음이 활성화되어 있지 않습니다';
+
+  @override
+  String get chatRecordingStopped => '녹음이 중지되었습니다';
+
+  @override
+  String get chatWriteMessage => '메시지를 입력하세요...';
+
+  @override
+  String chatSellerBlockException(String error) {
+    return '차단 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String chatSellerUnblockException(String error) {
+    return '차단 해제 중 오류가 발생했습니다: $error';
+  }
+
+  @override
+  String get chatSelectReportReason => '신고 사유를 선택하세요:';
+
+  @override
+  String get chatReportModerationNotice => '이 신고는 운영팀에서 검토합니다.';
+
+  @override
+  String get chatSellerOptions => '판매자 옵션';
+
+  @override
+  String get chatUnblock => '차단 해제';
+
+  @override
+  String get chatBlock => '차단';
+
+  @override
+  String chatUnblockUser(String userName) {
+    return '$userName 차단 해제';
+  }
+
+  @override
+  String chatBlockUser(String userName) {
+    return '$userName 차단';
+  }
+
+  @override
+  String get chatViewProfileInfo => '프로필 정보 보기';
+
+  @override
+  String chatViewUserDetails(String userName) {
+    return '$userName의 상세 정보 보기';
+  }
+
+  @override
+  String get chatViewPortfolio => '포트폴리오 보기';
+
+  @override
+  String chatViewUserProducts(String userName) {
+    return '$userName의 모든 상품 보기';
+  }
+
+  @override
+  String chatReportUserRules(String userName) {
+    return '규칙 위반으로 $userName 신고';
+  }
+
+  @override
+  String get chatStrikeMessage => '메시지 취소선 표시';
+
+  @override
+  String get chatStrikeMessageDescription => '해결된 메시지임을 표시하기 위해 취소선을 적용합니다';
+
+  @override
+  String get chatMessageStruck => '메시지에 취소선이 적용되었습니다';
+
+  @override
+  String get chatStrikeRemoved => '취소선이 제거되었습니다';
+
+  @override
+  String get chatSearchInternet => '인터넷 검색';
+
+  @override
+  String get chatSearchMessageGoogle => 'Google에서 이 메시지 검색';
+
+  @override
+  String get chatOnline => '온라인';
+
+  @override
+  String get chatLastSeen => '마지막 접속';
+
+  @override
+  String get chatLastSeenToday => '오늘 마지막 접속';
+
+  @override
+  String get chatLastSeenYesterday => '어제 마지막 접속';
+
+  @override
+  String chatLastSeenOn(String date) {
+    return '마지막 접속: $date';
+  }
+
+  @override
+  String get chatPortfolioSharedByYou => '내 포트폴리오를 공유했습니다';
+
+  @override
+  String chatPortfolioOfUser(String userName) {
+    return '$userName의 포트폴리오';
+  }
+
+  @override
+  String get chatTapToViewProducts => '탭하여 상품 보기';
+
+  @override
+  String get chatView => '보기';
+
+  @override
+  String get chatYou => '나';
+
+  @override
+  String get chatShieldAudioTitle => '보안 실드를 통한 오디오 보호';
+
+  @override
+  String get chatShieldImageTitle => '보안 실드를 통한 이미지 보호';
+
+  @override
+  String chatShieldAudioInstructions(String productName) {
+    return '• 최대 25초까지 녹음할 수 있습니다.\n• 오디오는 AI가 검토하며 \"$productName\"에 관한 내용만 포함해야 합니다.\n• 전화번호, 소셜 미디어, 앱 외부 결제, 욕설 및 관련 없는 주제는 허용되지 않습니다.\n\n이 창을 닫은 후 마이크를 길게 눌러 녹음하세요.';
+  }
+
+  @override
+  String chatShieldImageInstructions(String productName) {
+    return '• 이 채팅에서는 이미지를 1장만 전송할 수 있습니다.\n• 이미지는 AI가 검토하며 \"$productName\" 상품이 표시되어야 합니다.\n• 전화번호, QR 코드, 소셜 미디어, 앱 외부 결제, 성적·폭력적·모욕적인 콘텐츠는 허용되지 않습니다.';
+  }
+
+  @override
+  String get chatImageLimitTitle => '이미지 전송 제한';
+
+  @override
+  String get chatImageLimitBody =>
+      '보안 실드가 활성화된 상태에서는 이 채팅에 이미지를 1장만 전송할 수 있습니다.';
+
+  @override
+  String get chatCropImage => '이미지 자르기';
+
+  @override
+  String get chatDone => '완료';
+
+  @override
+  String get chatImageRejected => '이미지가 거부되었습니다';
+
+  @override
+  String get chatAudioRejected => '오디오가 거부되었습니다';
+
+  @override
+  String get chatStatusNeutral => '중립 상태';
+
+  @override
+  String get chatNeutralDescription =>
+      '대화가 진행 중입니다. 아직 거래 상태를 판단하기에 충분한 정보가 없습니다.';
+
+  @override
+  String get chatNeutralRecommendation => '상대방을 존중하며 명확하게 대화를 이어가세요.';
+
+  @override
+  String get chatStatusHealthy => '건전한 대화';
+
+  @override
+  String get chatHealthyDescription =>
+      '대화가 긍정적으로 진행되고 있습니다. 양측 사용자가 서로 존중하며 명확하게 소통하고 있습니다.';
+
+  @override
+  String get chatHealthyRecommendation => '좋습니다! 거래가 성공적으로 이루어질 가능성이 높습니다.';
+
+  @override
+  String get chatStatusWarning => '주의 권장';
+
+  @override
+  String get chatWarningDescription =>
+      '대화에서 몇 가지 경고 신호가 감지되었습니다. 오해나 긴장이 발생했을 수 있습니다.';
+
+  @override
+  String get chatWarningRecommendation =>
+      '이전 메시지를 검토하세요. 더 명확하고 공감하는 태도로 답변해 보세요.';
+
+  @override
+  String get chatStatusDanger => '임박한 위험';
+
+  @override
+  String get chatDangerDescription =>
+      '대화에서 갈등이나 위험의 징후가 나타납니다. 의사소통 문제나 심각한 의견 충돌이 있을 수 있습니다.';
+
+  @override
+  String get chatDangerRecommendation =>
+      '잠시 멈추고 상황을 평가하세요. 필요한 경우 고객지원팀에 문의하세요.';
+
+  @override
+  String get chatCancelMeetingQuestion => '만남을 취소하시겠습니까?';
+
+  @override
+  String get chatRecordingRejectionWarning =>
+      '보안을 위한 음성 녹음을 거부하면 양측 사용자의 만남이 취소되고 채팅이 종료됩니다.\n\n이 작업은 되돌릴 수 없습니다.';
+
+  @override
+  String get chatGoBack => '돌아가기';
+
+  @override
+  String get chatYesCancelMeeting => '예, 만남 취소';
+
+  @override
+  String get chatSecurityVoiceRecording => '보안을 위한 음성 녹음';
+
+  @override
+  String get chatSecurityRecordingConsentBody =>
+      '지금부터 앱은 사용자 보호만을 목적으로 양측 기기에서 이 대화의 음성을 녹음합니다.\n\n• 음성은 10초마다 저장됩니다.\n• 신고나 사건이 발생한 경우 녹음 내용은 제3자(당국 또는 보안 전문가)에게 제공될 수 있습니다.\n• 귀하의 허가 또는 법적 명령 없이는 다른 사람이 녹음 내용을 들을 수 없습니다.\n\n⚠️ 중요: 만남을 진행하려면 보안 녹음에 반드시 동의해야 합니다.\n\n녹음을 거부하면 양측 사용자의 만남이 자동으로 취소되고 채팅이 종료됩니다. 앱을 통한 대면 만남을 계속 진행할 수 없습니다.';
+
+  @override
+  String get chatRejectAndCancel => '거부하고 취소';
+
+  @override
+  String get chatAcceptAndContinue => '동의하고 계속';
+
+  @override
+  String get chatProposeMeeting => '만남 제안하기';
+
+  @override
+  String get chatChooseSafePlace => '목록에서 안전한 장소를 선택하세요.';
+
+  @override
+  String chatProposalNumber(int number) {
+    return '제안 $number/3';
+  }
+
+  @override
+  String get chatChoosePlaceOnMap => '지도에서 장소 선택';
+
+  @override
+  String get chatPlaceSelected => '장소 선택됨';
+
+  @override
+  String get chatTapToOpenMap => '탭하여 지도 열기';
+
+  @override
+  String get chatChooseTime => '시간 선택(오전 7시~오후 6시)';
+
+  @override
+  String get chatSelectDateTime => '날짜와 시간 선택';
+
+  @override
+  String get chatSelectPlaceAndDate => '⚠️ 지도에서 장소와 날짜를 선택하세요';
+
+  @override
+  String get chatTimeSlotOccupiedChooseAnother =>
+      '⛔ 해당 날짜와 시간은 이미 예약되어 있습니다. 다른 시간을 선택하세요.';
+
+  @override
+  String get chatAddProposal => '제안 추가';
+
+  @override
+  String get chatAddAndViewSummary => '추가하고 요약 보기';
+
+  @override
+  String chatViewSummaryCount(int count) {
+    return '요약 보기 ($count)';
+  }
+
+  @override
+  String get chatProposalsSummary => '제안 요약';
+
+  @override
+  String chatProposalsAddedCount(int count) {
+    return '3개 중 $count개 제안 추가됨';
+  }
+
+  @override
+  String get chatMaxThreeProposals => '최대 3개까지 제안 가능';
+
+  @override
+  String get chatAddAnotherProposal => '다른 제안 추가';
+
+  @override
+  String get chatProposalCancelled => '취소됨';
+
+  @override
+  String get chatProposalAccepted => '수락됨';
+
+  @override
+  String get chatProposalPending => '대기 중';
+
+  @override
+  String get chatMeetingDetails => '만남 상세 정보';
+
+  @override
+  String get chatDistrict => '지역';
+
+  @override
+  String get chatPlace => '장소';
+
+  @override
+  String get chatDateAndTime => '날짜 및 시간';
+
+  @override
+  String get chatMeetingStatus => '상태';
+
+  @override
+  String get chatAcceptProposalQuestion => '이 제안을 수락하시겠습니까?';
+
+  @override
+  String get chatWaitingOtherResponse => '상대방의 응답을 기다리는 중...';
+
+  @override
+  String get chatMeetingConfirmationNotice =>
+      '확정 후에는 직접 만날 때까지 채팅으로 메시지를 보낼 수 없습니다.\n\n• 늦지 마세요\n• 얼굴 인식이 필요합니다\n• 만남 당일 GPS가 활성화됩니다';
+
+  @override
+  String get chatCancelDealQuestion => '거래를 취소하시겠습니까?';
+
+  @override
+  String get chatMeetingLabel => '만남';
+
+  @override
+  String get chatCancellationRule => '취소 규정';
+
+  @override
+  String get chatCancellationNotification =>
+      '취소하면 양쪽 모두의 만남이 취소되고 채팅이 다시 열립니다. 상대방에게 알림이 전송됩니다.';
+
+  @override
+  String get chatOtherConfirmedCannotCancel =>
+      '상대방이 참석을 확인했습니다. 더 이상 이 만남을 취소할 수 없습니다.';
+
+  @override
+  String get chatCannotCancelWithinHour =>
+      '만남까지 1시간도 남지 않아 취소할 수 없습니다. 양쪽 모두 약속된 장소에 참석해야 합니다.';
+
+  @override
+  String get chatBothConfirmedCannotCancel =>
+      '양쪽 모두 참석을 확인했습니다. 만남을 취소할 수 없습니다.';
+
+  @override
+  String get chatOnlyOtherCanCancel =>
+      '상대방이 참석을 확인했습니다. 상대방만 만남 10분 전까지 취소할 수 있습니다.';
+
+  @override
+  String get chatYouCanCancelUntilTenMinutes =>
+      '참석을 확인했습니다. 만남 10분 전까지 취소할 수 있습니다.';
+
+  @override
+  String get chatCancellationDeadlineRule =>
+      '거래는 만남 1시간 전까지만 취소할 수 있습니다. 1시간 미만으로 남으면 취소할 수 없으며 양쪽 모두 약속된 장소에 참석해야 합니다.';
+
+  @override
+  String get chatBack => '뒤로';
+
+  @override
+  String get chatYesCancel => '예, 취소합니다';
+
+  @override
+  String chatMeetingCancelError(String error) {
+    return '오류: $error';
+  }
+
+  @override
+  String get chatDealClosedTitle => '🤝 거래 성사';
+
+  @override
+  String get chatDealClosedDescription => '채팅이 잠겼습니다. 만남 장소에서 뵙겠습니다.';
+
+  @override
+  String get chatViewChatMessages => '채팅 메시지 보기';
+
+  @override
+  String get chatReviewAlertsStep => '1. 알림 확인';
+
+  @override
+  String get chatReviewAlertsDescription =>
+      '알림 메뉴에서 확정된 만남의 날짜, 시간 및 장소를 확인하세요.';
+
+  @override
+  String get chatFacialRecognitionStep => '2. 얼굴 인식';
+
+  @override
+  String get chatFacialRecognitionStepDescription =>
+      '만남 당일 출발하기 전에 앱에서 본인 확인을 위한 셀카 촬영을 요청합니다.';
+
+  @override
+  String get chatEnableGpsStep => '3. GPS 활성화';
+
+  @override
+  String get chatEnableGpsStepDescription =>
+      '도착하면 위치 서비스를 활성화하세요. 앱에서 안전한 만남 장소에 있는지 확인합니다.';
+
+  @override
+  String get chatUnlockChatStep => '4. 채팅 잠금 해제';
+
+  @override
+  String get chatUnlockChatStepDescription =>
+      '양쪽 모두 도착하고 본인 확인을 마치면 채팅이 다시 열립니다.';
+
+  @override
+  String get chatArriveEarlyWarning =>
+      '10분 일찍 도착하세요. 나타나지 않으면 만남이 \"불참\"으로 표시되고 채팅은 닫힌 상태로 유지됩니다.';
+
+  @override
+  String get chatShieldAlreadyActive => '🛡️ 보호막이 이미 활성화되어 있으며 비활성화할 수 없습니다';
+
+  @override
+  String get chatShieldAnalyzingMessages => '🛡️ 보호막이 활성화되었습니다. 메시지 분석 중...';
+
+  @override
+  String get chatActivateShieldToViewAnalysis => '🛡️ 대화 분석을 보려면 보호막을 활성화하세요';
+
+  @override
+  String get chatDealInfo => '거래 정보';
+
+  @override
+  String get chatProposePlaceBeforeClosingDeal =>
+      '📍 먼저 만남 장소와 날짜를 제안하세요.\n상대방이 수락하면 거래를 확정할 수 있습니다.';
+
+  @override
+  String get chatDealClosedWaitingMeeting => '✅ 거래가 성사되었습니다. 만남을 기다리는 중입니다.';
+
+  @override
+  String get chatWaitingDealConfirmation => '⏳ 상대방의 확인을 기다리는 중...';
+
+  @override
+  String get chatConfirmDeal => '확인';
+
+  @override
+  String get chatMoreQuestions => '질문이 더 있어요';
+
+  @override
+  String get chatNoMessagesYet => '아직 메시지가 없습니다';
+
+  @override
+  String get chatItemSold => '상품 판매 완료';
+
+  @override
+  String get chatMeetingHasBeenAccepted => '만남이 수락되었습니다';
+
+  @override
+  String get chatDealClosedBothConfirmed =>
+      '✅ 거래 성사. 양쪽 모두 확인했습니다. 만남 당일에 뵙겠습니다!';
+
+  @override
+  String get chatBothContinueTalking => '✅ 양쪽 모두 대화를 계속하기로 했습니다';
+
+  @override
+  String get chatUserWantsToContinueTalking => '상대방이 대화를 계속하고 싶어 합니다';
+
+  @override
+  String get chatRatingThankYou => '✅ 평가를 제출했습니다. 의견을 보내주셔서 감사합니다!';
+
+  @override
+  String chatRatingVisibleAfterWeek(String userName) {
+    return '평가를 제출한 지 일주일 후 $userName님의 프로필에 반영됩니다.';
+  }
+
+  @override
+  String get chatYouSharedLocation => '위치를 공유했습니다';
+
+  @override
+  String get chatLocationShared => '위치가 공유되었습니다';
+
+  @override
+  String get chatTapToOpenMaps => '탭하여 지도에서 열기';
+
+  @override
+  String get chatMeetingCouldNotTakePlace => '만남이 이루어지지 못했습니다';
+
+  @override
+  String get chatMeetingCancelledChatReopened => '❌ 만남이 취소되었습니다. 채팅이 다시 열렸습니다.';
+
+  @override
+  String get chatConfirmedDealWaitingResponse =>
+      '⏳ 거래 성사를 확인했습니다. 상대방의 응답을 기다리는 중...';
+
+  @override
+  String get chatWaitingOtherDecision => '⏳ 상대방의 결정을 기다리는 중...';
+
+  @override
+  String get chatMeetingProposalPendingWrite =>
+      '만남 제안이 대기 중입니다. 결정될 때까지 메시지를 보낼 수 없습니다.';
+
+  @override
+  String get chatRecordingSlideToCancel => '🎤 녹음 중... 밀어서 취소';
+
+  @override
+  String get chatReleaseToCancel => '놓으면 취소';
+
+  @override
+  String get chatRecordingRejectedMeetingCancelled =>
+      '❌ 녹음을 거부했습니다. 양측의 만남이 취소되고 채팅이 종료되었습니다.';
+
+  @override
+  String get chatRecordingEnabledBothAccepted =>
+      '🎙️ 녹음이 활성화되었습니다. 양측 모두 동의했습니다.';
+
+  @override
+  String get chatRecordingAcceptedWaitingOther =>
+      '🎙️ 동의했습니다. 상대방의 동의를 기다리는 중입니다.';
+
+  @override
+  String get chatRecordingMeetingCancelledTitle => '🚫 만남 취소됨';
+
+  @override
+  String get chatRecordingMeetingCancelledReason =>
+      '참여자 중 한 명이 안전을 위한 음성 녹음을 거부하여 만남이 취소되었습니다.';
+
+  @override
+  String get chatRecordingMandatoryExplanation =>
+      '앱을 통한 대면 만남에는 안전을 위한 음성 녹음이 필수입니다. 이 조치는 양측 모두를 보호합니다.';
+
+  @override
+  String get chatReportSuspiciousProduct => '의심스러운 상품';
+
+  @override
+  String get chatReportProhibitedProducts => '금지 상품 게시';
+
+  @override
+  String get chatReportFraud => '사기 또는 부정행위';
+
+  @override
+  String get chatReportHarassment => '괴롭힘 또는 학대';
+
+  @override
+  String get chatReportMisleadingInfo => '허위 또는 오해의 소지가 있는 정보';
+
+  @override
+  String get chatReportOtherReason => '기타 사유';
+
+  @override
+  String get chatLocation => '위치';
+
+  @override
+  String get chatClosedShieldRejected =>
+      '채팅이 종료되었습니다. 참여자 중 한 명이 보안 실드를 수락하지 않았습니다.';
+
+  @override
+  String get chatLockedForMeeting => '채팅이 잠겼습니다. 직접 만날 예정입니다. 늦지 마세요.';
+
+  @override
+  String chatSendProposals(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '제안 $count개 보내기',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String chatMapCoordinates(String latitude, String longitude) {
+    return '위도: $latitude, 경도: $longitude';
+  }
+
+  @override
+  String get chatAnalyzingConversation => '대화를 분석하는 중...';
+
+  @override
+  String get chatAnalysisNotAvailable => '아직 분석 결과가 없습니다.';
+
+  @override
+  String get chatMeetingTimeOccupied => '해당 날짜와 시간은 이미 예약되어 있습니다.';
+
+  @override
+  String get chatYourPortfolio => '내 포트폴리오';
+
+  @override
+  String get chatHideProducts => '상품 숨기기';
+
+  @override
+  String get chatViewProducts => '상품 보기';
+
+  @override
+  String get chatViewProduct => '상품 보기';
+
+  @override
+  String get chatSelectMessagePart => '복사할 메시지 부분 선택';
+
+  @override
+  String get chatMeetingProposalTitle => '만남 제안';
+
+  @override
+  String get chatWaitingProposalResponse => '응답을 기다리는 중...';
+
+  @override
+  String get chatTapProposalDetails => '탭하여 세부 정보를 확인하고 응답하기';
+
+  @override
+  String get chatProposalAcceptedNotice => '✅ 제안 수락됨';
+
+  @override
+  String get chatProposalRejected => '❌ 제안 거절됨';
+
+  @override
+  String chatOtherUserMeetingReady(String userName) {
+    return '$userName님이 만남 준비가 모두 완료되었는지 확인하고 싶어 합니다';
+  }
+
+  @override
+  String get chatMeetingEverythingReady => '만남 준비가 모두 완료되었나요?';
+
+  @override
+  String get chatMeetingBothConfirmLock => '양측 모두 확인하면 직접 만날 때까지 채팅이 잠깁니다.';
+
+  @override
+  String get chatConversationAgreement => '대화에서 합의에 도달한 것 같습니다.';
+
+  @override
+  String get chatCancelMeetingBoth => '이 작업은 양측의 만남을 취소합니다.';
+
+  @override
+  String get chatMeetingNotCompletedExplanation =>
+      '불편을 드려 죄송합니다. 모든 만남이 성사되는 것은 아니며, 가장 중요한 것은 서로의 안전을 지키는 것입니다.\n\n채팅이 종료되었습니다. 대화를 계속하려면 이 채팅을 삭제한 후 다시 열어 주세요.';
 }

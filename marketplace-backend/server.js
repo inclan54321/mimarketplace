@@ -548,7 +548,7 @@ const upload = multer({
 // Ignora los audios y, si algo falla, deja el archivo original.
 
 // 🔐 PROCESAMIENTO Y VALIDACIÓN SEGURA DE IMÁGENES
-function optimizarImagenes(maxLado = 1280, calidad = 75) {
+function optimizarImagenes(maxLado = 1920, calidad = 85) {
     return async (req, res, next) => {
         console.log('\n>>> 🛡️ [SEGURIDAD IMÁGENES] Iniciando validación');
 
@@ -2803,7 +2803,7 @@ app.post('/api/productos', rateLimitProductosCrear, verificarTokenFirebase, bloq
   { name: 'imagen_destacada', maxCount: 1 },
   { name: 'imagen_normal', maxCount: 1 },
   { name: 'imagenes_reales[]', maxCount: 5 }
-]), validarTextoProducto, optimizarImagenes(1280), async (req, res) => {
+]), validarTextoProducto, optimizarImagenes(1920, 85), async (req, res) => {
     try {
         const { nombre, descripcion, precio, categoria, subcategoria, vendedor_id, direccion } = req.body;
         
@@ -3071,7 +3071,7 @@ function contieneNumeroTelefono(texto) {
     return patrones.some(p => p.test(texto));
 }
 
-app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiSuspendido, upload.single('imagen'), optimizarImagenes(1280), moderarImagenChatEscudo, async (req, res) => {
+app.post('/api/mensajes', rateLimitMensajes, verificarTokenFirebase, bloquearSiSuspendido, upload.single('imagen'), optimizarImagenes(1920, 85), moderarImagenChatEscudo, async (req, res) => {
     try {
         console.log('>>> Archivo recibido:', req.file);
         const { conversacion_id, usuario_id, texto } = req.body;
@@ -3757,7 +3757,7 @@ RESPONDE ÚNICAMENTE CON ESTE JSON (sin texto adicional):
 }
 
 // RUTA PARA SUBIR FOTO DE PERFIL
-app.post('/api/perfil/foto', verificarTokenFirebase, upload.single('foto'), optimizarImagenes(1024, 85), async (req, res) => {
+app.post('/api/perfil/foto', verificarTokenFirebase, upload.single('foto'), optimizarImagenes(1920, 85), async (req, res) => {
     console.log('Body:', req.body);
     console.log('File:', req.file);
     console.log('UID:', req.body.uid);
@@ -3923,7 +3923,7 @@ app.post('/api/registro/foto',
     rateLimitRegistro,
     verificarTokenFirebase,
     upload.single('foto'),
-    optimizarImagenes(1024, 85),
+    optimizarImagenes(1920, 85),
     async (req, res) => {
     console.log('>>> 📸 /api/registro/foto — Body:', req.body);
     console.log('>>> 📸 File:', req.file);
@@ -6577,7 +6577,7 @@ app.put('/api/productos/:id', verificarTokenFirebase, upload.fields([
     { name: 'imagen', maxCount: 1 },
     { name: 'imagenes_nuevas', maxCount: 5 },
     { name: 'audio', maxCount: 1 }
-]), validarTextoProducto, optimizarImagenes(1280), async (req, res) => {
+]), validarTextoProducto, optimizarImagenes(1920, 85), async (req, res) => {
     try {
         const { id } = req.params;
         const { nombre, descripcion, precio, categoria, subcategoria, direccion, vendedor_id } = req.body;
@@ -7215,7 +7215,7 @@ REGLAS:
     }
 }
 // ===== REVISAR IMAGEN DESTACADA CON IA =====
-app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single('imagen'), validarTextoProducto, optimizarImagenes(1280), async (req, res) => {
+app.post('/api/revisar-imagen-destacada', verificarTokenFirebase, upload.single('imagen'), validarTextoProducto, optimizarImagenes(1920, 85), async (req, res) => {
     console.log('>>> 🔥 LLEGÓ PETICIÓN A /api/revisar-imagen-destacada');
     console.log('>>> 🔥 BODY:', req.body);
     console.log('>>> 🔥 FILE:', req.file);

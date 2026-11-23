@@ -1307,4 +1307,837 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get volverAlPerfil => 'Volver al perfil';
+
+  @override
+  String get chatShieldAccepted => '🛡️ Shield accepted';
+
+  @override
+  String get chatShieldRejected =>
+      '🚫 Shield rejected. The chat has been closed.';
+
+  @override
+  String get chatRatingSent => 'Rating submitted! Thanks for your feedback.';
+
+  @override
+  String get chatMessageBlocked => 'Message blocked';
+
+  @override
+  String get chatPhoneBlocked =>
+      'The Safety Shield blocked this message.\n\nReason: Phone numbers are not allowed.';
+
+  @override
+  String get chatUnderstood => 'Got it';
+
+  @override
+  String get chatMeetingNotHeld =>
+      'The meeting did not take place. Delete this chat and reopen it to continue chatting.';
+
+  @override
+  String get chatGallery => 'Gallery';
+
+  @override
+  String get chatCamera => 'Camera';
+
+  @override
+  String get chatShareLocation => 'Share location';
+
+  @override
+  String get chatSharePortfolio => 'Share portfolio';
+
+  @override
+  String get chatEnableGps =>
+      'Turn on your phone\'s GPS to share your location';
+
+  @override
+  String get chatLocationPermission => 'Location permission is required';
+
+  @override
+  String get chatGettingLocation => '📍 Getting your location...';
+
+  @override
+  String get chatCannotOpenApp => 'Could not open the app';
+
+  @override
+  String get chatOpenLocationWith => 'Open location with...';
+
+  @override
+  String get chatPortfolioShared => '📤 Portfolio shared';
+
+  @override
+  String get chatDontShowAgain => 'Don\'t show again';
+
+  @override
+  String get chatCancel => 'Cancel';
+
+  @override
+  String get chatContinue => 'Continue';
+
+  @override
+  String get chatOtherUser => 'The other user';
+
+  @override
+  String chatGenericError(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String chatLocationSendError(String statusCode) {
+    return 'Could not send location ($statusCode)';
+  }
+
+  @override
+  String chatLocationGetError(String error) {
+    return 'Error getting location: $error';
+  }
+
+  @override
+  String chatImageSendError(String error) {
+    return 'Error sending image: $error';
+  }
+
+  @override
+  String get chatAudioPermissionRequired =>
+      'Microphone permission is required to record audio';
+
+  @override
+  String get chatRecordingTapToStop => '🎤 Recording... tap again to stop';
+
+  @override
+  String chatRecordingError(String error) {
+    return 'Recording error: $error';
+  }
+
+  @override
+  String get chatVerifyingAudio => '🛡️ Verifying audio...';
+
+  @override
+  String get chatAudioSent => '🎤 Audio sent';
+
+  @override
+  String chatAudioSendError(String error) {
+    return 'Error sending audio: $error';
+  }
+
+  @override
+  String get chatRecordingLimitReached =>
+      '⏱️ 25-second recording limit reached';
+
+  @override
+  String get chatRecordingCancelled => '🗑️ Recording cancelled';
+
+  @override
+  String get chatSendingAudio => '📤 Sending audio...';
+
+  @override
+  String chatStopRecordingError(String error) {
+    return 'Error stopping recording: $error';
+  }
+
+  @override
+  String chatAudioPlaybackError(String error) {
+    return 'Error playing audio: $error';
+  }
+
+  @override
+  String get chatSellerBlocked => 'Seller blocked successfully';
+
+  @override
+  String get chatSellerBlockError => 'Error blocking seller';
+
+  @override
+  String get chatSellerUnblocked => 'Seller unblocked successfully';
+
+  @override
+  String get chatSellerUnblockError => 'Error unblocking seller';
+
+  @override
+  String get chatReportSeller => 'Report seller';
+
+  @override
+  String get chatReport => 'Report';
+
+  @override
+  String get chatReportLoginRequired => 'You must sign in to submit a report';
+
+  @override
+  String get chatReportSent =>
+      'Report submitted. It will be reviewed by our moderation team.';
+
+  @override
+  String chatReportSendError(String error) {
+    return 'Error submitting report: $error';
+  }
+
+  @override
+  String get chatInternetSearchComingSoon =>
+      'The \"Search the internet\" feature is under development';
+
+  @override
+  String get chatSelectText => 'Select text';
+
+  @override
+  String get chatSelectTextToCopy => 'Select the text you want to copy:';
+
+  @override
+  String get chatClose => 'Close';
+
+  @override
+  String get chatAccept => 'Accept';
+
+  @override
+  String get chatReject => 'Reject';
+
+  @override
+  String get chatConfirmMeetingQuestion => 'Confirm meeting?';
+
+  @override
+  String get chatConfirm => 'Confirm';
+
+  @override
+  String get chatMeetingConfirmed => 'Meeting confirmed';
+
+  @override
+  String get chatMeetingNotFound => 'The scheduled meeting could not be found';
+
+  @override
+  String get chatMeetingCancelledReopened =>
+      'Meeting cancelled. The chat has been reopened.';
+
+  @override
+  String get chatCannotCancelMeeting => 'Could not cancel';
+
+  @override
+  String get chatRecordingNotActive => 'Recording is not active';
+
+  @override
+  String get chatRecordingStopped => 'Recording stopped';
+
+  @override
+  String get chatWriteMessage => 'Type a message...';
+
+  @override
+  String chatSellerBlockException(String error) {
+    return 'Error blocking seller: $error';
+  }
+
+  @override
+  String chatSellerUnblockException(String error) {
+    return 'Error unblocking seller: $error';
+  }
+
+  @override
+  String get chatSelectReportReason => 'Select a reason for the report:';
+
+  @override
+  String get chatReportModerationNotice =>
+      'This report will be reviewed by our moderation team.';
+
+  @override
+  String get chatSellerOptions => 'Seller Options';
+
+  @override
+  String get chatUnblock => 'Unblock';
+
+  @override
+  String get chatBlock => 'Block';
+
+  @override
+  String chatUnblockUser(String userName) {
+    return 'Unblock $userName';
+  }
+
+  @override
+  String chatBlockUser(String userName) {
+    return 'Block $userName';
+  }
+
+  @override
+  String get chatViewProfileInfo => 'View profile information';
+
+  @override
+  String chatViewUserDetails(String userName) {
+    return 'View details for $userName';
+  }
+
+  @override
+  String get chatViewPortfolio => 'View Portfolio';
+
+  @override
+  String chatViewUserProducts(String userName) {
+    return 'View all products from $userName';
+  }
+
+  @override
+  String chatReportUserRules(String userName) {
+    return 'Report $userName for violating the rules';
+  }
+
+  @override
+  String get chatStrikeMessage => 'Strike through message';
+
+  @override
+  String get chatStrikeMessageDescription =>
+      'Strike through this message to mark it as resolved';
+
+  @override
+  String get chatMessageStruck => 'Message struck through';
+
+  @override
+  String get chatStrikeRemoved => 'Strikethrough removed';
+
+  @override
+  String get chatSearchInternet => 'Search the internet';
+
+  @override
+  String get chatSearchMessageGoogle => 'Search for this message on Google';
+
+  @override
+  String get chatOnline => 'online';
+
+  @override
+  String get chatLastSeen => 'last seen';
+
+  @override
+  String get chatLastSeenToday => 'last seen today';
+
+  @override
+  String get chatLastSeenYesterday => 'last seen yesterday';
+
+  @override
+  String chatLastSeenOn(String date) {
+    return 'last seen on $date';
+  }
+
+  @override
+  String get chatPortfolioSharedByYou => 'You shared your portfolio';
+
+  @override
+  String chatPortfolioOfUser(String userName) {
+    return '$userName\'s portfolio';
+  }
+
+  @override
+  String get chatTapToViewProducts => 'Tap to view products';
+
+  @override
+  String get chatView => 'View';
+
+  @override
+  String get chatYou => 'You';
+
+  @override
+  String get chatShieldAudioTitle => 'Audio with the Shield';
+
+  @override
+  String get chatShieldImageTitle => 'Images with the Shield';
+
+  @override
+  String chatShieldAudioInstructions(String productName) {
+    return '• You can record up to 25 seconds.\n• Audio is reviewed by AI and must only discuss \"$productName\".\n• Phone numbers, social media, payments outside the app, insults, and unrelated topics are not allowed.\n\nWhen you close this window, press and hold the microphone to record.';
+  }
+
+  @override
+  String chatShieldImageInstructions(String productName) {
+    return '• You can only send 1 image in this chat.\n• Images are reviewed by AI and must show the product \"$productName\".\n• Phone numbers, QR codes, social media, payments outside the app, and sexual, violent, or offensive content are not allowed.';
+  }
+
+  @override
+  String get chatImageLimitTitle => 'Image limit';
+
+  @override
+  String get chatImageLimitBody =>
+      'With the Shield active, you can only send 1 image in this chat.';
+
+  @override
+  String get chatCropImage => 'Crop image';
+
+  @override
+  String get chatDone => 'Done';
+
+  @override
+  String get chatImageRejected => 'Image rejected';
+
+  @override
+  String get chatAudioRejected => 'Audio rejected';
+
+  @override
+  String get chatStatusNeutral => 'Neutral Status';
+
+  @override
+  String get chatNeutralDescription =>
+      'The conversation is ongoing. There is not yet enough information to determine the status of the transaction.';
+
+  @override
+  String get chatNeutralRecommendation =>
+      'Continue communicating respectfully and clearly.';
+
+  @override
+  String get chatStatusHealthy => 'Healthy Conversation';
+
+  @override
+  String get chatHealthyDescription =>
+      'The conversation is progressing positively. Both users are communicating respectfully and clearly.';
+
+  @override
+  String get chatHealthyRecommendation =>
+      'Keep it up! The transaction has a good chance of success.';
+
+  @override
+  String get chatStatusWarning => 'Caution Recommended';
+
+  @override
+  String get chatWarningDescription =>
+      'Some warning signs have been detected in the conversation. There may be misunderstandings or tension.';
+
+  @override
+  String get chatWarningRecommendation =>
+      'Review previous messages. Try to be clearer and more empathetic in your responses.';
+
+  @override
+  String get chatStatusDanger => 'Imminent Danger';
+
+  @override
+  String get chatDangerDescription =>
+      'The conversation shows signs of conflict or risk. There may be poor communication or serious disagreements.';
+
+  @override
+  String get chatDangerRecommendation =>
+      'Stop and assess the situation. Consider contacting support if necessary.';
+
+  @override
+  String get chatCancelMeetingQuestion => 'Cancel the meeting?';
+
+  @override
+  String get chatRecordingRejectionWarning =>
+      'If you reject the security voice recording, the meeting will be canceled for BOTH users and the chat will be closed.\n\nThis action cannot be undone.';
+
+  @override
+  String get chatGoBack => 'Go back';
+
+  @override
+  String get chatYesCancelMeeting => 'Yes, cancel the meeting';
+
+  @override
+  String get chatSecurityVoiceRecording => 'Security Voice Recording';
+
+  @override
+  String get chatSecurityRecordingConsentBody =>
+      'From this moment on, the app WILL RECORD the audio from this conversation on BOTH devices, solely to protect users.\n\n• Audio segments are saved every 10 seconds.\n• The recording may be shared with a third party (an authority or security expert) if a report or incident occurs.\n• No one else may listen to the recordings without your permission or a legal order.\n\n⚠️ IMPORTANT: Security recording is MANDATORY to proceed with the meeting.\n\nIf you REJECT recording, the meeting will be automatically CANCELED for both users and the chat will be closed. You will not be able to proceed with the in-person meeting through the app.';
+
+  @override
+  String get chatRejectAndCancel => 'Reject and cancel';
+
+  @override
+  String get chatAcceptAndContinue => 'Accept and continue';
+
+  @override
+  String get chatProposeMeeting => 'Propose a meeting';
+
+  @override
+  String get chatChooseSafePlace => 'Choose a safe place from the list.';
+
+  @override
+  String chatProposalNumber(int number) {
+    return 'Proposal $number of 3';
+  }
+
+  @override
+  String get chatChoosePlaceOnMap => 'Choose a location on the map';
+
+  @override
+  String get chatPlaceSelected => 'Location selected';
+
+  @override
+  String get chatTapToOpenMap => 'Tap to open the map';
+
+  @override
+  String get chatChooseTime => 'Choose a time (7:00 AM – 6:00 PM)';
+
+  @override
+  String get chatSelectDateTime => 'Select date and time';
+
+  @override
+  String get chatSelectPlaceAndDate =>
+      '⚠️ Choose a location on the map and select a date';
+
+  @override
+  String get chatTimeSlotOccupiedChooseAnother =>
+      '⛔ That date and time are already booked. Choose another time.';
+
+  @override
+  String get chatAddProposal => 'Add proposal';
+
+  @override
+  String get chatAddAndViewSummary => 'Add and view summary';
+
+  @override
+  String chatViewSummaryCount(int count) {
+    return 'View summary ($count)';
+  }
+
+  @override
+  String get chatProposalsSummary => 'Proposal summary';
+
+  @override
+  String chatProposalsAddedCount(int count) {
+    return '$count of 3 proposals added';
+  }
+
+  @override
+  String get chatMaxThreeProposals => 'Maximum of 3 proposals';
+
+  @override
+  String get chatAddAnotherProposal => 'Add another proposal';
+
+  @override
+  String get chatProposalCancelled => 'CANCELLED';
+
+  @override
+  String get chatProposalAccepted => 'ACCEPTED';
+
+  @override
+  String get chatProposalPending => 'PENDING';
+
+  @override
+  String get chatMeetingDetails => 'Meeting details';
+
+  @override
+  String get chatDistrict => 'District';
+
+  @override
+  String get chatPlace => 'Place';
+
+  @override
+  String get chatDateAndTime => 'Date and time';
+
+  @override
+  String get chatMeetingStatus => 'Status';
+
+  @override
+  String get chatAcceptProposalQuestion => 'Do you accept this proposal?';
+
+  @override
+  String get chatWaitingOtherResponse =>
+      'Waiting for the other user\'s response...';
+
+  @override
+  String get chatMeetingConfirmationNotice =>
+      'Once confirmed, you won\'t be able to chat until you meet in person.\n\n• Don\'t be late\n• Facial recognition will be required\n• GPS will be activated on the day of the meeting';
+
+  @override
+  String get chatCancelDealQuestion => 'Cancel the deal?';
+
+  @override
+  String get chatMeetingLabel => 'MEETING';
+
+  @override
+  String get chatCancellationRule => 'Cancellation policy';
+
+  @override
+  String get chatCancellationNotification =>
+      'Cancelling will void the meeting for both users and reopen the chat. The other user will receive a notification.';
+
+  @override
+  String get chatOtherConfirmedCannotCancel =>
+      'The other user has confirmed attendance. You can no longer cancel this meeting.';
+
+  @override
+  String get chatCannotCancelWithinHour =>
+      'You can no longer cancel this meeting because it is less than 1 hour away. Both users must attend at the agreed location.';
+
+  @override
+  String get chatBothConfirmedCannotCancel =>
+      'Both users have confirmed attendance. The meeting cannot be cancelled.';
+
+  @override
+  String get chatOnlyOtherCanCancel =>
+      'The other user has confirmed attendance. Only they can cancel up to 10 minutes before the meeting.';
+
+  @override
+  String get chatYouCanCancelUntilTenMinutes =>
+      'You have confirmed attendance. You can cancel up to 10 minutes before the meeting.';
+
+  @override
+  String get chatCancellationDeadlineRule =>
+      'You can only cancel the deal up to 1 hour before the meeting. If less than 1 hour remains, cancellation is no longer allowed and both users must attend at the agreed location.';
+
+  @override
+  String get chatBack => 'Back';
+
+  @override
+  String get chatYesCancel => 'Yes, cancel';
+
+  @override
+  String chatMeetingCancelError(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String get chatDealClosedTitle => '🤝 Deal closed';
+
+  @override
+  String get chatDealClosedDescription =>
+      'The chat is locked. See you at the meeting.';
+
+  @override
+  String get chatViewChatMessages => 'View chat messages';
+
+  @override
+  String get chatReviewAlertsStep => '1. Check your alerts';
+
+  @override
+  String get chatReviewAlertsDescription =>
+      'Go to Alerts to see the date, time, and location of the confirmed meeting.';
+
+  @override
+  String get chatFacialRecognitionStep => '2. Facial recognition';
+
+  @override
+  String get chatFacialRecognitionStepDescription =>
+      'On the day of the meeting, the app will ask for a selfie to verify your identity before you leave.';
+
+  @override
+  String get chatEnableGpsStep => '3. Enable GPS';
+
+  @override
+  String get chatEnableGpsStepDescription =>
+      'When you arrive, enable your location. The app will confirm that you are at the safe meeting point.';
+
+  @override
+  String get chatUnlockChatStep => '4. Chat unlocks';
+
+  @override
+  String get chatUnlockChatStepDescription =>
+      'Once both users are present and verified, the chat will reopen.';
+
+  @override
+  String get chatArriveEarlyWarning =>
+      'Arrive 10 minutes early. If you don\'t show up, the meeting will be marked as \"no-show\" and the chat will remain closed.';
+
+  @override
+  String get chatShieldAlreadyActive =>
+      '🛡️ The Shield is already active and cannot be disabled';
+
+  @override
+  String get chatShieldAnalyzingMessages =>
+      '🛡️ Shield activated. Analyzing messages...';
+
+  @override
+  String get chatActivateShieldToViewAnalysis =>
+      '🛡️ Activate the Shield to view the conversation analysis';
+
+  @override
+  String get chatDealInfo => 'Deal info';
+
+  @override
+  String get chatProposePlaceBeforeClosingDeal =>
+      '📍 First propose a meeting place and date.\nOnce the other user accepts, you can close the deal.';
+
+  @override
+  String get chatDealClosedWaitingMeeting =>
+      '✅ Deal closed. Waiting for the meeting.';
+
+  @override
+  String get chatWaitingDealConfirmation =>
+      '⏳ Waiting for the other user to confirm...';
+
+  @override
+  String get chatConfirmDeal => 'Confirm';
+
+  @override
+  String get chatMoreQuestions => 'I have more questions';
+
+  @override
+  String get chatNoMessagesYet => 'No messages yet';
+
+  @override
+  String get chatItemSold => 'ITEM SOLD';
+
+  @override
+  String get chatMeetingHasBeenAccepted => 'The meeting has been accepted';
+
+  @override
+  String get chatDealClosedBothConfirmed =>
+      '✅ Deal closed. Both users confirmed. See you on the meeting day!';
+
+  @override
+  String get chatBothContinueTalking => '✅ Both users decided to keep talking';
+
+  @override
+  String get chatUserWantsToContinueTalking => 'The user wants to keep talking';
+
+  @override
+  String get chatRatingThankYou =>
+      '✅ Rating submitted. Thank you for your feedback!';
+
+  @override
+  String chatRatingVisibleAfterWeek(String userName) {
+    return 'Your rating will appear on $userName\'s profile one week after submission.';
+  }
+
+  @override
+  String get chatYouSharedLocation => 'You shared your location';
+
+  @override
+  String get chatLocationShared => 'Location shared';
+
+  @override
+  String get chatTapToOpenMaps => 'Tap to open in maps';
+
+  @override
+  String get chatMeetingCouldNotTakePlace => 'The meeting could not take place';
+
+  @override
+  String get chatMeetingCancelledChatReopened =>
+      '❌ The meeting was cancelled. The chat has reopened.';
+
+  @override
+  String get chatConfirmedDealWaitingResponse =>
+      '⏳ You confirmed the deal. Waiting for the other user\'s response...';
+
+  @override
+  String get chatWaitingOtherDecision =>
+      '⏳ Waiting for the other user to decide...';
+
+  @override
+  String get chatMeetingProposalPendingWrite =>
+      'Meeting proposal pending. Wait until it is resolved before writing.';
+
+  @override
+  String get chatRecordingSlideToCancel => '🎤 Recording... slide to cancel';
+
+  @override
+  String get chatReleaseToCancel => 'Release to cancel';
+
+  @override
+  String get chatRecordingRejectedMeetingCancelled =>
+      '❌ You rejected the recording. The meeting was cancelled for both users and the chat was closed.';
+
+  @override
+  String get chatRecordingEnabledBothAccepted =>
+      '🎙️ Recording enabled. Both users accepted.';
+
+  @override
+  String get chatRecordingAcceptedWaitingOther =>
+      '🎙️ You accepted. Waiting for the other user to accept.';
+
+  @override
+  String get chatRecordingMeetingCancelledTitle => '🚫 Meeting cancelled';
+
+  @override
+  String get chatRecordingMeetingCancelledReason =>
+      'The meeting was cancelled because one participant rejected the security voice recording.';
+
+  @override
+  String get chatRecordingMandatoryExplanation =>
+      'Security voice recording is mandatory for in-person meetings through the app. This measure protects both users.';
+
+  @override
+  String get chatReportSuspiciousProduct => 'Suspicious product';
+
+  @override
+  String get chatReportProhibitedProducts => 'Listing prohibited products';
+
+  @override
+  String get chatReportFraud => 'Scam or fraud';
+
+  @override
+  String get chatReportHarassment => 'Harassment or abuse';
+
+  @override
+  String get chatReportMisleadingInfo => 'False or misleading information';
+
+  @override
+  String get chatReportOtherReason => 'Other reason';
+
+  @override
+  String get chatLocation => 'Location';
+
+  @override
+  String get chatClosedShieldRejected =>
+      'Chat closed. One participant did not accept the Security Shield.';
+
+  @override
+  String get chatLockedForMeeting =>
+      'Chat locked. You will meet in person. Don\'t be late.';
+
+  @override
+  String chatSendProposals(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Send $count proposals',
+      one: 'Send 1 proposal',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String chatMapCoordinates(String latitude, String longitude) {
+    return 'Lat: $latitude, Lng: $longitude';
+  }
+
+  @override
+  String get chatAnalyzingConversation => 'Analyzing conversation...';
+
+  @override
+  String get chatAnalysisNotAvailable => 'No analysis available yet.';
+
+  @override
+  String get chatMeetingTimeOccupied => 'That date and time is already taken.';
+
+  @override
+  String get chatYourPortfolio => 'Your portfolio';
+
+  @override
+  String get chatHideProducts => 'Hide products';
+
+  @override
+  String get chatViewProducts => 'View products';
+
+  @override
+  String get chatViewProduct => 'View product';
+
+  @override
+  String get chatSelectMessagePart => 'Select part of the message to copy';
+
+  @override
+  String get chatMeetingProposalTitle => 'Meeting proposal';
+
+  @override
+  String get chatWaitingProposalResponse => 'Waiting for a response...';
+
+  @override
+  String get chatTapProposalDetails => 'Tap to view details and respond';
+
+  @override
+  String get chatProposalAcceptedNotice => '✅ Proposal accepted';
+
+  @override
+  String get chatProposalRejected => '❌ Proposal rejected';
+
+  @override
+  String chatOtherUserMeetingReady(String userName) {
+    return '$userName wants to know if everything is ready for the meeting';
+  }
+
+  @override
+  String get chatMeetingEverythingReady =>
+      'Is everything ready for the meeting?';
+
+  @override
+  String get chatMeetingBothConfirmLock =>
+      'If both confirm, the chat will be locked until you meet in person.';
+
+  @override
+  String get chatConversationAgreement =>
+      'The conversation seems to have reached an agreement.';
+
+  @override
+  String get chatCancelMeetingBoth =>
+      'This action cancels the meeting for both participants.';
+
+  @override
+  String get chatMeetingNotCompletedExplanation =>
+      'We\'re sorry for the inconvenience. Not every meeting works out, and that\'s okay: what matters is keeping everyone safe.\n\nThe chat has been closed. Delete this chat and open it again to continue talking.';
 }

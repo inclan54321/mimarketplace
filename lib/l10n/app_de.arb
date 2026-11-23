@@ -484,5 +484,346 @@
   "nombreNoPuedeEstarVacio": "Der Name darf nicht leer sein",
   "perfilActualizadoCorrectamente": "✅ Profil erfolgreich aktualisiert",
   "errorAlGuardarEnServidor": "Fehler beim Speichern auf dem Server",
-  "errorAlEnviarSolicitud": "Fehler beim Senden der Anfrage"
+  "errorAlEnviarSolicitud": "Fehler beim Senden der Anfrage",
+  "chatShieldAccepted": "🛡️ Schutzschild akzeptiert",
+  "chatShieldRejected": "🚫 Schutzschild abgelehnt. Der Chat wurde geschlossen.",
+  "chatRatingSent": "Bewertung gesendet! Vielen Dank für dein Feedback.",
+  "chatMessageBlocked": "Nachricht blockiert",
+  "chatPhoneBlocked": "Der Sicherheitsschutz hat diese Nachricht blockiert.\n\nGrund: Telefonnummern sind nicht erlaubt.",
+  "chatUnderstood": "Verstanden",
+  "chatMeetingNotHeld": "Das Treffen hat nicht stattgefunden. Lösche diesen Chat und öffne ihn erneut, um weiterzuschreiben.",
+  "chatGallery": "Galerie",
+  "chatCamera": "Kamera",
+  "chatShareLocation": "Standort teilen",
+  "chatSharePortfolio": "Portfolio teilen",
+  "chatEnableGps": "Aktiviere das GPS deines Telefons, um deinen Standort zu teilen",
+  "chatLocationPermission": "Standortberechtigung erforderlich",
+  "chatGettingLocation": "📍 Standort wird ermittelt ...",
+  "chatCannotOpenApp": "Die App konnte nicht geöffnet werden",
+  "chatOpenLocationWith": "Standort öffnen mit ...",
+  "chatPortfolioShared": "📤 Portfolio geteilt",
+  "chatDontShowAgain": "Nicht erneut anzeigen",
+  "chatCancel": "Abbrechen",
+  "chatContinue": "Weiter",
+  "chatOtherUser": "Der andere Nutzer",
+  "chatGenericError": "Fehler: {error}",
+  "@chatGenericError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatLocationSendError": "Standort konnte nicht gesendet werden ({statusCode})",
+  "@chatLocationSendError": {
+    "placeholders": {
+      "statusCode": {"type": "String"}
+    }
+  },
+  "chatLocationGetError": "Fehler beim Abrufen des Standorts: {error}",
+  "@chatLocationGetError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatImageSendError": "Fehler beim Senden des Bildes: {error}",
+  "@chatImageSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatAudioPermissionRequired": "Zum Aufnehmen von Audio ist die Mikrofonberechtigung erforderlich",
+  "chatRecordingTapToStop": "🎤 Aufnahme läuft... zum Beenden erneut tippen",
+  "chatRecordingError": "Fehler bei der Aufnahme: {error}",
+  "@chatRecordingError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatVerifyingAudio": "🛡️ Audio wird überprüft...",
+  "chatAudioSent": "🎤 Audio gesendet",
+  "chatAudioSendError": "Fehler beim Senden der Audiodatei: {error}",
+  "@chatAudioSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatRecordingLimitReached": "⏱️ Aufnahmelimit von 25 Sekunden erreicht",
+  "chatRecordingCancelled": "🗑️ Aufnahme abgebrochen",
+  "chatSendingAudio": "📤 Audio wird gesendet...",
+  "chatStopRecordingError": "Fehler beim Beenden der Aufnahme: {error}",
+  "@chatStopRecordingError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatAudioPlaybackError": "Fehler bei der Audiowiedergabe: {error}",
+  "@chatAudioPlaybackError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatSellerBlocked": "Verkäufer erfolgreich blockiert",
+  "chatSellerBlockError": "Fehler beim Blockieren des Verkäufers",
+  "chatSellerUnblocked": "Verkäufer erfolgreich entsperrt",
+  "chatSellerUnblockError": "Fehler beim Entsperren des Verkäufers",
+  "chatReportSeller": "Verkäufer melden",
+  "chatReport": "Melden",
+  "chatReportLoginRequired": "Du musst dich anmelden, um eine Meldung einzureichen",
+  "chatReportSent": "Meldung gesendet. Sie wird von unserem Moderationsteam überprüft.",
+  "chatReportSendError": "Fehler beim Senden der Meldung: {error}",
+  "@chatReportSendError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "chatInternetSearchComingSoon": "Die Funktion \"Im Internet suchen\" befindet sich in Entwicklung",
+  "chatSelectText": "Text auswählen",
+  "chatSelectTextToCopy": "Wähle den Text aus, den du kopieren möchtest:",
+  "chatClose": "Schließen",
+  "chatAccept": "Akzeptieren",
+  "chatReject": "Ablehnen",
+  "chatConfirmMeetingQuestion": "Treffen bestätigen?",
+  "chatConfirm": "Bestätigen",
+  "chatMeetingConfirmed": "Treffen bestätigt",
+  "chatMeetingNotFound": "Das geplante Treffen wurde nicht gefunden",
+  "chatMeetingCancelledReopened": "Treffen abgesagt. Der Chat wurde wieder geöffnet.",
+  "chatCannotCancelMeeting": "Abbrechen nicht möglich",
+  "chatRecordingNotActive": "Die Aufnahme ist nicht aktiv",
+  "chatRecordingStopped": "Aufnahme beendet",
+  "chatWriteMessage": "Nachricht schreiben...",
+  "chatSellerBlockException": "Fehler beim Blockieren: {error}",
+  "@chatSellerBlockException": {"placeholders": {"error": {"type": "String"}}},
+  "chatSellerUnblockException": "Fehler beim Entsperren: {error}",
+  "@chatSellerUnblockException": {"placeholders": {"error": {"type": "String"}}},
+  "chatSelectReportReason": "Wähle den Grund für die Meldung:",
+  "chatReportModerationNotice": "Diese Meldung wird von unserem Moderationsteam überprüft.",
+  "chatSellerOptions": "Verkäuferoptionen",
+  "chatUnblock": "Entsperren",
+  "chatBlock": "Blockieren",
+  "chatUnblockUser": "{userName} entsperren",
+  "@chatUnblockUser": {"placeholders": {"userName": {"type": "String"}}},
+  "chatBlockUser": "{userName} blockieren",
+  "@chatBlockUser": {"placeholders": {"userName": {"type": "String"}}},
+  "chatViewProfileInfo": "Profilinformationen anzeigen",
+  "chatViewUserDetails": "Details von {userName} anzeigen",
+  "@chatViewUserDetails": {"placeholders": {"userName": {"type": "String"}}},
+  "chatViewPortfolio": "Portfolio ansehen",
+  "chatViewUserProducts": "Alle Produkte von {userName} anzeigen",
+  "@chatViewUserProducts": {"placeholders": {"userName": {"type": "String"}}},
+  "chatReportUserRules": "{userName} wegen Regelverstoßes melden",
+  "@chatReportUserRules": {"placeholders": {"userName": {"type": "String"}}},
+  "chatStrikeMessage": "Nachricht durchstreichen",
+  "chatStrikeMessageDescription": "Diese Nachricht durchstreichen, um sie als erledigt zu markieren",
+  "chatMessageStruck": "Nachricht durchgestrichen",
+  "chatStrikeRemoved": "Durchstreichung entfernt",
+  "chatSearchInternet": "Im Internet suchen",
+  "chatSearchMessageGoogle": "Diese Nachricht bei Google suchen",
+  "chatOnline": "online",
+  "chatLastSeen": "zuletzt online",
+  "chatLastSeenToday": "zuletzt heute online",
+  "chatLastSeenYesterday": "zuletzt gestern online",
+  "chatLastSeenOn": "zuletzt online am {date}",
+  "@chatLastSeenOn": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "chatPortfolioSharedByYou": "Du hast dein Portfolio geteilt",
+  "chatPortfolioOfUser": "Portfolio von {userName}",
+  "@chatPortfolioOfUser": {
+    "placeholders": {
+      "userName": {"type": "String"}
+    }
+  },
+  "chatTapToViewProducts": "Tippen, um Produkte anzusehen",
+  "chatView": "Ansehen",
+  "chatYou": "Du",
+  "chatShieldAudioTitle": "Audio mit dem Schutzschild",
+  "chatShieldImageTitle": "Bilder mit dem Schutzschild",
+  "chatShieldAudioInstructions": "• Du kannst maximal 25 Sekunden aufnehmen.\n• Die Audioaufnahme wird von einer KI überprüft und darf sich ausschließlich auf \"{productName}\" beziehen.\n• Telefonnummern, soziale Medien, Zahlungen außerhalb der App, Beleidigungen und andere Themen sind nicht erlaubt.\n\nHalte nach dem Schließen dieses Fensters das Mikrofon gedrückt, um aufzunehmen.",
+  "@chatShieldAudioInstructions": {
+    "placeholders": {
+      "productName": {"type": "String"}
+    }
+  },
+  "chatShieldImageInstructions": "• Du kannst in diesem Chat nur 1 Bild senden.\n• Das Bild wird von einer KI überprüft und muss das Produkt \"{productName}\" zeigen.\n• Telefonnummern, QR-Codes, soziale Medien, Zahlungen außerhalb der App sowie sexuelle, gewalttätige oder beleidigende Inhalte sind nicht erlaubt.",
+  "@chatShieldImageInstructions": {
+    "placeholders": {
+      "productName": {"type": "String"}
+    }
+  },
+  "chatImageLimitTitle": "Bildlimit",
+  "chatImageLimitBody": "Bei aktiviertem Schutzschild kannst du in diesem Chat nur 1 Bild senden.",
+  "chatCropImage": "Bild zuschneiden",
+  "chatDone": "Fertig",
+  "chatImageRejected": "Bild abgelehnt",
+  "chatAudioRejected": "Audioaufnahme abgelehnt",
+  "chatStatusNeutral": "Neutraler Status",
+  "chatNeutralDescription": "Das Gespräch läuft noch. Es liegen noch nicht genügend Informationen vor, um den Status der Transaktion zu bestimmen.",
+  "chatNeutralRecommendation": "Kommuniziere weiterhin respektvoll und klar.",
+  "chatStatusHealthy": "Positives Gespräch",
+  "chatHealthyDescription": "Das Gespräch verläuft positiv. Beide Nutzer kommunizieren respektvoll und klar miteinander.",
+  "chatHealthyRecommendation": "Weiter so! Die Transaktion hat gute Erfolgsaussichten.",
+  "chatStatusWarning": "Vorsicht empfohlen",
+  "chatWarningDescription": "Im Gespräch wurden einige Warnzeichen erkannt. Es könnte Missverständnisse oder Spannungen geben.",
+  "chatWarningRecommendation": "Lies die vorherigen Nachrichten. Versuche, klarer und einfühlsamer zu antworten.",
+  "chatStatusDanger": "Unmittelbare Gefahr",
+  "chatDangerDescription": "Das Gespräch zeigt Anzeichen von Konflikten oder Risiken. Es könnte Kommunikationsprobleme oder ernsthafte Meinungsverschiedenheiten geben.",
+  "chatDangerRecommendation": "Halte inne und bewerte die Situation. Wende dich bei Bedarf an den Support.",
+  "chatCancelMeetingQuestion": "Treffen absagen?",
+  "chatRecordingRejectionWarning": "Wenn du die Sicherheits-Sprachaufzeichnung ablehnst, wird das Treffen für BEIDE Nutzer abgesagt und der Chat geschlossen.\n\nDiese Aktion kann nicht rückgängig gemacht werden.",
+  "chatGoBack": "Zurück",
+  "chatYesCancelMeeting": "Ja, Treffen absagen",
+  "chatSecurityVoiceRecording": "Sprachaufzeichnung zur Sicherheit",
+  "chatSecurityRecordingConsentBody": "Ab diesem Moment wird die App den Ton dieses Gesprächs auf BEIDEN Geräten AUFZEICHNEN, ausschließlich zum Schutz der Nutzer.\n\n• Audioabschnitte werden alle 10 Sekunden gespeichert.\n• Die Aufzeichnung kann bei einer Meldung oder einem Vorfall an Dritte (Behörden oder Sicherheitsexperten) weitergegeben werden.\n• Ohne deine Erlaubnis oder eine gerichtliche Anordnung darf niemand sonst die Aufzeichnungen anhören.\n\n⚠️ WICHTIG: Die Sicherheitsaufzeichnung ist für das Treffen VERPFLICHTEND.\n\nWenn du die Aufzeichnung ABLEHNST, wird das Treffen für beide Nutzer automatisch ABGESAGT und der Chat geschlossen. Das persönliche Treffen kann dann nicht über die App fortgesetzt werden.",
+  "chatRejectAndCancel": "Ablehnen und absagen",
+  "chatAcceptAndContinue": "Akzeptieren und fortfahren",
+  "chatProposeMeeting": "Treffen vorschlagen",
+  "chatChooseSafePlace": "Wähle einen sicheren Ort aus der Liste.",
+  "chatProposalNumber": "Vorschlag {number} von 3",
+  "@chatProposalNumber": {
+    "placeholders": {"number": {"type": "int"}}
+  },
+  "chatChoosePlaceOnMap": "Ort auf der Karte auswählen",
+  "chatPlaceSelected": "Ort ausgewählt",
+  "chatTapToOpenMap": "Tippe, um die Karte zu öffnen",
+  "chatChooseTime": "Wähle eine Uhrzeit (7:00–18:00 Uhr)",
+  "chatSelectDateTime": "Datum und Uhrzeit auswählen",
+  "chatSelectPlaceAndDate": "⚠️ Wähle einen Ort auf der Karte und ein Datum aus",
+  "chatTimeSlotOccupiedChooseAnother": "⛔ Dieser Termin ist bereits belegt. Wähle eine andere Uhrzeit.",
+  "chatAddProposal": "Vorschlag hinzufügen",
+  "chatAddAndViewSummary": "Hinzufügen und Zusammenfassung anzeigen",
+  "chatViewSummaryCount": "Zusammenfassung anzeigen ({count})",
+  "@chatViewSummaryCount": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "chatProposalsSummary": "Vorschlagsübersicht",
+  "chatProposalsAddedCount": "{count} von 3 Vorschlägen hinzugefügt",
+  "@chatProposalsAddedCount": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "chatMaxThreeProposals": "Maximal 3 Vorschläge",
+  "chatAddAnotherProposal": "Weiteren Vorschlag hinzufügen",
+  "chatProposalCancelled": "ANNULLIERT",
+  "chatProposalAccepted": "ANGENOMMEN",
+  "chatProposalPending": "AUSSTEHEND",
+  "chatMeetingDetails": "Treffendetails",
+  "chatDistrict": "Bezirk",
+  "chatPlace": "Ort",
+  "chatDateAndTime": "Datum und Uhrzeit",
+  "chatMeetingStatus": "Status",
+  "chatAcceptProposalQuestion": "Akzeptierst du diesen Vorschlag?",
+  "chatWaitingOtherResponse": "Warten auf die Antwort der anderen Person...",
+  "chatMeetingConfirmationNotice": "Nach der Bestätigung könnt ihr erst wieder chatten, wenn ihr euch persönlich trefft.\n\n• Komm nicht zu spät\n• Eine Gesichtserkennung wird erforderlich sein\n• Am Tag des Treffens wird GPS aktiviert",
+  "chatCancelDealQuestion": "Geschäft abbrechen?",
+  "chatMeetingLabel": "TREFFEN",
+  "chatCancellationRule": "Stornierungsregel",
+  "chatCancellationNotification": "Bei einer Stornierung wird das Treffen für beide Personen abgesagt und der Chat wieder geöffnet. Die andere Person erhält eine Benachrichtigung.",
+  "chatOtherConfirmedCannotCancel": "Die andere Person hat ihre Teilnahme bestätigt. Du kannst dieses Treffen nicht mehr absagen.",
+  "chatCannotCancelWithinHour": "Du kannst dieses Treffen nicht mehr absagen, da es in weniger als einer Stunde stattfindet. Beide müssen am vereinbarten Ort erscheinen.",
+  "chatBothConfirmedCannotCancel": "Beide haben ihre Teilnahme bestätigt. Das Treffen kann nicht mehr abgesagt werden.",
+  "chatOnlyOtherCanCancel": "Die andere Person hat ihre Teilnahme bestätigt. Nur sie kann bis 10 Minuten vor dem Treffen absagen.",
+  "chatYouCanCancelUntilTenMinutes": "Du hast deine Teilnahme bestätigt. Du kannst bis 10 Minuten vor dem Treffen absagen.",
+  "chatCancellationDeadlineRule": "Du kannst das Geschäft nur bis eine Stunde vor dem Treffen abbrechen. Wenn weniger als eine Stunde verbleibt, ist eine Stornierung nicht mehr möglich und beide müssen am vereinbarten Ort erscheinen.",
+  "chatBack": "Zurück",
+  "chatYesCancel": "Ja, absagen",
+  "chatMeetingCancelError": "Fehler: {error}",
+  "@chatMeetingCancelError": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "chatDealClosedTitle": "🤝 Geschäft abgeschlossen",
+  "chatDealClosedDescription": "Der Chat wurde gesperrt. Wir sehen uns beim Treffen.",
+  "chatViewChatMessages": "Chatnachrichten anzeigen",
+  "chatReviewAlertsStep": "1. Prüfe deine Benachrichtigungen",
+  "chatReviewAlertsDescription": "Öffne den Bereich Benachrichtigungen, um Datum, Uhrzeit und Ort des bestätigten Treffens zu sehen.",
+  "chatFacialRecognitionStep": "2. Gesichtserkennung",
+  "chatFacialRecognitionStepDescription": "Am Tag des Treffens fordert dich die App vor dem Aufbruch zu einem Selfie auf, um deine Identität zu überprüfen.",
+  "chatEnableGpsStep": "3. GPS aktivieren",
+  "chatEnableGpsStepDescription": "Aktiviere deinen Standort, wenn du ankommst. Die App bestätigt, dass du dich am sicheren Treffpunkt befindest.",
+  "chatUnlockChatStep": "4. Chat wird entsperrt",
+  "chatUnlockChatStepDescription": "Sobald beide anwesend und verifiziert sind, wird der Chat wieder geöffnet.",
+  "chatArriveEarlyWarning": "Komm 10 Minuten früher. Wenn du nicht erscheinst, wird das Treffen als \"nicht erschienen\" markiert und der Chat bleibt geschlossen.",
+  "chatShieldAlreadyActive": "🛡️ Der Schutzschild ist bereits aktiv und kann nicht deaktiviert werden",
+  "chatShieldAnalyzingMessages": "🛡️ Schutzschild aktiviert. Nachrichten werden analysiert...",
+  "chatActivateShieldToViewAnalysis": "🛡️ Aktiviere den Schutzschild, um die Gesprächsanalyse anzuzeigen",
+  "chatDealInfo": "Geschäftsdetails",
+  "chatProposePlaceBeforeClosingDeal": "📍 Schlage zuerst einen Treffpunkt und ein Datum vor.\nSobald die andere Person zustimmt, kannst du das Geschäft abschließen.",
+  "chatDealClosedWaitingMeeting": "✅ Geschäft abgeschlossen. Warten auf das Treffen.",
+  "chatWaitingDealConfirmation": "⏳ Warten auf die Bestätigung der anderen Person...",
+  "chatConfirmDeal": "Bestätigen",
+  "chatMoreQuestions": "Ich habe weitere Fragen",
+  "chatNoMessagesYet": "Noch keine Nachrichten",
+  "chatItemSold": "ARTIKEL VERKAUFT",
+  "chatMeetingHasBeenAccepted": "Das Treffen wurde angenommen",
+  "chatDealClosedBothConfirmed": "✅ Geschäft abgeschlossen. Beide haben bestätigt. Bis zum Treffen!",
+  "chatBothContinueTalking": "✅ Beide möchten weiterreden",
+  "chatUserWantsToContinueTalking": "Die Person möchte weiterreden",
+  "chatRatingThankYou": "✅ Bewertung abgegeben. Vielen Dank für dein Feedback!",
+  "chatRatingVisibleAfterWeek": "Deine Bewertung erscheint eine Woche nach dem Absenden im Profil von {userName}.",
+  "@chatRatingVisibleAfterWeek": {
+    "placeholders": {"userName": {"type": "String"}}
+  },
+  "chatYouSharedLocation": "Du hast deinen Standort geteilt",
+  "chatLocationShared": "Standort geteilt",
+  "chatTapToOpenMaps": "Tippe, um den Standort in Karten zu öffnen",
+  "chatMeetingCouldNotTakePlace": "Das Treffen konnte nicht stattfinden",
+  "chatMeetingCancelledChatReopened": "❌ Das Treffen wurde abgesagt. Der Chat ist wieder geöffnet.",
+  "chatConfirmedDealWaitingResponse": "⏳ Du hast den Geschäftsabschluss bestätigt. Warten auf die Antwort der anderen Person...",
+  "chatWaitingOtherDecision": "⏳ Warten auf die Entscheidung der anderen Person...",
+  "chatMeetingProposalPendingWrite": "Ein Treffenvorschlag ist noch offen. Warte auf die Entscheidung, bevor du schreibst.",
+"chatRecordingSlideToCancel": "🎤 Aufnahme läuft... zum Abbrechen wischen",
+"chatReleaseToCancel": "Zum Abbrechen loslassen",
+"chatRecordingRejectedMeetingCancelled": "❌ Du hast die Aufnahme abgelehnt. Das Treffen wurde für beide abgesagt und der Chat geschlossen.",
+"chatRecordingEnabledBothAccepted": "🎙️ Aufnahme aktiviert. Beide haben zugestimmt.",
+"chatRecordingAcceptedWaitingOther": "🎙️ Du hast zugestimmt. Warte auf die Zustimmung der anderen Person.",
+"chatRecordingMeetingCancelledTitle": "🚫 Treffen abgesagt",
+"chatRecordingMeetingCancelledReason": "Das Treffen wurde abgesagt, weil eine Person die Sprachaufnahme aus Sicherheitsgründen abgelehnt hat.",
+"chatRecordingMandatoryExplanation": "Die Sicherheits-Sprachaufnahme ist für persönliche Treffen über die App verpflichtend. Diese Maßnahme schützt beide Personen.",
+"chatReportSuspiciousProduct": "Verdächtiges Produkt",
+"chatReportProhibitedProducts": "Angebot verbotener Produkte",
+"chatReportFraud": "Betrug oder Täuschung",
+"chatReportHarassment": "Belästigung oder Misshandlung",
+"chatReportMisleadingInfo": "Falsche oder irreführende Informationen",
+"chatReportOtherReason": "Anderer Grund",
+"chatLocation": "Standort",
+"chatClosedShieldRejected": "Chat geschlossen. Eine Person hat den Sicherheitsschutz nicht akzeptiert.",
+"chatLockedForMeeting": "Chat gesperrt. Ihr werdet euch persönlich treffen. Kommt nicht zu spät.",
+"chatSendProposals": "{count, plural, =1{1 Vorschlag senden} other{{count} Vorschläge senden}}",
+"@chatSendProposals": {
+  "placeholders": {
+    "count": {"type": "int"}
+  }
+},
+"chatMapCoordinates": "Breite: {latitude}, Länge: {longitude}",
+"@chatMapCoordinates": {
+  "placeholders": {
+    "latitude": {"type": "String"},
+    "longitude": {"type": "String"}
+  }
+},
+"chatClosedShieldRejected": "Chat geschlossen. Eine Person hat den Sicherheitsschutz nicht akzeptiert.",
+"chatLockedForMeeting": "Chat gesperrt. Ihr werdet euch persönlich treffen. Kommt nicht zu spät.",
+"chatAnalyzingConversation": "Unterhaltung wird analysiert...",
+"chatAnalysisNotAvailable": "Noch keine Analyse verfügbar.",
+"chatMeetingTimeOccupied": "Dieses Datum und diese Uhrzeit sind bereits belegt.",
+"chatYourPortfolio": "Dein Portfolio",
+"chatHideProducts": "Produkte ausblenden",
+"chatViewProducts": "Produkte anzeigen",
+"chatViewProduct": "Produkt ansehen",
+"chatSelectMessagePart": "Teil der Nachricht zum Kopieren auswählen",
+"chatMeetingProposalTitle": "Treffenvorschlag",
+"chatWaitingProposalResponse": "Warten auf Antwort...",
+"chatTapProposalDetails": "Tippen, um Details anzusehen und zu antworten",
+"chatProposalAcceptedNotice": "✅ Vorschlag angenommen",
+"chatProposalRejected": "❌ Vorschlag abgelehnt",
+"chatOtherUserMeetingReady": "{userName} möchte wissen, ob für das Treffen alles bereit ist",
+"@chatOtherUserMeetingReady": {
+  "placeholders": {
+    "userName": {"type": "String"}
+  }
+},
+"chatMeetingEverythingReady": "Ist alles für das Treffen bereit?",
+"chatMeetingBothConfirmLock": "Wenn beide bestätigen, wird der Chat bis zum persönlichen Treffen gesperrt.",
+"chatConversationAgreement": "Die Unterhaltung scheint zu einer Einigung geführt zu haben.",
+"chatCancelMeetingBoth": "Diese Aktion sagt das Treffen für beide Personen ab.",
+"chatMeetingNotCompletedExplanation": "Wir entschuldigen uns für die Unannehmlichkeiten. Nicht jedes Treffen kommt zustande, und das ist in Ordnung: Wichtig ist, dass alle sicher bleiben.\n\nDer Chat wurde geschlossen. Lösche diesen Chat und öffne ihn erneut, um weiterzuschreiben."
 }
