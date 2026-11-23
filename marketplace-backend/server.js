@@ -936,6 +936,56 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// 🔐 DIAGNÓSTICO TEMPORAL DE SEGURIDAD TLS POSTGRESQL
+(async () => {
+    let cliente;
+
+    try {
+        cliente = await pool.connect();
+
+        const conexion = cliente.connection;
+        const stream = conexion?.stream;
+
+        const tlsActivo = typeof stream?.getCipher === 'function'
+            && !!stream.getCipher();
+
+        console.log('\n>>> 🔐 [DIAGNÓSTICO TLS POSTGRESQL]');
+
+        console.log('>>> 🔒 TLS activo:', tlsActivo ? 'SÍ ✅' : 'NO ❌');
+
+        console.log(
+            '>>> 🔒 Versión TLS:',
+            tlsActivo && typeof stream.getProtocol === 'function'
+                ? stream.getProtocol()
+                : 'No disponible'
+        );
+
+        console.log(
+            '>>> 🔒 Certificado autorizado:',
+            tlsActivo
+                ? (stream.authorized ? 'SÍ ✅' : 'NO ❌')
+                : 'No disponible'
+        );
+
+        console.log(
+            '>>> 🔒 Error de certificado:',
+            tlsActivo
+                ? (stream.authorizationError || 'Ninguno')
+                : 'No disponible'
+        );
+
+        console.log('>>> 🔐 [FIN DIAGNÓSTICO TLS]\n');
+
+    } catch (error) {
+        console.error(
+            '>>> ❌ [DIAGNÓSTICO TLS] Error:',
+            error.message
+        );
+    } finally {
+        if (cliente) cliente.release();
+    }
+})();
+
 // ============================================================
 // 🚨 SISTEMA DE SANCIONES
 // 3 tardanzas = 1 advertencia | 1 ausencia = 1 advertencia
