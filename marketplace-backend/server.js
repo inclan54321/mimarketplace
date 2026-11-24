@@ -952,90 +952,7 @@ const pool = new Pool({
     }
 });
 
-// 🔐 PRUEBA TEMPORAL: verificar el certificado sin afectar al pool principal
-if (postgresCA.includes('-----BEGIN CERTIFICATE-----')) (async () => {
-    const poolPruebaTLS = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: {
-            ca: postgresCA.replace(/\\n/g, '\n'),
-            rejectUnauthorized: true,
-            servername: 'postgres.railway.internal'
-        },
-        connectionTimeoutMillis: 10000,
-        max: 1
-    });
-
-    try {
-        const cliente = await poolPruebaTLS.connect();
-
-        try {
-            const stream = cliente.connection.stream;
-
-            console.log('\n>>> 🔐 [PRUEBA TLS ESTRICTA]');
-            console.log('>>> ✅ Conexión PostgreSQL verificada correctamente');
-            console.log('>>> 🔒 TLS:', stream.getProtocol());
-            console.log('>>> 🔒 Certificado autorizado:', stream.authorized);
-            console.log('>>> 🔐 [FIN PRUEBA TLS ESTRICTA]\n');
-        } finally {
-            cliente.release();
-        }
-
-    } catch (error) {
-        console.error('>>> ❌ [PRUEBA TLS ESTRICTA] Falló:', error.message);
-    } finally {
-        await poolPruebaTLS.end();
-    }
-})();
-
-// 🔐 DIAGNÓSTICO TEMPORAL DE SEGURIDAD TLS POSTGRESQL
-(async () => {
-    let cliente;
-
-    try {
-        cliente = await pool.connect();
-
-        const conexion = cliente.connection;
-        const stream = conexion?.stream;
-
-        const tlsActivo = typeof stream?.getCipher === 'function'
-            && !!stream.getCipher();
-
-        console.log('\n>>> 🔐 [DIAGNÓSTICO TLS POSTGRESQL]');
-
-        console.log('>>> 🔒 TLS activo:', tlsActivo ? 'SÍ ✅' : 'NO ❌');
-
-        console.log(
-            '>>> 🔒 Versión TLS:',
-            tlsActivo && typeof stream.getProtocol === 'function'
-                ? stream.getProtocol()
-                : 'No disponible'
-        );
-
-        console.log(
-            '>>> 🔒 Certificado autorizado:',
-            tlsActivo
-                ? (stream.authorized ? 'SÍ ✅' : 'NO ❌')
-                : 'No disponible'
-        );
-
-        console.log(
-            '>>> 🔒 Error de certificado:',
-            tlsActivo
-                ? (stream.authorizationError || 'Ninguno')
-                : 'No disponible'
-        );
-
-        console.log('>>> 🔐 [FIN DIAGNÓSTICO TLS]\n');
-
-    } catch (error) {
-        console.error(
-            '>>> ❌ [DIAGNÓSTICO TLS] Error:',
-            error.message
-        );
-    } finally {
-        if (cliente) cliente.release();
-    }
-})();
+// 🔐 PostgreSQL utiliza TLS con verificación estricta del certificado CA.
 
 // ============================================================
 // 🚨 SISTEMA DE SANCIONES
@@ -12733,7 +12650,15 @@ app.get('/api/suscripciones/estado/:usuario_id', verificarTokenFirebase, async (
             [usuario_id]
         );
 
-        const premium = r.rows.length > 0;
+        // 🔥 Usuarios privilegiados: sin anuncios permanentemente.
+        const exentoAnuncios = esUsuarioExentoModeracion(req.usuarioAutenticado);
+
+        const premium = exentoAnuncios || r.rows.length > 0;
+
+        if (exentoAnuncios) {
+            console.log(`>>> 👑 Usuario privilegiado: ${usuario_id} - EXENTO DE ANUNCIOS`);
+        }
+
         console.log(`>>> 👑 Estado premium para ${usuario_id}: ${premium} (${r.rows.length} suscripciones activas)`);
 
         res.json({

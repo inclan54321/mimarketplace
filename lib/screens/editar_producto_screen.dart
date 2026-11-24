@@ -31,6 +31,7 @@ class _EditarProductoScreenState extends State<EditarProductoScreen> {
   late TextEditingController _descripcionController;
   bool _guardando = false;
 bool _anuncioEnCurso = false;
+bool _esPremium = false;
   XFile? _nuevaImagen; // (ya no se usa)
   List<String> _imagenesExistentes = [];
   final List<XFile> _imagenesNuevas = [];
@@ -50,6 +51,7 @@ bool _anuncioEnCurso = false;
   @override
   void initState() {
     super.initState();
+    _consultarEstadoPremium();
     _nombreController = TextEditingController(text: widget.producto.nombre);
     _precioController =
         TextEditingController(text: widget.producto.precio.toString());
@@ -321,6 +323,46 @@ bool _anuncioEnCurso = false;
   // ============================================================
 // 🔥 ANUNCIO RECOMPENSADO ANTES DE GUARDAR
 // ============================================================
+Future<bool> _consultarEstadoPremium() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final idToken = await user.getIdToken();
+    if (idToken == null) return false;
+
+    final respuesta = await http.get(
+      Uri.parse(
+        'https://mimarketplace-production.up.railway.app/api/suscripciones/estado/${user.uid}',
+      ),
+      headers: {
+        'Authorization': 'Bearer $idToken',
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    final premium = respuesta.statusCode == 200 &&
+        jsonDecode(respuesta.body)['premium'] == true;
+
+    if (mounted && FirebaseAuth.instance.currentUser?.uid == user.uid) {
+      setState(() => _esPremium = premium);
+
+      debugPrint('>>> 👑 Editar producto - Premium: $premium');
+
+      return premium;
+    }
+
+    return false;
+  } catch (e) {
+    debugPrint('>>> ⚠️ Error consultando premium: $e');
+
+    if (mounted) {
+      setState(() => _esPremium = false);
+    }
+
+    return false;
+  }
+}
+
 Future<void> _mostrarAnuncioYGuardar() async {
 
   if (_guardando || _anuncioEnCurso) return;
@@ -338,6 +380,20 @@ Future<void> _mostrarAnuncioYGuardar() async {
   }
 
   setState(() => _anuncioEnCurso = true);
+
+  // 🔥 Verificar estado premium antes de mostrar publicidad.
+  final premium = await _consultarEstadoPremium();
+
+  if (!mounted) return;
+
+  if (premium) {
+    debugPrint('>>> 👑 Usuario premium: guardando sin publicidad');
+
+    setState(() => _anuncioEnCurso = false);
+
+    await _guardarCambios();
+    return;
+  }
 
   final adUnitId = Platform.isAndroid
       ? 'ca-app-pub-3940256099942544/5224354917'
@@ -778,9 +834,11 @@ throw Exception(mensajeError);
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Ver video y guardar cambios',
-                          style: TextStyle(fontSize: 15),
+                      : Text(
+                          _esPremium
+                              ? 'Guardar cambios'
+                              : 'Ver video y guardar cambios',
+                          style: const TextStyle(fontSize: 15),
                         ),
                 ),
               ),
