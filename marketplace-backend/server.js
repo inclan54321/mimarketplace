@@ -1279,10 +1279,27 @@ const rateLimitEscrituraMap = new Map();
 
 function crearRateLimitEscritura(nombre, maxRequests, ventanaMs = 60 * 1000) {
     return function rateLimitEscritura(req, res, next) {
+
+        // 🔥 Exención exclusiva para publicación de productos.
+        if (
+            nombre === 'crear_producto' &&
+            esUsuarioExentoModeracion(req.usuarioAutenticado)
+        ) {
+            console.log(
+                '>>> 👑 [RATE LIMIT] Usuario privilegiado: publicación sin límite:',
+                req.usuarioAutenticado
+            );
+            return next();
+        }
+
         const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
             || req.socket.remoteAddress
             || 'desconocida';
-        const key = `${ip}|${nombre}`;
+
+        // 🔥 Limitar publicaciones por UID autenticado, no por IP compartida.
+        const key = nombre === 'crear_producto' && req.usuarioAutenticado
+            ? `uid:${req.usuarioAutenticado}|${nombre}`
+            : `${ip}|${nombre}`;
         const ahora = Date.now();
         let entrada = rateLimitEscrituraMap.get(key);
 
@@ -1309,7 +1326,7 @@ function crearRateLimitEscritura(nombre, maxRequests, ventanaMs = 60 * 1000) {
 // Instancias para las rutas críticas
 const rateLimitRegistroUsuario = crearRateLimitEscritura('registro_usuario', 3, 60 * 60 * 1000); // 3 por hora
 const rateLimitMensajes = crearRateLimitEscritura('mensajes', 30, 60 * 1000); // 30 por minuto
-const rateLimitProductosCrear = crearRateLimitEscritura('crear_producto', 5, 60 * 60 * 1000); // 5 por hora
+const rateLimitProductosCrear = crearRateLimitEscritura('crear_producto', 50, 30 * 60 * 1000); // 50 cada 30 minutos
 const rateLimitDenuncias = crearRateLimitEscritura('denuncias', 5, 60 * 60 * 1000); // 5 por hora
 
 // Limpiar el mapa cada 30 minutos
@@ -2817,7 +2834,7 @@ app.get('/api/productos/vendedor/:vendedor_id', rateLimitVendedor, async (req, r
     }
 });
 
-app.post('/api/productos', rateLimitProductosCrear, verificarTokenFirebase, bloquearSiSuspendido, upload.fields([
+app.post('/api/productos', verificarTokenFirebase, rateLimitProductosCrear, bloquearSiSuspendido, upload.fields([
   { name: 'imagen_destacada', maxCount: 1 },
   { name: 'imagen_normal', maxCount: 1 },
   { name: 'imagenes_reales[]', maxCount: 5 }

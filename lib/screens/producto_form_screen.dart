@@ -57,25 +57,121 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
   final _publicandoNotifier = ValueNotifier<bool>(false);
   final _scrollController = ScrollController();
 
+  bool _verificandoPublicacion = false;
+
   @override
   void initState() {
     super.initState();
     debugPrint('🟢 [PERF] ProductoFormScreen initState');
+    _inicializarPublicidad();
+  }
+
+  // ============================================================
+  // 👑 CONSULTAR ESTADO PREMIUM
+  // ============================================================
+  Future<bool> _consultarEstadoPremium() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) return false;
+
+      final idToken = await user.getIdToken();
+
+      if (idToken == null) return false;
+
+      final respuesta = await http.get(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/suscripciones/estado/${user.uid}',
+        ),
+        headers: {
+          'Authorization': 'Bearer $idToken',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (!mounted ||
+          FirebaseAuth.instance.currentUser?.uid != user.uid) {
+        return false;
+      }
+
+      final premium = respuesta.statusCode == 200 &&
+          jsonDecode(respuesta.body)['premium'] == true;
+
+      debugPrint(
+        '>>> 👑 [PUBLICAR PRODUCTO] Estado premium: $premium',
+      );
+
+      return premium;
+    } catch (e) {
+      debugPrint(
+        '>>> ⚠️ [PUBLICAR PRODUCTO] Error consultando premium: $e',
+      );
+
+      return false;
+    }
+  }
+
+  // ============================================================
+  // 🔥 CARGAR PUBLICIDAD SOLO PARA USUARIOS NORMALES
+  // ============================================================
+  Future<void> _inicializarPublicidad() async {
+    final premium = await _consultarEstadoPremium();
+
+    if (!mounted) return;
+
+    if (premium) {
+      debugPrint(
+        '>>> 👑 [PUBLICAR PRODUCTO] Usuario premium: no se carga publicidad',
+      );
+      return;
+    }
+
     RewardedAdManager.loadRewardedAd();
   }
 
+  // ============================================================
+  // 🔥 PUBLICAR CON O SIN PUBLICIDAD
+  // ============================================================
   Future<void> _mostrarPopupAnuncioPublicar() async {
-    final l10n = AppLocalizations.of(context)!;
+    if (_verificandoPublicacion ||
+        _publicandoNotifier.value) return;
+
     if (!_formKey.currentState!.validate()) return;
 
-    final confirmar = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const _PopupAnuncioDialog(),
-    );
+    _verificandoPublicacion = true;
 
-    if (confirmar == true) {
-      _verAnuncioYPublicar();
+    try {
+      final premium = await _consultarEstadoPremium();
+
+      if (!mounted) return;
+
+      // 👑 PUBLICAR DIRECTAMENTE SIN ANUNCIO
+      if (premium) {
+        debugPrint(
+          '>>> 👑 [PUBLICAR PRODUCTO] Publicando directamente sin anuncio',
+        );
+
+        await _publicarProducto();
+        return;
+      }
+
+      // 🔥 USUARIO NORMAL: CONSERVAR FLUJO DE PUBLICIDAD
+      if (!RewardedAdManager.isAdLoaded) {
+        RewardedAdManager.loadRewardedAd();
+      }
+
+      final confirmar = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const _PopupAnuncioDialog(),
+      );
+
+      if (!mounted) return;
+
+      if (confirmar == true) {
+        _verAnuncioYPublicar();
+      }
+    } finally {
+      _verificandoPublicacion = false;
     }
   }
 
