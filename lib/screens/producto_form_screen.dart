@@ -59,11 +59,122 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
 
   bool _verificandoPublicacion = false;
 
+  String _provinciaDireccion = '';
+  String _cantonDireccion = '';
+  String _distritoDireccion = '';
+  bool _cargandoDireccion = true;
+
   @override
   void initState() {
     super.initState();
     debugPrint('🟢 [PERF] ProductoFormScreen initState');
     _inicializarPublicidad();
+    _obtenerDireccionGeografica();
+  }
+
+  Future<void> _obtenerDireccionGeografica() async {
+    try {
+      final coordenadas = widget.direccion.split(',');
+
+      if (coordenadas.length != 2) return;
+
+      final lat = double.tryParse(
+        coordenadas[0].replaceAll('Lat:', '').trim(),
+      );
+
+      final lng = double.tryParse(
+        coordenadas[1].replaceAll('Lng:', '').trim(),
+      );
+
+      if (lat == null || lng == null) return;
+
+      final respuesta = await http.get(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/geocode/$lat/$lng?detallado=1',
+        ),
+      ).timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
+
+      if (respuesta.statusCode == 200) {
+        final datos = jsonDecode(respuesta.body);
+
+        setState(() {
+          _provinciaDireccion =
+              (datos['provincia'] ?? '').toString().trim();
+
+          _cantonDireccion =
+              (datos['canton'] ?? '').toString().trim();
+
+          _distritoDireccion =
+              (datos['distrito'] ?? '').toString().trim();
+        });
+
+        debugPrint(
+          '>>> 📍 [DIRECCION] Provincia: $_provinciaDireccion | '
+          'Cantón: $_cantonDireccion | '
+          'Distrito: $_distritoDireccion',
+        );
+      }
+    } catch (e) {
+      debugPrint('>>> ⚠️ Error obteniendo dirección: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _cargandoDireccion = false);
+      }
+    }
+  }
+
+  String _direccionVisible(BuildContext context) {
+    final idioma = Localizations.localeOf(context).languageCode;
+
+    const traducciones = {
+      'es': [
+        'Obteniendo dirección...',
+        'Cantón',
+        'Provincia',
+        'Distrito',
+        'No disponible',
+      ],
+      'en': [
+        'Getting address...',
+        'Canton',
+        'Province',
+        'District',
+        'Unavailable',
+      ],
+      'de': [
+        'Adresse wird ermittelt...',
+        'Kanton',
+        'Provinz',
+        'Bezirk',
+        'Nicht verfügbar',
+      ],
+      'ja': [
+        '住所を取得中...',
+        '郡',
+        '州',
+        '地区',
+        '取得できません',
+      ],
+      'ko': [
+        '주소 확인 중...',
+        '칸톤',
+        '주',
+        '지구',
+        '확인 불가',
+      ],
+    };
+
+    final textos = traducciones[idioma] ?? traducciones['es']!;
+
+    if (_cargandoDireccion) return textos[0];
+
+    return [
+      '${textos[1]}: ${_cantonDireccion.isEmpty ? textos[4] : _cantonDireccion}',
+      '${textos[2]}: ${_provinciaDireccion.isEmpty ? textos[4] : _provinciaDireccion}',
+      '${textos[3]}: ${_distritoDireccion.isEmpty ? textos[4] : _distritoDireccion}',
+    ].join('\n');
   }
 
   // ============================================================
@@ -310,7 +421,7 @@ class _ProductoFormScreenState extends State<ProductoFormScreen> {
                 _InfoCard(
                   icono: Icons.location_on_outlined,
                   label: l10n.direccion,
-                  valor: widget.direccion,
+                  valor: _direccionVisible(context),
                 ),
                 const SizedBox(height: 12),
                 RepaintBoundary(
@@ -542,9 +653,9 @@ class _InfoCard extends StatelessWidget {
                     fontSize: 15,
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
+                    height: 1.5,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                 ),
               ],
             ),

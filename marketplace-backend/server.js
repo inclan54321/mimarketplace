@@ -4037,7 +4037,10 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
         const { lat, lng } = req.params;
         const latR = parseFloat(lat).toFixed(3);
         const lngR = parseFloat(lng).toFixed(3);
-        const key = `${latR},${lngR}`;
+        const detallado = req.query.detallado === '1';
+        const key = detallado
+            ? `detallado:${latR},${lngR}`
+            : `${latR},${lngR}`;
 
         // 🔥 SI YA ESTÁ EN CACHÉ, NO LLAMAR A NOMINATIM
         if (_cacheGeocode[key]) {
@@ -4053,7 +4056,7 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
             [`%${latR}%`]
         );
 
-        if (bdResult.rows.length > 0) {
+        if (!detallado && bdResult.rows.length > 0) {
             console.log('>>> 🗄️ Geocode desde BD:', bdResult.rows[0]);
             _cacheGeocode[key] = bdResult.rows[0];
             return res.json(bdResult.rows[0]);
@@ -4072,10 +4075,17 @@ app.get('/api/geocode/:lat/:lng', async (req, res) => {
         
         const provincia = address.state || address.region || address.province || '';
         const canton = address.county || address.city || address.town || address.municipality || '';
-        // 🔥 En Costa Rica OSM no distingue distrito de barrio,
-        // así que NO usamos suburb/neighbourhood (confunde barrios con distritos).
-        // Solo provincia + cantón, que sí son confiables.
-        const distrito = '';
+        // 📍 Obtener distrito administrativo cuando esté disponible.
+        // No utilizar barrios como sustitutos del distrito.
+        const distrito = detallado
+            ? (address.city_district || address.district || '')
+            : '';
+
+        console.log('>>> 📍 Dirección geográfica:', {
+            provincia,
+            canton,
+            distrito
+        });
         // 🔥 Nombre corto del lugar más preciso (para mostrar)
         const lugarCorto = address.road || address.pedestrian
                         || address.suburb || address.neighbourhood

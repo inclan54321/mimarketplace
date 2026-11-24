@@ -1382,9 +1382,9 @@ Future<void> _precargarImagenPerfil() async {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildTabButton(AppLocalizations.of(context)!.misArticulos, 0),
+                _buildTabButton('${AppLocalizations.of(context)!.misArticulos} (${_misProductos.length})', 0),
                 _buildTabButton(AppLocalizations.of(context)!.masVistos, 1),
-                _buildTabButton(AppLocalizations.of(context)!.favoritos, 2, onTap: () {
+                _buildTabButton('${AppLocalizations.of(context)!.favoritos} (${_favoritosProductos.length})', 2, onTap: () {
                   setState(() {
                     _selectedTab = 2;
                   });
@@ -1455,32 +1455,37 @@ Future<void> _precargarImagenPerfil() async {
 
   Widget _buildTabButton(String title, int index, {VoidCallback? onTap}) {
     final isSelected = _selectedTab == index;
-    return GestureDetector(
-      onTap: onTap ?? () {
-        setState(() {
-          _selectedTab = index;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isSelected
-                  ? const Color(0xFF3B82F6)
-                  : Colors.transparent,
-              width: 2,
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap ?? () {
+          setState(() {
+            _selectedTab = index;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isSelected
+                    ? const Color(0xFF3B82F6)
+                    : Colors.transparent,
+                width: 2,
+              ),
             ),
           ),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected
-                ? Colors.white
-                : const Color(0xFF8B949E),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              color: isSelected
+                  ? Colors.white
+                  : const Color(0xFF8B949E),
+            ),
           ),
         ),
       ),
