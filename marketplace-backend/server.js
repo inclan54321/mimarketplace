@@ -41,6 +41,50 @@ try {
 const app = express();
 const port = 3000;
 
+// ============================================================
+// 🔐 AUTENTICACIÓN PRIVADA DEL DETECTOR DE COMPRADORES
+// ============================================================
+
+function verificarTokenDetector(req, res, next) {
+    const crypto = require('crypto');
+
+    const tokenConfigurado = process.env.DETECTOR_API_TOKEN;
+    const authorization = req.headers.authorization || '';
+
+    if (!tokenConfigurado || !/^[a-f0-9]{64}$/.test(tokenConfigurado)) {
+        console.error('>>> ❌ [DETECTOR] Token privado no configurado correctamente');
+
+        return res.status(503).json({
+            error: 'Servicio no disponible'
+        });
+    }
+
+    const coincidencia = authorization.match(/^Bearer ([a-f0-9]{64})$/);
+
+    if (!coincidencia) {
+        console.warn('>>> 🚫 [DETECTOR] Token ausente o inválido');
+
+        return res.status(401).json({
+            error: 'Acceso no autorizado'
+        });
+    }
+
+    const recibido = Buffer.from(coincidencia[1], 'hex');
+    const esperado = Buffer.from(tokenConfigurado, 'hex');
+
+    if (!crypto.timingSafeEqual(recibido, esperado)) {
+        console.warn('>>> 🚫 [DETECTOR] Acceso rechazado');
+
+        return res.status(401).json({
+            error: 'Acceso no autorizado'
+        });
+    }
+
+    console.log('>>> 🔐 [DETECTOR] Acceso autorizado');
+
+    next();
+}
+
 // 🔥 WEBSOCKET
 const http = require('http');
 const WebSocket = require('ws');
