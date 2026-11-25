@@ -515,10 +515,10 @@ app.post(
         if (
             !Array.isArray(mensajes) ||
             mensajes.length === 0 ||
-            mensajes.length > 50
+            mensajes.length > 1000
         ) {
             return res.status(400).json({
-                error: 'Se permiten entre 1 y 50 mensajes'
+                error: 'Se permiten entre 1 y 1000 mensajes'
             });
         }
 
@@ -541,6 +541,27 @@ app.post(
             }
 
             ids.add(mensaje.id);
+        }
+
+        // 🔐 Limitar tamaño total del contenido.
+        const tamanoMensajes = Buffer.byteLength(
+            JSON.stringify(mensajes.map(m => ({
+                id: m.id,
+                texto: m.texto
+            }))),
+            'utf8'
+        );
+
+        if (tamanoMensajes > 80000) {
+            console.warn(
+                '>>> 🚫 [DETECTOR] Contenido demasiado grande:',
+                tamanoMensajes
+            );
+
+            return res.status(413).json({
+                error: 'El contenido supera los 80000 bytes',
+                codigo: 'DETECTOR_CONTENIDO_EXCESIVO'
+            });
         }
 
         // 🔐 Limitar solicitudes simultáneas.
@@ -583,7 +604,20 @@ app.post(
 Eres un detector de compradores para un marketplace
 de Costa Rica.
 
-Analiza cada mensaje de forma independiente.
+Analiza todos los mensajes recibidos como parte de
+un chat de WhatsApp presentado en orden cronológico.
+
+Utiliza el contexto de los mensajes cercanos cuando
+sea necesario para comprender la intención de compra.
+
+Identifica el mensaje que expresa la solicitud de compra
+y devuelve su identificador original.
+
+No atribuyas mensajes de diferentes participantes
+a una misma persona sin evidencia suficiente.
+
+Analiza todos los mensajes, independientemente de
+si contienen palabras clave comerciales.
 
 REGLAS:
 
@@ -650,7 +684,8 @@ Si no hay compradores:
             const response = await axios.post(
                 'https://api.deepseek.com/v1/chat/completions',
                 {
-                    model: 'deepseek-chat',
+                    model: 'deepseek-flash',
+                    reasoning_effort: 'none',
                     messages: [
                         {
                             role: 'system',
@@ -662,7 +697,7 @@ Si no hay compradores:
                         }
                     ],
                     temperature: 0.1,
-                    max_tokens: 4000,
+                    max_tokens: 32768,
                     response_format: {
                         type: 'json_object'
                     }
@@ -673,10 +708,66 @@ Si no hay compradores:
                             `Bearer ${process.env.DEEPSEEK_API_KEY}`,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 60000,
+                    timeout: 180000,
                     maxRedirects: 0,
-                    maxContentLength: 256 * 1024
+                    maxContentLength: 1024 * 1024
                 }
+            );
+
+            const uso = response.data?.usage || {};
+
+            console.log(
+                '========== CONSUMO DEEPSEEK =========='
+            );
+
+            console.log(
+                '>>> 📊 [DETECTOR] Mensajes enviados:',
+                mensajesSeguros.length
+            );
+
+            console.log(
+                '>>> 📥 [DETECTOR] Tokens de entrada:',
+                uso.prompt_tokens ?? 'No informado'
+            );
+
+            console.log(
+                '>>> 💾 [DETECTOR] Tokens recuperados de caché:',
+                uso.prompt_cache_hit_tokens ?? 'No informado'
+            );
+
+            console.log(
+                '>>> 🆕 [DETECTOR] Tokens sin caché:',
+                uso.prompt_cache_miss_tokens ?? 'No informado'
+            );
+
+            console.log(
+                '>>> 📤 [DETECTOR] Tokens de salida:',
+                uso.completion_tokens ?? 'No informado'
+            );
+
+            console.log(
+                '>>> 💰 [DETECTOR] Tokens totales:',
+                uso.total_tokens ?? 'No informado'
+            );
+
+            if (
+                Number.isFinite(uso.prompt_tokens) &&
+                uso.prompt_tokens > 0 &&
+                Number.isFinite(uso.prompt_cache_hit_tokens)
+            ) {
+                const porcentajeCache = (
+                    uso.prompt_cache_hit_tokens /
+                    uso.prompt_tokens * 100
+                ).toFixed(2);
+
+                console.log(
+                    '>>> ⚡ [DETECTOR] Aprovechamiento de caché:',
+                    `${porcentajeCache}%`
+                );
+            }
+
+            console.log(
+                '======================================='
             );
 
             const choice = response.data?.choices?.[0];
@@ -702,6 +793,10 @@ Si no hay compradores:
             // 🔐 Validar resultados antes de devolverlos.
             const compradores = [];
             const idsProcesados = new Set();
+            const idsPendientes = new Set();
+
+            let resultadosInvalidos = 0;
+            let resultadoSinIdValido = false;
 
             for (const item of resultado.compradores) {
                 if (
@@ -710,6 +805,18 @@ Si no hay compradores:
                     idsProcesados.has(item.id) ||
                     typeof item.producto !== 'string'
                 ) {
+                    resultadosInvalidos++;
+
+                    if (item && ids.has(item.id)) {
+                        idsPendientes.add(item.id);
+                    } else {
+                        resultadoSinIdValido = true;
+                    }
+
+                    console.warn(
+                        '>>> ⚠️ [DETECTOR] Resultado inválido descartado'
+                    );
+
                     continue;
                 }
 
@@ -720,8 +827,16 @@ Si no hay compradores:
                 if (
                     producto.length === 0 ||
                     producto.length > 160 ||
-                    /\[(NUMERO|CORREO|ENLACE)\]/.test(producto)
+                    /\[(NUMERO|CORREO|ENLACE|USUARIO)\]/i.test(producto)
                 ) {
+                    resultadosInvalidos++;
+
+                    idsPendientes.add(item.id);
+
+                    console.warn(
+                        '>>> ⚠️ [DETECTOR] Producto inválido descartado'
+                    );
+
                     continue;
                 }
 
@@ -738,14 +853,28 @@ Si no hay compradores:
                 compradores.length
             );
 
+            const pendientes = resultadoSinIdValido
+                ? mensajes
+                    .filter(m => !idsProcesados.has(m.id) ||
+                        idsPendientes.has(m.id))
+                    .map(m => m.id)
+                : Array.from(idsPendientes);
+
             console.log(
-                '>>> 📊 [DETECTOR] Tokens consumidos:',
-                response.data?.usage?.total_tokens || 0
+                '>>> ⚠️ [DETECTOR] Resultados inválidos:',
+                resultadosInvalidos
+            );
+
+            console.log(
+                '>>> 📋 [DETECTOR] Mensajes pendientes:',
+                pendientes.length
             );
 
             return res.json({
                 compradores,
-                mensajes_analizados: mensajes.length
+                mensajes_analizados: mensajes.length,
+                resultados_invalidos: resultadosInvalidos,
+                ids_pendientes: pendientes
             });
 
         } catch (error) {
