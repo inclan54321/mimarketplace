@@ -688,6 +688,37 @@ REGLAS:
 15. Si la intención comercial es ambigua,
     descarta el mensaje.
 
+16. MENSAJE DE CONTACTO:
+    Genera un campo llamado mensaje_contacto
+    para cada comprador y vendedor detectado.
+
+    Debe ser una pregunta breve, natural y amable,
+    utilizando el voseo costarricense.
+
+    Para compradores:
+    "Hola, ¿todavía estás buscando una refrigeradora?"
+
+    Para vendedores:
+    "Hola, ¿todavía tenés disponible la refrigeradora?"
+
+    Adapta correctamente los artículos, el género
+    y el número gramatical al producto.
+
+    Ejemplos adicionales:
+
+    Comprador:
+    "Hola, ¿todavía estás buscando un celular?"
+
+    Vendedor:
+    "Hola, ¿todavía tenés disponibles las sillas?"
+
+    No incluyas publicidad, nombres de personas,
+    teléfonos, enlaces, precios ni menciones
+    a Mi Marketplace.
+
+    No incluyas explicaciones adicionales.
+    El mensaje no debe superar los 200 caracteres.
+
 EJEMPLOS:
 
 "Hola me urge una refri"
@@ -721,7 +752,8 @@ con esta estructura:
             "producto": "bicicleta",
             "precio": null,
             "lugar": null,
-            "peso_kg": 15
+            "peso_kg": 15,
+            "mensaje_contacto": "Hola, ¿todavía estás buscando una bicicleta?"
         }
     ],
     "vendedores": [
@@ -730,7 +762,8 @@ con esta estructura:
             "producto": "lavadora de 15 kg",
             "precio": 85000,
             "lugar": "Grecia",
-            "peso_kg": 55
+            "peso_kg": 55,
+            "mensaje_contacto": "Hola, ¿todavía tenés disponible la lavadora de 15 kg?"
         }
     ]
 }
@@ -977,6 +1010,25 @@ Si no existen resultados:
                         zonaGrupoSegura ||
                         null;
 
+                    const mensajeGenerado = validarTextoIA(
+                        item.mensaje_contacto,
+                        200
+                    );
+
+                    const mensajeValido =
+                        mensajeGenerado &&
+                        /^Hola,\s*¿[^¿?\r\n]+\?$/iu.test(
+                            mensajeGenerado
+                        ) &&
+                        !/(https?:\/\/|www\.|@|Mi Marketplace)/i.test(
+                            mensajeGenerado
+                        ) &&
+                        !/\d{7,}/.test(mensajeGenerado);
+
+                    const mensajeContacto = mensajeValido
+                        ? mensajeGenerado
+                        : null;
+
                     idsProcesados.add(item.id);
 
                     validos.push({
@@ -985,6 +1037,7 @@ Si no existen resultados:
                         precio,
                         lugar,
                         peso_kg: peso,
+                        mensaje_contacto: mensajeContacto,
                         lugar_inferido: !lugarExplicito &&
                             lugar !== null
                     });
