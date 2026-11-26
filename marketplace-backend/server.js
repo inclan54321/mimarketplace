@@ -2364,6 +2364,172 @@ function prepararTextoProductoEmbedding(producto) {
 
 const embeddingsEnCurso = new Map();
 
+// ============================================================
+// 🧠 PREPARACIÓN DE EMBEDDINGS POR LOTES PARA EL DETECTOR
+// ============================================================
+
+async function prepararEmbeddingsConsultasLote(consultas) {
+
+    const textos = [...new Set(
+        consultas.map(normalizarTextoEmbedding)
+    )].filter(texto => texto.length >= 2);
+
+    if (textos.length === 0) {
+        return;
+    }
+
+    if (textos.length > CONFIG_EMBEDDINGS.maxLote) {
+        throw new Error('EMBEDDINGS_LOTE_EXCESIVO');
+    }
+
+    const inicio = Date.now();
+
+    const elementos = textos.map(texto => ({
+        texto,
+        hash: calcularHashEmbedding(texto)
+    }));
+
+    const existentes = await pool.query(
+        `SELECT
+            hash_texto,
+            texto_normalizado
+         FROM embeddings.vectores
+         WHERE hash_texto = ANY($1::text[])
+           AND modelo = $2
+           AND revision_modelo = $3
+           AND version_embedding = $4
+           AND version_normalizacion = $5
+           AND rol = 'query'`,
+        [
+            elementos.map(item => item.hash),
+            CONFIG_EMBEDDINGS.modelo,
+            CONFIG_EMBEDDINGS.revision,
+            CONFIG_EMBEDDINGS.version,
+            CONFIG_EMBEDDINGS.versionNormalizacion
+        ]
+    );
+
+    const recuperados = new Map(
+        existentes.rows.map(registro => [
+            registro.hash_texto,
+            registro.texto_normalizado
+        ])
+    );
+
+    const pendientes = [];
+
+    for (const elemento of elementos) {
+
+        if (recuperados.has(elemento.hash)) {
+
+            if (
+                recuperados.get(elemento.hash) !==
+                elemento.texto
+            ) {
+                throw new Error(
+                    'EMBEDDINGS_HASH_INCONSISTENTE'
+                );
+            }
+
+        } else {
+
+            pendientes.push(elemento);
+        }
+    }
+
+    console.log(
+        '>>> 📦 [EMBEDDINGS LOTE]',
+        {
+            consultas: elementos.length,
+            recuperados_cache:
+                elementos.length - pendientes.length,
+            nuevos: pendientes.length
+        }
+    );
+
+    if (pendientes.length === 0) {
+        return;
+    }
+
+    // Una sola solicitud al motor Python para todos
+    // los vectores que todavía no existen.
+
+    const vectores = await generarEmbeddings(
+        pendientes.map(item => item.texto),
+        'query'
+    );
+
+    const guardado = await pool.query(
+        `INSERT INTO embeddings.vectores (
+            hash_texto,
+            texto_normalizado,
+            embedding,
+            modelo,
+            revision_modelo,
+            version_embedding,
+            version_normalizacion,
+            rol
+         )
+         SELECT
+            datos.hash_texto,
+            datos.texto_normalizado,
+            datos.vector_texto::public.vector,
+            $4,
+            $5,
+            $6,
+            $7,
+            'query'
+         FROM unnest(
+            $1::text[],
+            $2::text[],
+            $3::text[]
+         ) AS datos(
+            hash_texto,
+            texto_normalizado,
+            vector_texto
+         )
+         ON CONFLICT ON CONSTRAINT vectores_unicos
+         DO UPDATE SET ultimo_uso = NOW()
+         RETURNING hash_texto, texto_normalizado`,
+        [
+            pendientes.map(item => item.hash),
+            pendientes.map(item => item.texto),
+            vectores.map(vector => JSON.stringify(vector)),
+            CONFIG_EMBEDDINGS.modelo,
+            CONFIG_EMBEDDINGS.revision,
+            CONFIG_EMBEDDINGS.version,
+            CONFIG_EMBEDDINGS.versionNormalizacion
+        ]
+    );
+
+    const textosGuardados = new Map(
+        guardado.rows.map(registro => [
+            registro.hash_texto,
+            registro.texto_normalizado
+        ])
+    );
+
+    for (const elemento of pendientes) {
+
+        if (
+            textosGuardados.get(elemento.hash) !==
+            elemento.texto
+        ) {
+            throw new Error(
+                'EMBEDDINGS_HASH_INCONSISTENTE'
+            );
+        }
+    }
+
+    console.log(
+        '>>> ✅ [EMBEDDINGS LOTE]',
+        {
+            almacenados: guardado.rowCount,
+            tiempo_ms: Date.now() - inicio
+        }
+    );
+}
+
 async function obtenerEmbedding(texto, rol = 'query') {
 
     const normalizado = normalizarTextoEmbedding(texto);
@@ -4450,6 +4616,297 @@ async function detectarPaisPorIP(req) {
 // ============================================================
 
 let busquedaSemanticaPrivadaEnCurso = false;
+
+// ============================================================
+// 🔎 BÚSQUEDA HÍBRIDA PRIVADA POR LOTES
+// ============================================================
+
+const CONFIG_BUSQUEDA_DETECTOR = Object.freeze({
+    maxConsultas: 25,
+    maxResultadosTextuales: 50,
+    maxResultadosSemanticos: 20,
+    intervaloMinimoMs: 1000,
+    tiempoLoteMs: 45000
+});
+
+let ultimaBusquedaLoteDetector = 0;
+
+app.post(
+    '/api/detector/buscar-productos-lote',
+    verificarTokenDetector,
+    async (req, res) => {
+
+        res.setHeader('Cache-Control', 'no-store');
+
+        const {
+            consultas,
+            pais = null
+        } = req.body || {};
+
+        // 🔐 Validar estructura y tamaño del lote.
+
+        if (
+            !Array.isArray(consultas) ||
+            consultas.length === 0 ||
+            consultas.length >
+                CONFIG_BUSQUEDA_DETECTOR.maxConsultas
+        ) {
+
+            return res.status(400).json({
+                error: 'Se permiten entre 1 y 25 consultas'
+            });
+        }
+
+        if (
+            pais !== null &&
+            (
+                typeof pais !== 'string' ||
+                pais.trim().length === 0 ||
+                pais.length > 100 ||
+                !/^[\p{L}\p{M}\s,.-]+$/u.test(pais)
+            )
+        ) {
+
+            return res.status(400).json({
+                error: 'País inválido'
+            });
+        }
+
+        const consultasValidas = [];
+        const ids = new Set();
+
+        for (const item of consultas) {
+
+            if (
+                !item ||
+                !Number.isSafeInteger(item.id) ||
+                item.id < 0 ||
+                ids.has(item.id) ||
+                typeof item.consulta !== 'string' ||
+                item.consulta.length > 200 ||
+                /[\u0000-\u001F\u007F]/.test(item.consulta) ||
+                normalizarTextoBusqueda(
+                    item.consulta
+                ).length < 2 ||
+                normalizarTextoEmbedding(
+                    item.consulta
+                ).length < 2
+            ) {
+
+                return res.status(400).json({
+                    error: 'Consulta inválida o duplicada'
+                });
+            }
+
+            ids.add(item.id);
+
+            consultasValidas.push({
+                id: item.id,
+                consulta: item.consulta.trim()
+            });
+        }
+
+        if (!embeddingsConfigurado) {
+
+            return res.status(503).json({
+                error: 'Motor de búsqueda no disponible'
+            });
+        }
+
+        // 🔐 Evitar búsquedas privadas simultáneas.
+
+        if (
+            busquedaSemanticaPrivadaEnCurso ||
+            Date.now() - ultimaBusquedaLoteDetector <
+                CONFIG_BUSQUEDA_DETECTOR.intervaloMinimoMs
+        ) {
+
+            res.setHeader('Retry-After', '2');
+
+            return res.status(429).json({
+                error: 'Motor privado ocupado'
+            });
+        }
+
+        busquedaSemanticaPrivadaEnCurso = true;
+        ultimaBusquedaLoteDetector = Date.now();
+
+        const inicio = Date.now();
+
+        const resultados = [];
+        const pendientes = [];
+
+        let clienteDesconectado = false;
+
+        res.once('close', () => {
+
+            if (!res.writableFinished) {
+                clienteDesconectado = true;
+            }
+        });
+
+        try {
+
+            console.log(
+                '========== BUSQUEDA PRIVADA POR LOTES =========='
+            );
+
+            console.log(
+                '>>> 📦 [DETECTOR LOTE] Consultas recibidas:',
+                consultasValidas.length
+            );
+
+            // Generar de una sola vez los embeddings
+            // que no estén almacenados en PostgreSQL.
+
+            await prepararEmbeddingsConsultasLote(
+                consultasValidas.map(item => item.consulta)
+            );
+
+            for (const item of consultasValidas) {
+
+                if (
+                    clienteDesconectado ||
+                    Date.now() - inicio >=
+                        CONFIG_BUSQUEDA_DETECTOR.tiempoLoteMs
+                ) {
+
+                    pendientes.push(item.id);
+                    continue;
+                }
+
+                try {
+
+                    const inicioConsulta = Date.now();
+
+                    // Reutilizar el motor textual existente.
+
+                    const textuales =
+                        await buscarProductosTextuales(
+                            item.consulta,
+                            pais
+                        );
+
+                    // Los embeddings ya están preparados
+                    // en la caché de PostgreSQL.
+
+                    const semanticos =
+                        await buscarProductosSemanticos(
+                            item.consulta,
+                            {
+                                pais,
+                                limite:
+                                    CONFIG_BUSQUEDA_DETECTOR
+                                        .maxResultadosSemanticos
+                            }
+                        );
+
+                    const textualesReducidos = textuales
+                        .slice(
+                            0,
+                            CONFIG_BUSQUEDA_DETECTOR
+                                .maxResultadosTextuales
+                        )
+                        .map(producto => ({
+                            id: producto.id,
+                            nombre: producto.nombre,
+                            descripcion: producto.descripcion,
+                            precio: producto.precio,
+                            categoria: producto.categoria,
+                            subcategoria: producto.subcategoria,
+                            provincia: producto.provincia,
+                            canton: producto.canton,
+                            pais: producto.pais,
+                            imagen_destacada:
+                                producto.imagen_destacada,
+                            imagen_miniatura:
+                                producto.imagen_miniatura,
+                            imagen_url: producto.imagen_url
+                        }));
+
+                    resultados.push({
+                        id: item.id,
+                        textuales: textualesReducidos,
+                        semanticos
+                    });
+
+                    console.log(
+                        '>>> 🔎 [DETECTOR LOTE]',
+                        {
+                            id: item.id,
+                            textuales:
+                                textualesReducidos.length,
+                            semanticos: semanticos.length,
+                            tiempo_ms:
+                                Date.now() - inicioConsulta
+                        }
+                    );
+
+                } catch (errorConsulta) {
+
+                    pendientes.push(item.id);
+
+                    console.warn(
+                        '>>> ⚠️ [DETECTOR LOTE] Consulta pendiente:',
+                        item.id,
+                        errorConsulta.code ||
+                        errorConsulta.name
+                    );
+                }
+            }
+
+            console.log(
+                '========== RESUMEN DETECTOR LOTE =========='
+            );
+
+            console.log(
+                '>>> 📊 [DETECTOR LOTE]',
+                {
+                    recibidas: consultasValidas.length,
+                    completadas: resultados.length,
+                    pendientes: pendientes.length,
+                    tiempo_ms: Date.now() - inicio
+                }
+            );
+
+            if (clienteDesconectado) {
+                return;
+            }
+
+            return res.json({
+                success: pendientes.length === 0,
+                total: consultasValidas.length,
+                completadas: resultados.length,
+                resultados,
+                ids_pendientes: pendientes,
+                tiempo_ms: Date.now() - inicio
+            });
+
+        } catch (error) {
+
+            console.error(
+                '>>> ❌ [DETECTOR LOTE] Error:',
+                error.code || error.name
+            );
+
+            if (clienteDesconectado) {
+                return;
+            }
+
+            return res.status(503).json({
+                success: false,
+                error: 'No se pudo completar el lote',
+                resultados: [],
+                ids_pendientes:
+                    consultasValidas.map(item => item.id)
+            });
+
+        } finally {
+
+            busquedaSemanticaPrivadaEnCurso = false;
+        }
+    }
+);
 
 app.post(
     '/api/detector/buscar-productos',
