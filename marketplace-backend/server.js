@@ -4535,55 +4535,509 @@ app.post(
     }
 );
 
-app.get('/api/productos/buscar', rateLimitBuscar, verificarTokenOpcional, async (req, res) => {
-    console.log('>>> BUSCANDO:', req.query.q);
+// ============================================================
+// 🔎 MOTOR CENTRAL DE BÚSQUEDA TEXTUAL
+// ============================================================
+
+function normalizarTextoBusqueda(valor) {
+
+    if (typeof valor !== 'string') {
+        return '';
+    }
+
+    return valor
+        .normalize('NFKD')
+        .toLocaleLowerCase('es-CR')
+        .replace(/\p{M}/gu, '')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .replace(/\s+/gu, ' ')
+        .trim();
+}
+
+function palabrasBusqueda(texto) {
+
+    const ignoradas = new Set([
+        'de', 'del', 'la', 'las', 'el', 'los',
+        'un', 'una', 'unos', 'unas', 'para',
+        'con', 'en', 'y', 'por'
+    ]);
+
+    const palabras = normalizarTextoBusqueda(texto)
+        .split(' ')
+        .filter(Boolean);
+
+    const relevantes = palabras.filter(
+        palabra => !ignoradas.has(palabra)
+    );
+
+    return relevantes.length > 0
+        ? [...new Set(relevantes)]
+        : [...new Set(palabras)];
+}
+
+async function obtenerPaisBusqueda(req) {
+
+    if (!req.usuarioAutenticado) {
+        return null;
+    }
+
+    const resultado = await pool.query(
+        'SELECT pais FROM usuarios WHERE uid = $1',
+        [req.usuarioAutenticado]
+    );
+
+    return resultado.rows[0]?.pais || null;
+}
+
+async function expandirConsultaDiccionario(consulta) {
+
+    const original = normalizarTextoEmbedding(consulta);
+
+    const palabras = original.split(' ').filter(Boolean);
+
+    const frases = new Set([original]);
+
+    // Consultar palabras y expresiones de hasta
+    // cuatro palabras consecutivas.
+    for (let i = 0; i < palabras.length; i++) {
+
+        for (
+            let longitud = 1;
+            longitud <= 4 &&
+            i + longitud <= palabras.length;
+            longitud++
+        ) {
+
+            frases.add(
+                palabras.slice(i, i + longitud).join(' ')
+            );
+        }
+    }
+
+    const resultado = await pool.query(
+        `SELECT
+            termino_original,
+            MIN(termino_normalizado) AS termino_normalizado
+         FROM embeddings.diccionario
+         WHERE estado = 'aprobado'
+           AND termino_original = ANY($1::text[])
+         GROUP BY termino_original
+         HAVING COUNT(DISTINCT termino_normalizado) = 1
+         ORDER BY length(termino_original) DESC
+         LIMIT 30`,
+        [Array.from(frases)]
+    );
+
+    const variantes = new Set();
+
+    for (const equivalencia of resultado.rows) {
+
+        const escapado =
+            equivalencia.termino_original.replace(
+                /[.*+?^${}()|[\]\\]/g,
+                '\\$&'
+            );
+
+        const patron = new RegExp(
+            '(^|[^\\p{L}\\p{M}\\p{N}])' +
+            escapado +
+            '(?=$|[^\\p{L}\\p{M}\\p{N}])',
+            'gu'
+        );
+
+        const variante = original.replace(
+            patron,
+            (_, prefijo) =>
+                prefijo + equivalencia.termino_normalizado
+        );
+
+        if (
+            variante !== original &&
+            variante.length <= 200
+        ) {
+            variantes.add(variante);
+        }
+
+        if (variantes.size >= 10) {
+            break;
+        }
+    }
+
+    return Array.from(variantes);
+}
+
+function puntuarCoincidenciaTextual(producto, consulta) {
+
+    const texto = normalizarTextoBusqueda(consulta);
+
+    if (!texto) {
+        return 0;
+    }
+
+    const nombre = normalizarTextoBusqueda(
+        producto.nombre
+    );
+
+    const descripcion = normalizarTextoBusqueda(
+        producto.descripcion
+    );
+
+    const palabras = palabrasBusqueda(texto);
+
+    const palabrasNombre = new Set(
+        nombre.split(' ')
+    );
+
+    const palabrasProducto = new Set(
+        `${nombre} ${descripcion}`.split(' ')
+    );
+
+    // Prioridad 1: nombre exactamente igual.
+    if (nombre === texto) {
+        return 100;
+    }
+
+    // Prioridad 2: frase completa dentro del nombre.
+    if (` ${nombre} `.includes(` ${texto} `)) {
+        return 95;
+    }
+
+    // Prioridad 3: todas las palabras en el nombre.
+    if (
+        palabras.every(
+            palabra => palabrasNombre.has(palabra)
+        )
+    ) {
+        return 90;
+    }
+
+    // Prioridad 4: todas las palabras entre
+    // nombre y descripción.
+    if (
+        palabras.every(
+            palabra => palabrasProducto.has(palabra)
+        )
+    ) {
+        return 80;
+    }
+
+    // Prioridad 5: coincidencia parcial en nombre.
+    if (nombre.includes(texto)) {
+        return 70;
+    }
+
+    // Prioridad 6: coincidencia parcial en descripción.
+    if (descripcion.includes(texto)) {
+        return 60;
+    }
+
+    return 0;
+}
+
+async function buscarProductosTextuales(
+    consulta,
+    pais = null
+) {
+
+    const inicio = Date.now();
+
+    let variantes = [];
+
     try {
+
+        variantes = await expandirConsultaDiccionario(
+            consulta
+        );
+
+    } catch (error) {
+
+        console.warn(
+            '>>> ⚠️ [BUSQUEDA TEXTUAL] Diccionario no disponible:',
+            error.code || error.name
+        );
+    }
+
+    const resultado = await pool.query(
+        `SELECT
+            p.*,
+            u.nombre AS vendedor_nombre,
+            u.foto_perfil AS vendedor_foto
+         FROM public.productos_app p
+         LEFT JOIN public.usuarios u
+            ON p.vendedor_id = u.uid
+         WHERE p.estado_moderacion = 'aprobado'
+           AND p.estado = 'activo'
+           AND COALESCE(p.vendido, FALSE) = FALSE
+           AND (
+               p.fecha_expiracion IS NULL
+               OR p.fecha_expiracion > NOW()
+           )
+           AND (
+               $1::text IS NULL
+               OR p.pais = $1
+               OR p.pais IS NULL
+           )`,
+        [pais]
+    );
+
+    const coincidencias = [];
+
+    for (const producto of resultado.rows) {
+
+        const puntuacionOriginal =
+            puntuarCoincidenciaTextual(
+                producto,
+                consulta
+            );
+
+        let puntuacionDiccionario = 0;
+
+        for (const variante of variantes) {
+
+            const puntuacion =
+                puntuarCoincidenciaTextual(
+                    producto,
+                    variante
+                );
+
+            if (puntuacion > 0) {
+
+                puntuacionDiccionario = Math.max(
+                    puntuacionDiccionario,
+                    puntuacion - 15
+                );
+            }
+        }
+
+        const puntuacion = Math.max(
+            puntuacionOriginal,
+            puntuacionDiccionario
+        );
+
+        if (puntuacion > 0) {
+
+            coincidencias.push({
+                producto,
+                puntuacion
+            });
+        }
+    }
+
+    coincidencias.sort(
+        (a, b) =>
+            b.puntuacion - a.puntuacion ||
+            b.producto.id - a.producto.id
+    );
+
+    console.log(
+        '>>> 🔎 [BUSQUEDA TEXTUAL]',
+        {
+            candidatos: resultado.rows.length,
+            variantes_diccionario: variantes.length,
+            encontrados: coincidencias.length,
+            total_ms: Date.now() - inicio
+        }
+    );
+
+    return coincidencias.map(
+        item => item.producto
+    );
+}
+
+app.get('/api/productos/buscar', rateLimitBuscar, verificarTokenOpcional, async (req, res) => {
+
+    res.setHeader('Cache-Control', 'no-store');
+
+    try {
+
         const { q } = req.query;
-        if (!q || q.length < 2) {
+
+        if (
+            typeof q !== 'string' ||
+            q.trim().length < 2 ||
+            q.length > 200 ||
+            normalizarTextoBusqueda(q).length < 2
+        ) {
             return res.json([]);
         }
 
-        let paisUsuario = null;
-        if (req.usuarioAutenticado) {
-            const userResult = await pool.query(
-                'SELECT pais FROM usuarios WHERE uid = $1',
-                [req.usuarioAutenticado]
-            );
-            paisUsuario = userResult.rows[0]?.pais || null;
+        const paisUsuario = await obtenerPaisBusqueda(req);
+
+        const productos = await buscarProductosTextuales(
+            q,
+            paisUsuario
+        );
+
+        return res.json(productos);
+
+    } catch (error) {
+
+        console.error(
+            '>>> ❌ [BUSQUEDA TEXTUAL] Error:',
+            error.code || error.name
+        );
+
+        return res.status(500).json({
+            error: 'No se pudo completar la búsqueda'
+        });
+    }
+});
+
+// ============================================================
+// 🔎 BÚSQUEDA SEMÁNTICA COMPLEMENTARIA DE MIMARKETPLACE
+// ============================================================
+
+const rateLimitBusquedaSemantica =
+    crearRateLimitLectura('buscar_semantica', 6);
+
+let busquedasSemanticasPublicasEnCurso = 0;
+
+app.get(
+    '/api/productos/buscar-semantica',
+    rateLimitBusquedaSemantica,
+    verificarTokenOpcional,
+    async (req, res) => {
+
+        res.setHeader('Cache-Control', 'no-store');
+
+        const { q } = req.query;
+
+        if (
+            typeof q !== 'string' ||
+            q.trim().length < 2 ||
+            q.length > 200 ||
+            normalizarTextoBusqueda(q).length < 2
+        ) {
+            return res.json([]);
         }
 
-        let result;
-        if (paisUsuario) {
-            result = await pool.query(
-                `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto
-                 FROM productos_app p
-                 LEFT JOIN usuarios u ON p.vendedor_id = u.uid
-                 WHERE (p.nombre ILIKE $1 OR p.descripcion ILIKE $1) 
-                 AND p.estado_moderacion = 'aprobado'
-                 AND p.estado = 'activo'
-                 AND COALESCE(p.vendido, FALSE) = FALSE
-                 AND (p.pais = $2 OR p.pais IS NULL)`,
-                [`%${q}%`, paisUsuario]
-            );
-        } else {
-            result = await pool.query(
-                `SELECT p.*, u.nombre AS vendedor_nombre, u.foto_perfil AS vendedor_foto
-                 FROM productos_app p
-                 LEFT JOIN usuarios u ON p.vendedor_id = u.uid
-                 WHERE (p.nombre ILIKE $1 OR p.descripcion ILIKE $1) 
-                 AND p.estado_moderacion = 'aprobado'
-                 AND p.estado = 'activo'
-                 AND COALESCE(p.vendido, FALSE) = FALSE`,
-                [`%${q}%`]
-            );
+        if (!embeddingsConfigurado) {
+            return res.json([]);
         }
-        console.log('>>> ENCONTRADOS:', result.rows.length);
-        res.json(result.rows);
-    } catch (error) {
-        console.error('ERROR:', error);
-        res.status(500).json({ error: error.message });
-    } 
-});
+
+        // Limitar el trabajo simultáneo del motor.
+        if (busquedasSemanticasPublicasEnCurso >= 2) {
+
+            res.setHeader('Retry-After', '5');
+
+            return res.status(429).json({
+                error: 'Motor de búsqueda ocupado'
+            });
+        }
+
+        busquedasSemanticasPublicasEnCurso++;
+
+        try {
+
+            const paisUsuario =
+                await obtenerPaisBusqueda(req);
+
+            const candidatos =
+                await buscarProductosSemanticos(
+                    q,
+                    {
+                        pais: paisUsuario,
+                        limite: 20
+                    }
+                );
+
+            // Criterio provisional y conservador.
+            // No representa una probabilidad de acierto.
+            const seleccionados = candidatos
+                .filter(p => p.similitud >= 0.85)
+                .slice(0, 5);
+
+            if (seleccionados.length === 0) {
+                return res.json([]);
+            }
+
+            const ids = seleccionados.map(p => p.id);
+
+            // Recuperar el formato completo que utiliza
+            // el buscador actual de Flutter.
+            const resultado = await pool.query(
+                `SELECT
+                    p.*,
+                    u.nombre AS vendedor_nombre,
+                    u.foto_perfil AS vendedor_foto
+                 FROM public.productos_app p
+                 LEFT JOIN public.usuarios u
+                    ON p.vendedor_id = u.uid
+                 WHERE p.id = ANY($1::integer[])
+                   AND p.estado = 'activo'
+                   AND p.estado_moderacion = 'aprobado'
+                   AND COALESCE(p.vendido, FALSE) = FALSE
+                   AND (
+                       p.fecha_expiracion IS NULL
+                       OR p.fecha_expiracion > NOW()
+                   )
+                   AND (
+                       $2::text IS NULL
+                       OR p.pais = $2
+                       OR p.pais IS NULL
+                   )
+                 ORDER BY array_position(
+                     $1::integer[],
+                     p.id
+                 )`,
+                [ids, paisUsuario]
+            );
+
+            const porId = new Map(
+                seleccionados.map(
+                    p => [p.id, p]
+                )
+            );
+
+            const productos = resultado.rows
+                .filter(producto => {
+
+                    const anterior = porId.get(producto.id);
+
+                    if (!anterior) {
+                        return false;
+                    }
+
+                    return (
+                        producto.nombre === anterior.nombre &&
+                        producto.descripcion === anterior.descripcion &&
+                        producto.categoria === anterior.categoria &&
+                        producto.subcategoria === anterior.subcategoria
+                    );
+                })
+                .map(producto => ({
+                    ...producto,
+                    similitud: porId.get(
+                        producto.id
+                    ).similitud
+                }));
+
+            console.log(
+                '>>> 🔎 [BUSQUEDA COMPLEMENTARIA]',
+                {
+                    candidatos: candidatos.length,
+                    encontrados: productos.length
+                }
+            );
+
+            return res.json(productos);
+
+        } catch (error) {
+
+            console.warn(
+                '>>> ⚠️ [BUSQUEDA COMPLEMENTARIA] No disponible:',
+                error.code || error.name
+            );
+
+            // La búsqueda textual seguirá funcionando.
+            return res.json([]);
+
+        } finally {
+
+            busquedasSemanticasPublicasEnCurso--;
+        }
+    }
+);
 
 // ============================================================
 // 🔥 IMPULSAR PRODUCTOS (DEBE IR ANTES DE /api/productos/:id)
