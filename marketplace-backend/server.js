@@ -2795,6 +2795,167 @@ function iniciarSincronizacionVectoresProductos() {
     }, CONFIG_VECTORES_PRODUCTOS.inicioMs);
 }
 
+// ============================================================
+// 🔎 MOTOR CENTRAL DE BÚSQUEDA SEMÁNTICA DE PRODUCTOS
+// ============================================================
+
+async function buscarProductosSemanticos(
+    consulta,
+    opciones = {}
+) {
+
+    if (
+        typeof consulta !== 'string' ||
+        consulta.length > 200
+    ) {
+        throw new Error('BUSQUEDA_SEMANTICA_INVALIDA');
+    }
+
+    const texto = normalizarTextoEmbedding(consulta);
+
+    if (texto.length < 2) {
+        return [];
+    }
+
+    const limite = Number.isSafeInteger(opciones.limite)
+        ? Math.max(1, Math.min(opciones.limite, 50))
+        : 20;
+
+    const pais = typeof opciones.pais === 'string'
+        ? opciones.pais
+        : null;
+
+    const inicio = Date.now();
+
+    // Obtener vector de consulta desde PostgreSQL
+    // o generarlo si todavía no existe.
+    const vectorConsulta = await obtenerEmbedding(
+        texto,
+        'query'
+    );
+
+    const inicioPostgres = Date.now();
+
+    // Buscar exclusivamente dentro del inventario
+    // interno de MiMarketplace.
+    const resultado = await pool.query(
+        `SELECT
+            p.id,
+            p.nombre,
+            p.descripcion,
+            p.precio,
+            p.categoria,
+            p.subcategoria,
+            p.provincia,
+            p.canton,
+            p.pais,
+            p.imagen_destacada,
+            p.imagen_miniatura,
+            p.imagen_url,
+            pv.vector_id,
+            v.texto_normalizado AS texto_vectorizado,
+            1 - (
+                v.embedding <=> $1::public.vector
+            ) AS similitud
+
+         FROM public.productos_app p
+
+         INNER JOIN embeddings.productos_vectores pv
+            ON pv.producto_id = p.id
+
+         INNER JOIN embeddings.vectores v
+            ON v.id = pv.vector_id
+
+         WHERE p.estado = 'activo'
+           AND p.estado_moderacion = 'aprobado'
+           AND COALESCE(p.vendido, FALSE) = FALSE
+
+           AND (
+               p.fecha_expiracion IS NULL
+               OR p.fecha_expiracion > NOW()
+           )
+
+           AND (
+               $2::text IS NULL
+               OR p.pais = $2
+               OR p.pais IS NULL
+           )
+
+           AND v.modelo = $3
+           AND v.revision_modelo = $4
+           AND v.version_embedding = $5
+           AND v.version_normalizacion = $6
+           AND v.rol = 'passage'
+
+         ORDER BY
+            v.embedding <=> $1::public.vector ASC,
+            p.id ASC
+
+         LIMIT $7`,
+        [
+            vectorConsulta.embedding,
+            pais,
+            CONFIG_EMBEDDINGS.modelo,
+            CONFIG_EMBEDDINGS.revision,
+            CONFIG_EMBEDDINGS.version,
+            CONFIG_EMBEDDINGS.versionNormalizacion,
+            limite
+        ]
+    );
+
+    const tiempoPostgres = Date.now() - inicioPostgres;
+
+    // Evitar utilizar vectores desactualizados
+    // mientras el sincronizador procesa una edición.
+    const productos = [];
+
+    for (const producto of resultado.rows) {
+
+        let textoActual;
+
+        try {
+
+            textoActual = normalizarTextoEmbedding(
+                prepararTextoProductoEmbedding(producto)
+            );
+
+        } catch (_) {
+
+            continue;
+        }
+
+        if (
+            textoActual !== producto.texto_vectorizado
+        ) {
+            continue;
+        }
+
+        const {
+            texto_vectorizado,
+            vector_id,
+            ...datos
+        } = producto;
+
+        productos.push({
+            ...datos,
+            similitud: Number(producto.similitud)
+        });
+    }
+
+    console.log(
+        '>>> 🔎 [BUSQUEDA SEMANTICA]',
+        {
+            candidatos: resultado.rows.length,
+            resultados: productos.length,
+            cache: vectorConsulta.cache,
+            postgres_ms: tiempoPostgres,
+            total_ms: Date.now() - inicio
+        }
+    );
+
+    return productos;
+}
+
 async function alertaSancion(uid, mensaje, tipo) {
     try {
         await pool.query(
@@ -4283,6 +4444,96 @@ async function detectarPaisPorIP(req) {
 }
 
 
+
+// ============================================================
+// 🔐 BÚSQUEDA SEMÁNTICA PRIVADA DEL INVENTARIO INTERNO
+// ============================================================
+
+let busquedaSemanticaPrivadaEnCurso = false;
+
+app.post(
+    '/api/detector/buscar-productos',
+    verificarTokenDetector,
+    async (req, res) => {
+
+        res.setHeader('Cache-Control', 'no-store');
+
+        const {
+            consulta,
+            limite = 20,
+            pais = null
+        } = req.body || {};
+
+        if (
+            typeof consulta !== 'string' ||
+            consulta.trim().length < 2 ||
+            consulta.length > 200 ||
+            !Number.isSafeInteger(limite) ||
+            limite < 1 ||
+            limite > 50 ||
+            (
+                pais !== null &&
+                (
+                    typeof pais !== 'string' ||
+                    pais.length > 100
+                )
+            )
+        ) {
+            return res.status(400).json({
+                error: 'Parámetros de búsqueda inválidos'
+            });
+        }
+
+        if (!embeddingsConfigurado) {
+
+            return res.status(503).json({
+                error: 'Motor de búsqueda no disponible'
+            });
+        }
+
+        if (busquedaSemanticaPrivadaEnCurso) {
+
+            return res.status(429).json({
+                error: 'Existe una búsqueda en curso'
+            });
+        }
+
+        busquedaSemanticaPrivadaEnCurso = true;
+
+        try {
+
+            const productos =
+                await buscarProductosSemanticos(
+                    consulta,
+                    {
+                        limite,
+                        pais
+                    }
+                );
+
+            return res.json({
+                success: true,
+                total: productos.length,
+                productos
+            });
+
+        } catch (error) {
+
+            console.error(
+                '>>> ❌ [BUSQUEDA SEMANTICA] Error:',
+                error.code || error.name
+            );
+
+            return res.status(503).json({
+                error: 'No se pudo completar la búsqueda'
+            });
+
+        } finally {
+
+            busquedaSemanticaPrivadaEnCurso = false;
+        }
+    }
+);
 
 app.get('/api/productos/buscar', rateLimitBuscar, verificarTokenOpcional, async (req, res) => {
     console.log('>>> BUSCANDO:', req.query.q);
