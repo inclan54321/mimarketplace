@@ -2503,6 +2503,298 @@ async function obtenerEmbedding(texto, rol = 'query') {
     }
 }
 
+// ============================================================
+// 🧠 SINCRONIZACIÓN AUTOMÁTICA DE VECTORES DE PRODUCTOS
+// ============================================================
+
+let sincronizandoVectoresProductos = false;
+
+const CONFIG_VECTORES_PRODUCTOS = Object.freeze({
+    intervaloMs: 60000,
+    inicioMs: 15000,
+    maxProductosPorCiclo: 32
+});
+
+async function sincronizarVectorProducto(producto) {
+
+    const texto = normalizarTextoEmbedding(
+        prepararTextoProductoEmbedding(producto)
+    );
+
+    const hash = calcularHashEmbedding(texto);
+
+    // Si el producto ya tiene el vector correcto,
+    // no necesitamos consultar el motor de embeddings.
+    if (
+        producto.vector_id &&
+        producto.hash_texto === hash &&
+        producto.texto_normalizado === texto &&
+        producto.modelo === CONFIG_EMBEDDINGS.modelo &&
+        producto.revision_modelo === CONFIG_EMBEDDINGS.revision &&
+        producto.version_embedding === CONFIG_EMBEDDINGS.version &&
+        producto.version_normalizacion ===
+            CONFIG_EMBEDDINGS.versionNormalizacion &&
+        producto.rol === 'passage'
+    ) {
+        return 'sin_cambios';
+    }
+
+    const vector = await obtenerEmbedding(
+        texto,
+        'passage'
+    );
+
+    // Comprobar que el producto no cambió mientras
+    // se generaba su vector.
+    const resultado = await pool.query(
+        `INSERT INTO embeddings.productos_vectores (
+            producto_id,
+            vector_id,
+            fecha_actualizacion
+         )
+         SELECT p.id, $2, NOW()
+         FROM public.productos_app p
+         WHERE p.id = $1
+           AND p.estado = 'activo'
+           AND p.estado_moderacion = 'aprobado'
+           AND COALESCE(p.vendido, FALSE) = FALSE
+           AND p.nombre IS NOT DISTINCT FROM $3
+           AND p.descripcion IS NOT DISTINCT FROM $4
+           AND p.categoria IS NOT DISTINCT FROM $5
+           AND p.subcategoria IS NOT DISTINCT FROM $6
+         ON CONFLICT (producto_id)
+         DO UPDATE SET
+            vector_id = EXCLUDED.vector_id,
+            fecha_actualizacion = NOW()
+         WHERE embeddings.productos_vectores.vector_id
+               IS DISTINCT FROM EXCLUDED.vector_id`,
+        [
+            producto.id,
+            vector.id,
+            producto.nombre,
+            producto.descripcion,
+            producto.categoria,
+            producto.subcategoria
+        ]
+    );
+
+    if (resultado.rowCount === 0) {
+        return 'omitido';
+    }
+
+    console.log(
+        '>>> 🧠 [VECTORES PRODUCTOS] Producto sincronizado:',
+        producto.id,
+        '| Vector:', vector.id,
+        '| Caché:', vector.cache
+    );
+
+    return vector.cache
+        ? 'reutilizado'
+        : 'generado';
+}
+
+async function sincronizarVectoresProductos() {
+
+    if (
+        sincronizandoVectoresProductos ||
+        !embeddingsConfigurado
+    ) {
+        return;
+    }
+
+    sincronizandoVectoresProductos = true;
+
+    const inicio = Date.now();
+
+    const estadisticas = {
+        revisados: 0,
+        sin_cambios: 0,
+        generados: 0,
+        reutilizados: 0,
+        omitidos: 0,
+        errores: 0,
+        desvinculados: 0
+    };
+
+    try {
+
+        // Eliminar asociaciones de productos que
+        // dejaron de estar disponibles.
+        // Los vectores originales permanecen en caché.
+        const limpieza = await pool.query(
+            `DELETE FROM embeddings.productos_vectores pv
+             USING public.productos_app p
+             WHERE pv.producto_id = p.id
+               AND (
+                   p.estado IS DISTINCT FROM 'activo'
+                   OR p.estado_moderacion
+                      IS DISTINCT FROM 'aprobado'
+                   OR COALESCE(p.vendido, FALSE) = TRUE
+               )`
+        );
+
+        estadisticas.desvinculados = limpieza.rowCount;
+
+        // Consultar productos disponibles junto con
+        // los metadatos de sus vectores actuales.
+        const resultado = await pool.query(
+            `SELECT
+                p.id,
+                p.nombre,
+                p.descripcion,
+                p.categoria,
+                p.subcategoria,
+                pv.vector_id,
+                v.hash_texto,
+                v.texto_normalizado,
+                v.modelo,
+                v.revision_modelo,
+                v.version_embedding,
+                v.version_normalizacion,
+                v.rol
+             FROM public.productos_app p
+             LEFT JOIN embeddings.productos_vectores pv
+                ON pv.producto_id = p.id
+             LEFT JOIN embeddings.vectores v
+                ON v.id = pv.vector_id
+             WHERE p.estado = 'activo'
+               AND p.estado_moderacion = 'aprobado'
+               AND COALESCE(p.vendido, FALSE) = FALSE
+             ORDER BY
+                (pv.vector_id IS NOT NULL),
+                p.id ASC`
+        );
+
+        let procesados = 0;
+
+        for (const producto of resultado.rows) {
+
+            estadisticas.revisados++;
+
+            try {
+
+                const texto = normalizarTextoEmbedding(
+                    prepararTextoProductoEmbedding(producto)
+                );
+
+                const hash = calcularHashEmbedding(texto);
+
+                const actualizado =
+                    producto.vector_id &&
+                    producto.hash_texto === hash &&
+                    producto.texto_normalizado === texto &&
+                    producto.modelo === CONFIG_EMBEDDINGS.modelo &&
+                    producto.revision_modelo ===
+                        CONFIG_EMBEDDINGS.revision &&
+                    producto.version_embedding ===
+                        CONFIG_EMBEDDINGS.version &&
+                    producto.version_normalizacion ===
+                        CONFIG_EMBEDDINGS.versionNormalizacion &&
+                    producto.rol === 'passage';
+
+                if (actualizado) {
+                    estadisticas.sin_cambios++;
+                    continue;
+                }
+
+                if (
+                    procesados >=
+                    CONFIG_VECTORES_PRODUCTOS.maxProductosPorCiclo
+                ) {
+                    break;
+                }
+
+                procesados++;
+
+                const estado = await sincronizarVectorProducto(
+                    producto
+                );
+
+                if (estado === 'generado') {
+                    estadisticas.generados++;
+                } else if (estado === 'reutilizado') {
+                    estadisticas.reutilizados++;
+                } else if (estado === 'sin_cambios') {
+                    estadisticas.sin_cambios++;
+                } else {
+                    estadisticas.omitidos++;
+                }
+
+            } catch (errorProducto) {
+
+                estadisticas.errores++;
+
+                console.error(
+                    '>>> ❌ [VECTORES PRODUCTOS] Error:',
+                    producto.id,
+                    errorProducto.code || errorProducto.message
+                );
+
+                // Si el motor o PostgreSQL no están
+                // disponibles, reintentar en otro ciclo.
+                break;
+            }
+        }
+
+        if (
+            estadisticas.generados > 0 ||
+            estadisticas.reutilizados > 0 ||
+            estadisticas.desvinculados > 0 ||
+            estadisticas.errores > 0 ||
+            estadisticas.omitidos > 0
+        ) {
+            console.log(
+                '>>> 📊 [VECTORES PRODUCTOS] Sincronización:',
+                {
+                    ...estadisticas,
+                    duracion_ms: Date.now() - inicio
+                }
+            );
+        }
+
+    } catch (error) {
+
+        console.error(
+            '>>> ❌ [VECTORES PRODUCTOS] Error de sincronización:',
+            error.code || error.message
+        );
+
+    } finally {
+
+        sincronizandoVectoresProductos = false;
+    }
+}
+
+function iniciarSincronizacionVectoresProductos() {
+
+    if (!embeddingsConfigurado) {
+
+        console.warn(
+            '>>> ⚠️ [VECTORES PRODUCTOS] Sincronización desactivada'
+        );
+
+        return;
+    }
+
+    console.log(
+        '>>> ⏰ [VECTORES PRODUCTOS] Sincronización activada',
+        '(cada 60 segundos)'
+    );
+
+    setTimeout(() => {
+
+        void sincronizarVectoresProductos();
+
+        setInterval(() => {
+
+            void sincronizarVectoresProductos();
+
+        }, CONFIG_VECTORES_PRODUCTOS.intervaloMs);
+
+    }, CONFIG_VECTORES_PRODUCTOS.inicioMs);
+}
+
 async function alertaSancion(uid, mensaje, tipo) {
     try {
         await pool.query(
@@ -14878,4 +15170,6 @@ app.use((err, req, res, next) => {
 server.listen(3000, '0.0.0.0', () => {
     console.log('Servidor corriendo en http://0.0.0.0:3000');
     console.log('>>> 🔌 WebSocket disponible en ws://0.0.0.0:3000/ws/chat');
+
+    iniciarSincronizacionVectoresProductos();
 });
