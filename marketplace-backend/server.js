@@ -1611,11 +1611,331 @@ const pool = new Pool({
 // 🔐 PostgreSQL utiliza TLS con verificación estricta del certificado CA.
 
 // ============================================================
+// 🧠 MOTOR CENTRAL DE EMBEDDINGS
+// ============================================================
+
+const cryptoEmbeddings = require('node:crypto');
+
+const CONFIG_EMBEDDINGS = Object.freeze({
+    url: process.env.EMBEDDINGS_API_URL || '',
+    token: process.env.EMBEDDINGS_API_TOKEN || '',
+    modelo: 'intfloat/multilingual-e5-small',
+    revision: '614241f622f53c4eeff9890bdc4f31cfecc418b3',
+    version: '1',
+    versionNormalizacion: 1,
+    dimensiones: 384,
+    maxLote: 32,
+    maxTexto: 2000,
+    maxCola: 100,
+    tiempoMaximo: 20000,
+    tiempoIntento: 3000,
+    esperaReintento: 500
+});
+
+const embeddingsConfigurado =
+    CONFIG_EMBEDDINGS.url ===
+        'http://marketplace-embeddings.railway.internal:8080' &&
+    /^[a-f0-9]{64}$/.test(CONFIG_EMBEDDINGS.token);
+
+console.log(
+    '>>> 🧠 [EMBEDDINGS] Configuración:',
+    embeddingsConfigurado ? 'CORRECTA' : 'NO DISPONIBLE'
+);
+
+const colaEmbeddings = [];
+let procesandoColaEmbeddings = false;
+
+function esperarEmbeddings(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function solicitarEmbeddings(textos, rol, limite) {
+
+    if (!embeddingsConfigurado) {
+        throw new Error('EMBEDDINGS_NO_CONFIGURADO');
+    }
+
+    let intento = 0;
+
+    while (Date.now() < limite) {
+
+        intento++;
+
+        const restante = limite - Date.now();
+
+        let respuesta;
+
+        try {
+
+            respuesta = await axios.post(
+                `${CONFIG_EMBEDDINGS.url}/embed`,
+                {
+                    texts: textos,
+                    role: rol
+                },
+                {
+                    headers: {
+                        Authorization:
+                            `Bearer ${CONFIG_EMBEDDINGS.token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: Math.min(
+                        CONFIG_EMBEDDINGS.tiempoIntento,
+                        restante
+                    ),
+                    maxRedirects: 0,
+                    maxContentLength: 1024 * 1024,
+                    maxBodyLength: 512 * 1024,
+                    proxy: false,
+                    validateStatus: () => true
+                }
+            );
+
+        } catch (error) {
+
+            console.warn(
+                '>>> ⏳ [EMBEDDINGS] Error de conexión:',
+                error.code || error.name,
+                'Intento:',
+                intento
+            );
+
+            await esperarEmbeddings(
+                Math.min(
+                    CONFIG_EMBEDDINGS.esperaReintento,
+                    Math.max(0, limite - Date.now())
+                )
+            );
+
+            continue;
+        }
+
+        if ([429, 502, 503, 504].includes(respuesta.status)) {
+
+            console.warn(
+                '>>> ⏳ [EMBEDDINGS] Reintentando HTTP:',
+                respuesta.status,
+                'Intento:',
+                intento
+            );
+
+            await esperarEmbeddings(
+                Math.min(
+                    respuesta.status === 429 ? 1000 : 500,
+                    Math.max(0, limite - Date.now())
+                )
+            );
+
+            continue;
+        }
+
+        if (respuesta.status !== 200) {
+            throw new Error(
+                `EMBEDDINGS_HTTP_${respuesta.status}`
+            );
+        }
+
+        const datos = respuesta.data;
+
+        if (
+            datos?.success !== true ||
+            datos.model !== CONFIG_EMBEDDINGS.modelo ||
+            datos.model_revision !== CONFIG_EMBEDDINGS.revision ||
+            datos.embedding_version !== CONFIG_EMBEDDINGS.version ||
+            datos.dimensions !== CONFIG_EMBEDDINGS.dimensiones ||
+            datos.role !== rol ||
+            datos.count !== textos.length ||
+            !Array.isArray(datos.embeddings) ||
+            datos.embeddings.length !== textos.length
+        ) {
+            throw new Error('EMBEDDINGS_RESPUESTA_INVALIDA');
+        }
+
+        for (const vector of datos.embeddings) {
+
+            if (
+                !Array.isArray(vector) ||
+                vector.length !== CONFIG_EMBEDDINGS.dimensiones ||
+                !vector.every(Number.isFinite)
+            ) {
+                throw new Error('EMBEDDINGS_VECTOR_INVALIDO');
+            }
+
+            const norma = Math.sqrt(
+                vector.reduce(
+                    (total, valor) => total + valor * valor,
+                    0
+                )
+            );
+
+            if (Math.abs(norma - 1) > 0.01) {
+                throw new Error('EMBEDDINGS_NORMA_INVALIDA');
+            }
+        }
+
+        console.log(
+            '>>> ✅ [EMBEDDINGS] Vectores generados:',
+            datos.count,
+            '| Rol:', rol,
+            '| Motor:', datos.processing_ms, 'ms',
+            '| Intentos:', intento
+        );
+
+        return datos.embeddings;
+    }
+
+    throw new Error('EMBEDDINGS_TIEMPO_AGOTADO');
+}
+
+async function procesarColaEmbeddings() {
+
+    if (procesandoColaEmbeddings) return;
+
+    procesandoColaEmbeddings = true;
+
+    try {
+
+        while (colaEmbeddings.length > 0) {
+
+            const tarea = colaEmbeddings.shift();
+
+            try {
+
+                if (Date.now() >= tarea.limite) {
+                    throw new Error('EMBEDDINGS_COLA_EXPIRADA');
+                }
+
+                const vectores = await solicitarEmbeddings(
+                    tarea.textos,
+                    tarea.rol,
+                    tarea.limite
+                );
+
+                tarea.resolve(vectores);
+
+            } catch (error) {
+
+                tarea.reject(error);
+            }
+        }
+
+    } finally {
+
+        procesandoColaEmbeddings = false;
+    }
+}
+
+async function generarEmbeddings(textos, rol = 'query') {
+
+    if (
+        !Array.isArray(textos) ||
+        textos.length === 0 ||
+        textos.length > CONFIG_EMBEDDINGS.maxLote ||
+        !['query', 'passage'].includes(rol) ||
+        textos.some(texto =>
+            typeof texto !== 'string' ||
+            texto.trim().length === 0 ||
+            texto.length > CONFIG_EMBEDDINGS.maxTexto ||
+            /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(texto)
+        )
+    ) {
+        throw new Error('EMBEDDINGS_ENTRADA_INVALIDA');
+    }
+
+    if (colaEmbeddings.length >= CONFIG_EMBEDDINGS.maxCola) {
+        throw new Error('EMBEDDINGS_COLA_LLENA');
+    }
+
+    return new Promise((resolve, reject) => {
+
+        colaEmbeddings.push({
+            textos: [...textos],
+            rol,
+            resolve,
+            reject,
+            limite: Date.now() +
+                CONFIG_EMBEDDINGS.tiempoMaximo
+        });
+
+        console.log(
+            '>>> 📋 [EMBEDDINGS] Solicitudes en cola:',
+            colaEmbeddings.length
+        );
+
+        void procesarColaEmbeddings();
+    });
+}
+
+// ============================================================
 // 🚨 SISTEMA DE SANCIONES
 // 3 tardanzas = 1 advertencia | 1 ausencia = 1 advertencia
 // 3 advertencias = 1 suspensión | 3 suspensiones = baneo permanente
 // ============================================================
 const SUSPENSION_DIAS = 7;
+
+// ============================================================
+// 🧠 NORMALIZACIÓN Y HASH DE EMBEDDINGS
+// ============================================================
+
+function normalizarTextoEmbedding(valor) {
+
+    if (typeof valor !== 'string') {
+        return '';
+    }
+
+    return valor
+        .normalize('NFKC')
+        .toLocaleLowerCase('es-CR')
+        .replace(/https?:\/\/\S+/gi, ' ')
+        .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, ' ')
+        .replace(/\+?\d(?:[\s().-]*\d){7,14}/g, ' ')
+        .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+        .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
+        .replace(/\s+/gu, ' ')
+        .trim();
+}
+
+function calcularHashEmbedding(texto) {
+
+    return cryptoEmbeddings
+        .createHash('sha256')
+        .update(texto, 'utf8')
+        .digest('hex');
+}
+
+function prepararTextoProductoEmbedding(producto) {
+
+    const nombre = normalizarTextoEmbedding(
+        producto.nombre
+    );
+
+    if (!nombre) {
+        throw new Error('EMBEDDINGS_PRODUCTO_SIN_NOMBRE');
+    }
+
+    const categoria = normalizarTextoEmbedding(
+        producto.categoria
+    );
+
+    const subcategoria = normalizarTextoEmbedding(
+        producto.subcategoria
+    );
+
+    const descripcion = normalizarTextoEmbedding(
+        producto.descripcion
+    );
+
+    return [
+        nombre,
+        categoria,
+        subcategoria,
+        descripcion
+    ]
+        .filter(Boolean)
+        .join('. ')
+        .slice(0, CONFIG_EMBEDDINGS.maxTexto)
+        .trim();
+}
 
 (async () => {
     try {
@@ -1672,6 +1992,151 @@ const SUSPENSION_DIAS = 7;
         console.error('>>> ❌ Error creando tablas de sanciones:', e.message);
     }
 })();
+
+// ============================================================
+// 🧠 CACHÉ PERMANENTE DE EMBEDDINGS EN POSTGRESQL
+// ============================================================
+
+const embeddingsEnCurso = new Map();
+
+async function obtenerEmbedding(texto, rol = 'query') {
+
+    const normalizado = normalizarTextoEmbedding(texto);
+
+    if (
+        !normalizado ||
+        normalizado.length > CONFIG_EMBEDDINGS.maxTexto ||
+        !['query', 'passage'].includes(rol)
+    ) {
+        throw new Error('EMBEDDINGS_TEXTO_INVALIDO');
+    }
+
+    const hash = calcularHashEmbedding(normalizado);
+
+    const parametros = [
+        hash,
+        CONFIG_EMBEDDINGS.modelo,
+        CONFIG_EMBEDDINGS.revision,
+        CONFIG_EMBEDDINGS.version,
+        CONFIG_EMBEDDINGS.versionNormalizacion,
+        rol
+    ];
+
+    const clave = JSON.stringify(parametros);
+
+    if (embeddingsEnCurso.has(clave)) {
+
+        console.log(
+            '>>> 🔄 [EMBEDDINGS] Reutilizando solicitud en curso'
+        );
+
+        return embeddingsEnCurso.get(clave);
+    }
+
+    const tarea = (async () => {
+
+        const existente = await pool.query(
+            `UPDATE embeddings.vectores
+             SET ultimo_uso = NOW()
+             WHERE hash_texto = $1
+               AND modelo = $2
+               AND revision_modelo = $3
+               AND version_embedding = $4
+               AND version_normalizacion = $5
+               AND rol = $6
+             RETURNING id,
+                       texto_normalizado,
+                       embedding::text AS embedding`,
+            parametros
+        );
+
+        if (existente.rows.length > 0) {
+
+            const registro = existente.rows[0];
+
+            if (registro.texto_normalizado !== normalizado) {
+                throw new Error('EMBEDDINGS_HASH_INCONSISTENTE');
+            }
+
+            console.log(
+                '>>> 💾 [EMBEDDINGS] Vector recuperado de PostgreSQL:',
+                registro.id
+            );
+
+            return {
+                id: registro.id,
+                embedding: registro.embedding,
+                cache: true
+            };
+        }
+
+        console.log(
+            '>>> 🆕 [EMBEDDINGS] Generando vector nuevo',
+            '| Rol:', rol
+        );
+
+        const [vector] = await generarEmbeddings(
+            [normalizado],
+            rol
+        );
+
+        const guardado = await pool.query(
+            `INSERT INTO embeddings.vectores (
+                hash_texto,
+                modelo,
+                revision_modelo,
+                version_embedding,
+                version_normalizacion,
+                rol,
+                texto_normalizado,
+                embedding
+             )
+             VALUES (
+                $1, $2, $3, $4, $5, $6, $7,
+                $8::public.vector
+             )
+             ON CONFLICT ON CONSTRAINT vectores_unicos
+             DO UPDATE SET ultimo_uso = NOW()
+             RETURNING id,
+                       texto_normalizado,
+                       embedding::text AS embedding`,
+            [
+                ...parametros,
+                normalizado,
+                JSON.stringify(vector)
+            ]
+        );
+
+        const registro = guardado.rows[0];
+
+        if (registro.texto_normalizado !== normalizado) {
+            throw new Error('EMBEDDINGS_HASH_INCONSISTENTE');
+        }
+
+        console.log(
+            '>>> ✅ [EMBEDDINGS] Vector almacenado:',
+            registro.id
+        );
+
+        return {
+            id: registro.id,
+            embedding: registro.embedding,
+            cache: false
+        };
+
+    })();
+
+    embeddingsEnCurso.set(clave, tarea);
+
+    try {
+
+        return await tarea;
+
+    } finally {
+
+        embeddingsEnCurso.delete(clave);
+    }
+}
 
 async function alertaSancion(uid, mensaje, tipo) {
     try {
