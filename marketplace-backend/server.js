@@ -717,7 +717,55 @@ REGLAS:
     a Mi Marketplace.
 
     No incluyas explicaciones adicionales.
-    El mensaje no debe superar los 200 caracteres.
+         El mensaje no debe superar los 200 caracteres.
+
+17. DICCIONARIO COMERCIAL COSTARRICENSE:
+
+    Identifica equivalencias lingüísticas presentes
+    en los mensajes comerciales analizados.
+
+    Detecta abreviaturas, regionalismos, sinónimos
+    comerciales y errores ortográficos claros que
+    se refieran al mismo tipo de producto.
+
+    Para cada equivalencia devuelve:
+
+    - id: identificador original del mensaje.
+    - termino_original: expresión realmente escrita
+      por la persona en ese mensaje.
+    - termino_normalizado: nombre comercial estándar
+      equivalente.
+    - contexto: tipo o categoría comercial del producto.
+
+    Ejemplos de equivalencias:
+
+    refri -> refrigeradora
+    bici -> bicicleta
+    abanico -> ventilador
+
+    Interpreta siempre el contexto del mensaje.
+
+    No confundas productos relacionados con
+    productos equivalentes.
+
+    Refrigeradora y congelador no son equivalentes.
+    Celular y cargador de celular no son equivalentes.
+    Lavadora y repuesto de lavadora no son equivalentes.
+
+    No elimines características relevantes como
+    marca, modelo, capacidad o dimensiones.
+
+    No inventes términos que no estén presentes
+    en los mensajes originales.
+
+    No incluyas nombres de personas, teléfonos,
+    direcciones, enlaces ni información personal.
+
+    Devuelve como máximo una equivalencia por mensaje.
+
+    Si no existe una equivalencia clara, no la incluyas.
+
+EJEMPLOS:
 
 EJEMPLOS:
 
@@ -765,12 +813,20 @@ con esta estructura:
             "peso_kg": 55,
             "mensaje_contacto": "Hola, ¿todavía tenés disponible la lavadora de 15 kg?"
         }
+    ],
+    "equivalencias": [
+        {
+            "id": 1,
+            "termino_original": "bici",
+            "termino_normalizado": "bicicleta",
+            "contexto": "transporte"
+        }
     ]
 }
 
 Si no existen resultados:
 
-{"compradores":[],"vendedores":[]}
+{"compradores":[],"vendedores":[],"equivalencias":[]}
 `;
 
             const response = await axios.post(
@@ -1055,6 +1111,142 @@ Si no existen resultados:
                 resultado.vendedores,
                 'vendedor'
             );
+
+            // =================================================
+            // 📚 APRENDIZAJE DEL DICCIONARIO COMERCIAL
+            // =================================================
+
+            try {
+
+                const equivalenciasIA =
+                    Array.isArray(resultado.equivalencias)
+                        ? resultado.equivalencias
+                        : [];
+
+                const mensajesPorId = new Map(
+                    mensajesSeguros.map(m => [
+                        m.id,
+                        normalizarTextoEmbedding(m.texto)
+                    ])
+                );
+
+                const idsComerciales = new Set([
+                    ...compradores.map(c => c.id),
+                    ...vendedores.map(v => v.id)
+                ]);
+
+                const idsDiccionarioProcesados = new Set();
+                const equivalenciasValidas = [];
+
+                for (const item of equivalenciasIA.slice(0, mensajes.length)) {
+
+                    if (
+                        !item ||
+                        !idsComerciales.has(item.id) ||
+                        idsPendientes.has(item.id) ||
+                        resultadoSinIdValido ||
+                        idsDiccionarioProcesados.has(item.id)
+                    ) {
+                        continue;
+                    }
+
+                    const originalSeguro = validarTextoIA(
+                        item.termino_original,
+                        200
+                    );
+
+                    const normalizadoSeguro = validarTextoIA(
+                        item.termino_normalizado,
+                        200
+                    );
+
+                    const contextoSeguro = validarTextoIA(
+                        item.contexto,
+                        200
+                    );
+
+                    const original = validarTerminoDiccionario(
+                        originalSeguro
+                    );
+
+                    const normalizado = validarTerminoDiccionario(
+                        normalizadoSeguro
+                    );
+
+                    const contexto = validarTerminoDiccionario(
+                        contextoSeguro
+                    );
+
+                    if (
+                        !original ||
+                        !normalizado ||
+                        !contexto ||
+                        original === normalizado
+                    ) {
+                        continue;
+                    }
+
+                    const mensajeOriginal =
+                        mensajesPorId.get(item.id);
+
+                    if (!mensajeOriginal) {
+                        continue;
+                    }
+
+                    // Escapar caracteres especiales antes
+                    // de construir la expresión regular.
+                    const terminoEscapado = original.replace(
+                        /[.*+?^${}()|[\]\\]/g,
+                        '\\$&'
+                    );
+
+                    const patron = new RegExp(
+                        '(?:^|[^\\p{L}\\p{M}\\p{N}])' +
+                        terminoEscapado +
+                        '(?=$|[^\\p{L}\\p{M}\\p{N}])',
+                        'u'
+                    );
+
+                    // La expresión debe existir realmente
+                    // dentro del mensaje analizado.
+                    if (!patron.test(mensajeOriginal)) {
+                        continue;
+                    }
+
+                    idsDiccionarioProcesados.add(item.id);
+
+                    equivalenciasValidas.push({
+                        termino_original: original,
+                        termino_normalizado: normalizado,
+                        contexto
+                    });
+                }
+
+                console.log(
+                    '>>> 📚 [DICCIONARIO] Equivalencias propuestas:',
+                    equivalenciasIA.length
+                );
+
+                console.log(
+                    '>>> 📚 [DICCIONARIO] Equivalencias válidas:',
+                    equivalenciasValidas.length
+                );
+
+                await registrarEquivalenciasDiccionario(
+                    equivalenciasValidas
+                );
+
+            } catch (errorDiccionario) {
+
+                console.error(
+                    '>>> ❌ [DICCIONARIO] Error de registro:',
+                    errorDiccionario.code ||
+                    errorDiccionario.name
+                );
+
+                // Un fallo del diccionario no debe impedir
+                // la extracción de compradores y vendedores.
+            }
 
             console.log(
                 '>>> 🛒 [DETECTOR] Compradores encontrados:',
@@ -1901,6 +2093,179 @@ function calcularHashEmbedding(texto) {
         .createHash('sha256')
         .update(texto, 'utf8')
         .digest('hex');
+}
+
+// ============================================================
+// 📚 DICCIONARIO DINÁMICO DE EMBEDDINGS
+// ============================================================
+
+function validarTerminoDiccionario(valor) {
+
+    if (
+        typeof valor !== 'string' ||
+        valor.length > 200
+    ) {
+        return null;
+    }
+
+    const termino = normalizarTextoEmbedding(valor);
+
+    if (
+        !termino ||
+        termino.length > 200 ||
+        !/\p{L}/u.test(termino) ||
+        !/^[\p{L}\p{M}\p{N} .-]+$/u.test(termino)
+    ) {
+        return null;
+    }
+
+    return termino;
+}
+
+async function registrarEquivalenciasDiccionario(items) {
+
+    if (!Array.isArray(items)) {
+        return 0;
+    }
+
+    const equivalencias = new Map();
+
+    for (const item of items.slice(0, 1000)) {
+
+        if (!item || typeof item !== 'object') {
+            continue;
+        }
+
+        const original = validarTerminoDiccionario(
+            item.termino_original
+        );
+
+        const normalizado = validarTerminoDiccionario(
+            item.termino_normalizado
+        );
+
+        const contexto = validarTerminoDiccionario(
+            item.contexto
+        );
+
+        if (
+            !original ||
+            !normalizado ||
+            !contexto ||
+            original === normalizado
+        ) {
+            continue;
+        }
+
+        const clave = JSON.stringify([
+            original,
+            normalizado,
+            contexto
+        ]);
+
+        const existente = equivalencias.get(clave);
+
+        if (existente) {
+
+            existente.detecciones++;
+
+        } else {
+
+            equivalencias.set(clave, {
+                original,
+                normalizado,
+                contexto,
+                detecciones: 1
+            });
+        }
+    }
+
+    if (equivalencias.size === 0) {
+        return 0;
+    }
+
+    const registros = Array.from(
+        equivalencias.values()
+    );
+
+    const resultado = await pool.query(
+        `
+        INSERT INTO embeddings.diccionario (
+            termino_original,
+            termino_normalizado,
+            contexto,
+            origen,
+            detecciones,
+            estado
+        )
+        SELECT
+            datos.original,
+            datos.normalizado,
+            datos.contexto,
+            'chat',
+            datos.detecciones,
+            'pendiente'
+        FROM unnest(
+            $1::text[],
+            $2::text[],
+            $3::text[],
+            $4::integer[]
+        ) AS datos(
+            original,
+            normalizado,
+            contexto,
+            detecciones
+        )
+        ON CONFLICT ON CONSTRAINT diccionario_unicos
+        DO UPDATE SET
+            detecciones =
+                embeddings.diccionario.detecciones +
+                EXCLUDED.detecciones,
+            ultima_deteccion = NOW()
+        WHERE embeddings.diccionario.estado <> 'rechazado'
+        `,
+        [
+            registros.map(r => r.original),
+            registros.map(r => r.normalizado),
+            registros.map(r => r.contexto),
+            registros.map(r => r.detecciones)
+        ]
+    );
+
+    console.log(
+        '>>> 📚 [DICCIONARIO] Equivalencias registradas o actualizadas:',
+        resultado.rowCount
+    );
+
+    return resultado.rowCount;
+}
+
+async function consultarEquivalenciasDiccionario(termino) {
+
+    const original = validarTerminoDiccionario(
+        termino
+    );
+
+    if (!original) {
+        return [];
+    }
+
+    const resultado = await pool.query(
+        `
+        SELECT
+            termino_original,
+            termino_normalizado,
+            contexto
+        FROM embeddings.diccionario
+        WHERE termino_original = $1
+          AND estado = 'aprobado'
+        ORDER BY contexto, termino_normalizado
+        LIMIT 100
+        `,
+        [original]
+    );
+
+    return resultado.rows;
 }
 
 function prepararTextoProductoEmbedding(producto) {
