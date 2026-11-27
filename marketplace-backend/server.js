@@ -3126,86 +3126,241 @@ async function buscarProductosSemanticos(
 
     const inicio = Date.now();
 
-    // Obtener vector de consulta desde PostgreSQL
-    // o generarlo si todavía no existe.
-    const vectorConsulta = await obtenerEmbedding(
-        texto,
+    // ==========================================
+    // 1. RECONOCIMIENTO DEL TERMINO
+    // ==========================================
+
+    const reconocimiento = await pool.query(
+        `SELECT termino_detectado
+         FROM embeddings.reconocer_termino($1, FALSE)
+         LIMIT 1`,
+        [texto]
+    );
+
+    const textoA = normalizarTextoEmbedding(
+        reconocimiento.rows[0]?.termino_detectado || texto
+    );
+
+    // ==========================================
+    // 2. EQUIVALENCIAS APROBADAS
+    // ==========================================
+
+    const diccionario = await pool.query(
+        `SELECT termino_normalizado
+         FROM embeddings.diccionario
+         WHERE termino_original = $1
+           AND estado = 'aprobado'
+         GROUP BY termino_normalizado
+         ORDER BY
+            MAX(detecciones) DESC,
+            MAX(fecha_validacion) DESC NULLS LAST,
+            termino_normalizado ASC
+         LIMIT 100`,
+        [textoA]
+    );
+
+    const equivalencias = [...new Set(
+        diccionario.rows.map(
+            fila => normalizarTextoEmbedding(
+                fila.termino_normalizado
+            )
+        )
+    )].filter(
+        termino =>
+            termino.length >= 2 &&
+            termino !== textoA
+    ).slice(0, 4);
+
+    const tieneEquivalencias = equivalencias.length > 0;
+
+    console.log(
+        '>>> [H MULTIPLE] CONSULTA',
+        {
+            original: texto,
+            corregida: textoA,
+            equivalencias,
+            cantidad: equivalencias.length
+        }
+    );
+
+    // ==========================================
+    // 3. EMBEDDINGS Y CACHE
+    // ==========================================
+
+    await prepararEmbeddingsConsultasLote(
+        [textoA, ...equivalencias]
+    );
+
+    const vectorA = await obtenerEmbedding(
+        textoA,
         'query'
     );
 
+    const vectoresB = [];
+
+    for (const equivalencia of equivalencias) {
+
+        const vector = await obtenerEmbedding(
+            equivalencia,
+            'query'
+        );
+
+        vectoresB.push(vector.embedding);
+    }
+
+    // Si no existen equivalencias, mantener
+    // la búsqueda semántica tradicional.
+
     const inicioPostgres = Date.now();
 
-    // Buscar exclusivamente dentro del inventario
-    // interno de MiMarketplace.
+    // ==========================================
+    // 4. SIMILITUD A Y MAXIMO B POR PRODUCTO
+    // ==========================================
+
     const resultado = await pool.query(
-        `SELECT
-            p.id,
-            p.nombre,
-            p.descripcion,
-            p.precio,
-            p.categoria,
-            p.subcategoria,
-            p.provincia,
-            p.canton,
-            p.pais,
-            p.imagen_destacada,
-            p.imagen_miniatura,
-            p.imagen_url,
-            pv.vector_id,
-            v.texto_normalizado AS texto_vectorizado,
-            1 - (
-                v.embedding <=> $1::public.vector
-            ) AS similitud
+        `WITH candidatos AS MATERIALIZED (
 
-         FROM public.productos_app p
+            SELECT
+                p.id,
+                p.nombre,
+                p.descripcion,
+                p.precio,
+                p.categoria,
+                p.subcategoria,
+                p.provincia,
+                p.canton,
+                p.pais,
+                p.imagen_destacada,
+                p.imagen_miniatura,
+                p.imagen_url,
+                pv.vector_id,
+                v.texto_normalizado AS texto_vectorizado,
+                v.embedding,
 
-         INNER JOIN embeddings.productos_vectores pv
-            ON pv.producto_id = p.id
+                1 - (
+                    v.embedding <=> $1::public.vector
+                ) AS similitud_a
 
-         INNER JOIN embeddings.vectores v
-            ON v.id = pv.vector_id
+            FROM public.productos_app p
 
-         WHERE p.estado = 'activo'
-           AND p.estado_moderacion = 'aprobado'
-           AND COALESCE(p.vendido, FALSE) = FALSE
+            INNER JOIN embeddings.productos_vectores pv
+                ON pv.producto_id = p.id
 
-           AND (
-               p.fecha_expiracion IS NULL
-               OR p.fecha_expiracion > NOW()
-           )
+            INNER JOIN embeddings.vectores v
+                ON v.id = pv.vector_id
 
-           AND (
-               $2::text IS NULL
-               OR p.pais = $2
-               OR p.pais IS NULL
-           )
+            WHERE p.estado = 'activo'
+              AND p.estado_moderacion = 'aprobado'
+              AND COALESCE(p.vendido, FALSE) = FALSE
 
-           AND v.modelo = $3
-           AND v.revision_modelo = $4
-           AND v.version_embedding = $5
-           AND v.version_normalizacion = $6
-           AND v.rol = 'passage'
+              AND (
+                  p.fecha_expiracion IS NULL
+                  OR p.fecha_expiracion > NOW()
+              )
 
-         ORDER BY
-            v.embedding <=> $1::public.vector ASC,
-            p.id ASC
+              AND (
+                  $2::text IS NULL
+                  OR p.pais = $2
+                  OR p.pais IS NULL
+              )
 
-         LIMIT $7`,
+              AND v.modelo = $3
+              AND v.revision_modelo = $4
+              AND v.version_embedding = $5
+              AND v.version_normalizacion = $6
+              AND v.rol = 'passage'
+
+              AND (
+                  1 - (
+                      v.embedding <=> $1::public.vector
+                  )
+              ) >= CASE
+                  WHEN $8::boolean THEN 0.88
+                  ELSE 0.85
+              END
+        ),
+
+        similitudes AS (
+
+            SELECT
+                c.*,
+
+                CASE
+
+                    WHEN $8::boolean THEN (
+
+                        SELECT MAX(
+                            1 - (
+                                c.embedding
+                                <=> b.vector_b
+                            )
+                        )
+
+                        FROM unnest(
+                            $7::public.vector[]
+                        ) AS b(vector_b)
+
+                    )
+
+                    ELSE c.similitud_a
+
+                END AS similitud_b
+
+            FROM candidatos c
+        )
+
+        SELECT
+            id,
+            nombre,
+            descripcion,
+            precio,
+            categoria,
+            subcategoria,
+            provincia,
+            canton,
+            pais,
+            imagen_destacada,
+            imagen_miniatura,
+            imagen_url,
+            vector_id,
+            texto_vectorizado,
+            similitud_a,
+            similitud_b,
+
+            (
+                similitud_a + similitud_b
+            ) / 2.0 AS similitud
+
+        FROM similitudes
+
+        WHERE similitud_b >= 0.80
+
+          AND (
+              similitud_a + similitud_b
+          ) / 2.0 >= 0.85
+
+        ORDER BY
+            similitud DESC,
+            id ASC`,
+
         [
-            vectorConsulta.embedding,
+            vectorA.embedding,
             pais,
             CONFIG_EMBEDDINGS.modelo,
             CONFIG_EMBEDDINGS.revision,
             CONFIG_EMBEDDINGS.version,
             CONFIG_EMBEDDINGS.versionNormalizacion,
-            limite
+            vectoresB,
+            tieneEquivalencias
         ]
     );
 
     const tiempoPostgres = Date.now() - inicioPostgres;
 
-    // Evitar utilizar vectores desactualizados
-    // mientras el sincronizador procesa una edición.
+    // ==========================================
+    // 5. DESCARTAR VECTORES DESACTUALIZADOS
+    // ==========================================
+
     const productos = [];
 
     for (const producto of resultado.rows) {
@@ -3237,22 +3392,78 @@ async function buscarProductosSemanticos(
 
         productos.push({
             ...datos,
+            similitud_a: Number(producto.similitud_a),
+            similitud_b: Number(producto.similitud_b),
             similitud: Number(producto.similitud)
         });
     }
 
+    // ==========================================
+    // 6. RECORTE ADAPTATIVO H
+    // ==========================================
+
+    const cantidad = productos.length;
+
+    let porcentaje = 0;
+
+    if (tieneEquivalencias) {
+
+        porcentaje =
+            cantidad <= 3 ? 0 :
+            cantidad <= 5 ? 60 :
+            cantidad <= 10 ? 70 :
+            cantidad <= 20 ? 80 :
+            cantidad <= 50 ? 90 :
+            95;
+    }
+
+    const eliminados = Math.floor(
+        cantidad * porcentaje / 100
+    );
+
+    const conservar = cantidad - eliminados;
+
+    const finales = productos
+        .slice(0, conservar)
+        .slice(0, limite);
+
+    // ==========================================
+    // 7. DIAGNOSTICO
+    // ==========================================
+
     console.log(
-        '>>> 🔎 [BUSQUEDA SEMANTICA]',
+        '>>> [H MULTIPLE] RESULTADO',
         {
-            candidatos: resultado.rows.length,
-            resultados: productos.length,
-            cache: vectorConsulta.cache,
+            consulta: textoA,
+            modo: tieneEquivalencias
+                ? 'H_MULTIPLE'
+                : 'TRADICIONAL',
+            equivalencias: equivalencias.length,
+            candidatos_sql: resultado.rows.length,
+            candidatos_validos: cantidad,
+            porcentaje_recorte: porcentaje,
+            eliminados,
+            resultados: finales.length,
             postgres_ms: tiempoPostgres,
             total_ms: Date.now() - inicio
         }
     );
 
-    return productos;
+    for (const producto of finales) {
+
+        console.log(
+            '>>> [H MULTIPLE] PRODUCTO',
+            {
+                id: producto.id,
+                nombre: producto.nombre,
+                a: producto.similitud_a,
+                b: producto.similitud_b,
+                promedio: producto.similitud
+            }
+        );
+    }
+
+    return finales;
 }
 
 async function alertaSancion(uid, mensaje, tipo) {
