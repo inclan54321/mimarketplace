@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/swipe_indicator.dart';
 import '../services/producto_service.dart';
@@ -27,6 +28,18 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _modoBusqueda = false;
   List<Producto> _resultadosBusqueda = [];
   String _busqueda = '';
+
+  // 🔎 CONTROL DEL BUSCADOR HÍBRIDO
+  Timer? _timerBusquedaTextual;
+  Timer? _timerBusquedaSemantica;
+
+  int _versionBusqueda = 0;
+
+  bool _buscandoTexto = false;
+  bool _buscandoSemantica = false;
+
+  List<Producto> _resultadosTextuales = [];
+  List<Producto> _resultadosSemanticos = [];
   List<String> _bloqueados = [];
   List<Producto> _productosDestacados = []; // 🔥 NUEVA VARIABLE
   String _codigoPais = 'CR'; // 🌍 país del usuario (según su IP al registrarse)
@@ -139,12 +152,21 @@ final TextEditingController _busquedaController = TextEditingController();
 
   Future<void> _cargarBloqueados() async {
     final nuevos = await _obtenerBloqueados();
+
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
       _bloqueados = nuevos;
+
       _productosDestacados = _productosDestacados
           .where((p) => !nuevos.contains(p.vendedorId ?? ''))
           .toList();
+
+      _combinarResultadosBusqueda();
     });
+
     print('>>> BLOQUEADOS ACTUALIZADOS: $_bloqueados');
   }
 String get _claveCacheDestacados =>
@@ -409,6 +431,305 @@ Future<void> _cargarProductosDestacados() async {
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 1),
         ),
+      );
+    }
+  }
+
+  // ============================================================
+  // 🔎 BUSCADOR HÍBRIDO DE MIMARKETPLACE
+  // ============================================================
+
+  bool _busquedaVigente(int version) {
+    return mounted && version == _versionBusqueda;
+  }
+
+  void _cambiarBusqueda(String value) {
+
+    _timerBusquedaTextual?.cancel();
+    _timerBusquedaSemantica?.cancel();
+
+    final version = ++_versionBusqueda;
+    final consulta = value.trim();
+
+    final consultaValida =
+        consulta.length >= 2 &&
+        consulta.length <= 200;
+
+    setState(() {
+      _busqueda = value;
+      _modoBusqueda = consulta.isNotEmpty;
+
+      _resultadosBusqueda = [];
+      _resultadosTextuales = [];
+      _resultadosSemanticos = [];
+
+      _buscandoTexto = consultaValida;
+      _buscandoSemantica =
+          consultaValida && consulta.length >= 3;
+    });
+
+    if (!consultaValida) {
+      return;
+    }
+
+    // 🔎 Búsqueda textual rápida.
+    _timerBusquedaTextual = Timer(
+      const Duration(milliseconds: 300),
+      () {
+        unawaited(
+          _ejecutarBusqueda(
+            consulta,
+            version,
+            semantica: false,
+          ),
+        );
+      },
+    );
+
+    // 🧠 Búsqueda semántica después de escribir.
+    if (consulta.length >= 3) {
+
+      _timerBusquedaSemantica = Timer(
+        const Duration(milliseconds: 1200),
+        () {
+
+          if (!_busquedaVigente(version)) {
+            return;
+          }
+
+          unawaited(
+            _ejecutarBusqueda(
+              consulta,
+              version,
+              semantica: true,
+            ),
+          );
+
+          unawaited(
+            _registrarBusqueda(consulta, version),
+          );
+        },
+      );
+    }
+  }
+
+  // 🔥 COMBINAR RESULTADOS SIN DUPLICADOS
+  void _combinarResultadosBusqueda() {
+
+    final ids = <int>{};
+    final combinados = <Producto>[];
+
+    for (final producto in [
+      ..._resultadosTextuales,
+      ..._resultadosSemanticos,
+    ]) {
+
+      if (_bloqueados.contains(producto.vendedorId ?? '')) {
+        continue;
+      }
+
+      if (ids.add(producto.id)) {
+        combinados.add(producto);
+      }
+    }
+
+    _resultadosBusqueda = combinados;
+  }
+
+  // 🔥 CONSULTAR BACKEND
+  Future<void> _ejecutarBusqueda(
+    String consulta,
+    int version, {
+    required bool semantica,
+  }) async {
+
+    final tipo = semantica ? 'SEMANTICA' : 'TEXTUAL';
+    final cronometro = Stopwatch()..start();
+
+    try {
+
+      if (!_busquedaVigente(version)) {
+        return;
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      final uid = user?.uid;
+      final idToken = await user?.getIdToken();
+
+      if (
+        !_busquedaVigente(version) ||
+        FirebaseAuth.instance.currentUser?.uid != uid
+      ) {
+        return;
+      }
+
+      if (user != null && idToken == null) {
+        throw StateError('Token no disponible');
+      }
+
+      final ruta = semantica
+          ? '/api/productos/buscar-semantica'
+          : '/api/productos/buscar';
+
+      final uri = Uri.https(
+        'mimarketplace-production.up.railway.app',
+        ruta,
+        {'q': consulta},
+      );
+
+      print('>>> 🔎 [BUSQUEDA $tipo] Iniciada');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          if (idToken != null)
+            'Authorization': 'Bearer $idToken',
+        },
+      ).timeout(
+        Duration(seconds: semantica ? 30 : 10),
+      );
+
+      // 🔐 Ignorar respuestas de búsquedas anteriores.
+      if (
+        !_busquedaVigente(version) ||
+        FirebaseAuth.instance.currentUser?.uid != uid
+      ) {
+        print('>>> ⏭️ [BUSQUEDA $tipo] Respuesta descartada');
+        return;
+      }
+
+      if (response.statusCode != 200) {
+
+        print(
+          '>>> ⚠️ [BUSQUEDA $tipo] HTTP ${response.statusCode}',
+        );
+
+        return;
+      }
+
+      final List data = jsonDecode(response.body);
+
+      final productos = data
+          .where((p) {
+
+            final vendedorId =
+                p['vendedor_id']?.toString() ?? '';
+
+            return !_bloqueados.contains(vendedorId);
+          })
+          .map((json) => Producto.fromJson(json))
+          .toList();
+
+      setState(() {
+
+        if (semantica) {
+          _resultadosSemanticos = productos;
+        } else {
+          _resultadosTextuales = productos;
+        }
+
+        _combinarResultadosBusqueda();
+      });
+
+      print(
+        '>>> ✅ [BUSQUEDA $tipo] '
+        'Recibidos: ${productos.length} | '
+        'Combinados: ${_resultadosBusqueda.length} | '
+        'Tiempo: ${cronometro.elapsedMilliseconds} ms',
+      );
+
+    } catch (e) {
+
+      if (_busquedaVigente(version)) {
+
+        print(
+          '>>> ⚠️ [BUSQUEDA $tipo] Error: ${e.runtimeType}',
+        );
+      }
+
+    } finally {
+
+      cronometro.stop();
+
+      if (_busquedaVigente(version)) {
+
+        setState(() {
+
+          if (semantica) {
+            _buscandoSemantica = false;
+          } else {
+            _buscandoTexto = false;
+          }
+        });
+      }
+    }
+  }
+
+  // 🔥 REGISTRAR LA BÚSQUEDA SIN BLOQUEAR LOS RESULTADOS
+  Future<void> _registrarBusqueda(
+    String consulta,
+    int version,
+  ) async {
+
+    try {
+
+      if (!_busquedaVigente(version)) {
+        return;
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        return;
+      }
+
+      final idToken = await user.getIdToken();
+
+      if (
+        !_busquedaVigente(version) ||
+        FirebaseAuth.instance.currentUser?.uid != user.uid ||
+        idToken == null
+      ) {
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse(
+          'https://mimarketplace-production.up.railway.app/api/busquedas-app',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'usuario_id': user.uid,
+          'termino': consulta,
+        }),
+      ).timeout(
+        const Duration(seconds: 10),
+      );
+
+      if (response.statusCode == 201) {
+
+        print('>>> ✅ [BUSQUEDA] Término registrado');
+
+      } else if (response.statusCode == 403) {
+
+        print(
+          '>>> ⛔ No se guardó búsqueda: usuario sin consentimiento',
+        );
+
+      } else {
+
+        print(
+          '>>> ⚠️ Error al guardar búsqueda: ${response.statusCode}',
+        );
+      }
+
+    } catch (e) {
+
+      print(
+        '>>> ⚠️ Error al registrar búsqueda: ${e.runtimeType}',
       );
     }
   }
@@ -893,82 +1214,7 @@ Future<void> _cargarProductosDestacados() async {
                                   isDense: true,
                                   contentPadding: const EdgeInsets.symmetric(vertical: 8),
                                 ),
-                              onChanged: (value) async {
-  setState(() {
-    _busqueda = value;
-    _modoBusqueda = value.isNotEmpty;
-  });
-
-  // 🔥 GUARDAR BÚSQUEDA (solo si tiene 3+ caracteres)
-  if (value.length >= 3) {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      if (uid.isNotEmpty) {
-        final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-        final guardarResponse = await http.post(
-          Uri.parse('https://mimarketplace-production.up.railway.app/api/busquedas-app'),
-          headers: {
-            'Content-Type': 'application/json',
-            if (idToken != null) 'Authorization': 'Bearer $idToken',
-          },
-          body: jsonEncode({
-            'usuario_id': uid,
-            'termino': value,
-          }),
-        );
-        
-        if (guardarResponse.statusCode == 201) {
-          print('>>> ✅ Búsqueda guardada: $value');
-        } else if (guardarResponse.statusCode == 403) {
-          print('>>> ⛔ No se guardó búsqueda: usuario sin consentimiento');
-        } else {
-          print('>>> Error al guardar búsqueda: ${guardarResponse.statusCode}');
-        }
-      }
-    } catch (e) {
-      print('Error al guardar búsqueda: $e');
-    }
-  }
-
-  // 🔥 BUSCAR PRODUCTOS (con token)
-  if (value.length >= 2) {
-    try {
-      final idTokenBuscar = await FirebaseAuth.instance.currentUser?.getIdToken();
-      final response = await http.get(
-        Uri.parse('https://mimarketplace-production.up.railway.app/api/productos/buscar?q=${Uri.encodeComponent(value)}'),
-        headers: {
-          if (idTokenBuscar != null) 'Authorization': 'Bearer $idTokenBuscar',
-        },
-      );
-      if (response.statusCode == 200) {
-        final List data = jsonDecode(response.body);
-        print('>>> PRODUCTOS ANTES DE FILTRAR: ${data.length}');
-        
-        // 🔥 FILTRO AQUÍ 🔥
-        final filtrados = data.where((p) {
-          final vendedorId = p['vendedor_id']?.toString() ?? '';
-          final bool estaBloqueado = _bloqueados.contains(vendedorId);
-          if (estaBloqueado) {
-            print('>>> PRODUCTO BLOQUEADO: ${p['nombre']}');
-          }
-          return !estaBloqueado;
-        }).toList();
-        
-        print('>>> PRODUCTOS DESPUÉS DE FILTRAR: ${filtrados.length}');
-        
-        setState(() {
-          _resultadosBusqueda = filtrados.map((json) => Producto.fromJson(json)).toList();
-        });
-      }
-    } catch (e) {
-      print('Error al buscar: $e');
-    }
-  } else {
-    setState(() {
-      _resultadosBusqueda = [];
-    });
-  }
-},
+                                  onChanged: _cambiarBusqueda,
                               ),
                             ),
                             if (_busqueda.isNotEmpty)
@@ -977,11 +1223,7 @@ Future<void> _cargarProductosDestacados() async {
                                 onPressed: () {
                                   _busquedaController.clear();
                                   FocusScope.of(context).unfocus();
-                                  setState(() {
-                                    _busqueda = '';
-                                    _modoBusqueda = false;
-                                    _resultadosBusqueda = [];
-                                  });
+                                  _cambiarBusqueda('');
                                 },
                               ),
                             const SizedBox(width: 4),
@@ -1108,15 +1350,38 @@ Future<void> _cargarProductosDestacados() async {
             // 🔥 CONTENIDO PRINCIPAL
             _modoBusqueda
                 ? _resultadosBusqueda.isEmpty
-                    ? Center(
-                        child: Text(
-                          AppLocalizations.of(context)!.noHayResultados,
-                          style: const TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      )
+                    ? (_buscandoTexto || _buscandoSemantica)
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF087FE8),
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              AppLocalizations.of(context)!.noHayResultados,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          )
                     : Builder(
                         builder: (context) {
                           final filtrados = _aplicarFiltros(_resultadosBusqueda);
+
+                          if (
+                            filtrados.isEmpty &&
+                            (_buscandoTexto || _buscandoSemantica)
+                          ) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF087FE8),
+                                strokeWidth: 2.5,
+                              ),
+                            );
+                          }
+
                           if (filtrados.isEmpty) {
                             return Center(
                               child: Padding(
@@ -1207,6 +1472,14 @@ Future<void> _cargarProductosDestacados() async {
                                   ),
                                 ),
                               ),
+
+                              if (_buscandoTexto || _buscandoSemantica)
+                                const LinearProgressIndicator(
+                                  minHeight: 2,
+                                  color: Color(0xFF087FE8),
+                                  backgroundColor: Color(0xFFE5E7EB),
+                                ),
+
                               Expanded(
                                 child: GridView.builder(
                                   padding: const EdgeInsets.all(12),
@@ -1766,7 +2039,15 @@ Future<void> _cargarProductosDestacados() async {
   }
   @override
   void dispose() {
+
+    _timerBusquedaTextual?.cancel();
+    _timerBusquedaSemantica?.cancel();
+
+    _versionBusqueda++;
+
+    _scrollController.dispose();
     _busquedaController.dispose();
+
     super.dispose();
   }
 }

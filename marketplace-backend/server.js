@@ -5836,6 +5836,383 @@ const CONFIG_BUSQUEDA_DETECTOR = Object.freeze({
 
 let ultimaBusquedaLoteDetector = 0;
 
+let cruceWhatsAppProcesando = false;
+let ultimoCruceWhatsApp = 0;
+
+app.post(
+    '/api/detector/cruzar-whatsapp',
+    verificarTokenDetector,
+    async (req, res) => {
+
+        res.setHeader('Cache-Control', 'no-store');
+
+        const {
+            compradores,
+            vendedores
+        } = req.body || {};
+
+        const validarLote = (items, maximo) => {
+
+            if (
+                !Array.isArray(items) ||
+                items.length === 0 ||
+                items.length > maximo
+            ) {
+                return false;
+            }
+
+            const ids = new Set();
+
+            for (const item of items) {
+
+                if (
+                    !item ||
+                    !Number.isSafeInteger(item.id) ||
+                    item.id < 0 ||
+                    ids.has(item.id) ||
+                    typeof item.producto !== 'string' ||
+                    item.producto.length > 160 ||
+                    normalizarTextoEmbedding(
+                        item.producto
+                    ).length < 2 ||
+                    /https?:\/\/|www\.|@|\d{7,}/i.test(
+                        item.producto
+                    )
+                ) {
+                    return false;
+                }
+
+                ids.add(item.id);
+            }
+
+            return true;
+        };
+
+        if (
+            !validarLote(compradores, 25) ||
+            !validarLote(vendedores, 100)
+        ) {
+            return res.status(400).json({
+                error: 'Lote comercial invalido'
+            });
+        }
+
+        if (
+            cruceWhatsAppProcesando ||
+            Date.now() - ultimoCruceWhatsApp < 1000
+        ) {
+            return res.status(429).json({
+                error: 'Cruce comercial ocupado'
+            });
+        }
+
+        cruceWhatsAppProcesando = true;
+        ultimoCruceWhatsApp = Date.now();
+
+        const inicio = Date.now();
+
+        try {
+
+            console.log(
+                '>>> [CRUCE WHATSAPP] INICIO',
+                {
+                    compradores: compradores.length,
+                    vendedores: vendedores.length
+                }
+            );
+
+            const reglas =
+                await cargarTerminosProhibidos();
+
+            const vendedoresValidos =
+                vendedores.filter(item =>
+                    !detectarTerminoProhibido(
+                        item.producto,
+                        reglas
+                    )
+                );
+
+            const vectoresVendedores = new Map();
+
+            const catalogo = [];
+
+            for (const vendedor of vendedoresValidos) {
+
+                const texto =
+                    normalizarTextoEmbedding(
+                        vendedor.producto
+                    );
+
+                if (!vectoresVendedores.has(texto)) {
+
+                    const vector =
+                        await obtenerEmbedding(
+                            texto,
+                            'passage'
+                        );
+
+                    vectoresVendedores.set(
+                        texto,
+                        vector.embedding
+                    );
+                }
+
+                catalogo.push({
+                    id: vendedor.id,
+                    embedding:
+                        vectoresVendedores.get(texto)
+                });
+            }
+
+            const resultados = [];
+
+            for (const comprador of compradores) {
+
+                if (
+                    detectarTerminoProhibido(
+                        comprador.producto,
+                        reglas
+                    ) ||
+                    catalogo.length === 0
+                ) {
+
+                    resultados.push({
+                        id: comprador.id,
+                        coincidencias: [],
+                        tiene_equivalencias: false
+                    });
+
+                    continue;
+                }
+
+                const texto =
+                    normalizarTextoEmbedding(
+                        comprador.producto
+                    );
+
+                const reconocimiento =
+                    await pool.query(
+                        `SELECT termino_detectado
+                         FROM embeddings.reconocer_termino(
+                             $1, FALSE
+                         )
+                         LIMIT 1`,
+                        [texto]
+                    );
+
+                const textoA =
+                    normalizarTextoEmbedding(
+                        reconocimiento.rows[0]
+                            ?.termino_detectado || texto
+                    );
+
+                const diccionario =
+                    await pool.query(
+                        `SELECT termino_normalizado
+                         FROM embeddings.diccionario
+                         WHERE termino_original = $1
+                           AND estado = 'aprobado'
+                         GROUP BY termino_normalizado
+                         ORDER BY
+                            MAX(detecciones) DESC,
+                            MAX(fecha_validacion)
+                                DESC NULLS LAST,
+                            termino_normalizado ASC
+                         LIMIT 100`,
+                        [textoA]
+                    );
+
+                const equivalencias = [
+                    ...new Set(
+                        diccionario.rows.map(fila =>
+                            normalizarTextoEmbedding(
+                                fila.termino_normalizado
+                            )
+                        )
+                    )
+                ].filter(termino =>
+                    termino.length >= 2 &&
+                    termino !== textoA
+                ).slice(0, 4);
+
+                const tieneEquivalencias =
+                    equivalencias.length > 0;
+
+                await prepararEmbeddingsConsultasLote(
+                    [textoA, ...equivalencias]
+                );
+
+                const vectorA =
+                    await obtenerEmbedding(
+                        textoA,
+                        'query'
+                    );
+
+                const vectoresB = [];
+
+                for (const equivalencia of equivalencias) {
+
+                    const vector =
+                        await obtenerEmbedding(
+                            equivalencia,
+                            'query'
+                        );
+
+                    vectoresB.push(vector.embedding);
+                }
+
+                const resultado = await pool.query(
+                    `WITH catalogo AS (
+
+                        SELECT *
+                        FROM unnest(
+                            $1::integer[],
+                            $2::public.vector[]
+                        ) AS c(id, embedding)
+
+                    ),
+
+                    candidatos AS (
+
+                        SELECT
+                            id,
+                            embedding,
+                            1 - (
+                                embedding
+                                <=> $3::public.vector
+                            ) AS similitud_a
+
+                        FROM catalogo
+
+                    ),
+
+                    similitudes AS (
+
+                        SELECT
+                            id,
+                            similitud_a,
+
+                            CASE
+                                WHEN $5::boolean THEN (
+
+                                    SELECT MAX(
+                                        1 - (
+                                            candidatos.embedding
+                                            <=> b.vector_b
+                                        )
+                                    )
+
+                                    FROM unnest(
+                                        $4::public.vector[]
+                                    ) AS b(vector_b)
+
+                                )
+                                ELSE similitud_a
+                            END AS similitud_b
+
+                        FROM candidatos
+
+                        WHERE similitud_a >= CASE
+                            WHEN $5::boolean THEN 0.88
+                            ELSE 0.85
+                        END
+                    )
+
+                    SELECT
+                        id AS vendedor_id,
+                        similitud_a,
+                        similitud_b,
+                        (
+                            similitud_a + similitud_b
+                        ) / 2.0 AS similitud
+
+                    FROM similitudes
+
+                    WHERE similitud_b >= 0.80
+
+                      AND (
+                          similitud_a + similitud_b
+                      ) / 2.0 >= 0.85
+
+                    ORDER BY
+                        similitud DESC,
+                        id ASC`,
+
+                    [
+                        catalogo.map(item => item.id),
+                        catalogo.map(item => item.embedding),
+                        vectorA.embedding,
+                        vectoresB,
+                        tieneEquivalencias
+                    ]
+                );
+
+                const coincidencias =
+                    resultado.rows.map(item => ({
+                        vendedor_id: item.vendedor_id,
+                        similitud_a: Number(
+                            item.similitud_a
+                        ),
+                        similitud_b: Number(
+                            item.similitud_b
+                        ),
+                        similitud: Number(
+                            item.similitud
+                        )
+                    }));
+
+                resultados.push({
+                    id: comprador.id,
+                    coincidencias,
+                    tiene_equivalencias:
+                        tieneEquivalencias
+                });
+
+                console.log(
+                    '>>> [CRUCE WHATSAPP] RESULTADO',
+                    {
+                        comprador_id: comprador.id,
+                        equivalencias:
+                            equivalencias.length,
+                        candidatos:
+                            coincidencias.length
+                    }
+                );
+            }
+
+            console.log(
+                '>>> [CRUCE WHATSAPP] FINALIZADO',
+                {
+                    consultas: resultados.length,
+                    vectores_unicos:
+                        vectoresVendedores.size,
+                    tiempo_ms: Date.now() - inicio
+                }
+            );
+
+            return res.json({
+                resultados,
+                tiempo_ms: Date.now() - inicio
+            });
+
+        } catch (error) {
+
+            console.error(
+                '>>> [CRUCE WHATSAPP] ERROR:',
+                error.code || error.message
+            );
+
+            return res.status(500).json({
+                error: 'Error en cruce comercial'
+            });
+
+        } finally {
+
+            cruceWhatsAppProcesando = false;
+        }
+    }
+);
+
 app.post(
     '/api/detector/buscar-productos-lote',
     verificarTokenDetector,
