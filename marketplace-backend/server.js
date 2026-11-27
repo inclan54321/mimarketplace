@@ -4553,7 +4553,7 @@ NO agregues texto adicional. SOLO el JSON.`;
                 }
             ],
             temperature: 0.1,
-            max_tokens: 1600,
+            max_tokens: 3000,
         }, {
             headers: {
                 'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -4591,6 +4591,17 @@ NO agregues texto adicional. SOLO el JSON.`;
                     }
                 }
 
+                console.log('>>> 🔍 [MODERACION] RESULTADO FINAL:', {
+                    producto: nombre,
+                    aprobado: resultado.aprobado === true,
+                    motivo: resultado.aprobado === true
+                        ? 'Producto permitido'
+                        : resultado.motivo || 'Producto no permitido',
+                    equivalencias: Array.isArray(resultado.equivalencias)
+                        ? resultado.equivalencias.length
+                        : 0
+                });
+
                 return {
                     aprobado: resultado.aprobado === true,
                     motivo: resultado.motivo || 'Producto no permitido'
@@ -4601,17 +4612,33 @@ NO agregues texto adicional. SOLO el JSON.`;
             }
         }
 
-        console.log('>>> ❌ No se encontró JSON válido. Edición bloqueada.');
+        console.error('>>> ❌ [MODERACION] PRODUCTO RECHAZADO POR ERROR TECNICO:', {
+            producto: nombre,
+            motivo: 'DeepSeek no devolvió un JSON válido',
+            finish_reason: response.data.choices[0].finish_reason,
+            tokensEntrada: response.data.usage?.prompt_tokens,
+            tokensSalida: response.data.usage?.completion_tokens,
+            tokensTotales: response.data.usage?.total_tokens,
+            longitudRespuesta: text.length,
+            respuestaTruncada:
+                response.data.choices[0].finish_reason === 'length',
+            respuesta: text
+        });
 return {
     aprobado: false,
     motivo: 'No fue posible verificar el contenido. Inténtalo nuevamente.'
 };
 
     } catch (error) {
-        console.error('Error en moderarProductoConGemini:', error.message);
-if (error.response) {
-    console.error('>>> Detalles:', error.response.status, error.response.data);
-}
+        console.error('>>> ❌ [MODERACION] ERROR DE EJECUCION:', {
+            producto: nombre,
+            motivo: error.message,
+            codigo: error.code || null,
+            estadoHTTP: error.response?.status || null,
+            tiempoAgotado:
+                error.code === 'ECONNABORTED' ||
+                error.code === 'ETIMEDOUT'
+        });
 
 return {
     aprobado: false,
