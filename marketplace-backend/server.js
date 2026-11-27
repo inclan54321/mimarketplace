@@ -2288,7 +2288,8 @@ async function registrarEquivalenciasDiccionario(items, origen = 'chat') {
             contexto,
             origen,
             detecciones,
-            estado
+            estado,
+            fecha_validacion
         )
         SELECT
             datos.original,
@@ -2296,24 +2297,51 @@ async function registrarEquivalenciasDiccionario(items, origen = 'chat') {
             datos.contexto,
             $5::text,
             datos.detecciones,
-            'pendiente'
+            CASE
+                WHEN $5::text = 'marketplace'
+                    AND datos.validacion_exacta
+                THEN 'aprobado'
+                ELSE 'pendiente'
+            END,
+            CASE
+                WHEN $5::text = 'marketplace'
+                    AND datos.validacion_exacta
+                THEN NOW()
+                ELSE NULL
+            END
         FROM unnest(
             $1::text[],
             $2::text[],
             $3::text[],
-            $4::integer[]
+            $4::integer[],
+            $6::boolean[]
         ) AS datos(
             original,
             normalizado,
             contexto,
-            detecciones
+            detecciones,
+            validacion_exacta
         )
         ON CONFLICT ON CONSTRAINT diccionario_unicos
         DO UPDATE SET
             detecciones =
                 embeddings.diccionario.detecciones +
                 EXCLUDED.detecciones,
-            ultima_deteccion = NOW()
+            ultima_deteccion = NOW(),
+            estado = CASE
+                WHEN embeddings.diccionario.estado = 'pendiente'
+                    AND embeddings.diccionario.origen = 'marketplace'
+                    AND EXCLUDED.estado = 'aprobado'
+                THEN 'aprobado'
+                ELSE embeddings.diccionario.estado
+            END,
+            fecha_validacion = CASE
+                WHEN embeddings.diccionario.estado = 'pendiente'
+                    AND embeddings.diccionario.origen = 'marketplace'
+                    AND EXCLUDED.estado = 'aprobado'
+                THEN NOW()
+                ELSE embeddings.diccionario.fecha_validacion
+            END
         WHERE embeddings.diccionario.estado <> 'rechazado'
         `,
         [
@@ -2321,13 +2349,23 @@ async function registrarEquivalenciasDiccionario(items, origen = 'chat') {
             registros.map(r => r.normalizado),
             registros.map(r => r.contexto),
             registros.map(r => r.detecciones),
-            origen
+            origen,
+            registros.map(r => r.validacionExacta === true)
         ]
     );
 
     console.log(
         '>>> 📚 [DICCIONARIO] Equivalencias registradas o actualizadas:',
         resultado.rowCount
+    );
+
+    console.log(
+        '>>> 📚 [DICCIONARIO] Candidatas a aprobación automática:',
+        origen === 'marketplace'
+            ? registros.filter(
+                r => r.validacionExacta === true
+            ).length
+            : 0
     );
 
     return resultado.rowCount;
