@@ -2159,7 +2159,12 @@ function validarEquivalenciaComercial(original, normalizado, item) {
     const numeros = texto =>
         (texto.match(/\d+/g) || []).sort().join('|');
 
-    if (numeros(original) !== numeros(normalizado)) {
+    const numerosOriginal = original.match(/\d+/g) || [];
+    const numerosNormalizado = normalizado.match(/\d+/g) || [];
+
+    if (!numerosOriginal.every(
+        numero => numerosNormalizado.includes(numero)
+    )) {
         return false;
     }
 
