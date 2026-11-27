@@ -2300,13 +2300,13 @@ async function registrarEquivalenciasDiccionario(items, origen = 'chat') {
             $5::text,
             datos.detecciones,
             CASE
-                WHEN $5::text = 'marketplace'
+                WHEN $5::text IN ('marketplace', 'chat')
                     AND datos.validacion_exacta
                 THEN 'aprobado'
                 ELSE 'pendiente'
             END,
             CASE
-                WHEN $5::text = 'marketplace'
+                WHEN $5::text IN ('marketplace', 'chat')
                     AND datos.validacion_exacta
                 THEN NOW()
                 ELSE NULL
@@ -2332,14 +2332,14 @@ async function registrarEquivalenciasDiccionario(items, origen = 'chat') {
             ultima_deteccion = NOW(),
             estado = CASE
                 WHEN embeddings.diccionario.estado = 'pendiente'
-                    AND embeddings.diccionario.origen = 'marketplace'
+                    AND embeddings.diccionario.origen IN ('marketplace', 'chat')
                     AND EXCLUDED.estado = 'aprobado'
                 THEN 'aprobado'
                 ELSE embeddings.diccionario.estado
             END,
             fecha_validacion = CASE
                 WHEN embeddings.diccionario.estado = 'pendiente'
-                    AND embeddings.diccionario.origen = 'marketplace'
+                    AND embeddings.diccionario.origen IN ('marketplace', 'chat')
                     AND EXCLUDED.estado = 'aprobado'
                 THEN NOW()
                 ELSE embeddings.diccionario.fecha_validacion
@@ -2363,11 +2363,12 @@ async function registrarEquivalenciasDiccionario(items, origen = 'chat') {
 
     console.log(
         '>>> 📚 [DICCIONARIO] Candidatas a aprobación automática:',
-        origen === 'marketplace'
-            ? registros.filter(
+        {
+            origen,
+            cantidad: registros.filter(
                 r => r.validacionExacta === true
             ).length
-            : 0
+        }
     );
 
     return resultado.rowCount;
