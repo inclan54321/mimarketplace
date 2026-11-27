@@ -701,6 +701,381 @@ async function registrarTerminosProhibidos(
     return idsProhibidos;
 }
 
+// ============================================================
+// ADMINISTRACION PRIVADA DE TERMINOS PROHIBIDOS
+// ============================================================
+
+function validarReglaProhibida(datos) {
+
+    if (!datos || typeof datos !== 'object') {
+        return null;
+    }
+
+    const categorias = [
+        'drogas',
+        'armas',
+        'animales_vivos',
+        'articulos_eroticos',
+        'equipo_medico',
+        'celulares',
+        'consolas_videojuegos'
+    ];
+
+    const expresion = normalizarTextoProhibido(
+        datos.expresion
+    );
+
+    const tipo = datos.tipo_coincidencia;
+
+    const contexto = tipo === 'exacta'
+        ? ''
+        : normalizarTextoProhibido(datos.contexto);
+
+    if (
+        expresion.length < 2 ||
+        expresion.length > 200 ||
+        contexto.length > 200 ||
+        !categorias.includes(datos.categoria) ||
+        !['exacta', 'contextual'].includes(tipo) ||
+        !['pendiente', 'aprobado', 'rechazado'].includes(
+            datos.estado
+        ) ||
+        (tipo === 'contextual' && !contexto)
+    ) {
+        return null;
+    }
+
+    return {
+        expresion,
+        categoria: datos.categoria,
+        contexto,
+        tipo_coincidencia: tipo,
+        estado: datos.estado
+    };
+}
+
+// CONSULTAR DICCIONARIO
+
+app.get(
+    '/api/detector/prohibidos',
+    verificarTokenDetector,
+    async (req, res) => {
+
+        res.setHeader('Cache-Control', 'no-store');
+
+        try {
+
+            const estado = req.query.estado || null;
+
+            if (
+                estado !== null &&
+                !['pendiente', 'aprobado', 'rechazado'].includes(estado)
+            ) {
+                return res.status(400).json({
+                    error: 'Estado invalido'
+                });
+            }
+
+            const pagina = Number(req.query.pagina || 1);
+
+            if (
+                !Number.isSafeInteger(pagina) ||
+                pagina < 1 ||
+                pagina > 100000
+            ) {
+                return res.status(400).json({
+                    error: 'Pagina invalida'
+                });
+            }
+
+            const resultado = await pool.query(`
+                SELECT *
+                FROM embeddings.terminos_prohibidos
+                WHERE (
+                    $1::text IS NULL
+                    OR estado = $1
+                )
+                ORDER BY
+                    detecciones DESC,
+                    id DESC
+                LIMIT 100
+                OFFSET $2
+            `, [
+                estado,
+                (pagina - 1) * 100
+            ]);
+
+            const conteos = await pool.query(`
+                SELECT
+                    COUNT(*) FILTER (
+                        WHERE estado = 'pendiente'
+                    )::integer AS pendientes,
+
+                    COUNT(*) FILTER (
+                        WHERE estado = 'aprobado'
+                        AND tipo_coincidencia = 'exacta'
+                    )::integer AS directas,
+
+                    COUNT(*) FILTER (
+                        WHERE estado = 'aprobado'
+                        AND tipo_coincidencia = 'contextual'
+                    )::integer AS contextuales,
+
+                    COUNT(*) FILTER (
+                        WHERE estado = 'rechazado'
+                    )::integer AS rechazadas
+
+                FROM embeddings.terminos_prohibidos
+            `);
+
+            return res.json({
+                reglas: resultado.rows,
+                conteos: conteos.rows[0],
+                pagina
+            });
+
+        } catch (error) {
+
+            console.error(
+                '>>> [PROHIBIDOS ADMIN] Error de consulta:',
+                error.code || error.name
+            );
+
+            return res.status(500).json({
+                error: 'No se pudo consultar el diccionario'
+            });
+        }
+    }
+);
+
+// AGREGAR REGLA MANUAL
+
+app.post(
+    '/api/detector/prohibidos',
+    verificarTokenDetector,
+    async (req, res) => {
+
+        res.setHeader('Cache-Control', 'no-store');
+
+        const regla = validarReglaProhibida(req.body);
+
+        if (!regla) {
+            return res.status(400).json({
+                error: 'Regla invalida'
+            });
+        }
+
+        try {
+
+            const resultado = await pool.query(`
+                INSERT INTO embeddings.terminos_prohibidos (
+                    expresion,
+                    categoria,
+                    contexto,
+                    tipo_coincidencia,
+                    origen,
+                    estado,
+                    fecha_validacion
+                )
+                VALUES (
+                    $1,
+                    $2,
+                    $3,
+                    $4,
+                    'manual',
+                    $5,
+                    CASE
+                        WHEN $5::text = 'aprobado'
+                        THEN NOW()
+                        ELSE NULL
+                    END
+                )
+                RETURNING *
+            `, [
+                regla.expresion,
+                regla.categoria,
+                regla.contexto,
+                regla.tipo_coincidencia,
+                regla.estado
+            ]);
+
+            console.log(
+                '>>> [PROHIBIDOS ADMIN] Regla creada:',
+                resultado.rows[0].id
+            );
+
+            return res.status(201).json({
+                regla: resultado.rows[0]
+            });
+
+        } catch (error) {
+
+            if (error.code === '23505') {
+                return res.status(409).json({
+                    error: 'La regla ya existe'
+                });
+            }
+
+            console.error(
+                '>>> [PROHIBIDOS ADMIN] Error al crear:',
+                error.code || error.name
+            );
+
+            return res.status(500).json({
+                error: 'No se pudo crear la regla'
+            });
+        }
+    }
+);
+
+// EDITAR, APROBAR O DESACTIVAR REGLA
+
+app.patch(
+    '/api/detector/prohibidos/:id',
+    verificarTokenDetector,
+    async (req, res) => {
+
+        res.setHeader('Cache-Control', 'no-store');
+
+        const id = Number(req.params.id);
+
+        if (!Number.isSafeInteger(id) || id < 1) {
+            return res.status(400).json({
+                error: 'ID invalido'
+            });
+        }
+
+        const regla = validarReglaProhibida(req.body);
+
+        if (!regla) {
+            return res.status(400).json({
+                error: 'Regla invalida'
+            });
+        }
+
+        try {
+
+            const resultado = await pool.query(`
+                UPDATE embeddings.terminos_prohibidos
+                SET
+                    expresion = $2,
+                    categoria = $3,
+                    contexto = $4,
+                    tipo_coincidencia = $5,
+                    estado = $6,
+                    fecha_validacion = CASE
+                        WHEN $6::text = 'aprobado'
+                        THEN NOW()
+                        ELSE NULL
+                    END
+                WHERE id = $1
+                RETURNING *
+            `, [
+                id,
+                regla.expresion,
+                regla.categoria,
+                regla.contexto,
+                regla.tipo_coincidencia,
+                regla.estado
+            ]);
+
+            if (resultado.rowCount === 0) {
+                return res.status(404).json({
+                    error: 'Regla no encontrada'
+                });
+            }
+
+            console.log(
+                '>>> [PROHIBIDOS ADMIN] Regla actualizada:',
+                {
+                    id,
+                    estado: regla.estado,
+                    tipo: regla.tipo_coincidencia
+                }
+            );
+
+            return res.json({
+                regla: resultado.rows[0]
+            });
+
+        } catch (error) {
+
+            if (error.code === '23505') {
+                return res.status(409).json({
+                    error: 'Ya existe una regla equivalente'
+                });
+            }
+
+            console.error(
+                '>>> [PROHIBIDOS ADMIN] Error al actualizar:',
+                error.code || error.name
+            );
+
+            return res.status(500).json({
+                error: 'No se pudo actualizar la regla'
+            });
+        }
+    }
+);
+
+// RECHAZAR REGLA SIN BORRAR SU HISTORIAL
+
+app.delete(
+    '/api/detector/prohibidos/:id',
+    verificarTokenDetector,
+    async (req, res) => {
+
+        res.setHeader('Cache-Control', 'no-store');
+
+        const id = Number(req.params.id);
+
+        if (!Number.isSafeInteger(id) || id < 1) {
+            return res.status(400).json({
+                error: 'ID invalido'
+            });
+        }
+
+        try {
+
+            const resultado = await pool.query(`
+                UPDATE embeddings.terminos_prohibidos
+                SET
+                    estado = 'rechazado',
+                    fecha_validacion = NULL
+                WHERE id = $1
+                RETURNING id
+            `, [id]);
+
+            if (resultado.rowCount === 0) {
+                return res.status(404).json({
+                    error: 'Regla no encontrada'
+                });
+            }
+
+            console.log(
+                '>>> [PROHIBIDOS ADMIN] Regla rechazada:',
+                id
+            );
+
+            return res.json({
+                ok: true,
+                id
+            });
+
+        } catch (error) {
+
+            console.error(
+                '>>> [PROHIBIDOS ADMIN] Error al rechazar:',
+                error.code || error.name
+            );
+
+            return res.status(500).json({
+                error: 'No se pudo rechazar la regla'
+            });
+        }
+    }
+);
+
 app.post(
     '/api/detector/analizar',
     verificarTokenDetector,
