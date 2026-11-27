@@ -4667,6 +4667,20 @@ NO agregues texto adicional. SOLO el JSON.`;
                 const resultado = JSON.parse(jsonMatch[0]);
                 console.log('>>> ✅ JSON parseado (moderación):', resultado);
 
+console.log('>>> [EQUIVALENCIAS IA] Producto:', nombre);
+console.log('>>> [EQUIVALENCIAS IA] Aprobado:', resultado.aprobado);
+console.log('>>> [EQUIVALENCIAS IA] Cantidad:',
+    Array.isArray(resultado.equivalencias)
+        ? resultado.equivalencias.length
+        : 'CAMPO AUSENTE O INVALIDO'
+);
+
+if (Array.isArray(resultado.equivalencias)) {
+    for (const eq of resultado.equivalencias) {
+        console.log('>>> [EQUIVALENCIAS IA]', JSON.stringify(eq));
+    }
+}
+
                 if (
                     resultado.aprobado === true &&
                     Array.isArray(resultado.equivalencias)
