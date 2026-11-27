@@ -2209,7 +2209,9 @@ async function registrarEquivalenciasDiccionario(items, origen = 'chat') {
         );
 
         const contexto = validarTerminoDiccionario(
-            item.contexto
+            typeof item.contexto === 'string'
+                ? item.contexto.replace(/,/g, ' ')
+                : item.contexto
         );
 
         if (
