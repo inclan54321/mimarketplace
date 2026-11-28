@@ -12601,6 +12601,65 @@ app.get('/api/usuarios/:uid/ultima-conexion', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// ============================================================
+// 📊 ACTIVIDAD DIARIA ANÓNIMA
+// ============================================================
+
+app.post('/api/actividad-diaria', async (req, res) => {
+
+    res.set('Cache-Control', 'no-store');
+
+    if (
+        req.headers.authorization ||
+        (req.body && Object.keys(req.body).length > 0) ||
+        Object.keys(req.query).length > 0
+    ) {
+        return res.status(400).json({
+            error: 'La actividad debe ser anónima'
+        });
+    }
+
+    try {
+
+        const resultado = await pool.query(`
+            INSERT INTO public.actividad_diaria_anonima
+                (fecha, conexiones)
+            VALUES (
+                (NOW() AT TIME ZONE 'America/Costa_Rica')::date,
+                1
+            )
+            ON CONFLICT (fecha)
+            DO UPDATE SET
+                conexiones =
+                    actividad_diaria_anonima.conexiones + 1
+            RETURNING fecha::text AS fecha, conexiones
+        `);
+
+        console.log(
+            '>>> 📊 [ACTIVIDAD ANONIMA]',
+            resultado.rows[0].fecha,
+            '| Total:',
+            resultado.rows[0].conexiones
+        );
+
+        return res.status(200).json({
+            ok: true,
+            fecha: resultado.rows[0].fecha
+        });
+
+    } catch (error) {
+
+        console.error(
+            '>>> ❌ [ACTIVIDAD ANONIMA]',
+            error.message
+        );
+
+        return res.status(500).json({
+            error: 'No se pudo registrar la actividad'
+        });
+    }
+});
+
 app.get('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
     try {
         const { uid } = req.params;
@@ -12621,41 +12680,6 @@ app.get('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
-        }
-
-        // 📊 REGISTRAR ACTIVIDAD DIARIA DEL USUARIO
-        if (result.rows[0].acepta_recoleccion === true) {
-            pool.query(
-                `INSERT INTO public.actividad_diaria_usuarios
-                    (usuario_id, fecha)
-                 SELECT
-                    uid,
-                    (NOW() AT TIME ZONE 'America/Costa_Rica')::date
-                 FROM public.usuarios
-                 WHERE uid = $1
-                   AND acepta_recoleccion IS TRUE
-                 ON CONFLICT (usuario_id, fecha) DO NOTHING`,
-                [uid]
-            ).then(registro => {
-                if (registro.rowCount > 0) {
-                    console.log(
-                        '>>> 📊 [ACTIVIDAD DIARIA] Nuevo registro guardado'
-                    );
-                } else {
-                    console.log(
-                        '>>> 📊 [ACTIVIDAD DIARIA] Sin nuevo registro'
-                    );
-                }
-            }).catch(error => {
-                console.error(
-                    '>>> ❌ [ACTIVIDAD DIARIA] Error:',
-                    error.message
-                );
-            });
-        } else {
-            console.log(
-                '>>> ⏭️ [ACTIVIDAD DIARIA] Usuario sin consentimiento'
-            );
         }
 
         res.json(result.rows[0]);
