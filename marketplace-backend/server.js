@@ -12618,9 +12618,46 @@ app.get('/api/usuarios/:uid', verificarTokenFirebase, async (req, res) => {
             'SELECT uid, email, nombre, telefono, acepta_recoleccion, verificado, pais FROM usuarios WHERE uid = $1',
             [uid]
         );
+
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
+
+        // 📊 REGISTRAR ACTIVIDAD DIARIA DEL USUARIO
+        if (result.rows[0].acepta_recoleccion === true) {
+            pool.query(
+                `INSERT INTO public.actividad_diaria_usuarios
+                    (usuario_id, fecha)
+                 SELECT
+                    uid,
+                    (NOW() AT TIME ZONE 'America/Costa_Rica')::date
+                 FROM public.usuarios
+                 WHERE uid = $1
+                   AND acepta_recoleccion IS TRUE
+                 ON CONFLICT (usuario_id, fecha) DO NOTHING`,
+                [uid]
+            ).then(registro => {
+                if (registro.rowCount > 0) {
+                    console.log(
+                        '>>> 📊 [ACTIVIDAD DIARIA] Nuevo registro guardado'
+                    );
+                } else {
+                    console.log(
+                        '>>> 📊 [ACTIVIDAD DIARIA] Sin nuevo registro'
+                    );
+                }
+            }).catch(error => {
+                console.error(
+                    '>>> ❌ [ACTIVIDAD DIARIA] Error:',
+                    error.message
+                );
+            });
+        } else {
+            console.log(
+                '>>> ⏭️ [ACTIVIDAD DIARIA] Usuario sin consentimiento'
+            );
+        }
+
         res.json(result.rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
