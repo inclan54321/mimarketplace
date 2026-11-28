@@ -708,6 +708,18 @@ app.post(
                 nuevos.length
             );
 
+            console.log(
+                '>>> [FACEBOOK DEEPSEEK] Productos enviados:',
+                JSON.stringify(
+                    nuevos.map(p => ({
+                        id: p.id,
+                        nombre: p.nombre
+                    })),
+                    null,
+                    2
+                )
+            );
+
             if (nuevos.length === 0) {
                 return res.json({
                     ok: true,
@@ -745,6 +757,11 @@ Para cada título:
     direcciones.
 12. No confundas productos relacionados con equivalentes.
 13. Conserva los identificadores originales.
+14. Incluye siempre un campo motivo con una explicación
+    breve y concreta de la decisión.
+15. Si rechazas un producto, explica exactamente por qué.
+16. Devuelve un resultado por cada identificador recibido.
+17. No incluyas datos personales en el motivo.
 
 Devuelve exclusivamente JSON:
 
@@ -753,6 +770,7 @@ Devuelve exclusivamente JSON:
         {
             "id": 0,
             "permitido": true,
+            "motivo": "Producto comercial identificado claramente",
             "nombre_normalizado": "estante para Hot Wheels",
             "equivalencias": [
                 {
@@ -814,6 +832,11 @@ Devuelve exclusivamente JSON:
                 throw new Error('FACEBOOK_RESPUESTA_INCOMPLETA');
             }
 
+            console.log(
+                '>>> [FACEBOOK DEEPSEEK] RESPUESTA COMPLETA:',
+                JSON.stringify(choice.message.content)
+            );
+
             const analisis = JSON.parse(
                 choice.message.content
             );
@@ -849,6 +872,16 @@ Devuelve exclusivamente JSON:
 
                 if (item.permitido !== true) {
 
+                    console.log(
+                        '>>> [FACEBOOK DEEPSEEK] PRODUCTO RECHAZADO:',
+                        JSON.stringify({
+                            id: producto.id,
+                            nombre_original: producto.nombre,
+                            permitido: item.permitido,
+                            motivo: item.motivo || 'Sin motivo informado'
+                        })
+                    );
+
                     resultados.push({
                         id: producto.id,
                         estado: 'descartado'
@@ -862,13 +895,31 @@ Devuelve exclusivamente JSON:
                     500
                 );
 
+                const reglaProhibidaNormalizada =
+                    nombreNormalizado
+                        ? detectarTerminoProhibido(
+                            nombreNormalizado,
+                            reglas
+                        )
+                        : null;
+
                 if (
                     !nombreNormalizado ||
-                    detectarTerminoProhibido(
-                        nombreNormalizado,
-                        reglas
-                    )
+                    reglaProhibidaNormalizada
                 ) {
+
+                    console.log(
+                        '>>> [FACEBOOK BACKEND] PRODUCTO RECHAZADO:',
+                        JSON.stringify({
+                            id: producto.id,
+                            nombre_original: producto.nombre,
+                            nombre_normalizado: nombreNormalizado,
+                            motivo: !nombreNormalizado
+                                ? 'Nombre normalizado invalido'
+                                : 'Termino prohibido',
+                            regla: reglaProhibidaNormalizada
+                        })
+                    );
 
                     resultados.push({
                         id: producto.id,
@@ -877,6 +928,17 @@ Devuelve exclusivamente JSON:
 
                     continue;
                 }
+
+                console.log(
+                    '>>> [FACEBOOK DEEPSEEK] PRODUCTO ACEPTADO:',
+                    JSON.stringify({
+                        id: producto.id,
+                        nombre_original: producto.nombre,
+                        nombre_normalizado: nombreNormalizado,
+                        motivo: item.motivo,
+                        equivalencias: item.equivalencias
+                    })
+                );
 
                 const vector = await obtenerEmbedding(
                     nombreNormalizado,
@@ -1022,6 +1084,15 @@ Devuelve exclusivamente JSON:
             }
 
             try {
+
+                console.log(
+                    '>>> [FACEBOOK DICCIONARIO] EQUIVALENCIAS VALIDADAS:',
+                    JSON.stringify(
+                        equivalenciasValidas,
+                        null,
+                        2
+                    )
+                );
 
                 await registrarEquivalenciasDiccionario(
                     equivalenciasValidas,
