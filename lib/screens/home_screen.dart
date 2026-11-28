@@ -21,7 +21,11 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
+
+  static bool _reportandoActividad = false;
+  Timer? _timerActividadDiaria;
   bool _showSwipeIndicator = true;
   final ScrollController _scrollController = ScrollController();
   
@@ -74,6 +78,25 @@ final TextEditingController _busquedaController = TextEditingController();
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_registrarActividadDiaria());
+      }
+    });
+
+    _timerActividadDiaria = Timer.periodic(
+      const Duration(minutes: 5),
+      (_) {
+        if (WidgetsBinding.instance.lifecycleState ==
+            AppLifecycleState.resumed) {
+          unawaited(_registrarActividadDiaria());
+        }
+      },
+    );
+
     _scrollController.addListener(() {
       if (_scrollController.offset > 0 && _showSwipeIndicator) {
         setState(() {
@@ -89,6 +112,105 @@ final TextEditingController _busquedaController = TextEditingController();
   }
 
   // 🌍 Muestra al instante el país guardado y lo actualiza desde el servidor
+  // ============================================================
+  // 📊 ACTIVIDAD DIARIA ANÓNIMA
+  // ============================================================
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_registrarActividadDiaria());
+    }
+  }
+
+  String _fechaActividadCostaRica() {
+    final ahora = DateTime.now()
+        .toUtc()
+        .subtract(const Duration(hours: 6));
+
+    final mes = ahora.month.toString().padLeft(2, '0');
+    final dia = ahora.day.toString().padLeft(2, '0');
+
+    return '${ahora.year}-$mes-$dia';
+  }
+
+  Future<void> _registrarActividadDiaria() async {
+    if (!mounted || _reportandoActividad) return;
+
+    _reportandoActividad = true;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      const clave = 'ultima_actividad_anonima';
+
+      final hoy = _fechaActividadCostaRica();
+
+      if (prefs.getString(clave) == hoy) {
+        return;
+      }
+
+      if (!mounted) return;
+
+      if (WidgetsBinding.instance.lifecycleState !=
+          AppLifecycleState.resumed) {
+        return;
+      }
+
+      print('>>> 📊 [ACTIVIDAD ANONIMA] Enviando reporte');
+
+      final response = await http.post(
+        Uri.https(
+          'mimarketplace-production.up.railway.app',
+          '/api/actividad-diaria',
+        ),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        print(
+          '>>> ⚠️ [ACTIVIDAD ANONIMA] HTTP ${response.statusCode}',
+        );
+        return;
+      }
+
+      final data = jsonDecode(response.body);
+
+      if (data is! Map ||
+          data['ok'] != true ||
+          data['fecha'] is! String) {
+        return;
+      }
+
+      final fechaServidor = data['fecha'] as String;
+
+      if (!RegExp(r'^\d{4}-\d{2}-\d{2}$')
+          .hasMatch(fechaServidor)) {
+        return;
+      }
+
+      final guardado = await prefs.setString(
+        clave,
+        fechaServidor,
+      );
+
+      if (!guardado) {
+        print('>>> ⚠️ [ACTIVIDAD ANONIMA] Error al guardar fecha');
+        return;
+      }
+
+      print(
+        '>>> ✅ [ACTIVIDAD ANONIMA] Registrada: $fechaServidor',
+      );
+
+    } catch (e) {
+      print(
+        '>>> ⚠️ [ACTIVIDAD ANONIMA] Error: ${e.runtimeType}',
+      );
+    } finally {
+      _reportandoActividad = false;
+    }
+  }
+
   Future<void> _cargarPais() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -2039,6 +2161,9 @@ Future<void> _cargarProductosDestacados() async {
   }
   @override
   void dispose() {
+
+    WidgetsBinding.instance.removeObserver(this);
+    _timerActividadDiaria?.cancel();
 
     _timerBusquedaTextual?.cancel();
     _timerBusquedaSemantica?.cancel();
