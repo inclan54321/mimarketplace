@@ -1247,6 +1247,48 @@ app.post(
 
         res.setHeader('Cache-Control', 'no-store');
 
+        const latitudComprador = req.body?.latitud;
+        const longitudComprador = req.body?.longitud;
+        const pesoKg = req.body?.peso_kg;
+
+        const ubicacionValida =
+            Number.isFinite(latitudComprador) &&
+            Number.isFinite(longitudComprador) &&
+            latitudComprador >= 8 &&
+            latitudComprador <= 12 &&
+            longitudComprador >= -86 &&
+            longitudComprador <= -82;
+
+        const pesoValido =
+            Number.isFinite(pesoKg) &&
+            pesoKg > 0;
+
+        let radioKm = null;
+
+        if (pesoValido) {
+            if (pesoKg <= 1) {
+                radioKm = 100;
+            } else if (pesoKg <= 5) {
+                radioKm = 30;
+            } else if (pesoKg <= 20) {
+                radioKm = 25;
+            } else {
+                radioKm = 30;
+            }
+        }
+
+        console.log(
+            '>>> [FACEBOOK PROXIMIDAD]',
+            JSON.stringify({
+                latitud: ubicacionValida
+                    ? latitudComprador : null,
+                longitud: ubicacionValida
+                    ? longitudComprador : null,
+                peso_kg: pesoValido ? pesoKg : null,
+                radio_km: radioKm
+            })
+        );
+
         const texto = limpiarTextoFacebook(
             req.body?.producto,
             200
@@ -1345,6 +1387,48 @@ app.post(
                         f.ultima_deteccion,
                         v.embedding,
 
+                        CASE
+                            WHEN $8::double precision IS NOT NULL
+                                AND $9::double precision IS NOT NULL
+                                AND f.latitud IS NOT NULL
+                                AND f.longitud IS NOT NULL
+                            THEN
+                                6371.0088 * 2 * ASIN(
+                                    SQRT(
+                                        LEAST(
+                                            1.0,
+                                            GREATEST(
+                                                0.0,
+                                                POWER(
+                                                    SIN(
+                                                        RADIANS(
+                                                            f.latitud -
+                                                            $8::double precision
+                                                        ) / 2.0
+                                                    ),
+                                                    2
+                                                )
+                                                +
+                                                COS(RADIANS($8::double precision))
+                                                *
+                                                COS(RADIANS(f.latitud))
+                                                *
+                                                POWER(
+                                                    SIN(
+                                                        RADIANS(
+                                                            f.longitud -
+                                                            $9::double precision
+                                                        ) / 2.0
+                                                    ),
+                                                    2
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            ELSE NULL
+                        END AS distancia_km,
+
                         1 - (
                             v.embedding <=> $1::public.vector
                         ) AS similitud_a
@@ -1408,6 +1492,20 @@ app.post(
                     longitud,
                     url_publicacion,
                     ultima_deteccion,
+
+                    ROUND(
+                        distancia_km::numeric, 2
+                    )::double precision AS distancia_km,
+
+                    $10::double precision AS radio_maximo_km,
+
+                    CASE
+                        WHEN distancia_km IS NULL
+                            OR $10::double precision IS NULL
+                        THEN 'pendiente'
+                        ELSE 'dentro_del_radio'
+                    END AS estado_geografico,
+
                     similitud_a,
                     similitud_b,
 
@@ -1423,7 +1521,22 @@ app.post(
                         similitud_a + similitud_b
                     ) / 2.0 >= 0.85
 
-                ORDER BY similitud DESC, id ASC
+                    AND (
+                        distancia_km IS NULL
+                        OR $10::double precision IS NULL
+                        OR distancia_km <= $10::double precision
+                    )
+
+                ORDER BY
+                    CASE
+                        WHEN distancia_km IS NULL
+                            OR $10::double precision IS NULL
+                        THEN 1
+                        ELSE 0
+                    END ASC,
+                    distancia_km ASC NULLS LAST,
+                    similitud DESC,
+                    id ASC
 
                 LIMIT 100
 
@@ -1434,7 +1547,10 @@ app.post(
                 CONFIG_EMBEDDINGS.modelo,
                 CONFIG_EMBEDDINGS.revision,
                 CONFIG_EMBEDDINGS.version,
-                CONFIG_EMBEDDINGS.versionNormalizacion
+                CONFIG_EMBEDDINGS.versionNormalizacion,
+                ubicacionValida ? latitudComprador : null,
+                ubicacionValida ? longitudComprador : null,
+                radioKm
             ]);
 
             const coincidencias = resultado.rows.filter(
@@ -1451,6 +1567,23 @@ app.post(
             console.log(
                 '>>> [FACEBOOK] Coincidencias:',
                 coincidencias.length
+            );
+
+            console.log(
+                '>>> [FACEBOOK PROXIMIDAD] RESULTADOS:',
+                JSON.stringify(
+                    coincidencias.map(item => ({
+                        id: item.id,
+                        producto: item.nombre_normalizado,
+                        ubicacion: item.ubicacion_original,
+                        distancia_km: item.distancia_km,
+                        radio_maximo_km: item.radio_maximo_km,
+                        estado_geografico: item.estado_geografico,
+                        similitud: item.similitud
+                    })),
+                    null,
+                    2
+                )
             );
 
             return res.json({
