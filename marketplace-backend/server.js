@@ -658,12 +658,57 @@ app.post(
                     continue;
                 }
 
+                const provincia = limpiarTextoFacebook(
+                    item?.provincia, 100
+                );
+
+                const canton = limpiarTextoFacebook(
+                    item?.canton, 100
+                );
+
+                const distrito = limpiarTextoFacebook(
+                    item?.distrito, 100
+                );
+
+                const coordenadasValidas =
+                    Number.isFinite(item?.latitud) &&
+                    Number.isFinite(item?.longitud) &&
+                    item.latitud >= 8 &&
+                    item.latitud <= 12 &&
+                    item.longitud >= -86 &&
+                    item.longitud <= -82;
+
+                const latitud = coordenadasValidas
+                    ? item.latitud
+                    : null;
+
+                const longitud = coordenadasValidas
+                    ? item.longitud
+                    : null;
+
                 const producto = {
                     id: i,
                     nombre,
                     ubicacion,
-                    precio
+                    precio,
+                    provincia,
+                    canton,
+                    distrito,
+                    latitud,
+                    longitud
                 };
+
+                console.log(
+                    '>>> [FACEBOOK GEOGRAFIA]',
+                    JSON.stringify({
+                        ubicacion,
+                        provincia,
+                        canton,
+                        distrito,
+                        latitud,
+                        longitud
+                    })
+                );
 
                 producto.hash = calcularHashFacebook(producto);
 
@@ -682,6 +727,11 @@ app.post(
                         SET
                             detecciones = detecciones + 1,
                             ultima_deteccion = NOW(),
+                            provincia = COALESCE($2, provincia),
+                            canton = COALESCE($3, canton),
+                            distrito = COALESCE($4, distrito),
+                            latitud = COALESCE($5, latitud),
+                            longitud = COALESCE($6, longitud),
                             estado = CASE
                                 WHEN estado = 'caducada'
                                     AND vector_id IS NOT NULL
@@ -689,7 +739,14 @@ app.post(
                                 ELSE estado
                             END
                         WHERE id = $1
-                    `, [existente.rows[0].id]);
+                    `, [
+                        existente.rows[0].id,
+                        producto.provincia,
+                        producto.canton,
+                        producto.distrito,
+                        producto.latitud,
+                        producto.longitud
+                    ]);
 
                     resultados.push({
                         id: i,
@@ -997,10 +1054,22 @@ Devuelve exclusivamente JSON:
                             UPDATE embeddings.ofertas_facebook
                             SET
                                 detecciones = detecciones + 1,
-                                ultima_deteccion = NOW()
+                                ultima_deteccion = NOW(),
+                                provincia = COALESCE($2, provincia),
+                                canton = COALESCE($3, canton),
+                                distrito = COALESCE($4, distrito),
+                                latitud = COALESCE($5, latitud),
+                                longitud = COALESCE($6, longitud)
                             WHERE id = $1
                             RETURNING id
-                        `, [existente.rows[0].id]);
+                        `, [
+                            existente.rows[0].id,
+                            producto.provincia,
+                            producto.canton,
+                            producto.distrito,
+                            producto.latitud,
+                            producto.longitud
+                        ]);
 
                     } else {
 
@@ -1012,12 +1081,19 @@ Devuelve exclusivamente JSON:
                                 ubicacion_original,
                                 vector_id,
                                 hash_oferta,
+                                provincia,
+                                canton,
+                                distrito,
+                                latitud,
+                                longitud,
                                 estado,
                                 fecha_procesamiento
                             )
                             VALUES (
                                 $1, $2, $3, $4,
-                                $5, $6, 'activa', NOW()
+                                $5, $6, $7, $8,
+                                $9, $10, $11,
+                                'activa', NOW()
                             )
                             RETURNING id
                         `, [
@@ -1026,7 +1102,12 @@ Devuelve exclusivamente JSON:
                             producto.precio,
                             producto.ubicacion,
                             vector.id,
-                            producto.hash
+                            producto.hash,
+                            producto.provincia,
+                            producto.canton,
+                            producto.distrito,
+                            producto.latitud,
+                            producto.longitud
                         ]);
                     }
 
