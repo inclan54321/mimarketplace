@@ -743,8 +743,32 @@ Para cada título:
 3. Conserva marca, modelo, capacidad y dimensiones.
 4. No inventes características.
 5. No confundas productos con accesorios o repuestos.
-6. Si el título es ambiguo o incompleto, devuelve
-   permitido: false.
+6. Acepta títulos incompletos cuando sea posible
+   identificar razonablemente el tipo de producto.
+
+   No es obligatorio conocer la marca, modelo,
+   capacidad, dimensiones ni otras características.
+
+   Comprende abreviaturas, expresiones costarricenses,
+   errores ortográficos y errores de OCR.
+
+   Si una característica es incierta, omítela,
+   pero conserva el producto identificable.
+
+   Rechaza por ambigüedad únicamente cuando no sea
+   posible identificar razonablemente ningún producto.
+
+   Ejemplos:
+   - "Muñeca moter": muñeca.
+   - "Se vende cuadra 4x4": cuadraciclo 4x4.
+   - "Vendo refri": refrigerador.
+   - "Lavadora samsun": lavadora Samsung.
+   - "Mesa": mesa.
+   - "Para navidad en Tacares": rechazar.
+   - "Se vende": rechazar.
+
+   No inventes categorías prohibidas adicionales.
+   Mantén todas las restricciones de la regla 7.
 7. Rechaza las siguientes categorías:
    drogas, armas, animales vivos, artículos eróticos,
    equipo médico, celulares y consolas de videojuegos.
